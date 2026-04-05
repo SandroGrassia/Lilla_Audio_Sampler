@@ -27,6 +27,7 @@ The firmware is written for a hardware platform built around:
 - Teensy Audio Adaptor Rev D
 - 64 MB SPI flash memory
 - 16 MB total QSPI PSRAM
+- 4 FRAM chips
 - ILI9341 SPI display
 - MCP23S17 shift-register based I/O expansion
 - MIDI input and output
