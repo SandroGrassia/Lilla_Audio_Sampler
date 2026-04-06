@@ -1051,8 +1051,8 @@ void setup()
     SR_monitored_encoders_set[Sound_edit_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
     SR_monitored_pushbuttons_set[Sound_edit_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    SR_monitored_encoders_set[Instrument_Vcf_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23});
-    SR_monitored_pushbuttons_set[Instrument_Vcf_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_encoders_set[Instrument_Vcf_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
+    SR_monitored_pushbuttons_set[Instrument_Vcf_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     SR_monitored_encoders_set[Mixer_context] = Get_monitored_encoders({0, 3, 4, 7, 8, 15, 16, 19, 20});
     SR_monitored_pushbuttons_set[Mixer_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 15, 16, 19, 20, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
@@ -3155,6 +3155,7 @@ void loop()
         {
         case value_VCF_Gain_Volume:
         {
+            // Volume
             if (Lilla_state_0 == LIVE_SAMPLING)
             {
                 if (Read_encoder(EN_PB_Value, volume_patch, 40, 0, 1))
@@ -3170,6 +3171,7 @@ void loop()
                     }
                 }
             }
+            // Gain
             else
             {
                 if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
@@ -3188,6 +3190,9 @@ void loop()
         case value_VCF_FilterType:
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.type, 3, 0, 1))
             {
+                Serial.print("Filter.type: ");
+                Serial.println(Patch[Patch_id].Instrument[Instrument_id].Filter.type);
+
                 if (Lilla_state_0 == LIVE_SAMPLING)
                 {
                     Patch[Patch_id].Instrument[1].Filter.type = Patch[Patch_id].Instrument[0].Filter.type;
@@ -3213,7 +3218,6 @@ void loop()
                 Macro_VCF_filter_on_none();
                 Display_VCF.VCF_show_filter_type_value(Instrument_id);
             }
-
             break;
 
         case value_VCF_Cutoff:
@@ -3282,12 +3286,12 @@ void loop()
                     AudioInterrupts();
                 }
 
-                Display_VCF.VCF_show_lfo_Modulation(Instrument_id);
+                Display_VCF.VCF_show_LFO_modulation_source(Instrument_id);
             }
             else if (Read_pushbutton(EN_PB_Value) || Read_pushbutton(EN_PB_Select))
             {
                 Macro_VCF_modulation_none();
-                Display_VCF.VCF_show_lfo_Modulation(Instrument_id);
+                Display_VCF.VCF_show_LFO_modulation_source(Instrument_id);
             }
             break;
 
@@ -3315,7 +3319,7 @@ void loop()
                 }
                 AudioInterrupts();
 
-                Display_VCF.VCF_show_lfo_freq_time(Instrument_id);
+                Display_VCF.VCF_show_LFO_freq_time(Instrument_id);
             }
             break;
 
@@ -3334,7 +3338,7 @@ void loop()
                 }
                 AudioInterrupts();
 
-                Display_VCF.VCF_show_lfo_modulation_depth(Instrument_id);
+                Display_VCF.VCF_show_LFO_modulation_depth(Instrument_id);
             }
             break;
 

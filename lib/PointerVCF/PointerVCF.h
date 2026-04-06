@@ -17,7 +17,7 @@ class PointerVCF
 private:
     int pointer;
     int pointer_old;
-    static constexpr int pointer_max = 8;
+    static constexpr int pointer_max = VCF_value_names - 1;
     void Print_pointer_description(void);
 
 public:
