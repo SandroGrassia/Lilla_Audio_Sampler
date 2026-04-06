@@ -18,6 +18,24 @@
 class DisplayVCF
 {
 private:
+    // titles
+    static constexpr float VCF_column_row_LIVE_SAMPLER[2] = {0, 0};
+    static constexpr float VCF_column_row_PERFORMANCE[2] = {0, 0};
+    static constexpr float VCF_column_row_SOUND[2] = {23, 0};
+    static constexpr float VCF_column_row_SOUND_NUMBER[2] = {28.5, 0};
+    static constexpr float VCF_column_row_PATCH[2] = {35, 0};
+    static constexpr float VCF_column_row_GAIN[2] = {43, 0};
+    static constexpr float VCF_column_row_VOLUME[2] = {41, 0};
+    static constexpr float VCF_column_row_RETURN[2] = {0, 1};
+    static constexpr float VCF_column_row_VCF_LFO[2] = {0, 6.8};
+    static constexpr float VCF_column_row_FILTER_TYPE[2] = {0, 8};
+    static constexpr float VCF_column_row_CUTOFF[2] = {0, 9};
+    static constexpr float VCF_column_row_RESONANCE[2] = {0, 10};
+    static constexpr float VCF_column_row_MODULATION_SOURCE[2] = {0, 11};
+    static constexpr float VCF_column_row_MODULATION_FREQ_TIME[2] = {0, 12};
+    static constexpr float VCF_column_row_MODULATION_DEPTH[2] = {0, 13};
+
+
     // solo (constant value on this page)
     static constexpr float VCF_column_row_Solo[2] = {21.5, 5};
     static constexpr int VCF_chars_Solo = 8;
@@ -30,7 +48,7 @@ private:
     static constexpr float VCF_column_row_Resonance[2] = {10, 10};
     static constexpr float VCF_column_row_LFO_modulation_source[2] = {18, 11};
     static constexpr float VCF_column_row_LFO_frequancy_time[2] = {14, 12};
-    static constexpr float VCF_column_row_LFO_modulation_depth[2] = {10, 13};
+    static constexpr float VCF_column_row_LFO_modulation_depth[2] = {17, 13};
 
     static constexpr float VCF_column_row_value_element[VCF_value_names][2] =
         {

@@ -40,4 +40,4 @@ void Show_measure_unit(const char *what, const int lenght);
 void Delete_text_row(const float row); // delete text row
 
 void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color);
-void Show_Board(const float col, const float row, const int chars);
+void Backgorund_red(const float col, const float row, const int chars);

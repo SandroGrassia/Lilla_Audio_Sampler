@@ -51,7 +51,7 @@ void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color)
     tft.print(text);
 }
 
-void Show_Board(const float col, const float row, const int chars)
+void Backgorund_red(const float col, const float row, const int chars)
 {
     tft.fillRect(display_coordinate_x(col) - 4, display_coordinate_y(row) - 2, (6 * chars) + 7, 11, 0x9000); // fillRect(uint16_t x0, uint16_t y0, uint16_t width, uint16_t heigh, uint16_t color);
 }

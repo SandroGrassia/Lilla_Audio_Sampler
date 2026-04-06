@@ -216,7 +216,7 @@ void DisplayManager::P_show_PERFORMANCE_page(bool change_patch, bool change_vol)
 FLASHMEM
 void DisplayManager::P_show_PERFORMANCE_title(void)
 {
-    Show_Board(0, 0, 11); // Display.Show_Board(float col, float row, int chars)
+    Backgorund_red(0, 0, 11); // Display.Backgorund_red(float col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.setTextColor(ILI9341_WHITE);
     tft.print("PERFORMANCE");
@@ -492,7 +492,7 @@ void DisplayManager::Loop_Delete_all_frame_menu(void)
 FLASHMEM
 void DisplayManager::Loop_show_midi_loop_title(void)
 {
-    Show_Board(0, 0, 9); // Show_Board(float col, float row, int chars)
+    Backgorund_red(0, 0, 9); // Backgorund_red(float col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.setTextColor(ILI9341_WHITE);
     tft.print("MIDI LOOP");
@@ -609,7 +609,7 @@ void DisplayManager::D_show_page()
 
     if (Lilla_state_0 == PERFORMANCE)
     {
-        Show_Board(0, 0, 17); // DISPLAY_board(float col, float row, int chars)
+        Backgorund_red(0, 0, 17); // DISPLAY_board(float col, float row, int chars)
         tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
         tft.setTextColor(ILI9341_WHITE);
         tft.print("PERFORMANCE ");
@@ -619,7 +619,7 @@ void DisplayManager::D_show_page()
 
     else if (Lilla_state_0 == LIVE_SAMPLING)
     {
-        Show_Board(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
+        Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
         tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
         tft.setTextColor(ILI9341_WHITE);
         tft.print("LIVE SAMPLER ");
@@ -874,7 +874,7 @@ void DisplayManager::DS_page(int recording)
 {
     tft.fillScreen(ILI9341_BLACK);
 
-    Show_Board(0, 0, 7); // Display.Show_Board(float   col, float row, int chars)
+    Backgorund_red(0, 0, 7); // Display.Backgorund_red(float   col, float row, int chars)
     tft.setTextColor(ILI9341_WHITE);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.print("SAMPLER");
@@ -1377,7 +1377,7 @@ void DisplayManager::Midi_monitor_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
-    Show_Board(0, 0, 12); // Display.Board(float col, float row, int chars)
+    Backgorund_red(0, 0, 12); // Display.Board(float col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.setTextColor(ILI9341_WHITE);
     tft.print("MIDI MONITOR");
@@ -1450,7 +1450,7 @@ void DisplayManager::MX_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
-    Show_Board(0, 0, 5); // Display.Board(float   col, float row, int chars)
+    Backgorund_red(0, 0, 5); // Display.Board(float   col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.setTextColor(ILI9341_WHITE);
     tft.print("MIXER");
@@ -2052,7 +2052,7 @@ void DisplayManager::SETUP_show_SETUP_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
-    Show_Board(0, 0, 5); // Display.Board(float   col, float row, int chars)
+    Backgorund_red(0, 0, 5); // Display.Board(float   col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.setTextColor(ILI9341_WHITE);
     tft.print("SETUP");

@@ -82,7 +82,7 @@ FLASHMEM
 void DisplayLiveSampler::Page_title(void)
 {
     //("012345678901234567890"); // Size 1: 21 chars
-    Show_Board(0, 0, 12); // Display.Show_Board(float & col, float row, int chars)
+    Backgorund_red(0, 0, 12); // Display.Backgorund_red(float & col, float row, int chars)
     tft.setTextColor(ILI9341_WHITE);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.print("LIVE SAMPLER");
