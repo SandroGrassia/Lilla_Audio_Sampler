@@ -167,6 +167,7 @@
 #include "PointerPerformance.h"
 #include "PointerSound.h"
 #include "PointerVCF.h"
+#include "PointerMixer.h"
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -367,6 +368,7 @@ LillaFRAM_MB85RC_I2C FRAMchip;
 PointerPerformance Pointer_Performance;
 PointerSound Pointer_Sound;
 PointerVCF Pointer_VCF;
+PointerMixer Pointer_Mixer;
 
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************

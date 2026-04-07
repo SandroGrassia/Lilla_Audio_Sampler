@@ -7,10 +7,15 @@
 #pragma once
 
 #include <Arduino.h>
-#include "SharedElements.h"
 #include "config.h"
+#include "SharedMixer.h"
+#include "GlobalDisplayMixer.h"
 
+class PointerMixer
+{
+    private:
 
-extern uint8_t MX_source;
-extern uint8_t MX_routing_source[];
-extern bool MX_mute[];
+    public:
+    PointerMixer () {}
+
+};
