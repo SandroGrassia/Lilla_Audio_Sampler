@@ -3190,9 +3190,6 @@ void loop()
         case value_VCF_FilterType:
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.type, 3, 0, 1))
             {
-                Serial.print("Filter.type: ");
-                Serial.println(Patch[Patch_id].Instrument[Instrument_id].Filter.type);
-
                 if (Lilla_state_0 == LIVE_SAMPLING)
                 {
                     Patch[Patch_id].Instrument[1].Filter.type = Patch[Patch_id].Instrument[0].Filter.type;
