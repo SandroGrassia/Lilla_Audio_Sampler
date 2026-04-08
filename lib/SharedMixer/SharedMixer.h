@@ -15,7 +15,12 @@ extern uint8_t MX_source;
 extern uint8_t MX_routing_source[];
 extern bool MX_mute[];
 
+
 // pointer
+static constexpr int LINE_IN_source = 8;
+static constexpr int sources = 9;
+static constexpr int elements = 5;
+
 enum MX_field_name
 {
     field_MX_Source,

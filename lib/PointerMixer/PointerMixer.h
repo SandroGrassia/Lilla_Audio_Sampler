@@ -43,8 +43,7 @@ class PointerMixer
     private:
     MX_pointer_struct pointer;
     MX_pointer_struct pointer_old;
-    static constexpr int LINE_IN_source = 8;
-    static constexpr int elements = 5;
+    
 
     public:
     PointerMixer () {}

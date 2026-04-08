@@ -5,3 +5,156 @@
 */
 
 #include "DisplayMixer.h"
+
+FLASHMEM
+void DisplayMixer::MX_page(void)
+{
+    tft.fillScreen(ILI9341_BLACK);
+
+    Backgorund_red(0, 0, 5); // Display.Board(float   col, float row, int chars)
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+    tft.setTextColor(ILI9341_WHITE);
+    tft.print("MIXER");
+
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_Y0));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("SOURCE");
+
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_Y0 + 1));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("MUTE");
+
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_Y0 + 2));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("GAIN");
+
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_Y0 + 3));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("PAN");
+
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_Y0 + 4));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("LINEOUT");
+
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_Y0 + 5));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("MONITOR");
+}
+
+FLASHMEM
+void DisplayMixer::MX_source_values(int source)
+{
+    if (source == 8)
+    {
+        MX_source_values_write(source);
+    }
+    else if (Patch[Patch_id].Instrument[source].used)
+    {
+        MX_source_values_write(source);
+    }
+}
+
+FLASHMEM
+void DisplayMixer::MX_source_values_jump(int old_source, int new_source)
+{
+    MX_source = new_source;
+
+    MX_source_values_write(old_source); // 0
+    MX_source_values_write(MX_source);  // 6
+}
+
+FLASHMEM
+void DisplayMixer::MX_source_values_write(int source)
+{
+    int local_sound_id;
+    if (source == 8)
+    {
+        tft.setTextColor((source == MX_source ? TEXT_COLOR : 0x6300));
+        tft.setCursor(display_coordinate_x(MX_X0 + source * 5 - 1), display_coordinate_y(MX_Y0));
+        tft.print("L_IN");
+
+        tft.drawBitmap(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 1), led_pic, 8, 8, (MX_mute[source] ? ILI9341_RED : RED_OFF)); // Mute
+        tft.setTextColor((source == MX_source ? ILI9341_YELLOW : 0x6300));
+        tft.setCursor(display_coordinate_x(MX_X0 - 1 + source * 5), display_coordinate_y(MX_Y0 + 2)); // Gain
+        tft.print(DS_gain / 20.0f);
+
+        tft.setTextColor((source == MX_source ? ILI9341_WHITE : 0x6300));
+        tft.setCursor(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 3)); // Pan
+        tft.print("C");
+    }
+
+    else
+    {
+        local_sound_id = Patch[Patch_id].Instrument[source].sound_id;
+
+        tft.setTextColor((source == MX_source ? TEXT_COLOR : 0x6300));
+        tft.setCursor(display_coordinate_x(MX_X0 + source * 5), display_coordinate_y(MX_Y0));
+        tft.print("S");
+        tft.print(source + 1);
+
+        tft.drawBitmap(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 1), led_pic, 8, 8, (MX_mute[source] ? ILI9341_RED : RED_OFF)); // Mute
+        tft.setTextColor((source == MX_source ? ILI9341_YELLOW : 0x6300));
+
+        Cancel_text(display_coordinate_x(MX_X0 - 1 + source * 5), display_coordinate_y(MX_Y0 + 2), 4);
+        tft.setCursor(display_coordinate_x(MX_X0 - 1 + source * 5), display_coordinate_y(MX_Y0 + 2)); // Gain
+        tft.print(Sound[local_sound_id].gain / 20.0f);
+
+        if (Sound[local_sound_id].pan == 0)
+        {
+            Cancel_text(display_coordinate_x(MX_X0 - 0.5 + source * 5), display_coordinate_y(MX_Y0 + 3), 3);
+            tft.setCursor(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 3)); // Pan
+            tft.print("C");
+        }
+        else
+        {
+            if (abs(Sound[local_sound_id].pan) < 10) // Pan
+            {
+                tft.setCursor(display_coordinate_x(MX_X0 + source * 5), display_coordinate_y(MX_Y0 + 3));
+            }
+            else
+            {
+                tft.setCursor(display_coordinate_x(MX_X0 - 0.5 + source * 5), display_coordinate_y(MX_Y0 + 3));
+            }
+
+            if (Sound[local_sound_id].pan < 0)
+            {
+                tft.print("L");
+            }
+            else if (Sound[local_sound_id].pan > 0)
+            {
+                tft.print("R");
+            }
+            tft.print(abs(Sound[local_sound_id].pan));
+        }
+    }
+
+    if (MX_routing_source[source] > 1) // to Audio-out
+    {
+        tft.drawBitmap(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 4), led_pic, 8, 8, GREEN_ON);
+    }
+    else
+    {
+        tft.drawBitmap(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 4), led_pic, 8, 8, GREEN_OFF);
+    }
+
+    if (MX_routing_source[source] == 1 || MX_routing_source[source] == 3) // to Monitor
+    {
+        tft.drawBitmap(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 5), led_pic, 8, 8, GREEN_ON);
+    }
+    else
+    {
+        tft.drawBitmap(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 5), led_pic, 8, 8, GREEN_OFF);
+    }
+}
+
+FLASHMEM
+void DisplayMixer::MX_source_values_edit(int source)
+{
+    Cancel_text(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 1), 1); // Mute
+    Cancel_text(display_coordinate_x(MX_X0 - 1 + source * 5), display_coordinate_y(MX_Y0 + 2), 4);   // Gain
+    Cancel_text(display_coordinate_x(MX_X0 - 0.5 + source * 5), display_coordinate_y(MX_Y0 + 3), 3); // Pan
+    Cancel_text(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 4), 1); // to Audio-out
+    Cancel_text(display_coordinate_x(MX_X0 + 0.5 + source * 5), display_coordinate_y(MX_Y0 + 5), 1); // to Monitor
+
+    MX_source_values_write(source);
+}
