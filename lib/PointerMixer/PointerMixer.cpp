@@ -9,6 +9,7 @@
 void PointerMixer::Set_pointer_to_first_source(void)
 {
     pointer = {field_MX_Source, 0, 0};
+    Display_Mixer.MX_show_pointer_frame(pointer, true);
 }
 
 void PointerMixer::Move_pointer(const int value)
@@ -104,12 +105,12 @@ void PointerMixer::Move_pointer(const int value)
 
     if (changed)
     {
-        // Display_Mixer.MX_show_pointer_frame(pointer_old, false);
-        // Display_Mixer.MX_show_pointer_frame(pointer, true);
+        Display_Mixer.MX_show_pointer_frame(pointer_old, false);
+        Display_Mixer.MX_show_pointer_frame(pointer, true);
     }
 }
 
 void PointerMixer::Display_pointer(void)
 {
-    // Display_Mixer.MX_show_pointer_frame(pointer, true);
+    Display_Mixer.MX_show_pointer_frame(pointer, true);
 }

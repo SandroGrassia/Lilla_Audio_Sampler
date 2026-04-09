@@ -6,6 +6,47 @@
 
 #include "DisplayMixer.h"
 
+void DisplayMixer::MX_show_pointer_frame(MX_pointer_struct pointer, bool show)
+{
+    switch (pointer.field_name)
+    {
+    case field_MX_Source:
+    {
+       Frame_by_col_row(MX_column_row_Source[pointer.source][0], MX_column_row_Source[pointer.source][1], MX_frame_chars_high_Source[0], MX_frame_chars_high_Source[1], show); 
+    }
+    break;
+
+    case field_MX_Elements:
+    {
+        switch (pointer.element)
+        {
+        case value_MX_Mute_Gain:
+            Frame_by_col_row(MX_column_row_Mute_Gain[pointer.source][0], MX_column_row_Mute_Gain[pointer.source][1], MX_frame_chars_high_Mute_Gain[0], MX_frame_chars_high_Mute_Gain[1], show);
+            break;
+
+        case value_MX_Pan:
+            Frame_by_col_row(MX_column_row_Pan[pointer.source][0], MX_column_row_Pan[pointer.source][1], MX_frame_chars_high_Pan[0], MX_frame_chars_high_Pan[1], show);
+            break;
+
+        case value_MX_Lineout:
+            Frame_by_col_row(MX_column_row_Lineout[pointer.source][0], MX_column_row_Lineout[pointer.source][1], MX_frame_chars_high_Lineout[0], MX_frame_chars_high_Lineout[1], show);
+            break;
+
+        case value_MX_Monitor:
+            Frame_by_col_row(MX_column_row_Monitor[pointer.source][0], MX_column_row_Monitor[pointer.source][1], MX_frame_chars_high_Monitor[0], MX_frame_chars_high_Monitor[1], show);
+            break;
+
+        default:
+            break;
+        }
+    }
+    break;
+
+    default:
+        break;
+    }
+}
+
 FLASHMEM
 void DisplayMixer::MX_page(void)
 {
@@ -67,7 +108,7 @@ FLASHMEM
 void DisplayMixer::MX_source_values_write(int source)
 {
     int local_sound_id;
-    if (source == 8)
+    if (source == LINE_IN_source)
     {
         tft.setTextColor((source == MX_source ? TEXT_COLOR : 0x6300));
         tft.setCursor(display_coordinate_x(MX_X0 + source * 5 - 1), display_coordinate_y(MX_Y0));

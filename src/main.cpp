@@ -11573,6 +11573,8 @@ void Golive_MIXER(int instrument_id)
     {
         Display_Mixer.MX_source_values(source);
     }
+
+    Pointer_Mixer.Set_pointer_to_first_source();
 }
 
 bool P_Verify_if_Instrument_original(const int instrument_id)
