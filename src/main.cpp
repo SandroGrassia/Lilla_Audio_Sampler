@@ -160,9 +160,11 @@
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
 #include "DisplayManager.h"
-#include "DisplayLiveSampler.h"
-#include "DisplaySound.h"
 #include "DisplayPerformance.h"
+#include "DisplaySound.h"
+#include "DisplayVCF.h"
+#include "DisplayMixer.h"
+#include "DisplayLiveSampler.h"
 
 #include "PointerPerformance.h"
 #include "PointerSound.h"
@@ -334,9 +336,13 @@ WaveLFO LFO_D[2];
 PlayersStatistics Players_statistics;
 FlashFileRegisterParser File_scanner;
 PsramManager PSRAM_Manager;
+
 DisplayManager Display_Manager(Info);
 DisplaySound Display_Sound;
+DisplayVCF Display_VCF;
+DisplayMixer Display_Mixer;
 DisplayLiveSampler Display_LiveSampler(Info);
+
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
 LoopMetronomo LOOP_metronomo(Display_Manager);
@@ -11562,10 +11568,10 @@ void Golive_MIXER(int instrument_id)
 
     MX_source = instrument_id;
 
-    Display_Manager.MX_page();
+    Display_Mixer.MX_page();
     for (auto source = 0; source < 9; ++source)
     {
-        Display_Manager.MX_source_values(source);
+        Display_Mixer.MX_source_values(source);
     }
 }
 

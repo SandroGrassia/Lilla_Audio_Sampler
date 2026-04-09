@@ -6,8 +6,6 @@
 
 #include "DisplayVCF.h"
 
-DisplayVCF Display_VCF;
-
 FLASHMEM
 void DisplayVCF::VCF_show_pointer_frame(int pointer, bool show)
 {
