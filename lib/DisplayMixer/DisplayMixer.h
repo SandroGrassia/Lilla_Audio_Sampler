@@ -94,9 +94,10 @@ public:
     DisplayMixer() {}
 
     void MX_page(void);
-    void MX_source_values(int source);
-    void MX_source_values_write(int source);
-    void MX_source_values_edit(int source);
-    void MX_source_values_jump(int old_source, int new_source);
-    void MX_show_pointer_frame(MX_pointer_struct pointer, bool show);
+    void MX_source_values(const int source);
+    void MX_source_values_write(const int source);
+    void MX_source_values_write(const int source, const bool bright);
+    void MX_source_values_edit(const int source);
+    void MX_source_values_jump(const int old_source, const int new_source);
+    void MX_show_pointer_frame(const MX_pointer_struct pointer, const bool show);
 };

@@ -3679,11 +3679,13 @@ void loop()
             {
             case value_MX_Mute_Gain:
             {
-            }
+                // no action
+            } 
             break;
 
             case value_MX_Pan:
             {
+                
             }
             break;
 
@@ -11598,19 +11600,8 @@ void Golive_MIXER(int instrument_id)
 {
     if (instrument_id < 0)
     {
-        for (auto instrument_id_local = 0; instrument_id_local < INSTRUMENTS_MAX; ++instrument_id_local)
-        {
-            if (Patch[Patch_id].Instrument[instrument_id_local].used)
-            {
-                instrument_id = instrument_id_local;
-            }
-        }
-
-        if (instrument_id < 0)
-        {
             Serial.println(F("Golive_MIXER - ERROR: no instrument_id used!"));
             return;
-        }
     }
 
     Lilla_state = MIXER;

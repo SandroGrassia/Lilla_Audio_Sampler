@@ -8,7 +8,7 @@
 
 MX_pointer_struct PointerMixer::Get_pointer(void)
 {
-return pointer;
+    return pointer;
 }
 
 void PointerMixer::Set_pointer_to_first_source(void)
@@ -22,9 +22,7 @@ void PointerMixer::Move_pointer(const int value)
     pointer_old = pointer;
     bool changed = false;
 
-    switch (pointer.field_name)
-    {
-    case field_MX_Source:
+    if (pointer.field_name == field_MX_Source)
     {
         if (value == 1)
         {
@@ -69,10 +67,16 @@ void PointerMixer::Move_pointer(const int value)
                 changed = true;
             }
         }
-    }
-    break;
 
-    case field_MX_Elements:
+        if (changed)
+        {
+            Display_Mixer.MX_show_pointer_frame(pointer_old, false);
+            Display_Mixer.MX_show_pointer_frame(pointer, true);
+            Display_Mixer.MX_source_values_jump(pointer_old.source, pointer.source);
+        }
+    }
+
+    else if (pointer.field_name == field_MX_Elements)
     {
         if (value == 1)
         {
@@ -101,17 +105,12 @@ void PointerMixer::Move_pointer(const int value)
                 changed = true;
             }
         }
-    }
-    break;
 
-    default:
-        break;
-    }
-
-    if (changed)
-    {
-        Display_Mixer.MX_show_pointer_frame(pointer_old, false);
-        Display_Mixer.MX_show_pointer_frame(pointer, true);
+        if (changed)
+        {
+            Display_Mixer.MX_show_pointer_frame(pointer_old, false);
+            Display_Mixer.MX_show_pointer_frame(pointer, true);
+        }
     }
 }
 
