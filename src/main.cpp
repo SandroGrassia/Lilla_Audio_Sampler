@@ -3662,7 +3662,7 @@ void loop()
         {
             if (Read_pushbutton(PB_number + 26) && Patch[Patch_id].Instrument[PB_number].used)
             {
-                Display_Manager.MX_source_values_jump(MX_source, PB_number); // MX_source_values_jump(const uint8_t &old_source, const uint8_t &new_source) - qui si assegna il nuovo valore MX_source
+                Display_Mixer.MX_source_values_jump(MX_source, PB_number); // MX_source_values_jump(const uint8_t &old_source, const uint8_t &new_source) - qui si assegna il nuovo valore MX_source
                 Instrument_id = MX_source;
                 Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
                 Serial.print("sound_id: ");
@@ -3674,7 +3674,7 @@ void loop()
             if (PB_number == 7 && Read_pushbutton(34))
             {
                 // MX_source = 8;
-                Display_Manager.MX_source_values_jump(MX_source, LINE_IN_CHANNEL); // aggiorna MX_source a 8
+                Display_Mixer.MX_source_values_jump(MX_source, LINE_IN_CHANNEL); // aggiorna MX_source a 8
                 Serial.println("Line IN");
             }
         }
@@ -3691,7 +3691,7 @@ void loop()
 
                 Serial.println(Sound[Sound_id].gain);
                 Serial.println(MX_source);
-                Display_Manager.MX_source_values_edit(MX_source);
+                Display_Mixer.MX_source_values_edit(MX_source);
             }
         }
         else // MX_source == LINE_IN_CHANNEL
@@ -3699,7 +3699,7 @@ void loop()
             if (Read_encoder(4, DS_gain, 40, 1, 1))
             {
                 LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-                Display_Manager.MX_source_values_edit(MX_source);
+                Display_Mixer.MX_source_values_edit(MX_source);
             }
         }
 
@@ -3713,7 +3713,7 @@ void loop()
                 Players_Manager.Multicast_pan(Instrument_id);
                 AudioInterrupts();
 
-                Display_Manager.MX_source_values_edit(MX_source);
+                Display_Mixer.MX_source_values_edit(MX_source);
             }
         }
         else // MX_source == LINE_IN_CHANNEL
@@ -3759,7 +3759,7 @@ void loop()
                     PWM_mixer_out_R.unmute(1);
                 }
             }
-            Display_Manager.MX_source_values_edit(MX_source);
+            Display_Mixer.MX_source_values_edit(MX_source);
         }
 
         // Route/unroute a source to MAIN
@@ -3818,7 +3818,7 @@ void loop()
                     break;
                 }
             }
-            Display_Manager.MX_source_values_edit(MX_source);
+            Display_Mixer.MX_source_values_edit(MX_source);
         }
 
         // Route/unroute a source to MONITOR (PWM)
@@ -3877,7 +3877,7 @@ void loop()
                     break;
                 }
             }
-            Display_Manager.MX_source_values_edit(MX_source);
+            Display_Mixer.MX_source_values_edit(MX_source);
         }
 
         if (Read_pushbutton_fast(35))
@@ -3920,10 +3920,10 @@ void loop()
                     Display_Manager.D_disabled();
                     delay(2000);
 
-                    Display_Manager.MX_page();
+                    Display_Mixer.MX_page();
                     for (auto source = 0; source < 9; ++source)
                     {
-                        Display_Manager.MX_source_values(source);
+                        Display_Mixer.MX_source_values(source);
                     }
                 }
             }

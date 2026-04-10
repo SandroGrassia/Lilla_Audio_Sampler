@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>     // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
 #include <Adafruit_ILI9341.h> // 1.5.12 version - Hardware-specific library
-#include <AudioStream.h> // solo per definizione AUDIO_SAMPLE_RATE
+#include <AudioStream.h>      // solo per definizione AUDIO_SAMPLE_RATE
 #include "DisplayPrimitives.h"
 
 #include "SharedElements.h"
@@ -95,7 +95,7 @@ private:
 
     // TUNING TONE
     static constexpr float TT_Instrument_INDENT_X0 = 0.5; // indentatura dell'header nella Performance (in caratteri) a sinistra
-    static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance    
+    static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance
 
     // MIXER
     static constexpr int MX_X0 = 8; // (caratteri)
@@ -294,11 +294,4 @@ public:
     void Midi_monitor_page(void);
     void Midi_monitor_frame(void);
     void Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number);
-
-    // MIXER
-    void MX_page(void);
-    void MX_source_values(int source);
-    void MX_source_values_write(int source);
-    void MX_source_values_edit(int source);
-    void MX_source_values_jump(int old_source, int new_source);
 };
