@@ -657,8 +657,9 @@ void LOOP_stop_and_reset_runnig_loop_data(void);
 
 // >>>>>>> MIXER
 // PWM Monitor
+MX_pointer_struct MX_local_pointer;
 int volume_MONITOR = 0;
-void Golive_MIXER(int instrument_id = -1);
+void Golive_MIXER(void);
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS_MAX;
 
 // EEPROM
@@ -3662,274 +3663,241 @@ void loop()
         if (result != 0)
         {
             Pointer_Mixer.Move_pointer(result);
+
+            MX_local_pointer = Pointer_Mixer.Get_pointer();
+            Instrument_id = (MX_local_pointer.source < LINE_IN_source ? MX_local_pointer.source : 0);
+            Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
         }
 
         // Change values
-        const MX_pointer_struct mixer_pointer = Pointer_Mixer.Get_pointer();
-        switch (mixer_pointer.field_name)
+        if (MX_local_pointer.field_name == field_MX_Source)
         {
-        case field_MX_Source:
-        {
+            // Enter inside
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            {
+                Pointer_Mixer.Move_pointer_to_field_MX_Elements();
+                MX_local_pointer = Pointer_Mixer.Get_pointer();
+            }
         }
-        break;
 
-        case field_MX_Elements:
+        else if (MX_local_pointer.field_name == field_MX_Elements)
         {
-            switch (mixer_pointer.element)
+            // Exit to Source
+            if (Read_pushbutton(EN_PB_Select))
+            {
+                Pointer_Mixer.Move_pointer_to_field_MX_Source();
+            }
+
+            switch (MX_local_pointer.element)
             {
             case value_MX_Mute_Gain:
             {
-                // no action
-            } 
+
+                if (MX_local_pointer.source == LINE_IN_source) // MX_source == LINE_IN_CHANNEL
+                {
+                    if (Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
+                    {
+                        LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
+
+                        Display_Mixer.MX_source_values_edit(LINE_IN_source);
+                    }
+                }
+                else
+                {
+                    if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                        AudioInterrupts();
+
+                        Display_Mixer.MX_source_values_edit(Instrument_id);
+                    }
+                }
+
+                if (Read_pushbutton(4))
+                {
+                    MX_mute[MX_local_pointer.source] = !MX_mute[MX_local_pointer.source];
+
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        if (MX_mute[MX_local_pointer.source])
+                        {
+                            MAIN_mixer_out_L.Mute(1);
+                            MAIN_mixer_out_R.Mute(1);
+                            PWM_mixer_out_L.Mute(1);
+                            PWM_mixer_out_R.Mute(1);
+                        }
+                        else
+                        {
+                            MAIN_mixer_out_L.unmute(1);
+                            MAIN_mixer_out_R.unmute(1);
+                            PWM_mixer_out_L.unmute(1);
+                            PWM_mixer_out_R.unmute(1);
+                        }
+                    }
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                        AudioInterrupts();
+                    }
+
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
+                }
+            }
             break;
 
             case value_MX_Pan:
             {
-                
+                if (MX_local_pointer.source == LINE_IN_source)
+                {
+                    // not supported
+                }
+                else
+                {
+                    if (Read_encoder(EN_PB_Value, Sound[Sound_id].pan, 16, -16, 1))
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
+                        Players_Manager.Multicast_pan(Instrument_id);
+                        AudioInterrupts();
+
+                        Display_Mixer.MX_source_values_edit(Instrument_id);
+                    }
+                }
             }
             break;
 
             case value_MX_Lineout:
             {
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    if (MX_routing_source[MX_local_pointer.source] == 0) // era tutto muto --> solo MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 2;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 1) // era solo MONITOR --> MONITOR e MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 3;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 2) // era solo MAIN --> tutto muto
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 0;
+                    }
+                    else // era 3 (MONITOR e MAIN) --> solo MONITOR
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 1;
+                    }
+
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        switch (MX_routing_source[MX_local_pointer.source])
+                        {
+                        case 0:
+                            MAIN_mixer_out_L.Mute(1);
+                            MAIN_mixer_out_R.Mute(1);
+                            break;
+
+                        case 1:
+                            MAIN_mixer_out_L.Mute(1);
+                            MAIN_mixer_out_R.Mute(1);
+                            break;
+
+                        case 2:
+                            MAIN_mixer_out_L.unmute(1);
+                            MAIN_mixer_out_R.unmute(1);
+                            break;
+
+                        case 3:
+                            MAIN_mixer_out_L.unmute(1);
+                            MAIN_mixer_out_R.unmute(1);
+                            break;
+
+                        default:
+                            Serial.println("Switch MISSING! 3303");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.MX_multicast_change_routing(Instrument_id);
+                        AudioInterrupts();
+                    }
+
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
+                }
             }
             break;
 
             case value_MX_Monitor:
             {
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    if (MX_routing_source[MX_local_pointer.source] == 0) // era tutto muto --> solo MONITOR
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 1;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 1) // era solo MONITOR --> tutto muto
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 0;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 2) // era solo MAIN --> MONITOR e MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 3;
+                    }
+                    else // era 3 (MONITOR e MAIN) --> solo MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 2;
+                    }
+
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        switch (MX_routing_source[MX_local_pointer.source])
+                        {
+                        case 0:
+                            PWM_mixer_out_L.Mute(1);
+                            PWM_mixer_out_R.Mute(1);
+                            break;
+
+                        case 1:
+                            PWM_mixer_out_L.unmute(1);
+                            PWM_mixer_out_R.unmute(1);
+                            break;
+
+                        case 2:
+                            PWM_mixer_out_L.Mute(1);
+                            PWM_mixer_out_R.Mute(1);
+                            break;
+
+                        case 3:
+                            PWM_mixer_out_L.unmute(1);
+                            PWM_mixer_out_R.unmute(1);
+                            break;
+
+                        default:
+                            Serial.println("Switch MISSING! 3354");
+                            break;
+                        }
+                    }
+
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.MX_multicast_change_routing(Instrument_id);
+                        AudioInterrupts();
+                    }
+
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
+                }
             }
             break;
 
             default:
                 break;
             }
-        }
-        break;
-
-        default:
-            break;
-        }
-
-        // Choose source instrument: MX_sources 0 --> 7
-        if (!Read_pushbutton_fast(35))
-        {
-            if (Read_pushbutton(PB_number + 26) && Patch[Patch_id].Instrument[PB_number].used)
-            {
-                Display_Mixer.MX_source_values_jump(MX_source, PB_number); // MX_source_values_jump(const uint8_t &old_source, const uint8_t &new_source) - qui si assegna il nuovo valore MX_source
-                Instrument_id = MX_source;
-                Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-                Serial.print("sound_id: ");
-                Serial.println(Sound_id);
-            }
-
-            // Choose source LINE IN: MX_source 8
-            // Leggi dopo Sound 7 (non ad ogni loop!)
-            if (PB_number == 7 && Read_pushbutton(34))
-            {
-                // MX_source = 8;
-                Display_Mixer.MX_source_values_jump(MX_source, LINE_IN_CHANNEL); // aggiorna MX_source a 8
-                Serial.println("Line IN");
-            }
-        }
-
-        // Change GAIN
-        if (MX_source < INSTRUMENTS_MAX)
-        {
-            if (Read_encoder(4, Sound[Sound_id].gain, 40, 0, 1))
-            {
-                AudioNoInterrupts();
-                Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
-                AudioInterrupts();
-
-                Serial.println(Sound[Sound_id].gain);
-                Serial.println(MX_source);
-                Display_Mixer.MX_source_values_edit(MX_source);
-            }
-        }
-        else // MX_source == LINE_IN_CHANNEL
-        {
-            if (Read_encoder(4, DS_gain, 40, 1, 1))
-            {
-                LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-                Display_Mixer.MX_source_values_edit(MX_source);
-            }
-        }
-
-        // Change PAN
-        if (MX_source < INSTRUMENTS_MAX)
-        {
-            if (Read_encoder(3, Sound[Sound_id].pan, 16, -16, 1))
-            {
-                AudioNoInterrupts();
-                Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
-                Players_Manager.Multicast_pan(Instrument_id);
-                AudioInterrupts();
-
-                Display_Mixer.MX_source_values_edit(MX_source);
-            }
-        }
-        else // MX_source == LINE_IN_CHANNEL
-        {
-            // not supported
-        }
-
-        // Mute/unmute a source
-        if (Read_pushbutton(4))
-        {
-            MX_mute[MX_source] = !MX_mute[MX_source];
-
-            if (MX_source < INSTRUMENTS_MAX)
-            {
-                Serial.print((MX_mute[Instrument_id] ? "Mute MX_source:" : "umute MX_source:"));
-                Serial.println(Instrument_id);
-
-                AudioNoInterrupts();
-                Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
-                AudioInterrupts();
-            }
-            else if (MX_source == 8)
-            {
-                if (MX_mute[MX_source])
-                {
-                    Serial.print((MX_mute[MX_source] ? "Mute MX_source:" : "umute MX_source:"));
-                    Serial.println(MX_source);
-
-                    MAIN_mixer_out_L.Mute(1);
-                    MAIN_mixer_out_R.Mute(1);
-                    PWM_mixer_out_L.Mute(1);
-                    PWM_mixer_out_R.Mute(1);
-                }
-                else
-                {
-                    Serial.print((MX_mute[MX_source] ? "Mute MX_source:" : "umute MX_source:"));
-                    Serial.println(MX_source);
-
-                    MAIN_mixer_out_L.unmute(1);
-                    MAIN_mixer_out_R.unmute(1);
-                    PWM_mixer_out_L.unmute(1);
-                    PWM_mixer_out_R.unmute(1);
-                }
-            }
-            Display_Mixer.MX_source_values_edit(MX_source);
-        }
-
-        // Route/unroute a source to MAIN
-        if (Read_pushbutton(19))
-        {
-            if (MX_routing_source[MX_source] == 0) // era tutto muto --> solo MAIN
-            {
-                MX_routing_source[MX_source] = 2;
-            }
-            else if (MX_routing_source[MX_source] == 1) // era solo MONITOR --> MONITOR e MAIN
-            {
-                MX_routing_source[MX_source] = 3;
-            }
-            else if (MX_routing_source[MX_source] == 2) // era solo MAIN --> tutto muto
-            {
-                MX_routing_source[MX_source] = 0;
-            }
-            else // era 3 (MONITOR e MAIN) --> solo MONITOR
-            {
-                MX_routing_source[MX_source] = 1;
-            }
-
-            if (MX_source < INSTRUMENTS_MAX)
-            {
-                AudioNoInterrupts();
-                Players_Manager.MX_multicast_change_routing(Instrument_id);
-                AudioInterrupts();
-            }
-
-            else if (MX_source == 8)
-            {
-                switch (MX_routing_source[MX_source])
-                {
-                case 0:
-                    MAIN_mixer_out_L.Mute(1);
-                    MAIN_mixer_out_R.Mute(1);
-                    break;
-
-                case 1:
-                    MAIN_mixer_out_L.Mute(1);
-                    MAIN_mixer_out_R.Mute(1);
-                    break;
-
-                case 2:
-                    MAIN_mixer_out_L.unmute(1);
-                    MAIN_mixer_out_R.unmute(1);
-                    break;
-
-                case 3:
-                    MAIN_mixer_out_L.unmute(1);
-                    MAIN_mixer_out_R.unmute(1);
-                    break;
-
-                default:
-                    Serial.println("Switch MISSING! 3303");
-                    break;
-                }
-            }
-            Display_Mixer.MX_source_values_edit(MX_source);
-        }
-
-        // Route/unroute a source to MONITOR (PWM)
-        if (Read_pushbutton(20))
-        {
-            if (MX_routing_source[MX_source] == 0) // era tutto muto --> solo MONITOR
-            {
-                MX_routing_source[MX_source] = 1;
-            }
-            else if (MX_routing_source[MX_source] == 1) // era solo MONITOR --> tutto muto
-            {
-                MX_routing_source[MX_source] = 0;
-            }
-            else if (MX_routing_source[MX_source] == 2) // era solo MAIN --> MONITOR e MAIN
-            {
-                MX_routing_source[MX_source] = 3;
-            }
-            else // era 3 (MONITOR e MAIN) --> solo MAIN
-            {
-                MX_routing_source[MX_source] = 2;
-            }
-
-            if (MX_source < INSTRUMENTS_MAX)
-            {
-                AudioNoInterrupts();
-                Players_Manager.MX_multicast_change_routing(Instrument_id);
-                AudioInterrupts();
-            }
-
-            if (MX_source == 8)
-            {
-                switch (MX_routing_source[MX_source])
-                {
-                case 0:
-                    PWM_mixer_out_L.Mute(1);
-                    PWM_mixer_out_R.Mute(1);
-                    break;
-
-                case 1:
-                    PWM_mixer_out_L.unmute(1);
-                    PWM_mixer_out_R.unmute(1);
-                    break;
-
-                case 2:
-                    PWM_mixer_out_L.Mute(1);
-                    PWM_mixer_out_R.Mute(1);
-                    break;
-
-                case 3:
-                    PWM_mixer_out_L.unmute(1);
-                    PWM_mixer_out_R.unmute(1);
-                    break;
-
-                default:
-                    Serial.println("Switch MISSING! 3354");
-                    break;
-                }
-            }
-            Display_Mixer.MX_source_values_edit(MX_source);
         }
 
         if (Read_pushbutton_fast(35))
@@ -3960,24 +3928,25 @@ void loop()
             // Switch to DELAY
             else if (Read_pushbutton(28))
             {
-                if (Lilla_state_0 != DIRECT_SAMPLING)
+                if (Lilla_state_0 == DIRECT_SAMPLING)
+                {
+                    Display_Manager.D_disabled();
+                    delay(2000);
+
+                    Display_Mixer.MX_page();
+                    for (auto source = 0; source < MX_sources; ++source)
+                    {
+                        Display_Mixer.MX_source_values(source, (source == 0? true : false));
+                    }
+                }
+                else
                 {
                     Lilla_state = DELAY_SETTINGS;
                     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                     Display_Manager.D_show_page();
                 }
-                else
-                {
-                    Display_Manager.D_disabled();
-                    delay(2000);
 
-                    Display_Mixer.MX_page();
-                    for (auto source = 0; source < 9; ++source)
-                    {
-                        Display_Mixer.MX_source_values(source);
-                    }
-                }
             }
 
             // Switch to LIVE_SAMPLING
@@ -7762,6 +7731,18 @@ uint8_t P_Get_previous_Patch_id_existing(void)
     } while (1);
 }
 
+bool P_Verify_if_Instrument_original(const int instrument_id)
+{
+    if (!Patch[Patch_id].Instrument[instrument_id].used && !Patch_cache_P.Instrument[instrument_id].used)
+    {
+        return true;
+    }
+
+    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
+           S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
+}
+
+
 void Golive_with_PERFORMANCE(int patch_id)
 {
     Lilla_state = PERFORMANCE;
@@ -7989,6 +7970,71 @@ int P_sound_id_from_instrument_id(const int instrument_id)
 // ***************************************************************************************************************
 // **********************************           SOUND, INSTRUMENT              ***********************************
 // ***************************************************************************************************************
+
+bool S_Verify_is_Sound_original(const int sound_id)
+{
+    return Sound[sound_id] == S_Sound_cache_P[sound_id];
+}
+
+void S_Copy_all_Sound_to_Sound_cache_P(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        S_Sound_cache_P[sound_id] = Sound[sound_id];
+    }
+}
+
+void S_Save_all_Sounds_changed(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        // Sound which have been changed only for .used
+        if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
+        {
+            Archive.Save_Sound(sound_id);
+            Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
+            Serial.println(sound_id);
+        }
+
+        // Sound used which have been changed
+        else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
+        {
+            Archive.Save_Sound(sound_id);
+            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su EEPROM per per sound_id: ");
+            Serial.println(sound_id);
+        }
+    }
+}
+
+void S_Pull_all_Sound_from_Sound_cache_P(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        Sound[sound_id] = S_Sound_cache_P[sound_id];
+    }
+}
+
+uint8_t S_Get_sounds_free(void)
+{
+    auto result = 0;
+
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        if (!Sound[sound_id].used)
+        {
+            result++;
+        }
+    }
+    return result;
+}
+
+void S_Read_all_Sounds(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        Archive.Read_Sound(sound_id);
+    }
+}
 
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel)
 {
@@ -11593,106 +11639,30 @@ void Switch_to_MIXER()
         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
     }
 
-    Golive_MIXER(Instrument_id);
+    Golive_MIXER();
 }
 
-void Golive_MIXER(int instrument_id)
+void Golive_MIXER(void)
 {
-    if (instrument_id < 0)
-    {
-            Serial.println(F("Golive_MIXER - ERROR: no instrument_id used!"));
-            return;
-    }
 
     Lilla_state = MIXER;
     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Mixer_context], SR_monitored_pushbuttons_set[Mixer_context]);
 
-    MX_source = instrument_id;
-
     Display_Mixer.MX_page();
-    for (auto source = 0; source < 9; ++source)
+    for (auto source = 0; source < MX_sources; ++source)
     {
-        Display_Mixer.MX_source_values(source);
+        Display_Mixer.MX_source_values(source, (source == 0? true : false));
     }
 
     Pointer_Mixer.Set_pointer_to_source(0);
+
+    MX_local_pointer = Pointer_Mixer.Get_pointer();
+    Instrument_id = 0;
+    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 }
 
-bool P_Verify_if_Instrument_original(const int instrument_id)
-{
-    if (!Patch[Patch_id].Instrument[instrument_id].used && !Patch_cache_P.Instrument[instrument_id].used)
-    {
-        return true;
-    }
 
-    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
-           S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
-}
 
-bool S_Verify_is_Sound_original(const int sound_id)
-{
-    return Sound[sound_id] == S_Sound_cache_P[sound_id];
-}
-
-void S_Copy_all_Sound_to_Sound_cache_P(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        S_Sound_cache_P[sound_id] = Sound[sound_id];
-    }
-}
-
-void S_Pull_all_Sound_from_Sound_cache_P(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        Sound[sound_id] = S_Sound_cache_P[sound_id];
-    }
-}
-
-uint8_t S_Get_sounds_free(void)
-{
-    auto result = 0;
-
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        if (!Sound[sound_id].used)
-        {
-            result++;
-        }
-    }
-    return result;
-}
-
-void S_Read_all_Sounds(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        Archive.Read_Sound(sound_id);
-    }
-}
-
-void S_Save_all_Sounds_changed(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        // Sound which have been changed only for .used
-        if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
-        {
-            Archive.Save_Sound(sound_id);
-            Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
-            Serial.println(sound_id);
-        }
-
-        // Sound used which have been changed
-        else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
-        {
-            Archive.Save_Sound(sound_id);
-            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su EEPROM per per sound_id: ");
-            Serial.println(sound_id);
-        }
-    }
-}
 
 // ***************************************************************************************************************
 // ****************************                         SETTINGS                        **************************

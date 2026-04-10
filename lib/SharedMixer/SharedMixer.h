@@ -10,14 +10,9 @@
 #include "SharedElements.h"
 #include "config.h"
 
-// audio 
-extern uint8_t MX_source;
-extern uint8_t MX_routing_source[];
-extern bool MX_mute[];
-
 // pointer
 static constexpr int LINE_IN_source = 8;
-static constexpr int sources = 9;
+static constexpr int MX_sources = 9;
 
 enum MX_field_name
 {
@@ -40,3 +35,7 @@ MX_field_name field_name;
 int source;
 int element;
 };
+
+// audio 
+extern uint8_t MX_routing_source[MX_sources];
+extern bool MX_mute[MX_sources];

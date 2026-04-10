@@ -19,7 +19,7 @@ class DisplayMixer
 private:
     static constexpr float MX_column_Sound = 9;
     static constexpr float MX_row_Sound = 5;
-    static constexpr float MX_column_row_Source[sources][2] =
+    static constexpr float MX_column_row_Source[MX_sources][2] =
         {
             {MX_column_Sound - 1, 5},
             {MX_column_Sound + 4, 5},
@@ -32,7 +32,7 @@ private:
             {MX_column_Sound + 39, 5},
     };
 
-    static constexpr float MX_column_row_Mute_Gain[sources][2] =
+    static constexpr float MX_column_row_Mute_Gain[MX_sources][2] =
         {
             {MX_column_Sound - 1, 6},
             {MX_column_Sound + 4, 6},
@@ -45,7 +45,7 @@ private:
             {MX_column_Sound + 39, 6},
     };
 
-    static constexpr float MX_column_row_Pan[sources][2] =
+    static constexpr float MX_column_row_Pan[MX_sources][2] =
         {
             {MX_column_Sound - 1, 8},
             {MX_column_Sound + 4, 8},
@@ -58,7 +58,7 @@ private:
             {MX_column_Sound + 39, 8},
     };
 
-    static constexpr float MX_column_row_Lineout[sources][2] =
+    static constexpr float MX_column_row_Lineout[MX_sources][2] =
         {
             {MX_column_Sound - 1, 9},
             {MX_column_Sound + 4, 9},
@@ -71,7 +71,7 @@ private:
             {MX_column_Sound + 39, 9},
     };
 
-    static constexpr float MX_column_row_Monitor[sources][2] =
+    static constexpr float MX_column_row_Monitor[MX_sources][2] =
         {
             {MX_column_Sound - 1, 10},
             {MX_column_Sound + 4, 10},
@@ -94,8 +94,7 @@ public:
     DisplayMixer() {}
 
     void MX_page(void);
-    void MX_source_values(const int source);
-    void MX_source_values_write(const int source);
+    void MX_source_values(const int source, const bool bright);
     void MX_source_values_write(const int source, const bool bright);
     void MX_source_values_edit(const int source);
     void MX_source_values_jump(const int old_source, const int new_source);

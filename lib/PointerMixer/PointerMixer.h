@@ -51,4 +51,6 @@ class PointerMixer
     void Move_pointer(const int value);
     void Display_pointer(void);
     MX_pointer_struct Get_pointer(void);
+    void Move_pointer_to_field_MX_Elements(void);
+    void Move_pointer_to_field_MX_Source(void);
 };

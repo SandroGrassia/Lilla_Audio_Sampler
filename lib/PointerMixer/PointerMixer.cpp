@@ -17,6 +17,24 @@ void PointerMixer::Set_pointer_to_source(const int source)
     Display_Mixer.MX_show_pointer_frame(pointer, true);
 }
 
+void PointerMixer::Move_pointer_to_field_MX_Elements(void)
+{
+    pointer_old = pointer;
+    pointer = {field_MX_Elements, pointer.source, 0};
+
+    Display_Mixer.MX_show_pointer_frame(pointer_old, false);
+    Display_Mixer.MX_show_pointer_frame(pointer, true);
+}
+
+void PointerMixer::Move_pointer_to_field_MX_Source(void)
+{
+    pointer_old = pointer;
+    pointer = {field_MX_Source, pointer.source, 0};
+
+    Display_Mixer.MX_show_pointer_frame(pointer_old, false);
+    Display_Mixer.MX_show_pointer_frame(pointer, true);
+}
+
 void PointerMixer::Move_pointer(const int value)
 {
     pointer_old = pointer;
