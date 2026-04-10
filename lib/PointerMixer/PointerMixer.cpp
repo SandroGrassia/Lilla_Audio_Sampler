@@ -6,6 +6,11 @@
 
 #include "PointerMixer.h"
 
+MX_pointer_struct PointerMixer::Get_pointer(void)
+{
+return pointer;
+}
+
 void PointerMixer::Set_pointer_to_first_source(void)
 {
     pointer = {field_MX_Source, 0, 0};

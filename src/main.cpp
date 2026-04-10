@@ -3648,13 +3648,63 @@ void loop()
     {
         if (Lilla_state_0 == PERFORMANCE || (Lilla_state_0 == DIRECT_SAMPLING && DS_state == 0) || Lilla_state_0 == LIVE_SAMPLING)
         {
-            if (Read_encoder(15, volume_patch, 40, 0, 1))
+            if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
             {
                 AudioNoInterrupts();
                 Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
                 Players_Manager.Broadcast_volume();
                 AudioInterrupts();
             }
+        }
+
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
+        {
+            Pointer_Mixer.Move_pointer(result);
+        }
+
+        // Change values
+        const MX_pointer_struct mixer_pointer = Pointer_Mixer.Get_pointer();
+        switch (mixer_pointer.field_name)
+        {
+        case field_MX_Source:
+        {
+        }
+        break;
+
+        case field_MX_Elements:
+        {
+            switch (mixer_pointer.element)
+            {
+            case value_MX_Mute_Gain:
+            {
+            }
+            break;
+
+            case value_MX_Pan:
+            {
+            }
+            break;
+
+            case value_MX_Lineout:
+            {
+            }
+            break;
+
+            case value_MX_Monitor:
+            {
+            }
+            break;
+
+            default:
+                break;
+            }
+        }
+        break;
+
+        default:
+            break;
         }
 
         // Choose source instrument: MX_sources 0 --> 7

@@ -50,4 +50,5 @@ class PointerMixer
     void Set_pointer_to_first_source(void);
     void Move_pointer(const int value);
     void Display_pointer(void);
+    MX_pointer_struct Get_pointer(void);
 };
