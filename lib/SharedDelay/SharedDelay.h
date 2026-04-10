@@ -10,7 +10,6 @@
 #include "SharedElements.h"
 #include "config.h"
 
-// DELAY
 static constexpr int DELAY_FIFO_SAMPLES = 220672;
 static constexpr uint32_t DELAY_FIFO_BYTES = DELAY_FIFO_SAMPLES << 1; // 0x6bc00 - decimale 441.344
 static constexpr float depth_array[40] = {
@@ -27,7 +26,6 @@ enum Delay_parameters
         MODULATION_FREQUENCY,
         MODULATION_PHASE_LR,
         LOOP_GAIN,
-
         INSTRUMENT_ROUTE,
         MODULATION_SOURCE
     };
@@ -83,15 +81,26 @@ static constexpr int PROGMEM delay_samples_table[100] =
      139826, 147176, 154526, 161876, 169226, 176576, 183926, 196000, 220500};
 
 extern Delay_data_struct Delay_data;
-float Delay_feedback(int8_t value);
 
-// funzioni
-void Calc_Delay_values(Delay_data_struct data);
-void Turn_ON_Delay(bool ON);
-void Calc_delay_routing(uint8_t value);
-float Calc_delay_samples(int value);
+float Delay_feedback(int8_t value);
+void Calc_Delay_values(const Delay_data_struct data);
+void Turn_ON_Delay(const bool ON);
+void Calc_delay_routing(const uint8_t value);
+float Calc_delay_samples(const int value);
 float Calc_delay_samples_LR(int value);
-float Calc_delay_depth (int value);
-float Calc_delay_frequency(int value);
+float Calc_delay_depth (const int value);
+float Calc_delay_frequency(const int value);
 void Print_Delay_data(const Delay_data_struct &data);
-void Print_Delay_values(Delay_values_struct Delay_values);
+void Print_Delay_values(const Delay_values_struct Delay_values);
+
+// Pointer
+enum DELAY_element_name
+{
+    value_DELAY_Feedback,
+    value_DELAY_Delay_time,
+    value_DELAY_Delay_time_L_R,
+    value_DELAY_Modulation_source,
+    value_DELAY_Modulation_frequency,
+    value_DELAY_Modulation_depth,
+    value_DELAY_Modulation_phase_L_R
+};

@@ -97,10 +97,6 @@ private:
     static constexpr float TT_Instrument_INDENT_X0 = 0.5; // indentatura dell'header nella Performance (in caratteri) a sinistra
     static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance
 
-    // MIXER
-    static constexpr int MX_X0 = 8; // (caratteri)
-    static constexpr int MX_Y0 = 5;
-
     // MIDI_LOOP
     static constexpr int Loop_HEAD_R = 5;     // posizione "LOOP"
     static constexpr int Loop_HEAD_C = 3;     // posizione "LOOP"

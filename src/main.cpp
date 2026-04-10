@@ -164,6 +164,7 @@
 #include "DisplaySound.h"
 #include "DisplayVCF.h"
 #include "DisplayMixer.h"
+#include "DisplayDelay.h"
 #include "DisplayLiveSampler.h"
 
 #include "PointerPerformance.h"
@@ -341,6 +342,7 @@ DisplayManager Display_Manager(Info);
 DisplaySound Display_Sound;
 DisplayVCF Display_VCF;
 DisplayMixer Display_Mixer;
+DisplayDelay Display_Delay;
 DisplayLiveSampler Display_LiveSampler(Info);
 
 LoopLedSet Loop_led_set;
