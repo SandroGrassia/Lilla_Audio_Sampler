@@ -11,9 +11,9 @@ MX_pointer_struct PointerMixer::Get_pointer(void)
     return pointer;
 }
 
-void PointerMixer::Set_pointer_to_first_source(void)
+void PointerMixer::Set_pointer_to_source(const int source)
 {
-    pointer = {field_MX_Source, 0, 0};
+    pointer = {field_MX_Source, source, 0};
     Display_Mixer.MX_show_pointer_frame(pointer, true);
 }
 

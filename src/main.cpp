@@ -1062,8 +1062,8 @@ void setup()
     SR_monitored_encoders_set[Instrument_Vcf_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
     SR_monitored_pushbuttons_set[Instrument_Vcf_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    SR_monitored_encoders_set[Mixer_context] = Get_monitored_encoders({0, 3, 4, 7, 8, 15, 16, 19, 20});
-    SR_monitored_pushbuttons_set[Mixer_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 15, 16, 19, 20, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_encoders_set[Mixer_context] = Get_monitored_encoders({0, 3, 4, 7, 8, 15, 16, 19, 20, 24, 25});
+    SR_monitored_pushbuttons_set[Mixer_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     SR_monitored_encoders_set[Delay_settings_context] = Get_monitored_encoders({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22});
     SR_monitored_pushbuttons_set[Delay_settings_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 19, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
@@ -11615,7 +11615,7 @@ void Golive_MIXER(int instrument_id)
         Display_Mixer.MX_source_values(source);
     }
 
-    Pointer_Mixer.Set_pointer_to_first_source();
+    Pointer_Mixer.Set_pointer_to_source(0);
 }
 
 bool P_Verify_if_Instrument_original(const int instrument_id)

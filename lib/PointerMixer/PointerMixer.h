@@ -47,7 +47,7 @@ class PointerMixer
     public:
     PointerMixer () {}
 
-    void Set_pointer_to_first_source(void);
+    void Set_pointer_to_source(const int source);
     void Move_pointer(const int value);
     void Display_pointer(void);
     MX_pointer_struct Get_pointer(void);
