@@ -3678,6 +3678,11 @@ void loop()
                 Pointer_Mixer.Move_pointer_to_field_MX_Elements();
                 MX_local_pointer = Pointer_Mixer.Get_pointer();
             }
+
+            if (Read_encoder_simple(EN_PB_Value))
+            {
+                // reset encoder increment/decrement
+            }
         }
 
         else if (MX_local_pointer.field_name == field_MX_Elements)
@@ -3829,6 +3834,11 @@ void loop()
 
                     Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
+
+                if (Read_encoder_simple(EN_PB_Value))
+                {
+                    // reset encoder increment/decrement
+                }
             }
             break;
 
@@ -3892,6 +3902,11 @@ void loop()
 
                     Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
+
+                if (Read_encoder_simple(EN_PB_Value))
+                {
+                    // reset encoder increment/decrement
+                }
             }
             break;
 
@@ -3936,7 +3951,7 @@ void loop()
                     Display_Mixer.MX_page();
                     for (auto source = 0; source < MX_sources; ++source)
                     {
-                        Display_Mixer.MX_source_values(source, (source == 0? true : false));
+                        Display_Mixer.MX_source_values(source, (source == 0 ? true : false));
                     }
                 }
                 else
@@ -3946,7 +3961,6 @@ void loop()
 
                     Display_Manager.D_show_page();
                 }
-
             }
 
             // Switch to LIVE_SAMPLING
@@ -7741,7 +7755,6 @@ bool P_Verify_if_Instrument_original(const int instrument_id)
     return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
            S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
 }
-
 
 void Golive_with_PERFORMANCE(int patch_id)
 {
@@ -11651,7 +11664,7 @@ void Golive_MIXER(void)
     Display_Mixer.MX_page();
     for (auto source = 0; source < MX_sources; ++source)
     {
-        Display_Mixer.MX_source_values(source, (source == 0? true : false));
+        Display_Mixer.MX_source_values(source, (source == 0 ? true : false));
     }
 
     Pointer_Mixer.Set_pointer_to_source(0);
@@ -11660,9 +11673,6 @@ void Golive_MIXER(void)
     Instrument_id = 0;
     Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 }
-
-
-
 
 // ***************************************************************************************************************
 // ****************************                         SETTINGS                        **************************
