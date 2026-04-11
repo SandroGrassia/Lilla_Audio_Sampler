@@ -47,12 +47,12 @@ void DisplayDelay::D_show_page()
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 2));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FEEDBACK");
-    D_read_gain();
+    D_feedback();
 
     tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 2));
     tft.setTextColor(TEXT_COLOR);
     tft.print("VALUE");
-    D_delay();
+    D_delay_time();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 3));
     tft.setTextColor(TEXT_COLOR);
@@ -60,12 +60,12 @@ void DisplayDelay::D_show_page()
     tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 3));
     tft.setTextColor(TEXT_COLOR);
     tft.print("VALUE L/R");
-    D_delay_LR();
+    D_delay_time_LR();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 5));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD SOURCE");
-    D_modulation_type();
+    D_modulation_source();
 
     tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 5));
     tft.setTextColor(TEXT_COLOR);
@@ -122,7 +122,16 @@ void DisplayDelay::D_sounds(void)
 }
 
 FLASHMEM
-void DisplayDelay::D_delay(void)
+void DisplayDelay::D_feedback(void) // feedback
+{
+    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(Delay_ROW_BASE + 2), 8);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(-Delay_feedback(Delay_data.loop_gain) * 100);
+    tft.print("%");
+}
+
+FLASHMEM
+void DisplayDelay::D_delay_time(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(25.5), display_coordinate_y(Delay_ROW_BASE + 2), 9);
     tft.setTextColor(ILI9341_YELLOW);
@@ -142,16 +151,7 @@ void DisplayDelay::D_delay(void)
 }
 
 FLASHMEM
-void DisplayDelay::D_read_gain(void) // feedback
-{
-    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(Delay_ROW_BASE + 2), 8);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(-Delay_feedback(Delay_data.loop_gain) * 100);
-    tft.print("%");
-}
-
-FLASHMEM
-void DisplayDelay::D_delay_LR(void)
+void DisplayDelay::D_delay_time_LR(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(29.5), display_coordinate_y(Delay_ROW_BASE + 3), 12);
     tft.setTextColor(ILI9341_YELLOW);
@@ -179,7 +179,7 @@ void DisplayDelay::D_delay_LR(void)
 }
 
 FLASHMEM
-void DisplayDelay::D_modulation_type(void)
+void DisplayDelay::D_modulation_source(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(10.5), display_coordinate_y(Delay_ROW_BASE + 5), 6);
     tft.setTextColor(ILI9341_YELLOW);
