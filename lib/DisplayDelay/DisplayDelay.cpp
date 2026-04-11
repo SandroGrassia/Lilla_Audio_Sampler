@@ -39,45 +39,42 @@ void DisplayDelay::D_show_page()
 
     Display_Manager.ALL_show_effects();
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(DEL_ROW_SOUND));
     tft.setTextColor(TEXT_COLOR);
     tft.print("SOURCES");
     D_sounds();
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 2));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(DEL_ROW_SOUND + 2));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FEEDBACK");
     D_feedback();
 
-    tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 2));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(DEL_ROW_SOUND + 3));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("VALUE");
+    tft.print("DELAY TIME");
     D_delay_time();
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 3));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(DEL_ROW_SOUND + 4));
     tft.setTextColor(TEXT_COLOR);
-
-    tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 3));
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("VALUE L/R");
+    tft.print("DELAY TIME L/R");
     D_delay_time_LR();
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 5));
+    tft.setCursor(display_coordinate_x(DEL_COL_MOD_SOURCE), display_coordinate_y(DEL_ROW_SOUND + 2));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD SOURCE");
     D_modulation_source();
 
-    tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 5));
+    tft.setCursor(display_coordinate_x(DEL_COL_MOD_SOURCE), display_coordinate_y(DEL_ROW_SOUND + 3));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD FREQUENCY");
     D_modulation_frequency();
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(Delay_ROW_BASE + 6));
+    tft.setCursor(display_coordinate_x(DEL_COL_MOD_SOURCE), display_coordinate_y(DEL_ROW_SOUND + 4));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD DEPTH");
     D_modulation_depth();
 
-    tft.setCursor(display_coordinate_x(20), display_coordinate_y(Delay_ROW_BASE + 6));
+    tft.setCursor(display_coordinate_x(DEL_COL_MOD_SOURCE), display_coordinate_y(DEL_ROW_SOUND + 5));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD PHASE L/R");
     D_modulation_phase_LR();
@@ -86,7 +83,7 @@ void DisplayDelay::D_show_page()
 FLASHMEM
 void DisplayDelay::D_sounds(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(8), display_coordinate_y(Delay_ROW_BASE), 23); // DISPLAY_text(int X, int Y, int N)
+    Cancel_text_reset_cursor(display_coordinate_x(8), display_coordinate_y(DEL_ROW_SOUND), 23); // DISPLAY_text(int X, int Y, int N)
     if (Lilla_state_0 == LIVE_SAMPLING)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -122,9 +119,9 @@ void DisplayDelay::D_sounds(void)
 }
 
 FLASHMEM
-void DisplayDelay::D_feedback(void) // feedback
+void DisplayDelay::D_feedback(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(Delay_ROW_BASE + 2), 8);
+    Cancel_text_reset_cursor(display_coordinate_x(9), display_coordinate_y(DEL_ROW_SOUND + 2), 8);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(-Delay_feedback(Delay_data.loop_gain) * 100);
     tft.print("%");
@@ -133,7 +130,7 @@ void DisplayDelay::D_feedback(void) // feedback
 FLASHMEM
 void DisplayDelay::D_delay_time(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(25.5), display_coordinate_y(Delay_ROW_BASE + 2), 9);
+    Cancel_text_reset_cursor(display_coordinate_x(11), display_coordinate_y(DEL_ROW_SOUND + 3), 9);
     tft.setTextColor(ILI9341_YELLOW);
 
     if (Delay_values.samples < 44100)
@@ -153,7 +150,7 @@ void DisplayDelay::D_delay_time(void)
 FLASHMEM
 void DisplayDelay::D_delay_time_LR(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(29.5), display_coordinate_y(Delay_ROW_BASE + 3), 12);
+    Cancel_text_reset_cursor(display_coordinate_x(15), display_coordinate_y(DEL_ROW_SOUND + 4), 12);
     tft.setTextColor(ILI9341_YELLOW);
 
     if (Delay_values.samples_LR == 0)
@@ -181,7 +178,7 @@ void DisplayDelay::D_delay_time_LR(void)
 FLASHMEM
 void DisplayDelay::D_modulation_source(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(10.5), display_coordinate_y(Delay_ROW_BASE + 5), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(DEL_COL_MOD_SOURCE + 11), display_coordinate_y(DEL_ROW_SOUND + 2), 6);
     tft.setTextColor(ILI9341_YELLOW);
     if (Delay_values.modulation_source == 0) // nessuna modulazione
     {
@@ -200,7 +197,7 @@ void DisplayDelay::D_modulation_source(void)
 FLASHMEM
 void DisplayDelay::D_modulation_frequency(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(33.5), display_coordinate_y(Delay_ROW_BASE + 5), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(DEL_COL_MOD_SOURCE + 14), display_coordinate_y(DEL_ROW_SOUND + 3), 7);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Delay_values.modulation_frequency);
     tft.setTextColor(ILI9341_ORANGE);
@@ -210,7 +207,7 @@ void DisplayDelay::D_modulation_frequency(void)
 FLASHMEM
 void DisplayDelay::D_modulation_depth(void) // depth
 {
-    Cancel_text_reset_cursor(display_coordinate_x(9.5), display_coordinate_y(Delay_ROW_BASE + 6), 8);
+    Cancel_text_reset_cursor(display_coordinate_x(DEL_COL_MOD_SOURCE + 10), display_coordinate_y(DEL_ROW_SOUND + 4), 8);
     tft.setTextColor(ILI9341_YELLOW);
     if (Delay_values.modulation_depth <= 1.0f)
     {
@@ -226,7 +223,7 @@ void DisplayDelay::D_modulation_depth(void) // depth
 FLASHMEM
 void DisplayDelay::D_modulation_phase_LR(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(33.5), display_coordinate_y(Delay_ROW_BASE + 6), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(DEL_COL_MOD_SOURCE + 14), display_coordinate_y(DEL_ROW_SOUND + 5), 7);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Delay_values.modulation_phase_LR);
     tft.setTextColor(ILI9341_ORANGE);

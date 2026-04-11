@@ -1222,7 +1222,7 @@ void loop()
 
         if (Lilla_state == DELAY_SETTINGS)
         {
-            Display_Manager.D_read_gain();
+            Display_Delay.D_feedback();
         }
     }
 
@@ -2126,7 +2126,7 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3077,7 +3077,7 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3572,7 +3572,7 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3947,7 +3947,7 @@ void loop()
             {
                 if (Lilla_state_0 == DIRECT_SAMPLING)
                 {
-                    Display_Manager.D_disabled();
+                    Display_Delay.D_disabled();
                     delay(2000);
 
                     Display_Mixer.MX_page();
@@ -3961,7 +3961,7 @@ void loop()
                     Lilla_state = DELAY_SETTINGS;
                     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                    Display_Manager.D_show_page();
+                    Display_Delay.D_show_page();
                 }
             }
 
@@ -4082,7 +4082,7 @@ void loop()
             D_gain_R_n.Set_gain(Delay_values.loop_gain);
             AudioInterrupts();
 
-            Display_Manager.D_read_gain();
+            Display_Delay.D_feedback();
         }
 
         // Change value (delay_central_value)
@@ -4103,7 +4103,7 @@ void loop()
             }
             AudioInterrupts();
 
-            Display_Manager.D_delay();
+            Display_Delay.D_delay_time();
         }
 
         // Change value_LR
@@ -4122,10 +4122,10 @@ void loop()
             }
             AudioInterrupts();
 
-            Display_Manager.D_delay_LR();
+            Display_Delay.D_delay_time_LR();
         }
 
-        // Change delay_modulation_type
+        // Change delay_modulation_source
         if (Read_encoder(19, Delay_data.modulation_source, 2, 0, 1))
         {
             Delay_values.modulation_source = Delay_data.modulation_source;
@@ -4135,7 +4135,7 @@ void loop()
             Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
             AudioInterrupts();
 
-            Display_Manager.D_modulation_type();
+            Display_Delay.D_modulation_source();
         }
 
         // Change delay_modulation_source = NONE
@@ -4149,7 +4149,7 @@ void loop()
             Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
             AudioInterrupts();
 
-            Display_Manager.D_modulation_type();
+            Display_Delay.D_modulation_source();
         }
 
         // Change depth (depth)
@@ -4162,7 +4162,7 @@ void loop()
             Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
             AudioInterrupts();
 
-            Display_Manager.D_modulation_depth();
+            Display_Delay.D_modulation_depth();
         }
 
         // Change delay_modulation_frequency
@@ -4175,7 +4175,7 @@ void loop()
             LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
             AudioInterrupts();
 
-            Display_Manager.D_modulation_frequency();
+            Display_Delay.D_modulation_frequency();
         }
 
         // Change modulation phase_LR
@@ -4187,7 +4187,7 @@ void loop()
             LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
             AudioInterrupts();
 
-            Display_Manager.D_modulation_phase_LR();
+            Display_Delay.D_modulation_phase_LR();
         }
 
         // Configure Instrument routing
@@ -4213,7 +4213,7 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    Display_Manager.D_sounds();
+                    Display_Delay.D_sounds();
                 }
                 else
                 {
@@ -4236,7 +4236,7 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    Display_Manager.D_sounds();
+                    Display_Delay.D_sounds();
                 }
             }
         }
@@ -6005,7 +6005,7 @@ void loop()
             else if (Read_pushbutton(28))
             {
                 Serial.println("DISPLAY_delay_disabled!");
-                Display_Manager.D_disabled();
+                Display_Delay.D_disabled();
                 delay(2000);
                 DS_refresh_DS_page();
             }
@@ -6136,7 +6136,7 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
             }
 
             // Switch to LIVE_SAMPLING
@@ -7012,7 +7012,7 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
             }
 
             // Switch to LIVE_SAMPLING
@@ -7346,7 +7346,7 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
                 break;
             }
 
@@ -9386,7 +9386,7 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             }
             else if (Lilla_state == DELAY_SETTINGS)
             {
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
             }
         }
         else // true: stop and exit
@@ -9512,7 +9512,7 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
     Lilla_state = DELAY_SETTINGS;
     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
-    Display_Manager.D_show_page();
+    Display_Delay.D_show_page();
 }
 
 void Golive_MIDI_MONITOR(void)

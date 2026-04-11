@@ -32,23 +32,24 @@ enum DELAY_element_name
 class DisplayDelay
 {
 private:
-static constexpr int Delay_ROW_BASE = 6;
+static constexpr int DEL_ROW_SOUND = 6;
+static constexpr int DEL_COL_MOD_SOURCE = 28;
 
-static constexpr float DELAY_column_row_FEEDBACK[2] = {, };
-static constexpr float DELAY_column_row_DELAY_TIME[2] = {, };
-static constexpr float DELAY_column_row_DELAY_TIME_LR[2] = {, };
-static constexpr float DELAY_column_row_MODULATION_SOURCE[2] = {, };
-static constexpr float DELAY_column_row_MODULATION_FREQUENCY[2] = {, };
-static constexpr float DELAY_column_row_MODULATION_DEPTH[2] = {, };
-static constexpr float DELAY_column_row_MODULATION_PHASE_LR[2] = {, };
+static constexpr float DELAY_column_row_FEEDBACK[2] = {0, DEL_ROW_SOUND + 2};
+static constexpr float DELAY_column_row_DELAY_TIME[2] = {0, DEL_ROW_SOUND + 3};
+static constexpr float DELAY_column_row_DELAY_TIME_LR[2] = {0, DEL_ROW_SOUND + 4};
+static constexpr float DELAY_column_row_MODULATION_SOURCE[2] = {20, DEL_ROW_SOUND + 2};
+static constexpr float DELAY_column_row_MODULATION_FREQUENCY[2] = {20, DEL_ROW_SOUND + 3};
+static constexpr float DELAY_column_row_MODULATION_DEPTH[2] = {20, DEL_ROW_SOUND + 4};
+static constexpr float DELAY_column_row_MODULATION_PHASE_LR[2] = {20, DEL_ROW_SOUND + 5};
 
-static constexpr float DELAY_column_row_feedback[2] = {8.5, Delay_ROW_BASE + 2};
-static constexpr float DELAY_column_row_delay_time[2] = {10, Delay_ROW_BASE + 3};
-static constexpr float DELAY_column_row_delay_time_LR[2] = {10, Delay_ROW_BASE + 4};
-static constexpr float DELAY_column_row_modulation_source[2] = {30, Delay_ROW_BASE + 2};
-static constexpr float DELAY_column_row_modulation_frequency[2] = {30, Delay_ROW_BASE + 3};
-static constexpr float DELAY_column_row_modulation_depth[2] = {30, Delay_ROW_BASE + 4};
-static constexpr float DELAY_column_row_modulation_phase_LR[2] = {30, Delay_ROW_BASE + 5};
+static constexpr float DELAY_column_row_feedback[2] = {8.5, DEL_ROW_SOUND + 2};
+static constexpr float DELAY_column_row_delay_time[2] = {10, DEL_ROW_SOUND + 3};
+static constexpr float DELAY_column_row_delay_time_LR[2] = {10, DEL_ROW_SOUND + 4};
+static constexpr float DELAY_column_row_modulation_source[2] = {30, DEL_ROW_SOUND + 2};
+static constexpr float DELAY_column_row_modulation_frequency[2] = {30, DEL_ROW_SOUND + 3};
+static constexpr float DELAY_column_row_modulation_depth[2] = {30, DEL_ROW_SOUND + 4};
+static constexpr float DELAY_column_row_modulation_phase_LR[2] = {30, DEL_ROW_SOUND + 5};
 
 static constexpr int DELAY_chars_feedback = 8;
 static constexpr int DELAY_chars_delay_time = 9;
@@ -58,7 +59,6 @@ static constexpr int DELAY_chars_modulation_frequency = 7;
 static constexpr int DELAY_chars_modulation_depth = 8;
 static constexpr int DELAY_chars_modulation_phase_LR = 7;
 
-  
 public:
     DisplayDelay() {}
     

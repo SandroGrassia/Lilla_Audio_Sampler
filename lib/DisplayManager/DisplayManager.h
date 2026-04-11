@@ -181,18 +181,6 @@ public:
     void P_show_TuningTone_instrument(int patch_id);
     void P_show_gain_TuningTone(int patch_id);
 
-    // DELAY
-    void D_show_page(void);
-    void D_sounds(void);
-    void D_delay(void);
-    void D_read_gain(void); // feedback
-    void D_delay_LR(void);
-    void D_modulation_type(void);
-    void D_modulation_frequency(void);
-    void D_modulation_depth(void); // index
-    void D_modulation_phase_LR(void);
-    void D_disabled(void);
-
     // DIRECT SAMPLING
     void DS_confirm_EXIT_from_DS(void);
     void DS_page(int recording);
