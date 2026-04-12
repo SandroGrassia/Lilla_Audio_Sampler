@@ -4217,6 +4217,21 @@ void loop()
 
                     Display_Delay.D_modulation_depth();
                 }
+
+                // Set delay_modulation_depth = 0
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Delay_data.modulation_depth = 0;
+
+                    Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
+
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    AudioInterrupts();
+
+                    Display_Delay.D_modulation_depth();
+                }
             }
             break;
 
@@ -4224,6 +4239,19 @@ void loop()
             {
                 if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
                 {
+                    Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+
+                    AudioNoInterrupts();
+                    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+                    AudioInterrupts();
+
+                    Display_Delay.D_modulation_phase_LR();
+                }
+
+                // Change delay_modulation_phase_LR = 0
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Delay_data.modulation_phase_LR = 0;
                     Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
 
                     AudioNoInterrupts();
