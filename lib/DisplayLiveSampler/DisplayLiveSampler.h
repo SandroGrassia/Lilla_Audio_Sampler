@@ -42,8 +42,16 @@ private:
     // pointer
     static constexpr float LS_column_row_play_mode[2] = {10, 3};
     static constexpr float LS_column_row_feedback[2] = {8.5, 4};
+    static constexpr float LS_column_row_step[2] = {5, 6};
+    static constexpr float LS_column_row_loop_time_mode_2[2] = {19, 3};
+    static constexpr float LS_column_row_loop_time_mode_3[2] = {23, 3};
+    static constexpr float LS_column_row_start_point[2] = {12, 5};
+    
     static constexpr int LS_chars_play_mode = 10;
     static constexpr int LS_chars_feedback = 5;
+    static constexpr int LS_chars_step = 16;
+    static constexpr int LS_chars_loop_time = 9;
+    static constexpr int LS_chars_start_point = 10;
 
     static constexpr float LS_column_row_element[LS_element_names][2] = {
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},

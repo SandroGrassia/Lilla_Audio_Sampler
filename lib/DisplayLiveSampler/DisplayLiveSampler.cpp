@@ -131,7 +131,7 @@ void DisplayLiveSampler::Feedback(void)
 FLASHMEM
 void DisplayLiveSampler::Step(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(5), display_coordinate_y(6), 16);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_step[0]), display_coordinate_y(LS_column_row_step[1]), LS_chars_step);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(LS_X_step);
     tft.setTextColor(ILI9341_ORANGE);
@@ -144,13 +144,13 @@ void DisplayLiveSampler::Loop_time(void)
     tft.setTextColor(ILI9341_YELLOW);
     if (LS_mode == 2)
     {
-        Cancel_text_reset_cursor(display_coordinate_x(19), display_coordinate_y(3), 9);
+        Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time_mode_2[0]), display_coordinate_y(LS_column_row_loop_time_mode_2[1]), LS_chars_loop_time);
         tft.print(LS_XY_delta / 44100.0f, 2);
         Show_measure_unit("sec", 3);
     }
     else if (LS_mode == 3)
     {
-        Cancel_text_reset_cursor(display_coordinate_x(23), display_coordinate_y(3), 9);
+        Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time_mode_3[0]), display_coordinate_y(LS_column_row_loop_time_mode_3[1]), LS_chars_loop_time);
         tft.print(LS_XY_delta / 44100.0f, 2);
         Show_measure_unit("sec", 3);
     }
@@ -160,7 +160,7 @@ FLASHMEM
 void DisplayLiveSampler::Start_point(void) // X_sample_delta
 {
     float local_value = 0;
-    Cancel_text_reset_cursor(display_coordinate_x(12), display_coordinate_y(5), 40);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_start_point[0]), display_coordinate_y(LS_column_row_start_point[1]), LS_chars_start_point);
     tft.setTextColor(ILI9341_YELLOW);
 
     if (LS_XY_lock)
