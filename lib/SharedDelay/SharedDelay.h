@@ -94,6 +94,7 @@ void Print_Delay_data(const Delay_data_struct &data);
 void Print_Delay_values(const Delay_values_struct Delay_values);
 
 // Pointer
+static constexpr int DELAY_element_names = 7;
 enum DELAY_element_name
 {
     value_DELAY_Feedback,

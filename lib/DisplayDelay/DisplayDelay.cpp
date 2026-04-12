@@ -6,7 +6,6 @@
 
 #include "DisplayDelay.h"
 
-
 FLASHMEM
 void DisplayDelay::D_show_page()
 {
@@ -250,3 +249,7 @@ void DisplayDelay::D_disabled(void)
     tft.print("DELAY IS DISABLED WHILE SAMPLING");
 }
 
+void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show)
+{
+Frame_by_col_row(DELAY_column_row_element[pointer][0], DELAY_column_row_element[pointer][1], DELAY_chars_element[pointer], show);
+}

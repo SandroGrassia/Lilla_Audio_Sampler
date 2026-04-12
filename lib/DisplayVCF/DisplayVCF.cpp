@@ -6,14 +6,13 @@
 
 #include "DisplayVCF.h"
 
-FLASHMEM
-void DisplayVCF::VCF_show_pointer_frame(int pointer, bool show)
+void DisplayVCF::VCF_show_pointer_frame(const int pointer, const bool show)
 {
     Frame_by_col_row(VCF_column_row_value_element[pointer][0], VCF_column_row_value_element[pointer][1], VCF_chars_value_element[pointer], show);
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_VCF_page(int patch_id, int instrument_id)
+void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
 {
     auto sound_id = Patch[patch_id].Instrument[instrument_id].sound_id;
 
@@ -106,7 +105,7 @@ void DisplayVCF::VCF_show_VCF_page(int patch_id, int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_sound_gain_value(int sound_id)
+void DisplayVCF::VCF_show_sound_gain_value(const int sound_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_Gain_Volume][0]),
@@ -128,7 +127,7 @@ void DisplayVCF::VCF_show_solo_value(void)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_filter_type_value(int instrument_id)
+void DisplayVCF::VCF_show_filter_type_value(const int instrument_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_FilterType][0]),
@@ -161,7 +160,7 @@ void DisplayVCF::VCF_show_filter_type_value(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_cutoff_value(int instrument_id)
+void DisplayVCF::VCF_show_cutoff_value(const int instrument_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_Cutoff][0]),
@@ -174,7 +173,7 @@ void DisplayVCF::VCF_show_cutoff_value(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_resonance_value(int instrument_id)
+void DisplayVCF::VCF_show_resonance_value(const int instrument_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_Resonance][0]),
@@ -185,7 +184,7 @@ void DisplayVCF::VCF_show_resonance_value(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_LFO_modulation_source(int instrument_id)
+void DisplayVCF::VCF_show_LFO_modulation_source(const int instrument_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_LfoModulationType][0]),
@@ -218,7 +217,7 @@ void DisplayVCF::VCF_show_LFO_modulation_source(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_LFO_freq_time(int instrument_id)
+void DisplayVCF::VCF_show_LFO_freq_time(const int instrument_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_LfoModFreqTime][0]),
@@ -238,7 +237,7 @@ void DisplayVCF::VCF_show_LFO_freq_time(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_LFO_modulation_depth(int instrument_id)
+void DisplayVCF::VCF_show_LFO_modulation_depth(const int instrument_id)
 {
     Cancel_text_reset_cursor(
         display_coordinate_x(VCF_column_row_value_element[value_VCF_LfoModDepth][0]),

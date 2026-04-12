@@ -83,15 +83,15 @@ private:
 public:
     DisplayVCF() {}
 
-    void VCF_show_VCF_page(int patch_id, int instrument_id);
-    void VCF_show_pointer_frame(int pointer, bool show);
+    void VCF_show_VCF_page(const int patch_id, const int instrument_id);
+    void VCF_show_pointer_frame(const int pointer, const bool show);
     void VCF_show_solo_value(void);
 
-    void VCF_show_sound_gain_value(int sound_id);
-    void VCF_show_filter_type_value(int instrument_id);
-    void VCF_show_cutoff_value(int instrument_id);
-    void VCF_show_resonance_value(int instrument_id);
-    void VCF_show_LFO_modulation_source(int instrument_id);
-    void VCF_show_LFO_freq_time(int instrument_id);
-    void VCF_show_LFO_modulation_depth(int instrument_id);
+    void VCF_show_sound_gain_value(const int sound_id);
+    void VCF_show_filter_type_value(const int instrument_id);
+    void VCF_show_cutoff_value(const int instrument_id);
+    void VCF_show_resonance_value(const int instrument_id);
+    void VCF_show_LFO_modulation_source(const int instrument_id);
+    void VCF_show_LFO_freq_time(const int instrument_id);
+    void VCF_show_LFO_modulation_depth(const int instrument_id);
 };

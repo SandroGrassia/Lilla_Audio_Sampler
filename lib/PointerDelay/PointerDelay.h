@@ -29,15 +29,16 @@ enum DELAY_element_name
 
 class PointerDelay
 {
-    private:
-    DELAY_pointer_struct pointer;
-    DELAY_pointer_struct pointer_old;
-    
-    public:
-    PointerDelay () {}
+private:
+    DELAY_element_name pointer;
+    DELAY_element_name pointer_old;
+    static constexpr int pointer_max = DELAY_element_names - 1;
+
+public:
+    PointerDelay() {}
 
     void Set_pointer_to_Feedback(void);
     void Move_pointer(const int value);
     void Display_pointer(void);
-    DELAY_element_name Get_pointer(void);
+    DELAY_element_name Get_element_name(void);
 };
