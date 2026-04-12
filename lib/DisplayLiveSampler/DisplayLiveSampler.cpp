@@ -6,15 +6,15 @@
 
 #include "DisplayLiveSampler.h"
 
-void DisplayLiveSampler::Led_LIVE_SAMPLING(bool on)
+void DisplayLiveSampler::Led_LIVE_SAMPLING(const bool on)
 {
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(3), led_pic, 6, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(39.5), display_coordinate_y(0), led_pic, 6, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
     }
     else
     {
-        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(3), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_OFF : GREEN_OFF));
+        tft.drawBitmap(display_coordinate_x(39.5), display_coordinate_y(0), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_OFF : GREEN_OFF));
     }
     return;
 }
@@ -48,24 +48,24 @@ void DisplayLiveSampler::Page(void)
     Page_title();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(37), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(41), display_coordinate_y(0));
+    tft.print("VOLUME");
+    Volume();
+    
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(37), display_coordinate_y(3));
     tft.print("LENGTH");
     Buffer_dimension();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(1.5), display_coordinate_y(3));
-    tft.print("VOLUME");
-    Volume();
-
-    tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(37), display_coordinate_y(3));
-    tft.print("FEEDBACK");
-    Feedback();
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
+    tft.print("PLAY MODE");
+    Play_mode();
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
-    tft.print("PLAY MODE");
-    Play_mode();
+    tft.print("FEEDBACK");
+    Feedback();
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
@@ -89,9 +89,30 @@ void DisplayLiveSampler::Page_title(void)
 }
 
 FLASHMEM
+void DisplayLiveSampler::Volume(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(47.5), display_coordinate_y(0), 4);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(volume_patch / 20.0f);
+}
+
+FLASHMEM
+void DisplayLiveSampler::Play_mode(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(10), display_coordinate_y(3), 20);
+    tft.setTextColor(ILI9341_YELLOW);
+    if (LS_mode > 1)
+    {
+        tft.print(loop_mode[LS_mode]);
+        tft.print(" ");
+    }
+    tft.print(name_mode[LS_mode]);
+}
+
+FLASHMEM
 void DisplayLiveSampler::Feedback(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(46), display_coordinate_y(3), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(4), 6);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(100 * LS_fbk_table[LS_feedback], 2);
     tft.setTextColor(ILI9341_ORANGE);
@@ -111,31 +132,10 @@ void DisplayLiveSampler::Step(void)
 FLASHMEM
 void DisplayLiveSampler::Buffer_dimension(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(44), display_coordinate_y(0), 12);
+    Cancel_text_reset_cursor(display_coordinate_x(43.5), display_coordinate_y(3), 12);
     tft.setTextColor(ILI9341_WHITE);
     tft.print(LS_buffer_dim / 44100.0f, 1);
     Show_measure_unit("sec", 3);
-}
-
-FLASHMEM
-void DisplayLiveSampler::Volume(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(3), 4);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f);
-}
-
-FLASHMEM
-void DisplayLiveSampler::Play_mode(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(10), display_coordinate_y(4), 20);
-    tft.setTextColor(ILI9341_YELLOW);
-    if (LS_mode > 1)
-    {
-        tft.print(loop_mode[LS_mode]);
-        tft.print(" ");
-    }
-    tft.print(name_mode[LS_mode]);
 }
 
 FLASHMEM
@@ -242,11 +242,10 @@ void DisplayLiveSampler::Menu(void)
 }
 
 FLASHMEM
-void DisplayLiveSampler::Menu_frame(int position)
+void DisplayLiveSampler::Menu_frame(const int position)
 {
     Delete_menu_frames();
     Frame_by_col_row(X_position_Menu_LS[position], 1, dimension_voice_Menu_LS[element_Menu_LS[position]], true);
-    // LS_menu_choice = element_Menu_LS[position]; // TRASFERITA NEL CODICE main.cpp
 }
 
 FLASHMEM
@@ -264,7 +263,7 @@ void DisplayLiveSampler::Delete_menu_frames(void)
     }
 }
 
-void DisplayLiveSampler::Show_wave(int sound_id)
+void DisplayLiveSampler::Show_wave(const int sound_id)
 {
     int id_file = Sound[sound_id].file;
 
@@ -297,23 +296,23 @@ void DisplayLiveSampler::Show_wave(int sound_id)
                                 ---------------------------------------------------------------
                             0   |                                                             |
                                 |                                                             |
-                                |                                                             |                                                                                       
-                                |                                                             |                                
+                                |                                                             |
+                                |                                                             |
            CANVAS_WAVE_0 (48)   |-------------------------------------------------------------|
                                 |                                                             |
-                                |                                                             |                                                                                       
-                                |                                                             |                                
+                                |                                                             |
+                                |                                                             |
                                 |                                                             |
     WAVEBOARD_HEIGHT - 1 (96)   |_____________________________________________________________|
 
     */
-    
+
     int y0 = CANVAS_WAVE_0;
     int wave_pixel_0 = 0;
 
     for (auto wave_pixel = 0; wave_pixel < WAVEBOARD_WIDTH; ++wave_pixel)
     {
-        int yp = CANVAS_WAVE_0 - (*(Wave_array + wave_pixel) >> 10); // valore minimo = 48 - 32 = 16
+        int yp = CANVAS_WAVE_0 - (*(Wave_array + wave_pixel) >> 10);                   // valore minimo = 48 - 32 = 16
         int yn = CANVAS_WAVE_0 - (*(Wave_array + wave_pixel + WAVEBOARD_WIDTH) >> 10); // valore massimo 48 + 32 = 80
 
         uint16_t LS_wave_color = Get_wave_color(wave_pixel);
@@ -404,7 +403,7 @@ void DisplayLiveSampler::Show_wave(int sound_id)
     // memo[0] = localtimer; // 530us
     tft.drawRGBBitmap(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.getBuffer(), canvas.width(), canvas.height());
     // memo[1] = localtimer; // memo[1] - memo[0] = 44.000us
-    
+
     // Serial.print("Fill canvas, microseconds:");
     // Serial.print(memo[0]);
     // Serial.print(" Fill display, microseconds:");
@@ -466,7 +465,7 @@ void DisplayLiveSampler::Draw_XY_lines(void)
     }
 }
 
-uint16_t DisplayLiveSampler::Get_wave_color(int point)
+uint16_t DisplayLiveSampler::Get_wave_color(const int point)
 {
     int position = LS_constrain_position(LS_window_A_sample + point * LS_K_wave_color);
 
@@ -485,4 +484,9 @@ uint16_t DisplayLiveSampler::Get_wave_color(int point)
 
     LS_wave_poit_distance_0 = distance;
     return (31 << 11) + (green << 5); // (red << 11) + (green << 5) + blue
+}
+
+void DisplayLiveSampler::LS_show_pointer_frame(const LS_element_name pointer, const bool show)
+{
+    Frame_by_col_row(LS_column_row_element[pointer][0], LS_column_row_element[pointer][1], LS_chars_element[pointer], show);
 }

@@ -39,6 +39,19 @@ private:
     void Delete_menu_frames(void);
     void Page_title(void);
 
+    // pointer
+    static constexpr float LS_column_row_play_mode[2] = {3, 33};
+    static constexpr float LS_column_row_feedback[2] = {4, 33};
+    static constexpr int LS_chars_play_mode = 8;
+    static constexpr int LS_chars_feedback = 5;
+
+    static constexpr float LS_column_row_element[LS_element_names][2] = {
+        {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
+        {LS_column_row_feedback[0], LS_column_row_feedback[1]}
+    };
+
+    static constexpr int LS_chars_element[LS_element_names] = {LS_chars_play_mode, LS_chars_feedback};
+
     // elapsedMicros localtimer;
     //  int memo[2];
 
@@ -48,7 +61,6 @@ public:
     // Gestione LED
     void Led_LIVE_SAMPLING(bool on);
 
-    // LIVE_SAMPLING
     void Confirm_EXIT_from_LS(void);
     void Page(void);
     void Feedback(void);
@@ -59,8 +71,11 @@ public:
     void Loop_time(void);
     void X_sample_delta(void);
     void Menu(void);
-    void Menu_frame(int position);
-    void Show_wave(int sound_id);
-    uint16_t Get_wave_color(int point);
+    void Menu_frame(const int position);
+    void Show_wave(const int sound_id);
+    uint16_t Get_wave_color(const int point);
     void Update_REC_LED(void);
+
+    // pointer
+    void LS_show_pointer_frame(const LS_element_name pointer, const bool show);
 };

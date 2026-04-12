@@ -172,6 +172,7 @@
 #include "PointerVCF.h"
 #include "PointerMixer.h"
 #include "PointerDelay.h"
+#include "PointerLiveSampler.h"
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -379,6 +380,7 @@ PointerSound Pointer_Sound;
 PointerVCF Pointer_VCF;
 PointerMixer Pointer_Mixer;
 PointerDelay Pointer_Delay;
+PointerLiveSampler Pointer_LiveSampler;
 
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************

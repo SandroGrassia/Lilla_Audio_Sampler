@@ -57,3 +57,11 @@ extern int LS_XY_delta; // distanza tra LS_X_sample e LS_Y_sample
 
 // waveform
 int LS_constrain_position(int value);
+
+// pointer
+static constexpr int LS_element_names = 2;
+enum LS_element_name
+{
+    value_LS_Play_mode,
+    value_LS_Feedback
+};

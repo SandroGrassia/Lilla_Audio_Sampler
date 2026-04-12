@@ -55,6 +55,15 @@ private:
     static constexpr float DELAY_column_row_modulation_depth[2] = {DEL_COL_MOD_SOURCE + 10, DEL_ROW_SOUND + 4};
     static constexpr float DELAY_column_row_modulation_phase_LR[2] = {DEL_COL_MOD_SOURCE + 14, DEL_ROW_SOUND + 5};
 
+    static constexpr int DELAY_chars_feedback = 6;
+    static constexpr int DELAY_chars_delay_time = 7;
+    static constexpr int DELAY_chars_delay_time_LR = 10;
+    static constexpr int DELAY_chars_modulation_source = 6;
+    static constexpr int DELAY_chars_modulation_frequency = 7;
+    static constexpr int DELAY_chars_modulation_depth = 6;
+    static constexpr int DELAY_chars_modulation_phase_LR = 6;
+    
+    // pointer
     static constexpr float DELAY_column_row_element[DELAY_element_names][2] = {
         {DELAY_column_row_feedback[0], DELAY_column_row_feedback[1]},
         {DELAY_column_row_delay_time[0], DELAY_column_row_delay_time[1]},
@@ -63,14 +72,6 @@ private:
         {DELAY_column_row_modulation_frequency[0], DELAY_column_row_modulation_frequency[1]},
         {DELAY_column_row_modulation_depth[0], DELAY_column_row_modulation_depth[1]},
         {DELAY_column_row_modulation_phase_LR[0], DELAY_column_row_modulation_phase_LR[1]}};
-
-    static constexpr int DELAY_chars_feedback = 8;
-    static constexpr int DELAY_chars_delay_time = 9;
-    static constexpr int DELAY_chars_delay_time_LR = 12;
-    static constexpr int DELAY_chars_modulation_source = 6;
-    static constexpr int DELAY_chars_modulation_frequency = 7;
-    static constexpr int DELAY_chars_modulation_depth = 8;
-    static constexpr int DELAY_chars_modulation_phase_LR = 7;
 
     static constexpr int DELAY_chars_element[DELAY_element_names] = {
         DELAY_chars_feedback,
@@ -97,5 +98,5 @@ public:
     void D_modulation_phase_LR(void);
 
     // pointer
-    void DELAY_show_pointer_frame(DELAY_element_name pointer, const bool show);
+    void DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show);
 };
