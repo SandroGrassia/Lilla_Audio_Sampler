@@ -8,7 +8,8 @@
 
 void PointerDelay::Set_pointer_to_Feedback(void)
 {
-    Display_Delay.DELAY_show_pointer_frame(value_DELAY_Feedback, true);
+    pointer = value_DELAY_Feedback;
+    Display_pointer();
 }
 
 void PointerDelay::Move_pointer(const int value)
@@ -31,7 +32,7 @@ void PointerDelay::Move_pointer(const int value)
     {
         if (pointer == value_DELAY_Feedback)
         {
-            pointer = value_DELAY_Modulation_phase_LR;
+            pointer = static_cast<DELAY_element_name>(pointer_max);
         }
         else
         {

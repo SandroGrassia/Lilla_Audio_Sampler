@@ -171,6 +171,7 @@
 #include "PointerSound.h"
 #include "PointerVCF.h"
 #include "PointerMixer.h"
+#include "PointerDelay.h"
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -377,6 +378,7 @@ PointerPerformance Pointer_Performance;
 PointerSound Pointer_Sound;
 PointerVCF Pointer_VCF;
 PointerMixer Pointer_Mixer;
+PointerDelay Pointer_Delay;
 
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************
@@ -518,6 +520,9 @@ int16_t *DELAY_fifo_L = NULL;
 int16_t *DELAY_fifo_R = NULL;
 uint8_t delay_instrument_routing; // indica un instrument_id se <=7; se 8 indica instrument_id 0 e 1
 
+// pointer
+DELAY_element_name DELAY_local_pointer;
+
 // >>>>>>> DIRECT_SAMPLING
 // menu
 int DS_menu;
@@ -658,7 +663,6 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id);
 void LOOP_stop_and_reset_runnig_loop_data(void);
 
 // >>>>>>> MIXER
-// PWM Monitor
 MX_pointer_struct MX_local_pointer;
 int volume_MONITOR = 0;
 void Golive_MIXER(void);
@@ -1068,14 +1072,14 @@ void setup()
     SR_monitored_encoders_set[Mixer_context] = Get_monitored_encoders({0, 3, 4, 7, 8, 15, 16, 19, 20, 24, 25});
     SR_monitored_pushbuttons_set[Mixer_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    SR_monitored_encoders_set[Delay_settings_context] = Get_monitored_encoders({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22});
-    SR_monitored_pushbuttons_set[Delay_settings_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 19, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_encoders_set[Delay_settings_context] = Get_monitored_encoders({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22, 24, 25});
+    SR_monitored_pushbuttons_set[Delay_settings_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 19, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    SR_monitored_encoders_set[Live_Sampling_context] = Get_monitored_encoders({0, 1, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 25});
-    SR_monitored_pushbuttons_set[Live_Sampling_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 9, 10, 15, 16, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_encoders_set[Live_Sampling_context] = Get_monitored_encoders({0, 1, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 24, 25});
+    SR_monitored_pushbuttons_set[Live_Sampling_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 9, 10, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    SR_monitored_encoders_set[Direct_Sampling_context] = Get_monitored_encoders({0, 4, 7, 8, 15, 16, 23, 25});
-    SR_monitored_pushbuttons_set[Direct_Sampling_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_encoders_set[Direct_Sampling_context] = Get_monitored_encoders({0, 4, 7, 8, 15, 16, 23, 24, 25});
+    SR_monitored_pushbuttons_set[Direct_Sampling_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     SR_monitored_encoders_set[Midi_Monitor_context] = Get_monitored_encoders({0, 7, 8, 15, 16});
     SR_monitored_pushbuttons_set[Midi_Monitor_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
@@ -1084,7 +1088,7 @@ void setup()
     SR_monitored_pushbuttons_set[Midi_Loop_context] = Get_monitored_pushbuttons({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     SR_monitored_encoders_set[Setup_context] = Get_monitored_encoders({0, 7, 8, 15, 16, 24, 25});
-    SR_monitored_pushbuttons_set[Setup_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_pushbuttons_set[Setup_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     SR_monitored_encoders_set[Control_Change_context] = Get_monitored_encoders({0, 7, 8, 16, 24, 25});
     SR_monitored_pushbuttons_set[Control_Change_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25});
@@ -2094,6 +2098,7 @@ void loop()
                 // pointer
                 Pointer_Sound.Update_field_description(S_menu_max);
                 Pointer_Sound.Set_pointer_to_file(S_menu_max);
+                S_field_description = Pointer_Sound.Get_field_description();
                 Pointer_Sound.Display_pointer();
 
                 // restore LEDs
@@ -2127,6 +2132,8 @@ void loop()
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -2190,9 +2197,8 @@ void loop()
         if (result != 0)
         {
             Pointer_Sound.Move_pointer(result, S_menu_max);
+            S_field_description = Pointer_Sound.Get_field_description();
         }
-
-        S_field_description = Pointer_Sound.Get_field_description();
 
         // Change values
         switch (S_field_description.field_name)
@@ -3078,6 +3084,8 @@ void loop()
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3573,6 +3581,8 @@ void loop()
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3962,6 +3972,8 @@ void loop()
                     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                     Display_Delay.D_show_page();
+                    Pointer_Delay.Set_pointer_to_Feedback();
+                    DELAY_local_pointer = Pointer_Delay.Get_element_name();
                 }
             }
 
@@ -4061,7 +4073,7 @@ void loop()
     if (Lilla_state == DELAY_SETTINGS)
     {
         // Change Patch VOLUME
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -4071,123 +4083,161 @@ void loop()
             Display_Manager.P_Patch_volume_value(true);
         }
 
-        // Change feddback (gain tap 0)
-        if (Read_encoder(12, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
         {
-            Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-            Serial.println(Delay_values.loop_gain);
-
-            AudioNoInterrupts();
-            D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-            D_gain_R_n.Set_gain(Delay_values.loop_gain);
-            AudioInterrupts();
-
-            Display_Delay.D_feedback();
+            Pointer_Delay.Move_pointer(result);
+            DELAY_local_pointer = Pointer_Delay.Get_element_name();
         }
 
-        // Change value (delay_central_value)
-        if (Read_encoder(13, Delay_data.samples, 99, 0, 1))
+        // Change values
         {
-            Delay_values.samples = Calc_delay_samples(Delay_data.samples);
-
-            AudioNoInterrupts();
-            if (Delay_values.samples_LR >= 0) // Left channel
+            switch (DELAY_local_pointer)
             {
-                Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                Delay_R.Set_delay_central_value(Delay_values.samples);
-            }
-            else
+            case value_DELAY_Feedback:
             {
-                Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                Delay_L.Set_delay_central_value(Delay_values.samples);
+                if (Read_encoder(EN_PB_Value, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
+                {
+                    Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
+                    Serial.println(Delay_values.loop_gain);
+
+                    AudioNoInterrupts();
+                    D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
+                    D_gain_R_n.Set_gain(Delay_values.loop_gain);
+                    AudioInterrupts();
+
+                    Display_Delay.D_feedback();
+                }
             }
-            AudioInterrupts();
+            break;
 
-            Display_Delay.D_delay_time();
-        }
-
-        // Change value_LR
-        if (Read_encoder(14, Delay_data.samples_LR, 10, -10, 1))
-        {
-            Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
-
-            AudioNoInterrupts();
-            if (Delay_values.samples_LR >= 0) // Left channel
+            case value_DELAY_Delay_time:
             {
-                Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                if (Read_encoder(EN_PB_Value, Delay_data.samples, 99, 0, 1))
+                {
+                    Delay_values.samples = Calc_delay_samples(Delay_data.samples);
+
+                    AudioNoInterrupts();
+                    if (Delay_values.samples_LR >= 0) // Left channel
+                    {
+                        Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                        Delay_R.Set_delay_central_value(Delay_values.samples);
+                    }
+                    else
+                    {
+                        Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                        Delay_L.Set_delay_central_value(Delay_values.samples);
+                    }
+                    AudioInterrupts();
+
+                    Display_Delay.D_delay_time();
+                }
             }
-            else
+            break;
+
+            case value_DELAY_Delay_time_LR:
             {
-                Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                if (Read_encoder(EN_PB_Value, Delay_data.samples_LR, 10, -10, 1))
+                {
+                    Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
+
+                    AudioNoInterrupts();
+                    if (Delay_values.samples_LR >= 0) // Left channel
+                    {
+                        Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                    }
+                    else
+                    {
+                        Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                    }
+                    AudioInterrupts();
+
+                    Display_Delay.D_delay_time_LR();
+                }
             }
-            AudioInterrupts();
+            break;
 
-            Display_Delay.D_delay_time_LR();
-        }
+            case value_DELAY_Modulation_source:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_source, 2, 0, 1))
+                {
+                    Delay_values.modulation_source = Delay_data.modulation_source;
 
-        // Change delay_modulation_source
-        if (Read_encoder(19, Delay_data.modulation_source, 2, 0, 1))
-        {
-            Delay_values.modulation_source = Delay_data.modulation_source;
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
+                    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-            Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-            AudioInterrupts();
+                    Display_Delay.D_modulation_source();
+                }
 
-            Display_Delay.D_modulation_source();
-        }
+                // Change delay_modulation_source = NONE
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Delay_data.modulation_source = 0;
+                    Delay_values.modulation_source = Delay_data.modulation_source;
 
-        // Change delay_modulation_source = NONE
-        if (Read_pushbutton(19))
-        {
-            Delay_data.modulation_source = 0;
-            Delay_values.modulation_source = Delay_data.modulation_source;
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
+                    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-            Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-            AudioInterrupts();
+                    Display_Delay.D_modulation_source();
+                }
+            }
+            break;
 
-            Display_Delay.D_modulation_source();
-        }
+            case value_DELAY_Modulation_frequency:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_frequency, 90, 0, 1))
+                {
+                    Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
 
-        // Change depth (depth)
-        if (Read_encoder(20, Delay_data.modulation_depth, 39, 0, 1))
-        {
-            Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
+                    AudioNoInterrupts();
+                    LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
+                    LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-            Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-            AudioInterrupts();
+                    Display_Delay.D_modulation_frequency();
+                }
+            }
+            break;
 
-            Display_Delay.D_modulation_depth();
-        }
+            case value_DELAY_Modulation_depth:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_depth, 39, 0, 1))
+                {
+                    Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
 
-        // Change delay_modulation_frequency
-        if (Read_encoder(21, Delay_data.modulation_frequency, 90, 0, 1))
-        {
-            Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
-            LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
-            AudioInterrupts();
+                    Display_Delay.D_modulation_depth();
+                }
+            }
+            break;
 
-            Display_Delay.D_modulation_frequency();
-        }
+            case value_DELAY_Modulation_phase_LR:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
+                {
+                    Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
 
-        // Change modulation phase_LR
-        if (Read_encoder(22, Delay_data.modulation_phase_LR, 359, 0, 1))
-        {
-            Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+                    AudioNoInterrupts();
+                    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-            AudioInterrupts();
+                    Display_Delay.D_modulation_phase_LR();
+                }
+            }
+            break;
 
-            Display_Delay.D_modulation_phase_LR();
+            default:
+                break;
+            }
         }
 
         // Configure Instrument routing
@@ -6137,6 +6187,8 @@ void loop()
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -7013,6 +7065,8 @@ void loop()
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -7347,6 +7401,8 @@ void loop()
                 Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
                 break;
             }
 
@@ -9387,6 +9443,8 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             else if (Lilla_state == DELAY_SETTINGS)
             {
                 Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
         }
         else // true: stop and exit
@@ -9513,6 +9571,8 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
 
     Display_Delay.D_show_page();
+    Pointer_Delay.Set_pointer_to_Feedback();
+    DELAY_local_pointer = Pointer_Delay.Get_element_name();
 }
 
 void Golive_MIDI_MONITOR(void)
