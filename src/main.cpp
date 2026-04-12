@@ -1115,7 +1115,7 @@ void setup()
 
     // Test encoder e pulsanti
     // indica quale encoder e' stato ruotato (+/-1) o pulsante e' stato premuto
-    if (Read_pushbutton(0)) // RESOLUTION
+    if (Read_pushbutton(0)) 
     {
         Display_Manager.Encoder_pushbutton_test_board();
 
@@ -4711,7 +4711,7 @@ void loop()
                 }
 
                 LS_X_sample = LS_constrain_position(LS_X_sample);
-                Display_LiveSampler.X_sample_delta();
+                Display_LiveSampler.Start_point();
 
                 Serial.print(F("LS_X_sample: "));
                 Serial.println(LS_X_sample);
@@ -4734,7 +4734,7 @@ void loop()
                 }
 
                 LS_X_delta = LS_constrain_position(LS_X_delta);
-                Display_LiveSampler.X_sample_delta();
+                Display_LiveSampler.Start_point();
 
                 Serial.print(F("LS_X_delta: "));
                 Serial.println(LS_X_delta);
@@ -4787,7 +4787,7 @@ void loop()
                 Serial.println(LS_X_sample);
             }
 
-            Display_LiveSampler.X_sample_delta();
+            Display_LiveSampler.Start_point();
             Serial.print(F("LS_XY_lock: "));
             Serial.println(LS_XY_lock);
 

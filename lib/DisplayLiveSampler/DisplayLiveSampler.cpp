@@ -54,8 +54,8 @@ void DisplayLiveSampler::Page(void)
     
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(37), display_coordinate_y(3));
-    tft.print("LENGTH");
-    Buffer_dimension();
+    tft.print("BUFFER");
+    Buffer();
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
@@ -70,7 +70,7 @@ void DisplayLiveSampler::Page(void)
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
     tft.print("START POINT");
-    X_sample_delta();
+    Start_point();
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
@@ -97,9 +97,18 @@ void DisplayLiveSampler::Volume(void)
 }
 
 FLASHMEM
+void DisplayLiveSampler::Buffer(void) //
+{
+    Cancel_text_reset_cursor(display_coordinate_x(43.5), display_coordinate_y(3), 12);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.print(LS_buffer_dim / 44100.0f, 1);
+    Show_measure_unit("sec", 3);
+}
+
+FLASHMEM
 void DisplayLiveSampler::Play_mode(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(10), display_coordinate_y(3), 20);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_play_mode[0]), display_coordinate_y(LS_column_row_play_mode[1]), LS_chars_play_mode);
     tft.setTextColor(ILI9341_YELLOW);
     if (LS_mode > 1)
     {
@@ -112,7 +121,7 @@ void DisplayLiveSampler::Play_mode(void)
 FLASHMEM
 void DisplayLiveSampler::Feedback(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(4), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_feedback[0]), display_coordinate_y(LS_column_row_feedback[1]), LS_chars_feedback);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(100 * LS_fbk_table[LS_feedback], 2);
     tft.setTextColor(ILI9341_ORANGE);
@@ -130,34 +139,25 @@ void DisplayLiveSampler::Step(void)
 }
 
 FLASHMEM
-void DisplayLiveSampler::Buffer_dimension(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(43.5), display_coordinate_y(3), 12);
-    tft.setTextColor(ILI9341_WHITE);
-    tft.print(LS_buffer_dim / 44100.0f, 1);
-    Show_measure_unit("sec", 3);
-}
-
-FLASHMEM
 void DisplayLiveSampler::Loop_time(void)
 {
     tft.setTextColor(ILI9341_YELLOW);
     if (LS_mode == 2)
     {
-        Cancel_text_reset_cursor(display_coordinate_x(19), display_coordinate_y(4), 9);
+        Cancel_text_reset_cursor(display_coordinate_x(19), display_coordinate_y(3), 9);
         tft.print(LS_XY_delta / 44100.0f, 2);
         Show_measure_unit("sec", 3);
     }
     else if (LS_mode == 3)
     {
-        Cancel_text_reset_cursor(display_coordinate_x(23), display_coordinate_y(4), 9);
+        Cancel_text_reset_cursor(display_coordinate_x(23), display_coordinate_y(3), 9);
         tft.print(LS_XY_delta / 44100.0f, 2);
         Show_measure_unit("sec", 3);
     }
 }
 
 FLASHMEM
-void DisplayLiveSampler::X_sample_delta(void)
+void DisplayLiveSampler::Start_point(void) // X_sample_delta
 {
     float local_value = 0;
     Cancel_text_reset_cursor(display_coordinate_x(12), display_coordinate_y(5), 40);

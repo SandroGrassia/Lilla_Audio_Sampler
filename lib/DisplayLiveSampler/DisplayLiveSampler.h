@@ -40,9 +40,9 @@ private:
     void Page_title(void);
 
     // pointer
-    static constexpr float LS_column_row_play_mode[2] = {3, 33};
-    static constexpr float LS_column_row_feedback[2] = {4, 33};
-    static constexpr int LS_chars_play_mode = 8;
+    static constexpr float LS_column_row_play_mode[2] = {10, 3};
+    static constexpr float LS_column_row_feedback[2] = {8.5, 4};
+    static constexpr int LS_chars_play_mode = 10;
     static constexpr int LS_chars_feedback = 5;
 
     static constexpr float LS_column_row_element[LS_element_names][2] = {
@@ -65,11 +65,11 @@ public:
     void Page(void);
     void Feedback(void);
     void Step(void);
-    void Buffer_dimension(void);
+    void Buffer(void);
     void Volume(void);
     void Play_mode(void);
     void Loop_time(void);
-    void X_sample_delta(void);
+    void Start_point(void);
     void Menu(void);
     void Menu_frame(const int position);
     void Show_wave(const int sound_id);
