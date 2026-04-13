@@ -39,7 +39,7 @@ private:
     void Page_title(void);
 
     // pointer
-    static constexpr float LS_ROW_BASE = 3;
+    static constexpr float LS_ROW_BASE = 4;
 
     static constexpr float LS_column_row_BUFFER[2] = {20, 0};
     static constexpr float LS_column_row_VOLUME[2] = {41, 0};

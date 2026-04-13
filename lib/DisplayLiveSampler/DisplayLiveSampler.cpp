@@ -405,7 +405,7 @@ void DisplayLiveSampler::Show_wave(const int sound_id)
     }
 
     canvas.setTextColor(TEXT_COLOR);
-    canvas.setCursor((WAVEBOARD_WIDTH / 2) - 18, Y_FOOTER_TEXT);
+    canvas.setCursor((WAVEBOARD_WIDTH / 2) - 30, Y_FOOTER_TEXT);
     canvas.print("PLAY POINT");
 
     Draw_XY_lines();
