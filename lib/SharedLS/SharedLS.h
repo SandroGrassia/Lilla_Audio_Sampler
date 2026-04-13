@@ -73,11 +73,12 @@ enum LS_menu_element_name
     value_LS_MonoStereo,
     value_LS_Erase
 };
-static constexpr int LS_value_names = 2;
+static constexpr int LS_value_names = 3;
 enum LS_value_name
 {
     value_LS_Play_mode,
-    value_LS_Feedback
+    value_LS_Feedback,
+    value_LS_Window
 };
 
 struct LS_pointer_struct

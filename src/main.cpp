@@ -602,6 +602,8 @@ const char *id2chip(const unsigned char *id);
 uint8_t LS_menu_choice;
 int LS_menu;
 
+// pointer
+LS_pointer_struct LS_local_pointer;
 
 // variables
 uint8_t LS_gain;
@@ -1115,7 +1117,7 @@ void setup()
 
     // Test encoder e pulsanti
     // indica quale encoder e' stato ruotato (+/-1) o pulsante e' stato premuto
-    if (Read_pushbutton(0)) 
+    if (Read_pushbutton(0))
     {
         Display_Manager.Encoder_pushbutton_test_board();
 
@@ -4589,38 +4591,7 @@ void loop()
         sono sempre PROPORZIONALI a LS_window_width.
         */
 
-        // Change play MODE
-        if (Read_encoder(1, LS_mode, 3, 0, 1))
-        {
-            AudioNoInterrupts();
-            Sound[SOUNDS_MAX].mode = LS_mode;
-            Players_Manager.Update_Preset_mode(Patch_id, 0);
-            Players_Manager.Multicast_main_settings_editing(Patch_id, 0);
-            if (LS_stereo)
-            {
-                Sound[SOUNDS_MAX + 1].mode = LS_mode;
-                Players_Manager.Update_Preset_mode(Patch_id, 1);
-                Players_Manager.Multicast_main_settings_editing(Patch_id, 1);
-            }
-            AudioInterrupts();
-
-            Display_LiveSampler.Play_mode();
-            Display_LiveSampler.Loop_time();
-            if (LS_state != REC)
-            {
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-                Display_LiveSampler.Show_wave(LS_sound_id);
-            }
-        }
-
-        // Change line_in gain
+        // ******************************************  Move to SETTINGS Change line_in gain
         if (Read_encoder(4, Line_in_gain, 15, 0, 1))
         {
             AudioNoInterrupts();
@@ -4631,7 +4602,7 @@ void loop()
         }
 
         // Change volume_patch
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -4641,57 +4612,254 @@ void loop()
             Display_LiveSampler.Volume();
         }
 
-        // Change window WIDTH
-        result = Read_encoder_simple(9);
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
-            Info.LS_restart_antiflicker();
-            if (result == 1)
-            {
-                LS_window_width -= LS_window_width / 8;
-            }
-            else
-            {
-                LS_window_width += LS_window_width / 8;
-            }
-
-            LS_window_width = constrain(LS_window_width, 20 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim); // constrain(LS_window_width, 200 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim);
-            if (LS_state != REC)
-            {
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-                Display_LiveSampler.Show_wave(LS_sound_id);
-            }
-            LS_X_step = LS_window_width / LS_COMB;
-            Display_LiveSampler.Step();
+            Pointer_LiveSampler.Move_pointer(result);
+            LS_local_pointer = Pointer_LiveSampler.Get_pointer();
         }
 
-        // Set window_width to "ALL TAPE"
-        if (Read_pushbutton(9))
+        // Change values
+
+        if (LS_local_pointer.field_name == field_LS_Menu)
         {
-            Info.LS_restart_antiflicker();
-            LS_window_width = LS_buffer_dim;
-            if (LS_state != REC)
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
-                if (!LS_XY_lock)
+                switch (LS_local_pointer.menu_element)
                 {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
+                case value_LS_Recording:
                 {
-                    LS_update_Q_sample();
+                    LS_state = REC;
+
+                    LS_define_model();
+                    Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
+                    LS_menu = 0;
+                    Display_LiveSampler.Menu_frame(LS_menu);
+                    LS_menu_choice = element_Menu_LS[LS_menu];
+                    LiveSampler.Start(LS_stereo);
+                    LS_wave_refresh_timer = 0;
+                    delay(10);
                 }
-                Display_LiveSampler.Show_wave(LS_sound_id);
+                break;
+                case value_LS_Stop:
+                {
+                    LS_state = PLAYONLY;
+                    LiveSampler.Stop();
+
+                    LS_define_model();
+                    Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
+                    LS_menu = 0;
+                    Display_LiveSampler.Menu_frame(LS_menu);
+                    LS_menu_choice = element_Menu_LS[LS_menu];
+                    delay(20);
+
+                    if (!LS_XY_lock)
+                    {
+                        LS_update_both_X_Y_samples();
+                    }
+                    else // altrimenti e' gia' stato calcolato
+                    {
+                        LS_update_Q_sample();
+                    }
+
+                    Display_LiveSampler.Show_wave(LS_sound_id);
+                }
+                break;
+                case value_LS_MonoStereo:
+                {
+                    Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
+
+                    LS_stereo = !LS_stereo;
+                    LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
+                    LS_window_width = LS_buffer_dim;
+                    LS_window_step = LS_window_width / 8;
+                    LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
+                    LS_setup_LS_Patch(LS_stereo);
+
+                    AudioNoInterrupts();
+                    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+                    AudioInterrupts();
+
+                    P_Update_all_maps_Instrument_for_notes();
+                    Print_Patch(Patch_id);
+                    LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
+                    LS_instrument = 0;
+                    LS_X_delta = 0;
+                    LS_X_sample = 0;
+                    LS_XY_delta = 44100;
+                    LS_Y_sample = LS_X_sample + LS_XY_delta;
+                    LS_X_step = LS_window_width / LS_COMB;
+                    LS_menu = 0;
+                    LS_refresh_LS_page();
+
+                    Midi_reader.Start();
+                }
+                break;
+                case value_LS_Erase:
+                {
+                    AudioNoInterrupts();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
+                    if (LS_stereo)
+                    {
+                        LS_erase_FIFO_array(LS_buffer_L_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+                        LS_erase_FIFO_array(LS_buffer_R_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+                    }
+                    else
+                        LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+                    Serial.println("Live Samplier buffer(s) erased!");
+
+                    LiveSampler.Reset(); // reset Q_sample and P_sample
+                    LS_state = EMPTY;
+                    LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
+                    LS_instrument = 0;
+                    LS_window_width = LS_buffer_dim; // LS_window_width = 441001;
+                    LS_window_step = LS_window_width / 8;
+                    LS_X_sample = 0;
+                    LS_X_delta = 0;
+                    LS_XY_delta = 44100;
+                    LS_Y_sample = LS_X_sample + LS_XY_delta;
+                    LS_X_step = LS_window_width / LS_COMB;
+
+                    LS_menu = 0;
+                    Display_LiveSampler.Page();
+
+                    // restore all LED
+                    Performance_led_set.Restore_all_LED();
+
+                    LS_define_model();
+                    Display_LiveSampler.Menu();
+                    Display_LiveSampler.Menu_frame(LS_menu);
+                    LS_menu_choice = element_Menu_LS[LS_menu];
+
+                    if (!LS_XY_lock)
+                    {
+                        LS_update_both_X_Y_samples();
+                    }
+                    else // altrimenti e' gia' stato calcolato
+                    {
+                        LS_update_Q_sample();
+                    }
+
+                    Display_LiveSampler.Show_wave(LS_sound_id);
+                }
+                break;
+                }
             }
-            LS_X_step = LS_window_width / LS_COMB;
-            Display_LiveSampler.Step();
         }
+
+        else if (LS_local_pointer.field_name == field_LS_Value)
+        {
+            switch (LS_local_pointer.value_element)
+            {
+            case value_LS_Play_mode:
+            {
+                if (Read_encoder(EN_PB_Value, LS_mode, 3, 0, 1))
+                {
+                    AudioNoInterrupts();
+                    Sound[SOUNDS_MAX].mode = LS_mode;
+                    Players_Manager.Update_Preset_mode(Patch_id, 0);
+                    Players_Manager.Multicast_main_settings_editing(Patch_id, 0);
+                    if (LS_stereo)
+                    {
+                        Sound[SOUNDS_MAX + 1].mode = LS_mode;
+                        Players_Manager.Update_Preset_mode(Patch_id, 1);
+                        Players_Manager.Multicast_main_settings_editing(Patch_id, 1);
+                    }
+                    AudioInterrupts();
+
+                    Display_LiveSampler.Play_mode();
+                    Display_LiveSampler.Loop_time();
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                }
+            }
+            break;
+            case value_LS_Feedback:
+            {
+                if (Read_encoder(EN_PB_Value, LS_feedback, 8, 0, 1))
+                {
+                    AudioNoInterrupts();
+                    LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
+                    LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
+                    AudioInterrupts();
+
+                    Display_LiveSampler.Feedback();
+                    Serial.println(LS_fbk_table[LS_feedback]);
+                }
+            }
+            break;
+            case value_LS_Window:
+            {
+                result = Read_encoder_simple(EN_PB_Value);
+                if (result != 0)
+                {
+                    Info.LS_restart_antiflicker();
+                    if (result == 1)
+                    {
+                        LS_window_width -= LS_window_width / 8;
+                    }
+                    else
+                    {
+                        LS_window_width += LS_window_width / 8;
+                    }
+
+                    LS_window_width = constrain(LS_window_width, 20 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim); // constrain(LS_window_width, 200 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim);
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                    LS_X_step = LS_window_width / LS_COMB;
+                    Display_LiveSampler.Step();
+                }
+
+                // Set window_width to "ALL TAPE"
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Info.LS_restart_antiflicker();
+                    LS_window_width = LS_buffer_dim;
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                    LS_X_step = LS_window_width / LS_COMB;
+                    Display_LiveSampler.Step();
+                }
+            }
+            }
+        }
+
+        // Change play MODE
+
+        // Change window WIDTH
 
         // Change LS_X_sample o LS_X_delta
         result = Read_encoder_simple(10);
@@ -4870,151 +5038,10 @@ void loop()
         }
 
         // change Feedback level
-        if (Read_encoder(17, LS_feedback, 8, 0, 1))
-        {
-            Serial.println(LS_fbk_table[LS_feedback]);
-
-            AudioNoInterrupts();
-            LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
-            LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
-            AudioInterrupts();
-
-            Display_LiveSampler.Feedback();
-        }
 
         // change menu item
-        if (Read_encoder(25, LS_menu, LS_menu_max, 0, 1))
-        {
-            Serial.print(F("LS_menu: "));
-            Serial.println(LS_menu);
-            Display_LiveSampler.Menu_frame(LS_menu);
-            LS_menu_choice = element_Menu_LS[LS_menu];
-        }
 
         // choose menu item
-        if (Read_pushbutton(25))
-        {
-            switch (LS_menu_choice) // {"Exit"}, {"Open"}, {"Close"}}
-            {
-            case 0: // Rec
-                LS_state = REC;
-
-                LS_define_model();
-                Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                LS_menu = 0;
-                Display_LiveSampler.Menu_frame(LS_menu);
-                LS_menu_choice = element_Menu_LS[LS_menu];
-                LiveSampler.Start(LS_stereo);
-                LS_wave_refresh_timer = 0;
-                delay(10);
-                break;
-
-            case 1: // Stop
-                LS_state = PLAYONLY;
-                LiveSampler.Stop();
-
-                LS_define_model();
-                Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                LS_menu = 0;
-                Display_LiveSampler.Menu_frame(LS_menu);
-                LS_menu_choice = element_Menu_LS[LS_menu];
-                delay(20);
-
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-
-                Display_LiveSampler.Show_wave(LS_sound_id);
-                break;
-
-            case 2:                 // Toggle Mono/Stereo
-                Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
-
-                LS_stereo = !LS_stereo;
-                LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
-                LS_window_width = LS_buffer_dim;
-                LS_window_step = LS_window_width / 8;
-                LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
-                LS_setup_LS_Patch(LS_stereo);
-                P_Update_all_maps_Instrument_for_notes();
-
-                AudioNoInterrupts();
-                Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-                AudioInterrupts();
-
-                Print_Patch(Patch_id);
-                LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
-                LS_instrument = 0;
-                LS_X_delta = 0;
-                LS_X_sample = 0;
-                LS_XY_delta = 44100;
-                LS_Y_sample = LS_X_sample + LS_XY_delta;
-                LS_X_step = LS_window_width / LS_COMB;
-                LS_menu = 0;
-                LS_refresh_LS_page();
-
-                Midi_reader.Start();
-                break;
-
-            case 3: // Erase
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                if (LS_stereo)
-                {
-                    LS_erase_FIFO_array(LS_buffer_L_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                    LS_erase_FIFO_array(LS_buffer_R_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                }
-                else
-                    LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                Serial.println("Live Samplier buffer(s) erased!");
-
-                LiveSampler.Reset(); // reset Q_sample and P_sample
-                LS_state = EMPTY;
-                LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
-                LS_instrument = 0;
-                LS_window_width = LS_buffer_dim; // LS_window_width = 441001;
-                LS_window_step = LS_window_width / 8;
-                LS_X_sample = 0;
-                LS_X_delta = 0;
-                LS_XY_delta = 44100;
-                LS_Y_sample = LS_X_sample + LS_XY_delta;
-                LS_X_step = LS_window_width / LS_COMB;
-
-                LS_menu = 0;
-                Display_LiveSampler.Page();
-
-                // restore all LED
-                Performance_led_set.Restore_all_LED();
-
-                LS_define_model();
-                Display_LiveSampler.Menu();
-                Display_LiveSampler.Menu_frame(LS_menu);
-                LS_menu_choice = element_Menu_LS[LS_menu];
-
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-
-                Display_LiveSampler.Show_wave(LS_sound_id);
-                break;
-
-            default:
-                Serial.println("Switch MISSING! 4250");
-                break;
-            }
-        }
 
         // Update wave
         if (LS_state == REC) // Open

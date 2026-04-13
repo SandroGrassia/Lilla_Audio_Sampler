@@ -22,8 +22,8 @@ void PointerLiveSampler::Move_pointer(const int value)
     {
     case field_LS_Menu:
     {
-        int menu_position =  position_Menu_LS[pointer.menu_element]; 
-        
+        int menu_position = position_Menu_LS[pointer.menu_element];
+
         if (value == 1)
         {
             if (menu_position == LS_menu_max)
@@ -33,14 +33,14 @@ void PointerLiveSampler::Move_pointer(const int value)
             }
             else
             {
-                 pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[++menu_position]);
+                pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[++menu_position]);
             }
         }
-        else if(value == -1)
+        else if (value == -1)
         {
             if (menu_position > 0)
             {
-                pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[--menu_position]);       
+                pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[--menu_position]);
             }
         }
     }
@@ -48,31 +48,24 @@ void PointerLiveSampler::Move_pointer(const int value)
 
     case field_LS_Value:
     {
-        if (value == 1 && pointer.value_element == value_LS_Play_mode)
+        if (value == 1 && (pointer.value_element < (LS_value_names - 1)))
         {
-            pointer.value_element = value_LS_Feedback;
+            pointer.value_element = static_cast<LS_value_name>(pointer.value_element + 1);
         }
-        else if(value == -1)
+        else if (value == -1)
         {
-            if (pointer.value_element == value_LS_Feedback)
-            {
-                pointer.value_element = value_LS_Play_mode;
-            }
-            else
+            if (pointer.value_element == value_LS_Play_mode)
             {
                 pointer.field_name = field_LS_Menu;
                 pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[LS_menu_max]);
             }
-        }    
+            else
+            {
+                pointer.value_element = static_cast<LS_value_name>(pointer.value_element - 1);
+            }
+        }
     }
     break;
-
-    default:
-        break;
-    }
-
-    if (pointer.field_name == field_LS_Menu)
-    {
     }
 
     // Display_LiveSampler.LS_show_pointer_frame(pointer_old, false);
