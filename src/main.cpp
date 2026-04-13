@@ -4489,13 +4489,12 @@ void loop()
 
 #pragma region Live Sampler [rgba(244, 229, 26, 0.19)]
     // *************************************************************
-    // ********************   LIVE SAMPLING  ***********************
+    // ********************   LIVE SAMPLER   ***********************
     // *************************************************************
     if (Lilla_state == LIVE_SAMPLING)
     {
 
         /*
-
         Live Sampling (LIVE SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX.
 
         Se la registrazione è mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
