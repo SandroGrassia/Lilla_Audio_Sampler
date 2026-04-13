@@ -24,13 +24,14 @@ static constexpr uint32_t LS_STEREO_BYTES = LS_STEREO_SAMPLES << 1; // 0x794200 
 static constexpr int FIRST_LIVE_SAMPLING_FILE = 320;
 
 // Menu
-constexpr int LS_MV = 4;
-extern bool Menu_LS[LS_MV];
-extern const char Menu_LS_char[][12];
-extern const uint8_t dimension_voice_Menu_LS[LS_MV];
-extern uint8_t X_position_Menu_LS[LS_MV]; // argument is position
-extern uint8_t element_Menu_LS[LS_MV];    // argument is position
-extern uint8_t position_Menu_LS[LS_MV];   // argument is element
+constexpr int LS_menu_elements = 4;
+extern bool Menu_LS[LS_menu_elements];
+extern const char Menu_LS_char[LS_menu_elements][12];
+extern const uint8_t dimension_voice_Menu_LS[LS_menu_elements];
+extern uint8_t X_position_Menu_LS[LS_menu_elements]; // argument is position
+extern uint8_t element_Menu_LS[LS_menu_elements];    // argument is position
+extern uint8_t position_Menu_LS[LS_menu_elements];   // argument is element
+extern int LS_menu_max;
 
 // variabili
 constexpr float LS_fbk_table[9] = {0, 0.01, 0.03, 0.07, 0.1, 0.2, 0.4, 0.8, 0.9};
@@ -59,9 +60,30 @@ extern int LS_XY_delta; // distanza tra LS_X_sample e LS_Y_sample
 int LS_constrain_position(int value);
 
 // pointer
-static constexpr int LS_element_names = 2;
-enum LS_element_name
+enum LS_field_name
+{
+    field_LS_Menu,
+    field_LS_Value
+};
+// constexpr int LS_menu_elements = 4;
+enum LS_menu_element_name
+{
+    value_LS_Recording,
+    value_LS_Stop,
+    value_LS_MonoStereo,
+    value_LS_Erase
+};
+static constexpr int LS_value_names = 2;
+enum LS_value_name
 {
     value_LS_Play_mode,
     value_LS_Feedback
 };
+
+struct LS_pointer_struct
+{
+LS_field_name field_name;
+LS_menu_element_name menu_element;
+LS_value_name value_element;
+};
+

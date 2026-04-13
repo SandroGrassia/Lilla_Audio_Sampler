@@ -58,12 +58,13 @@ private:
 
     // PERFORMANCE
     // Menu
-    static constexpr char P_menu_char[5][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DROP"}};
-    static constexpr uint8_t P_dimension_voice_menu[5] = {4, 4, 5, 11, 4};
-    int P_column_menu_element[5]; // argument is position
-    int P_row_menu_element[5];    // argument is position
-    uint8_t P_element_menu[5];    // argument is position
-    uint8_t P_position_Menu[5];   // argument is element
+    static constexpr int P_menu_elements = 5;
+    static constexpr char P_menu_char[P_menu_elements][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DROP"}};
+    static constexpr uint8_t P_dimension_voice_menu[P_menu_elements] = {4, 4, 5, 11, 4};
+    int P_column_menu_element[P_menu_elements]; // argument is position
+    int P_row_menu_element[P_menu_elements];    // argument is position
+    uint8_t P_element_menu[P_menu_elements];    // argument is position
+    uint8_t P_position_Menu[P_menu_elements];   // argument is element
 
     static constexpr float P_column_PATCH = 30;
     static constexpr float P_column_Patch_id = 36;

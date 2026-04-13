@@ -25,15 +25,14 @@ enum LS_element_name
 class PointerLiveSampler
 {
 private:
-    LS_element_name pointer;
-    LS_element_name pointer_old;
-    static constexpr int pointer_max = LS_element_names - 1;
+    LS_pointer_struct pointer;
+    LS_pointer_struct pointer_old;
 
 public:
     PointerLiveSampler() {}
 
-    void Set_pointer_to_play_mode(void);
+    void Set_pointer_to_Recording(void);
     void Move_pointer(const int value);
     void Display_pointer(void);
-    LS_element_name Get_element_name(void);
+    LS_pointer_struct Get_pointer(void);
 };

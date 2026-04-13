@@ -601,7 +601,7 @@ const char *id2chip(const unsigned char *id);
 // menu
 uint8_t LS_menu_choice;
 int LS_menu;
-int LS_menu_max;
+
 
 // variables
 uint8_t LS_gain;

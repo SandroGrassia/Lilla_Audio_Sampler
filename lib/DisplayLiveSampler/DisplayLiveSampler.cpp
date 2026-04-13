@@ -217,7 +217,7 @@ void DisplayLiveSampler::Menu(void)
     Delete_text_row(1);
     tft.setTextColor(MENU_COLOR);
 
-    for (auto element = 0; element < LS_MV; ++element) // menu element
+    for (auto element = 0; element < LS_menu_elements; ++element) // menu element
     {
         if (Menu_LS[element])
         {
@@ -253,7 +253,7 @@ void DisplayLiveSampler::Delete_menu_frames(void)
 {
     int position;
 
-    for (auto element = 0; element < LS_MV; ++element)
+    for (auto element = 0; element < LS_menu_elements; ++element)
     {
         if (Menu_LS[element])
         {
@@ -486,7 +486,7 @@ uint16_t DisplayLiveSampler::Get_wave_color(const int point)
     return (31 << 11) + (green << 5); // (red << 11) + (green << 5) + blue
 }
 
-void DisplayLiveSampler::LS_show_pointer_frame(const LS_element_name pointer, const bool show)
+void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
 {
-    Frame_by_col_row(LS_column_row_element[pointer][0], LS_column_row_element[pointer][1], LS_chars_element[pointer], show);
+    // Frame_by_col_row(LS_column_row_element[pointer][0], LS_column_row_element[pointer][1], LS_chars_element[pointer], show);
 }

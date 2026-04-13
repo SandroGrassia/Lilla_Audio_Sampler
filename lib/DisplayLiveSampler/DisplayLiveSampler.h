@@ -28,7 +28,6 @@ private:
     elapsedMillis LS_blink_timer;
     bool LS_blink_ON = false;
 
-    static constexpr int LS_MV = 4;
     static constexpr uint16_t LS_WAVE_COLOR = 0xE08A;
     static constexpr uint16_t LS_WAVE_ZERO_COLOR = 0x7BCF;
     static constexpr uint16_t LS_WAVE_BOARD = 0xFE40;     // 0xA514
@@ -53,12 +52,12 @@ private:
     static constexpr int LS_chars_loop_time = 9;
     static constexpr int LS_chars_start_point = 10;
 
-    static constexpr float LS_column_row_element[LS_element_names][2] = {
+    static constexpr float LS_column_row_element[LS_value_names][2] = {
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
         {LS_column_row_feedback[0], LS_column_row_feedback[1]}
     };
 
-    static constexpr int LS_chars_element[LS_element_names] = {LS_chars_play_mode, LS_chars_feedback};
+    static constexpr int LS_chars_element[LS_value_names] = {LS_chars_play_mode, LS_chars_feedback};
 
     // elapsedMicros localtimer;
     //  int memo[2];
@@ -85,5 +84,5 @@ public:
     void Update_REC_LED(void);
 
     // pointer
-    void LS_show_pointer_frame(const LS_element_name pointer, const bool show);
+    void LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show);
 };
