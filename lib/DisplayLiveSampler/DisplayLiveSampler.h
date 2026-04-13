@@ -39,18 +39,36 @@ private:
     void Page_title(void);
 
     // pointer
-    static constexpr float LS_column_row_play_mode[2] = {10, 3};
-    static constexpr float LS_column_row_feedback[2] = {8.5, 4};
-    static constexpr float LS_column_row_step[2] = {5, 6};
-    static constexpr float LS_column_row_loop_time_mode_2[2] = {19, 3};
-    static constexpr float LS_column_row_loop_time_mode_3[2] = {23, 3};
-    static constexpr float LS_column_row_start_point[2] = {12, 5};
+    static constexpr float LS_ROW_BASE = 3;
+
+    static constexpr float LS_column_row_BUFFER[2] = {20, 0};
+    static constexpr float LS_column_row_VOLUME[2] = {41, 0};
+
+    static constexpr float LS_column_row_PLAY_MODE[2] = {0, LS_ROW_BASE};
+    static constexpr float LS_column_row_FEEDBACK[2] = {0, LS_ROW_BASE + 1};
+    static constexpr float LS_column_row_WINDOW[2] = {0, LS_ROW_BASE + 2};
+
+    static constexpr float LS_column_row_START_POINT[2] = {22, LS_ROW_BASE};
+    static constexpr float LS_column_row_STEP[2] = {22, LS_ROW_BASE + 1};
+    
+    static constexpr float LS_column_row_buffer[2] = {27, 0};
+    static constexpr float LS_column_row_volume[2] = {47.5, 0};
+
+    static constexpr float LS_column_row_play_mode[2] = {9.5, LS_ROW_BASE};
+    static constexpr float LS_column_row_loop_time_mode_2[2] = {19, LS_ROW_BASE};
+    static constexpr float LS_column_row_loop_time_mode_3[2] = {23, LS_ROW_BASE};
+    static constexpr float LS_column_row_feedback[2] = {8.5, LS_ROW_BASE + 1};
+    static constexpr float LS_column_row_window[2] = {6.5, LS_ROW_BASE + 2};
+
+    static constexpr float LS_column_row_start_point[2] = {33.5, LS_ROW_BASE};
+    static constexpr float LS_column_row_step[2] = {26.5, LS_ROW_BASE + 1};
     
     static constexpr int LS_chars_play_mode = 10;
     static constexpr int LS_chars_feedback = 5;
     static constexpr int LS_chars_step = 16;
     static constexpr int LS_chars_loop_time = 9;
     static constexpr int LS_chars_start_point = 10;
+    static constexpr int LS_chars_window = 8;
 
     static constexpr float LS_column_row_element[LS_value_names][2] = {
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
@@ -75,6 +93,7 @@ public:
     void Buffer(void);
     void Volume(void);
     void Play_mode(void);
+    void Window(void);
     void Loop_time(void);
     void Start_point(void);
     void Menu(void);
