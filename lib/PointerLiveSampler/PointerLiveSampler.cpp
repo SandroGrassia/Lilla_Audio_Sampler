@@ -10,7 +10,7 @@ void PointerLiveSampler::Set_pointer_to_first_menu_element(void)
 {
     pointer.field_name = field_LS_Menu;
     pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[0]);
-    Display_pointer();
+    Display_LiveSampler.LS_show_pointer_frame(pointer, true);
 }
 
 FLASHMEM
@@ -83,7 +83,7 @@ void PointerLiveSampler::Move_pointer(const int value)
 
 void PointerLiveSampler::Display_pointer(void)
 {
-    // Display_LiveSampler.LS_show_pointer_frame(pointer, true);
+    Display_LiveSampler.LS_show_pointer_frame(pointer, true);
 }
 
 LS_pointer_struct PointerLiveSampler::Get_pointer(void)

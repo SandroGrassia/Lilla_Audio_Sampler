@@ -8,6 +8,7 @@
 
 #include <Arduino.h>
 #include "config.h"
+#include "SharedElements.h"
 
 
 // LIVE SAMPLING
@@ -45,9 +46,21 @@ extern LS_States LS_state;
 extern int LS_feedback; // feedback interno al Live Sampler
 extern bool LS_stereo;
 extern int LS_buffer_dim;
-extern uint8_t LS_mode; // play mode
-extern int LS_window_width; // samples from LS_window_A_sample to LS_window_B_sample
 
+
+/*
+    enum LillaPlayModes
+    {
+        ONCE_FWD,     // 0
+        ONCE_REV,     // 1
+        LOOP_FWD,     // 2
+        LOOP_FWD_REV, // 3
+        LOOP_REV_FWD, // 4
+        LOOP_REV      // 5
+    };
+*/
+extern LillaPlayModes LS_mode;
+extern int LS_window_width; // samples from LS_window_A_sample to LS_window_B_sample
 extern int LS_Q_sample; // ultima posizione registrata su LS_buffer_L/R
 extern bool LS_XY_lock; // play bloccato sul virtual tape
 extern int LS_X_step; // step di avanzamento

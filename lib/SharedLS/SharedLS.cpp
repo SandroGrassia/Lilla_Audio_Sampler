@@ -18,7 +18,7 @@ int LS_menu_max;
 
 LS_States LS_state;
 int LS_feedback;
-uint8_t LS_mode; // playing mode
+LillaPlayModes LS_mode = ONCE_FWD; // playing mode 0:A-->B   1:B-->A   2:loop A-->B   3:loop A-->B-->A   4:loop B-->A-->B   5:loop B-->A B-->A
 int LS_X_step;
 int LS_window_width; // samples from LS_window_A_sample to LS_window_B_sample
 bool LS_stereo;

@@ -815,7 +815,7 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
     {
         if (value > lowest)
         {
-            value -= increment;
+            value = value - increment;
             return true;
         }
         return false;
@@ -824,7 +824,7 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
     {
         if (value < highest)
         {
-            value += increment;
+            value = value + increment;
             return true;
         }
         return false;
@@ -4702,7 +4702,7 @@ void loop()
                     }
                     else
                         LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                    
+
                     Serial.println("Live Samplier buffer(s) erased!");
 
                     LiveSampler.Reset(); // reset Q_sample and P_sample
@@ -4748,7 +4748,7 @@ void loop()
             {
             case value_LS_Play_mode:
             {
-                if (Read_encoder(EN_PB_Value, LS_mode, 3, 0, 1))
+                if (Read_encoder(EN_PB_Value, LS_mode, LOOP_FWD_REV, 0, 1))
                 {
                     AudioNoInterrupts();
                     Sound[SOUNDS_MAX].mode = LS_mode;
@@ -4895,7 +4895,7 @@ void loop()
                 Serial.println(LS_X_delta);
             }
 
-            if (LS_mode > REC)
+            if (LS_state > REC)
             {
                 AudioNoInterrupts();
                 Players_Manager.Multicast_main_settings_editing(Patch_id, 0);
@@ -12429,8 +12429,6 @@ void Bootstrap_setup(void)
     LS_instrument = 0;
     LS_X_delta = 0;
     LS_X_sample = 0;
-    LS_menu = 0;
-    LS_mode = 0; // playing mode 0:A-->B   1:B-->A   2:loop A-->B   3:loop A-->B-->A   4:loop B-->A-->B   5:loop B-->A B-->A
     LS_window_width = LS_buffer_dim;
     LS_window_step = LS_window_width / 8;
     LS_XY_lock = true; // LS_X_sample blocked on FIFO; LS_X_delta is useless
@@ -12438,7 +12436,6 @@ void Bootstrap_setup(void)
     LS_Y_sample = LS_X_sample + LS_XY_delta;
     LS_X_step = LS_window_width / LS_COMB;
     LS_feedback = 0;
-
     LS_Setup_buffers(LS_stereo, true); // LS_Setup_buffers(bool stereo, bool first)
 
     // * LPF final filter Output Butterworth filters, 12 db/octave *

@@ -51,7 +51,7 @@ void DisplayLiveSampler::Page(void)
     tft.setCursor(display_coordinate_x(LS_column_row_VOLUME[0]), display_coordinate_y(LS_column_row_VOLUME[1]));
     tft.print("VOLUME");
     Volume();
-    
+
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(LS_column_row_BUFFER[0]), display_coordinate_y(LS_column_row_BUFFER[1]));
     tft.print("BUFFER");
@@ -412,7 +412,7 @@ void DisplayLiveSampler::Show_wave(const int sound_id)
     Update_REC_LED();
 
     // memo[0] = localtimer; // 530us
-    tft.drawRGBBitmap(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.getBuffer(), canvas.width(), canvas.height());
+    tft.drawRGBBitmap(LS_CANVAS_X, LS_CANVAS_Y, canvas.getBuffer(), canvas.width(), canvas.height());
     // memo[1] = localtimer; // memo[1] - memo[0] = 44.000us
 
     // Serial.print("Fill canvas, microseconds:");
@@ -499,5 +499,13 @@ uint16_t DisplayLiveSampler::Get_wave_color(const int point)
 
 void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
 {
-    
+    if (pointer.field_name == field_LS_Menu)
+    {
+        int menu_position = position_Menu_LS[pointer.menu_element];
+        Frame_by_col_row(X_position_Menu_LS[menu_position], LS_ROW_MENU, dimension_voice_Menu_LS[element_Menu_LS[menu_position]], show);
+    }
+    else
+    {
+        Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_element[pointer.value_element] , show);
+    }
 }
