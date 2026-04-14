@@ -499,5 +499,5 @@ uint16_t DisplayLiveSampler::Get_wave_color(const int point)
 
 void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
 {
-    // Frame_by_col_row(LS_column_row_element[pointer][0], LS_column_row_element[pointer][1], LS_chars_element[pointer], show);
+    
 }

@@ -6,11 +6,20 @@
 
 #include "PointerLiveSampler.h"
 
-void PointerLiveSampler::Set_pointer_to_Recording(void)
+void PointerLiveSampler::Set_pointer_to_first_menu_element(void)
 {
     pointer.field_name = field_LS_Menu;
-    pointer.menu_element = value_LS_Recording;
+    pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[0]);
     Display_pointer();
+}
+
+FLASHMEM
+void PointerLiveSampler::Restore_pointer(void)
+{
+    if (pointer.field_name == field_LS_Menu)
+    {
+        pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[0]);
+    }
 }
 
 FLASHMEM
@@ -68,8 +77,8 @@ void PointerLiveSampler::Move_pointer(const int value)
     break;
     }
 
-    // Display_LiveSampler.LS_show_pointer_frame(pointer_old, false);
-    // Display_LiveSampler.LS_show_pointer_frame(pointer, true);
+    Display_LiveSampler.LS_show_pointer_frame(pointer_old, false);
+    Display_LiveSampler.LS_show_pointer_frame(pointer, true);
 }
 
 void PointerLiveSampler::Display_pointer(void)

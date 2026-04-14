@@ -31,8 +31,9 @@ private:
 public:
     PointerLiveSampler() {}
 
-    void Set_pointer_to_Recording(void);
+    void Set_pointer_to_first_menu_element(void);
     void Move_pointer(const int value);
+    void Restore_pointer(void);
     void Display_pointer(void);
     LS_pointer_struct Get_pointer(void);
 };

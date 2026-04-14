@@ -598,10 +598,6 @@ int Get_raw_files_volume(void);
 const char *id2chip(const unsigned char *id);
 
 // >>>>>>> LIVE_SAMPLING
-// menu
-uint8_t LS_menu_choice;
-int LS_menu;
-
 // pointer
 LS_pointer_struct LS_local_pointer;
 
@@ -621,7 +617,7 @@ elapsedMillis LS_wave_refresh_timer;
 // functions
 void LS_refresh_LS_page(void);
 bool LS_ask_if_exit_from_LS(void);
-void LS_define_model(void);
+void LS_update_menu_elements(void);
 int LS_constrain_position(int value);
 void LS_lock_X_sample(void);
 void LS_update_both_X_Y_samples(void);
@@ -4621,7 +4617,6 @@ void loop()
         }
 
         // Change values
-
         if (LS_local_pointer.field_name == field_LS_Menu)
         {
             if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
@@ -4632,11 +4627,10 @@ void loop()
                 {
                     LS_state = REC;
 
-                    LS_define_model();
+                    LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                    LS_menu = 0;
-                    Display_LiveSampler.Menu_frame(LS_menu);
-                    LS_menu_choice = element_Menu_LS[LS_menu];
+                    Pointer_LiveSampler.Restore_pointer();
+
                     LiveSampler.Start(LS_stereo);
                     LS_wave_refresh_timer = 0;
                     delay(10);
@@ -4647,13 +4641,11 @@ void loop()
                     LS_state = PLAYONLY;
                     LiveSampler.Stop();
 
-                    LS_define_model();
+                    LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                    LS_menu = 0;
-                    Display_LiveSampler.Menu_frame(LS_menu);
-                    LS_menu_choice = element_Menu_LS[LS_menu];
-                    delay(20);
+                    Pointer_LiveSampler.Restore_pointer();
 
+                    delay(20);
                     if (!LS_XY_lock)
                     {
                         LS_update_both_X_Y_samples();
@@ -4662,7 +4654,6 @@ void loop()
                     {
                         LS_update_Q_sample();
                     }
-
                     Display_LiveSampler.Show_wave(LS_sound_id);
                 }
                 break;
@@ -4690,8 +4681,10 @@ void loop()
                     LS_XY_delta = 44100;
                     LS_Y_sample = LS_X_sample + LS_XY_delta;
                     LS_X_step = LS_window_width / LS_COMB;
-                    LS_menu = 0;
+
                     LS_refresh_LS_page();
+                    Pointer_LiveSampler.Restore_pointer();
+                    Pointer_LiveSampler.Display_pointer();
 
                     Midi_reader.Start();
                 }
@@ -4709,6 +4702,7 @@ void loop()
                     }
                     else
                         LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+                    
                     Serial.println("Live Samplier buffer(s) erased!");
 
                     LiveSampler.Reset(); // reset Q_sample and P_sample
@@ -4723,16 +4717,14 @@ void loop()
                     LS_Y_sample = LS_X_sample + LS_XY_delta;
                     LS_X_step = LS_window_width / LS_COMB;
 
-                    LS_menu = 0;
                     Display_LiveSampler.Page();
 
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
 
-                    LS_define_model();
-                    Display_LiveSampler.Menu();
-                    Display_LiveSampler.Menu_frame(LS_menu);
-                    LS_menu_choice = element_Menu_LS[LS_menu];
+                    LS_update_menu_elements();
+                    Pointer_LiveSampler.Restore_pointer();
+                    Pointer_LiveSampler.Display_pointer();
 
                     if (!LS_XY_lock)
                     {
@@ -4857,12 +4849,8 @@ void loop()
             }
         }
 
-        // Change play MODE
-
-        // Change window WIDTH
-
         // Change LS_X_sample o LS_X_delta
-        result = Read_encoder_simple(10);
+        result = Read_encoder_simple(EN_PB_From);
         if (result != 0)
         {
             // si usa LS_X_sample
@@ -4933,7 +4921,7 @@ void loop()
         }
 
         // toggle LS_XY_lock/!LS_XY_lock
-        if (Read_pushbutton(10))
+        if (Read_pushbutton(EN_PB_Step))
         {
             if (LS_XY_lock)
             {
@@ -4973,7 +4961,7 @@ void loop()
         }
 
         // Change "Loop Width" (LS_XY_delta)
-        result = Read_encoder_simple(11);
+        result = Read_encoder_simple(EN_PB_To);
         if (result != 0)
         {
             if (result == 1)
@@ -5019,7 +5007,7 @@ void loop()
         }
 
         // Change "Step" (LS_X_step)
-        result = Read_encoder_simple(12);
+        result = Read_encoder_simple(EN_PB_Step);
         if (result != 0)
         {
             if (result == 1)
@@ -5036,12 +5024,6 @@ void loop()
             LS_X_step = LS_window_width / LS_COMB;
             Display_LiveSampler.Step();
         }
-
-        // change Feedback level
-
-        // change menu item
-
-        // choose menu item
 
         // Update wave
         if (LS_state == REC) // Open
@@ -5063,88 +5045,32 @@ void loop()
             }
         }
 
-        if (!Read_pushbutton_fast(35))
+        // Toggle wave Left/Right and LPF
+        if (LS_stereo)
         {
-            //  toggle wave Left/Right and LPF
-            if (LS_stereo)
+            // Display Left wave or LPF
+            if (Read_pushbutton(EN_PB_From))
             {
-                // Display Left wave or LPF
-                if (Read_pushbutton(26))
+                if (LS_instrument == 1) // Right
                 {
-                    if (LS_instrument == 1) // Right
+                    LS_instrument = 0;        // Left
+                    LS_sound_id = SOUNDS_MAX; // Left
+                    if (LS_state != REC)
                     {
-                        LS_instrument = 0;        // Left
-                        LS_sound_id = SOUNDS_MAX; // Left
-                        if (LS_state != REC)
+                        if (!LS_XY_lock)
                         {
-                            if (!LS_XY_lock)
-                            {
-                                LS_update_both_X_Y_samples();
-                            }
-                            else // altrimenti e' gia' stato calcolato
-                            {
-                                LS_update_Q_sample();
-                            }
-
-                            Display_LiveSampler.Show_wave(LS_sound_id);
+                            LS_update_both_X_Y_samples();
                         }
-                    }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
 
-                    else
-                    {
-                        Instrument_id = 0;
-                        Sound_id = SOUNDS_MAX;
-                        Lilla_state_0 = LIVE_SAMPLING;
-                        Lilla_state = INSTRUMENT_VCF;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
-
-                        Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
-                        // restore all LED
-                        Performance_led_set.Restore_all_LED();
+                        Display_LiveSampler.Show_wave(LS_sound_id);
                     }
                 }
 
-                // Display Right wave or LPF
-                if (Read_pushbutton(27))
-                {
-                    if (LS_instrument == 0) // Left
-                    {
-                        LS_instrument = 1;            // Right
-                        LS_sound_id = SOUNDS_MAX + 1; // Right
-                        if (LS_state != REC)
-                        {
-                            if (!LS_XY_lock)
-                            {
-                                LS_update_both_X_Y_samples();
-                            }
-                            else // altrimenti e' gia' stato calcolato
-                            {
-                                LS_update_Q_sample();
-                            }
-                            Display_LiveSampler.Show_wave(LS_sound_id);
-                        }
-                    }
-
-                    else
-                    {
-                        Instrument_id = 1;
-                        Sound_id = SOUNDS_MAX + 1;
-                        Lilla_state_0 = LIVE_SAMPLING;
-                        Lilla_state = INSTRUMENT_VCF;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
-
-                        Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
-                        // restore all LED
-                        Performance_led_set.Restore_all_LED();
-                    }
-                }
-            }
-
-            else
-            {
-                if (Read_pushbutton(26))
+                else
                 {
                     Instrument_id = 0;
                     Sound_id = SOUNDS_MAX;
@@ -5158,8 +5084,62 @@ void loop()
                     Performance_led_set.Restore_all_LED();
                 }
             }
+
+            // Display Right wave or LPF
+            if (Read_pushbutton(EN_PB_To))
+            {
+                if (LS_instrument == 0) // Left
+                {
+                    LS_instrument = 1;            // Right
+                    LS_sound_id = SOUNDS_MAX + 1; // Right
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                }
+
+                else
+                {
+                    Instrument_id = 1;
+                    Sound_id = SOUNDS_MAX + 1;
+                    Lilla_state_0 = LIVE_SAMPLING;
+                    Lilla_state = INSTRUMENT_VCF;
+                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+
+                    Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                    // restore all LED
+                    Performance_led_set.Restore_all_LED();
+                }
+            }
         }
 
+        else // Mono
+        {
+            if (Read_pushbutton(EN_PB_From) || Read_pushbutton(EN_PB_To))
+            {
+                Instrument_id = 0;
+                Sound_id = SOUNDS_MAX;
+                Lilla_state_0 = LIVE_SAMPLING;
+                Lilla_state = INSTRUMENT_VCF;
+                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+
+                Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                // restore all LED
+                Performance_led_set.Restore_all_LED();
+            }
+        }
+
+        /*
         else
         {
             // Switch to PERFORMANCE
@@ -5207,6 +5187,7 @@ void loop()
                 Golive_SETUP();
             }
         }
+        */
     }
 
 #pragma endregion // LIVE_SAMPLING
@@ -9319,16 +9300,14 @@ void Golive_with_LIVE_SAMPLING(void)
     Lilla_state = LIVE_SAMPLING;
     Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Live_Sampling_context], SR_monitored_pushbuttons_set[Live_Sampling_context]);
 
-    LS_menu = 0;
     Display_LiveSampler.Page();
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
 
-    LS_define_model();
+    LS_update_menu_elements();
     Display_LiveSampler.Menu();
-    Display_LiveSampler.Menu_frame(LS_menu);
-    LS_menu_choice = element_Menu_LS[LS_menu];
+    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
 
     if (!LS_XY_lock)
     {
@@ -11402,10 +11381,9 @@ void LS_refresh_LS_page(void)
     // restore LEDs
     Performance_led_set.Restore_all_LED();
 
-    LS_define_model();
+    LS_update_menu_elements();
     Display_LiveSampler.Menu();
-    Display_LiveSampler.Menu_frame(LS_menu);
-    LS_menu_choice = element_Menu_LS[LS_menu];
+
     if (!LS_XY_lock)
     {
         LS_update_both_X_Y_samples();
@@ -11441,7 +11419,7 @@ bool LS_ask_if_exit_from_LS(void)
     return (action == 0 ? false : true);
 }
 
-void LS_define_model(void)
+void LS_update_menu_elements(void)
 {
     // voices that can be displayed
     Menu_LS[0] = true; // Open
