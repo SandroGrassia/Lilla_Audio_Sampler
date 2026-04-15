@@ -78,6 +78,11 @@ void DisplayLiveSampler::Page(void)
     Start_point();
 
     tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_LOOP[0]), display_coordinate_y(LS_column_row_LOOP[1]));
+    tft.print("LOOP");
+    Loop_time();
+
+    tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(LS_column_row_STEP[0]), display_coordinate_y(LS_column_row_STEP[1]));
     tft.print("STEP");
     Step();
@@ -122,7 +127,7 @@ void DisplayLiveSampler::Play_mode(void)
     }
     tft.print(name_mode[LS_mode]);
 
-    LS_chars_play_mode = (tft.getCursorX() - display_coordinate_x(LS_column_row_play_mode[0]))/6;
+    LS_chars_play_mode = (tft.getCursorX() - display_coordinate_x(LS_column_row_play_mode[0])) / 6;
     Serial.println(LS_chars_play_mode);
 }
 
@@ -134,6 +139,9 @@ void DisplayLiveSampler::Feedback(void)
     tft.print(100 * LS_fbk_table[LS_feedback], 2);
     tft.setTextColor(ILI9341_ORANGE);
     tft.print("%");
+
+    LS_chars_feedback = (tft.getCursorX() - display_coordinate_x(LS_column_row_feedback[0])) / 6;
+    Serial.println(LS_chars_feedback);
 }
 
 FLASHMEM
@@ -154,23 +162,24 @@ void DisplayLiveSampler::Window(void)
     tft.print(LS_window_width / 44100.0f, 1);
     tft.setTextColor(ILI9341_ORANGE);
     tft.print("sec");
+
+    LS_chars_window = (tft.getCursorX() - display_coordinate_x(LS_column_row_window[0])) / 6;
+    Serial.println(LS_chars_window);
 }
 
 FLASHMEM
 void DisplayLiveSampler::Loop_time(void)
 {
-    tft.setTextColor(ILI9341_YELLOW);
-    if (LS_mode == 2)
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time[0]), display_coordinate_y(LS_column_row_loop_time[1]), LS_chars_loop_time);
+    if (LS_mode > 1)
     {
-        Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time_mode_2[0]), display_coordinate_y(LS_column_row_loop_time_mode_2[1]), LS_chars_loop_time);
+        tft.setTextColor(ILI9341_YELLOW);
         tft.print(LS_XY_delta / 44100.0f, 2);
         Show_measure_unit("sec", 3);
     }
-    else if (LS_mode == 3)
+    else
     {
-        Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time_mode_3[0]), display_coordinate_y(LS_column_row_loop_time_mode_3[1]), LS_chars_loop_time);
-        tft.print(LS_XY_delta / 44100.0f, 2);
-        Show_measure_unit("sec", 3);
+        tft.print("--");
     }
 }
 
@@ -504,11 +513,22 @@ void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, 
 {
     if (pointer.field_name == field_LS_Menu)
     {
-        int menu_position = position_Menu_LS[pointer.menu_element];
-        Frame_by_col_row(X_position_Menu_LS[menu_position], LS_ROW_MENU, dimension_voice_Menu_LS[element_Menu_LS[menu_position]], show);
+        Frame_by_col_row(X_position_Menu_LS[position_Menu_LS[pointer.menu_element]], LS_ROW_MENU, dimension_voice_Menu_LS[element_Menu_LS[position_Menu_LS[pointer.menu_element]]], show);
     }
     else
     {
-        Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_element[pointer.value_element] , show);
+        switch (pointer.value_element)
+        {
+        case value_LS_Play_mode:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_play_mode, show);
+            break;
+
+        case value_LS_Feedback:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_feedback, show);
+            break;
+
+        case value_LS_Window:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_window, show);
+        }
     }
 }

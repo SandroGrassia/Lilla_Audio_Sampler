@@ -1049,14 +1049,6 @@ void setup()
     SR_monitored_encoders_set[Start_context] = 0xFFFFFFFF;
     SR_monitored_pushbuttons_set[Start_context] = 0xFFFFFFFFFFFFFFFF;
 
-    /*
-    SR_monitored_encoders_set[Common_context] = Get_monitored_encoders({0, 7, 8, 16});
-    SR_monitored_pushbuttons_set[Common_context] = Get_monitored_pushbuttons({0, 7, 8, 16, 17, 18});
-
-    SR_monitored_encoders_set[Performance_context] = Get_monitored_encoders({0, 1, 3, 7, 8, 16, 17, 18, 24, 25});
-    SR_monitored_pushbuttons_set[Performance_context] = Get_monitored_pushbuttons({0, 1, 3, 7, 8, 16, 17, 18, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35});
-    */
-
     SR_monitored_encoders_set[Common_context] = Get_monitored_encoders({0, 7, 8, 16});
     SR_monitored_pushbuttons_set[Common_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 17, 18, 23});
 
@@ -1075,8 +1067,8 @@ void setup()
     SR_monitored_encoders_set[Delay_settings_context] = Get_monitored_encoders({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22, 24, 25});
     SR_monitored_pushbuttons_set[Delay_settings_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 19, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    SR_monitored_encoders_set[Live_Sampling_context] = Get_monitored_encoders({0, 1, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 24, 25});
-    SR_monitored_pushbuttons_set[Live_Sampling_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 9, 10, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    SR_monitored_encoders_set[Live_Sampling_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 24, 25});
+    SR_monitored_pushbuttons_set[Live_Sampling_context] = Get_monitored_pushbuttons({0, 1, 2, 3, 4, 7, 8, 9, 10, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     SR_monitored_encoders_set[Direct_Sampling_context] = Get_monitored_encoders({0, 4, 7, 8, 15, 16, 23, 24, 25});
     SR_monitored_pushbuttons_set[Direct_Sampling_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
@@ -4828,11 +4820,15 @@ void loop()
                         Display_LiveSampler.Show_wave(LS_sound_id);
                     }
                     LS_X_step = LS_window_width / LS_COMB;
-                    Display_LiveSampler.Step();
+                    // Display_LiveSampler.Step();
+
+                    Pointer_LiveSampler.Show_pointer(false);
+                    Display_LiveSampler.Window();
+                    Pointer_LiveSampler.Show_pointer(true);
                 }
 
                 // Set window_width to "ALL TAPE"
-                else if (Read_pushbutton(EN_PB_Value))
+                if (Read_pushbutton(EN_PB_Value))
                 {
                     Info.LS_restart_antiflicker();
                     LS_window_width = LS_buffer_dim;
@@ -4849,7 +4845,11 @@ void loop()
                         Display_LiveSampler.Show_wave(LS_sound_id);
                     }
                     LS_X_step = LS_window_width / LS_COMB;
-                    Display_LiveSampler.Step();
+                    // Display_LiveSampler.Step();
+
+                    Pointer_LiveSampler.Show_pointer(false);
+                    Display_LiveSampler.Window();
+                    Pointer_LiveSampler.Show_pointer(true);                    
                 }
             }
             }

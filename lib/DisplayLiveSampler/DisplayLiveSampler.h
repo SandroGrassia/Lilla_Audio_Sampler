@@ -54,22 +54,22 @@ private:
     static constexpr float LS_column_row_WINDOW[2] = {0, LS_ROW_VALUES + 2};
 
     static constexpr float LS_column_row_START_POINT[2] = {0, LS_ROW_VALUES + 3};
-    static constexpr float LS_column_row_LOOP[2] = {35, LS_ROW_VALUES + 3};
+    static constexpr float LS_column_row_LOOP[2] = {29, LS_ROW_VALUES + 3};
     static constexpr float LS_column_row_STEP[2] = {0, LS_ROW_VALUES + 4};
     
     static constexpr float LS_column_row_buffer[2] = {27, 0};
-    static constexpr float LS_column_row_volume[2] = {47.5, 0};
+    static constexpr float LS_column_row_volume[2] = {48, 0};
 
-    static constexpr float LS_column_row_play_mode[2] = {9.5, LS_ROW_VALUES};
-    static constexpr float LS_column_row_feedback[2] = {8.5, LS_ROW_VALUES + 1};
-    static constexpr float LS_column_row_window[2] = {6.5, LS_ROW_VALUES + 2};
+    static constexpr float LS_column_row_play_mode[2] = {10, LS_ROW_VALUES};
+    static constexpr float LS_column_row_feedback[2] = {9, LS_ROW_VALUES + 1};
+    static constexpr float LS_column_row_window[2] = {7, LS_ROW_VALUES + 2};
 
     static constexpr float LS_column_row_loop_time_mode_2[2] = {23, LS_ROW_VALUES};
     static constexpr float LS_column_row_loop_time_mode_3[2] = {23, LS_ROW_VALUES};
 
     static constexpr float LS_column_row_start_point[2] = {12, LS_ROW_VALUES + 3};
-    static constexpr float LS_column_row_loop_time[2] = {39.5, LS_ROW_VALUES + 3};
-    static constexpr float LS_column_row_step[2] = {6.5, LS_ROW_VALUES + 4};   
+    static constexpr float LS_column_row_loop_time[2] = {34, LS_ROW_VALUES + 3};
+    static constexpr float LS_column_row_step[2] = {5, LS_ROW_VALUES + 4};   
 
     static constexpr float LS_column_row_element[LS_value_names][2] = {
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
@@ -77,12 +77,12 @@ private:
         {LS_column_row_window[0], LS_column_row_window[1]}
     };
 
-    int LS_chars_play_mode = 12;
-    int LS_chars_feedback = 5;
-    int LS_chars_window = 8;
-    int LS_chars_element[LS_value_names] = {LS_chars_play_mode, LS_chars_feedback, LS_chars_window};
+    int LS_chars_play_mode;
+    int LS_chars_feedback;
+    int LS_chars_window;
+    // int LS_chars_element[LS_value_names] = {LS_chars_play_mode, LS_chars_feedback, LS_chars_window};
 
-    static constexpr int LS_chars_loop_time = 12;
+    static constexpr int LS_chars_loop_time = 9;
     static constexpr int LS_chars_start_point = 15;
     static constexpr int LS_chars_step = 16;
 
