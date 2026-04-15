@@ -6,7 +6,7 @@
 
 #include "ArchivingManager.h"
 
-bool ArchivingManager::Test_Fram(uint8_t writevalue)
+bool ArchivingManager::Test_Fram(const uint8_t writevalue)
 {
     Serial.println("ArchivingManager::Test_Fram(void) - start");
     
@@ -36,7 +36,7 @@ bool ArchivingManager::Test_Fram(uint8_t writevalue)
     return true;
 }
 
-void ArchivingManager::Save_CC_lowpass_filter(int CC_lowpass_filter)
+void ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
 {
     Eeprom_writeAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter);
 }
@@ -46,7 +46,7 @@ void ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
     Eeprom_readAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter); // Eeprom_readAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter);
 }
 
-void ArchivingManager::Save_optimization(uint8_t optimization)
+void ArchivingManager::Save_optimization(const uint8_t optimization)
 {
     Eeprom_writeAnything(LOCATION_OPTIMIZATION, optimization);
 }
@@ -56,12 +56,12 @@ void ArchivingManager::Read_optimization(uint8_t &optimization)
     Eeprom_readAnything(LOCATION_OPTIMIZATION, optimization);
 }
 
-void ArchivingManager::Save_CC_Sound_gain(uint8_t instrument_id, uint8_t CC_Sg_instrument)
+void ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument)
 {
     Eeprom_writeAnything(LOCATION_CC_SETTINGS + instrument_id, CC_Sg_instrument);
 }
 
-void ArchivingManager::Read_CC_Sound_gain(uint8_t instrument_id, uint8_t &CC_Sg_instrument)
+void ArchivingManager::Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument)
 {
     Eeprom_readAnything(LOCATION_CC_SETTINGS + instrument_id, CC_Sg_instrument);
 }
@@ -71,7 +71,7 @@ void ArchivingManager::Copy_patch_Delay_data_from_Eeprom_to_Ram(Delay_data_struc
     Eeprom_readAnything(LOCATION_DELAY, delay_data);
 }
 
-void ArchivingManager::Save_Delay_to_Eeprom(Delay_data_struct Delay_data)
+void ArchivingManager::Save_Delay_to_Eeprom(const Delay_data_struct &Delay_data)
 {
     Eeprom_writeAnything(LOCATION_DELAY, Delay_data);
 }
@@ -81,22 +81,22 @@ void ArchivingManager::Read_first_octave(int8_t &first_octave)
     Eeprom_readAnything(LOCATION_FIRST_OCTAVE, first_octave);
 }
 
-void ArchivingManager::Save_first_octave(int8_t first_octave)
+void ArchivingManager::Save_first_octave(const int8_t first_octave)
 {
     Eeprom_writeAnything(LOCATION_FIRST_OCTAVE, first_octave);
 }
 
-void ArchivingManager::Save_Sound(int sound_id)
+void ArchivingManager::Save_Sound(const int sound_id)
 {
     Eeprom_writeAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
 }
 
-void ArchivingManager::Read_Sound(int sound_id)
+void ArchivingManager::Read_Sound(const int sound_id)
 {
     Eeprom_readAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
 }
 
-void ArchivingManager::Save_Patch(int patch_id)
+void ArchivingManager::Save_Patch(const int patch_id)
 {
     EEPROM_Patch.used = Patch[patch_id].used;
     EEPROM_Patch.instruments = Patch[patch_id].instruments;
@@ -121,7 +121,7 @@ void ArchivingManager::Save_Patch(int patch_id)
     Eeprom_writeAnything(GET_location_of_Patch(patch_id), EEPROM_Patch);
 }
 
-void ArchivingManager::Read_Patch(int patch_id)
+void ArchivingManager::Read_Patch(const int patch_id)
 {
     Eeprom_readAnything(GET_location_of_Patch(patch_id), EEPROM_Patch);
 
@@ -149,7 +149,7 @@ void ArchivingManager::Read_Patch(int patch_id)
     }
 }
 
-void ArchivingManager::Save_DS_Recording(int recording)
+void ArchivingManager::Save_DS_Recording(const int recording)
 {
     Serial.println(F("*** Save_DS_Recording(int recording) ***"));
 
@@ -369,7 +369,7 @@ int ArchivingManager::Eeprom_readAnything(size_t address, T &destination)
     }
 }
 
-void ArchivingManager::Eeprom_write_uint8_t(size_t address, const uint8_t &value)
+void ArchivingManager::Eeprom_write_uint8_t(const size_t address, const uint8_t &value)
 {
     if (address >= 0)
     {
@@ -377,7 +377,7 @@ void ArchivingManager::Eeprom_write_uint8_t(size_t address, const uint8_t &value
     }
 }
 
-void ArchivingManager::Eeprom_read_uint8_t(size_t address, uint8_t &destination)
+void ArchivingManager::Eeprom_read_uint8_t(const size_t address, uint8_t &destination)
 {
     if (address >= 0)
     {
@@ -385,7 +385,7 @@ void ArchivingManager::Eeprom_read_uint8_t(size_t address, uint8_t &destination)
     }
 }
 
-void ArchivingManager::Eeprom_write_int8_t(size_t address, const int8_t &value)
+void ArchivingManager::Eeprom_write_int8_t(const size_t address, const int8_t &value)
 {
     if (address >= 0)
     {
@@ -393,7 +393,7 @@ void ArchivingManager::Eeprom_write_int8_t(size_t address, const int8_t &value)
     }
 }
 
-void ArchivingManager::Eeprom_read_int8_t(size_t address, int8_t &destination)
+void ArchivingManager::Eeprom_read_int8_t(const size_t address, int8_t &destination)
 {
     if (address >= 0)
     {
@@ -402,7 +402,7 @@ void ArchivingManager::Eeprom_read_int8_t(size_t address, int8_t &destination)
 }
 
 // File name patch_id - delay
-String ArchivingManager::Filename_patch_Delay(int patch_id)
+String ArchivingManager::Filename_patch_Delay(const int patch_id)
 {
     String filename = String(patch_id);
     return String(filename + ".delay");
@@ -509,7 +509,7 @@ void ArchivingManager::Print_Delay_data_reading_from_Eeprom()
     Serial.println();
 }
 
-bool ArchivingManager::Delete_patch_Delay_data_in_SD(int patch_id)
+bool ArchivingManager::Delete_patch_Delay_data_in_SD(const int patch_id)
 {
     String filename = Filename_patch_Delay(patch_id);
     String full_path = String("/LILLADELAY/" + filename);
@@ -539,7 +539,7 @@ bool ArchivingManager::Delete_patch_Delay_data_in_SD(int patch_id)
     }
 }
 
-void ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD(int patch_id) // public
+void ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD(const int patch_id) // public
 {
     String filename = Filename_patch_Delay(patch_id);
     String full_path = String("/LILLADELAY/" + filename);
@@ -579,7 +579,7 @@ void ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD(int patch_id) // pub
     }
 }
 
-bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM(int patch_id) // public
+bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM(const int patch_id) // public
 {
     String filename = Filename_patch_Delay(patch_id);
     String full_path = String("/LILLADELAY/" + filename);
@@ -683,7 +683,7 @@ void ArchivingManager::Copy_Delay_data_from_SD_to_RAM(File &file)
     Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM - Done."));
 }
 
-void ArchivingManager::Copy_patch_Delay_data_from_Eeprom_to_SD(int patch_id) // public
+void ArchivingManager::Copy_patch_Delay_data_from_Eeprom_to_SD(const int patch_id) // public
 {
     String filename = Filename_patch_Delay(patch_id);
     String full_path = String("/LILLADELAY/" + filename);
@@ -722,7 +722,7 @@ void ArchivingManager::Copy_patch_Delay_data_from_Eeprom_to_SD(int patch_id) // 
     }
 }
 
-bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom(int patch_id) // public
+bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom(const int patch_id) // public
 {
     String filename = Filename_patch_Delay(patch_id);
     String full_path = String("/LILLADELAY/" + filename);
@@ -761,7 +761,7 @@ bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom(int patch_id) // 
     }
 }
 
-void ArchivingManager::Print_patch_Delay_file_reading_from_SD(int patch_id) // public
+void ArchivingManager::Print_patch_Delay_file_reading_from_SD(const int patch_id) // public
 {
     String filename = Filename_patch_Delay(patch_id);
     String full_path = String("/LILLADELAY/" + filename);
@@ -803,21 +803,21 @@ void ArchivingManager::Print_patch_Delay_file_reading_from_SD(int patch_id) // p
 }
 
 // Filename patch description
-String ArchivingManager::Filename_Patch(int patch_id)
+String ArchivingManager::Filename_Patch(const int patch_id)
 {
     String filename = String(patch_id);
     return String(filename + ".patch");
 }
 
 // Filename sound description
-String ArchivingManager::Filename_Sound(int patch_id, int instrument_id)
+String ArchivingManager::Filename_Sound(const int patch_id, const int instrument_id)
 {
     // String filename = String(patch_id + "_" + instrument_id);
     String filename = String(patch_id) + "_" + instrument_id;
     return String(filename + ".sound");
 }
 
-bool ArchivingManager::Copy_Patch_from_RAM_to_SD(int patch_id) // public
+bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
 {
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLAPATCH/" + filename);
@@ -866,7 +866,7 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(int patch_id) // public
     }
 }
 
-void ArchivingManager::Copy_Patch_from_RAM_to_SD(int patch_id, File &file) // private
+void ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file) // private
 {
     const auto *data = (const byte *)(const void *)&Patch[patch_id];
 
@@ -876,7 +876,7 @@ void ArchivingManager::Copy_Patch_from_RAM_to_SD(int patch_id, File &file) // pr
     }
 }
 
-bool ArchivingManager::Copy_Sound_from_RAM_to_SD(int patch_id, int instrument_id) // public
+bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id) // public
 {
     String filename = Filename_Sound(patch_id, instrument_id);
     String full_path = String("/LILLASOUND/" + filename);
@@ -925,7 +925,7 @@ bool ArchivingManager::Copy_Sound_from_RAM_to_SD(int patch_id, int instrument_id
     }
 }
 
-void ArchivingManager::Copy_Sound_from_RAM_to_SD(int patch_id, int instrument_id, File &file) // private
+void ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file) // private
 {
     const auto *data = (const byte *)(const void *)&Sound[Patch[patch_id].Instrument[instrument_id].sound_id];
 
@@ -935,7 +935,7 @@ void ArchivingManager::Copy_Sound_from_RAM_to_SD(int patch_id, int instrument_id
     }
 }
 
-bool ArchivingManager::Copy_Patch_from_SD_to_RAM(int patch_id) // public
+bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id) // public
 {
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLAPATCH/" + filename);
@@ -975,7 +975,7 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(int patch_id) // public
     }
 }
 
-void ArchivingManager::Copy_Patch_from_SD_to_RAM(int patch_id, File &file) // private
+void ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file) // private
 {
     uint8_t value;
     String value_txt;
@@ -1093,7 +1093,7 @@ void ArchivingManager::Copy_Patch_from_SD_to_RAM(int patch_id, File &file) // pr
     }
 }
 
-bool ArchivingManager::Copy_Sound_from_SD_to_RAM(int patch_id, int instrument_id, int sound_id) // public
+bool ArchivingManager::Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id) // public
 {
     String filename = Filename_Sound(patch_id, instrument_id);
     String full_path = String("/LILLASOUND/" + filename);
@@ -1133,7 +1133,7 @@ bool ArchivingManager::Copy_Sound_from_SD_to_RAM(int patch_id, int instrument_id
     }
 }
 
-void ArchivingManager::Copy_Sound_from_SD_to_RAM(int patch_id, int instrument_id, int sound_id, File &file) // private
+void ArchivingManager::Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file) // private
 {
     uint8_t value;
     String value_txt;

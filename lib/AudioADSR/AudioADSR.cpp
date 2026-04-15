@@ -6,7 +6,7 @@
 
 #include "AudioADSR.h"
 
-void AudioADSR::Set_identity(int id)
+void AudioADSR::Set_identity(const int id)
 {
     identity = id;
 }

@@ -35,16 +35,16 @@ private:
     template <class T>
     int Eeprom_readAnything(const size_t, T &value); // il valore di ritorno e' value (che viene modificato)
 
-    void Eeprom_write_uint8_t(size_t address, const uint8_t &value);
-    void Eeprom_write_int8_t(size_t address, const int8_t &value);
-    void Eeprom_read_uint8_t(size_t address, uint8_t &destination);
-    void Eeprom_read_int8_t(size_t address, int8_t &destination);
+    void Eeprom_write_uint8_t(const size_t address, const uint8_t &value);
+    void Eeprom_write_int8_t(const size_t address, const int8_t &value);
+    void Eeprom_read_uint8_t(const size_t address, uint8_t &destination);
+    void Eeprom_read_int8_t(const size_t address, int8_t &destination);
     uint16_t Get_location_of_Sound(const uint8_t &sound_id);
     uint16_t GET_location_of_Patch(const uint8_t &patch_id);
 
-    String Filename_patch_Delay(int patch_id);
-    String Filename_Patch(int patch_id);
-    String Filename_Sound(int patch_id, int instrument_id);
+    String Filename_patch_Delay(const int patch_id);
+    String Filename_Patch(const int patch_id);
+    String Filename_Sound(const int patch_id, const int instrument_id);
 
     void Copy_Delay_data_from_RAM_to_SD(File &file);
     void Copy_Delay_data_from_Eeprom_to_SD(File &file);
@@ -53,10 +53,10 @@ private:
 
     void Copy_Delay_data_from_SD_to_RAM(File &file);
 
-    void Copy_Patch_from_RAM_to_SD(int patch_id, File &file);
-    void Copy_Patch_from_SD_to_RAM(int patch_id, File &file);
-    void Copy_Sound_from_RAM_to_SD(int patch_id, int instrument_id, File &file);
-    void Copy_Sound_from_SD_to_RAM(int patch_id, int instrument_id, int sound_id, File &file);
+    void Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
+    void Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
+    void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
+    void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
 
     struct EEPROM_Instrument_filter_data_struct // 5 bytes
     {
@@ -92,41 +92,41 @@ private:
 public:
     ArchivingManager(void) {}
 
-    void Save_CC_lowpass_filter(int CC_lowpass_filter);
+    void Save_CC_lowpass_filter(const int CC_lowpass_filter);
     void Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter);
-    void Save_optimization(uint8_t optimization);
+    void Save_optimization(const uint8_t optimization);
     void Read_optimization(uint8_t &optimization);
-    void Save_CC_Sound_gain(uint8_t instrument_id, uint8_t CC_Sg_instrument);
-    void Read_CC_Sound_gain(uint8_t instrument_id, uint8_t &CC_Sg_instrument);
+    void Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);
+    void Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument);
     void Copy_patch_Delay_data_from_Eeprom_to_Ram(Delay_data_struct &Delay_data);
-    void Save_Delay_to_Eeprom(Delay_data_struct Delay_data);
+    void Save_Delay_to_Eeprom(const Delay_data_struct &Delay_data);
     void Read_first_octave(int8_t &first_octave);
-    void Save_first_octave(int8_t first_octave);
-    void Save_Sound(int sound_id);
-    void Read_Sound(int sound_id);
-    void Save_Patch(int patch_id);
-    void Read_Patch(int patch_id);
-    void Save_DS_Recording(int recording);
+    void Save_first_octave(const int8_t first_octave);
+    void Save_Sound(const int sound_id);
+    void Read_Sound(const int sound_id);
+    void Save_Patch(const int patch_id);
+    void Read_Patch(const int patch_id);
+    void Save_DS_Recording(const int recording);
     void Save_DS_Recording(const int &recording, const EEPROM_VFS_Recording &EEPROM_Rec_recording);
     void Read_DS_Recording(const int &recording, EEPROM_VFS_Recording &EEPROM_Rec_recording);
     void Save_setup_file(File &file);              // File e' l'oggetto file incluso in FS.h
     void Copy_setup_from_Eeprom_to_SD(File &file); // File e' l'oggetto file incluso in FS.h
     void Reset_EEPROM(void);
     void Print_EEPROM_content(void);
-    
-    void Copy_patch_Delay_data_from_Eeprom_to_SD(int patch_id);
-    void Copy_patch_Delay_data_from_RAM_to_SD(int patch_id);
-    bool Copy_patch_Delay_data_from_SD_to_RAM(int patch_id);
-    bool Copy_patch_Delay_data_from_SD_to_Eeprom(int patch_id);
-    void Print_patch_Delay_file_reading_from_SD(int patch_id);
-    bool Delete_patch_Delay_data_in_SD(int patch_id);
 
-    bool Copy_Patch_from_RAM_to_SD(int patch_id);
-    bool Copy_Patch_from_SD_to_RAM(int patch_id);
+    void Copy_patch_Delay_data_from_Eeprom_to_SD(const int patch_id);
+    void Copy_patch_Delay_data_from_RAM_to_SD(const int patch_id);
+    bool Copy_patch_Delay_data_from_SD_to_RAM(const int patch_id);
+    bool Copy_patch_Delay_data_from_SD_to_Eeprom(const int patch_id);
+    void Print_patch_Delay_file_reading_from_SD(const int patch_id);
+    bool Delete_patch_Delay_data_in_SD(const int patch_id);
 
-    bool Copy_Sound_from_RAM_to_SD(int patch_id, int instrument_id);
-    bool Copy_Sound_from_SD_to_RAM(int patch_id, int instrument_id, int sound_id);
-    
+    bool Copy_Patch_from_RAM_to_SD(const int patch_id);
+    bool Copy_Patch_from_SD_to_RAM(const int patch_id);
+
+    bool Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id);
+    bool Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id);
+
     int GET_location_of_DS_Recording(const int &recording);
-    bool Test_Fram(uint8_t writevalue);
+    bool Test_Fram(const uint8_t writevalue);
 };
