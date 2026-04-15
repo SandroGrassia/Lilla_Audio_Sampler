@@ -730,25 +730,6 @@ void Bootstrap_setup(void);
 
 int PB_number;
 
-// SHIFTERS
-constexpr int LILLA_CONTEXTS = 13;
-enum LillaContext
-{
-    Start_context,
-    Common_context,
-    Performance_context,
-    Sound_edit_context,
-    Instrument_Vcf_context,
-    Mixer_context,
-    Delay_settings_context,
-    Live_Sampling_context,
-    Direct_Sampling_context,
-    Midi_Monitor_context,
-    Midi_Loop_context,
-    Setup_context,
-    Control_Change_context
-};
-
 // UI devices
 constexpr int EN_PB_TuningTone = 7;
 constexpr int EN_PB_Resolution = 0;
@@ -789,17 +770,10 @@ constexpr int PB_S6 = 31;
 constexpr int PB_S7 = 32;
 constexpr int PB_S8 = 33;
 
-uint32_t SR_monitored_encoders_set[LILLA_CONTEXTS];
-uint64_t SR_monitored_pushbuttons_set[LILLA_CONTEXTS];
-
 bool Read_pushbutton(int element);
 bool Read_pushbutton_fast(int element);
 int Read_encoder_simple(int element);
 bool Read_encoder_fast(int element);
-uint32_t Get_monitored_encoders(const int *list, const int &elements);
-uint32_t Get_monitored_encoders(std::initializer_list<int> list);
-uint64_t Get_monitored_pushbuttons(const int *list, const int &elements);
-uint64_t Get_monitored_pushbuttons(std::initializer_list<int> list);
 
 int Line_in_gain;
 
@@ -1024,69 +998,7 @@ void setup()
     // *******************   SHIFTERS DATA   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    /*
-    const int LILLA_CONTEXTS = 13;
-    enum LillaContext
-    {
-    Start_context,
-    Common_context,
-    Performance_context,
-    Sound_edit_context,
-    Instrument_Vcf_context,
-    Mixer_context,
-    Delay_settings_context,
-    Live_Sampling_context,
-    Direct_Sampling_context,
-    Midi_Monitor_context,
-    Midi_Loop_context,
-    Setup_context,
-    Control_Change_context,
-    }
-    */
-
-    // Configure here encoders and pushbutton monitored in each context
-
-    SR_monitored_encoders_set[Start_context] = 0xFFFFFFFF;
-    SR_monitored_pushbuttons_set[Start_context] = 0xFFFFFFFFFFFFFFFF;
-
-    SR_monitored_encoders_set[Common_context] = Get_monitored_encoders({0, 7, 8, 16});
-    SR_monitored_pushbuttons_set[Common_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 17, 18, 23});
-
-    SR_monitored_encoders_set[Performance_context] = Get_monitored_encoders({0, 2, 3, 4, 7, 8, 9, 11, 15, 16, 23, 24, 25});
-    SR_monitored_pushbuttons_set[Performance_context] = Get_monitored_pushbuttons({0, 1, 3, 7, 8, 10, 11, 15, 16, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35});
-
-    SR_monitored_encoders_set[Sound_edit_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
-    SR_monitored_pushbuttons_set[Sound_edit_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Instrument_Vcf_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
-    SR_monitored_pushbuttons_set[Instrument_Vcf_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Mixer_context] = Get_monitored_encoders({0, 3, 4, 7, 8, 15, 16, 19, 20, 24, 25});
-    SR_monitored_pushbuttons_set[Mixer_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Delay_settings_context] = Get_monitored_encoders({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22, 24, 25});
-    SR_monitored_pushbuttons_set[Delay_settings_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 19, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Live_Sampling_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 24, 25});
-    SR_monitored_pushbuttons_set[Live_Sampling_context] = Get_monitored_pushbuttons({0, 1, 2, 3, 4, 7, 8, 9, 10, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Direct_Sampling_context] = Get_monitored_encoders({0, 4, 7, 8, 15, 16, 23, 24, 25});
-    SR_monitored_pushbuttons_set[Direct_Sampling_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Midi_Monitor_context] = Get_monitored_encoders({0, 7, 8, 15, 16});
-    SR_monitored_pushbuttons_set[Midi_Monitor_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Midi_Loop_context] = Get_monitored_encoders({0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25});
-    SR_monitored_pushbuttons_set[Midi_Loop_context] = Get_monitored_pushbuttons({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Setup_context] = Get_monitored_encoders({0, 7, 8, 15, 16, 24, 25});
-    SR_monitored_pushbuttons_set[Setup_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Control_Change_context] = Get_monitored_encoders({0, 7, 8, 16, 24, 25});
-    SR_monitored_pushbuttons_set[Control_Change_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25});
-
-    // TEST Encoders Pushbutton
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Start_context], SR_monitored_pushbuttons_set[Start_context]);
+    Shifters_manager.Set_context(Start_context);
     Shifters_manager.Update();
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1600,7 +1512,7 @@ void loop()
                     if (P_Ask_if_delete_this_Patch()) // yes, delete the patch
                     {
                         Lilla_state = PERFORMANCE;
-                        // Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                        // Shifters_manager.Set_context(Performance_context);
 
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players();
@@ -2071,7 +1983,7 @@ void loop()
             {
                 Lilla_state_0 = PERFORMANCE;
                 Lilla_state = SOUND_EDIT;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+                Shifters_manager.Set_context(Sound_edit_context);
 
                 Instrument_id = PB_number;
                 Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -2121,7 +2033,7 @@ void loop()
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -2206,7 +2118,7 @@ void loop()
                     S_Set_Sound_SOLO_OFF();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2238,7 +2150,7 @@ void loop()
                     S_Set_Sound_SOLO_OFF();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2262,7 +2174,7 @@ void loop()
                     AudioInterrupts();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -3000,7 +2912,7 @@ void loop()
                 if (PB_number == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -3073,7 +2985,7 @@ void loop()
             {
                 S_Set_Sound_SOLO_OFF();
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -3366,7 +3278,7 @@ void loop()
                         S_Set_Sound_SOLO_OFF();
 
                         Lilla_state = PERFORMANCE;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                        Shifters_manager.Set_context(Performance_context);
 
                         patch_original = P_Verify_is_Patch_original(Patch_id);
                         P_Select_menu_elements();
@@ -3391,7 +3303,7 @@ void loop()
                         AudioInterrupts();
 
                         Lilla_state = SOUND_EDIT;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+                        Shifters_manager.Set_context(Sound_edit_context);
 
                         Instrument_id = PB_number;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -3504,7 +3416,7 @@ void loop()
                         AudioInterrupts();
 
                         Lilla_state = SOUND_EDIT;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+                        Shifters_manager.Set_context(Sound_edit_context);
 
                         Instrument_id = PB_number;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -3570,7 +3482,7 @@ void loop()
                     }
                 }
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -3961,7 +3873,7 @@ void loop()
                 else
                 {
                     Lilla_state = DELAY_SETTINGS;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                    Shifters_manager.Set_context(Delay_settings_context);
 
                     Display_Delay.D_show_page();
                     Pointer_Delay.Set_pointer_to_Feedback();
@@ -5082,7 +4994,7 @@ void loop()
                     Sound_id = SOUNDS_MAX;
                     Lilla_state_0 = LIVE_SAMPLING;
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -5118,7 +5030,7 @@ void loop()
                     Sound_id = SOUNDS_MAX + 1;
                     Lilla_state_0 = LIVE_SAMPLING;
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -5136,7 +5048,7 @@ void loop()
                 Sound_id = SOUNDS_MAX;
                 Lilla_state_0 = LIVE_SAMPLING;
                 Lilla_state = INSTRUMENT_VCF;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+                Shifters_manager.Set_context(Instrument_Vcf_context);
 
                 Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -6227,7 +6139,7 @@ void loop()
             else if (Read_pushbutton(28))
             {
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -7105,7 +7017,7 @@ void loop()
             {
                 Lilla_state_0 = MIDI_LOOP;
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -7141,7 +7053,7 @@ void loop()
         {
             Lilla_state_0 = MIDI_LOOP;
             Lilla_state = SOUND_EDIT;
-            Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+            Shifters_manager.Set_context(Sound_edit_context);
 
             Instrument_id = PB_number;
             Serial.print("Editing Sound: ");
@@ -7228,7 +7140,7 @@ void loop()
             {
             case 3: // switch to CC Settings
                 Lilla_state = CC_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Control_Change_context], SR_monitored_pushbuttons_set[Control_Change_context]);
+                Shifters_manager.Set_context(Control_Change_context);
 
                 display_wait = false;
 
@@ -7441,7 +7353,7 @@ void loop()
                     Archive.Save_first_octave(first_octave);
                 }
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -7860,7 +7772,7 @@ bool P_Verify_if_Instrument_original(const int instrument_id)
 void Golive_with_PERFORMANCE(int patch_id)
 {
     Lilla_state = PERFORMANCE;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+    Shifters_manager.Set_context(Performance_context);
 
     patch_original = P_Verify_is_Patch_original(patch_id);
     P_Select_menu_elements();
@@ -8447,7 +8359,7 @@ void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
 void Golive_DIRECT_SAMPLING(void)
 {
     Lilla_state = DIRECT_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Direct_Sampling_context], SR_monitored_pushbuttons_set[Direct_Sampling_context]);
+    Shifters_manager.Set_context(Direct_Sampling_context);
 
     DS_state = 0;
 
@@ -8474,7 +8386,7 @@ void Golive_DIRECT_SAMPLING(void)
 void DS_refresh_DS_page(void)
 {
     Lilla_state = DIRECT_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Direct_Sampling_context], SR_monitored_pushbuttons_set[Direct_Sampling_context]);
+    Shifters_manager.Set_context(Direct_Sampling_context);
 
     Display_Manager.DS_page(recording);
     Display_Manager.DS_line_out(false);
@@ -9143,7 +9055,7 @@ void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void)
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Midi_Loop_context], SR_monitored_pushbuttons_set[Midi_Loop_context]);
+    Shifters_manager.Set_context(Midi_Loop_context);
 
     LOOP_menu = 0;
     LOOP_select_menu_elements();
@@ -9304,7 +9216,7 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
 void Golive_with_LIVE_SAMPLING(void)
 {
     Lilla_state = LIVE_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Live_Sampling_context], SR_monitored_pushbuttons_set[Live_Sampling_context]);
+    Shifters_manager.Set_context(Live_Sampling_context);
 
     Display_LiveSampler.Page();
 
@@ -9609,7 +9521,7 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
         Delay_values.instrument_route[1] = true;
     }
     Lilla_state = DELAY_SETTINGS;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+    Shifters_manager.Set_context(Delay_settings_context);
 
     Display_Delay.D_show_page();
     Pointer_Delay.Set_pointer_to_Feedback();
@@ -9623,7 +9535,7 @@ void Golive_MIDI_MONITOR(void)
     AudioInterrupts();
 
     Lilla_state = MIDI_MONITOR;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Midi_Monitor_context], SR_monitored_pushbuttons_set[Midi_Monitor_context]);
+    Shifters_manager.Set_context(Midi_Monitor_context);
 
     display_wait = false;
     Display_Manager.Midi_monitor_page();
@@ -9632,7 +9544,7 @@ void Golive_MIDI_MONITOR(void)
 void Golive_SETUP(void)
 {
     Lilla_state = SETUP;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Setup_context], SR_monitored_pushbuttons_set[Setup_context]);
+    Shifters_manager.Set_context(Setup_context);
 
     SET_menu = 0;
     Display_Manager.SETUP_show_SETUP_page();
@@ -11380,7 +11292,7 @@ void Print_map_instrument_for_note(int midi_channel)
 void LS_refresh_LS_page(void)
 {
     Lilla_state = LIVE_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Live_Sampling_context], SR_monitored_pushbuttons_set[Live_Sampling_context]);
+    Shifters_manager.Set_context(Live_Sampling_context);
 
     Display_LiveSampler.Page();
 
@@ -11761,7 +11673,7 @@ void Golive_MIXER(void)
 {
 
     Lilla_state = MIXER;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Mixer_context], SR_monitored_pushbuttons_set[Mixer_context]);
+    Shifters_manager.Set_context(Mixer_context);
 
     Display_Mixer.MX_page();
     for (auto source = 0; source < MX_sources; ++source)
@@ -12241,51 +12153,6 @@ bool Read_encoder_fast(int element)
     }
 }
 
-uint32_t Get_monitored_encoders(const int *list, const int &elements)
-{
-    uint32_t monitored_encoders = 0;
-    for (auto i = 0; i < elements; ++i)
-    {
-        bitWrite(monitored_encoders, *(list + i), 1);
-    }
-    return monitored_encoders;
-}
-
-uint32_t Get_monitored_encoders(std::initializer_list<int> list)
-{
-    uint32_t monitored_encoders = 0;
-    for (int idx : list)
-    {
-        if (idx < 32)
-        {
-            bitWrite(monitored_encoders, idx, 1);
-        }
-    }
-    return monitored_encoders;
-}
-
-uint64_t Get_monitored_pushbuttons(const int *list, const int &elements)
-{
-    uint64_t monitored_pushbuttons = 0;
-    for (auto i = 0; i < elements; ++i)
-    {
-        bitWrite(monitored_pushbuttons, list[i], 1);
-    }
-    return monitored_pushbuttons;
-}
-
-uint64_t Get_monitored_pushbuttons(std::initializer_list<int> list)
-{
-    uint64_t monitored_pushbuttons = 0;
-    for (int idx : list)
-    {
-        if (idx < 64)
-        {
-            monitored_pushbuttons |= (uint64_t(1) << idx); // bitWrite(monitored_pushbuttons, idx, 1);
-        }
-    }
-    return monitored_pushbuttons;
-}
 
 // **************************************************************************************************************
 // *************************************            BOOTSTRAP             ***************************************

@@ -5,6 +5,7 @@
  */
 
 #include "ShiftRegisters.h"
+#include <initializer_list>
 
 void ShiftRegisters::Start_SPI_for_shifters(void)
 {
@@ -82,6 +83,75 @@ void ShiftRegisters::Set_monitored_pushbuttons(const uint64_t &data)
             bitWrite(monitored_channels[shifter_id], pushbutton_physical[i].shifter_channel, 1);
         }
     }
+}
+
+static uint32_t Make_encoders_mask(std::initializer_list<int> list)
+{
+    uint32_t mask = 0;
+    for (int idx : list)
+    {
+        if (idx < 32)
+            bitWrite(mask, idx, 1);
+    }
+    return mask;
+}
+
+static uint64_t Make_pushbuttons_mask(std::initializer_list<int> list)
+{
+    uint64_t mask = 0;
+    for (int idx : list)
+    {
+        if (idx < 64)
+            mask |= (uint64_t(1) << idx);
+    }
+    return mask;
+}
+
+void ShiftRegisters::Init_context_sets(void)
+{
+    context_encoders[Start_context]          = 0xFFFFFFFF;
+    context_pushbuttons[Start_context]       = 0xFFFFFFFFFFFFFFFF;
+
+    context_encoders[Common_context]         = Make_encoders_mask({0, 7, 8, 16});
+    context_pushbuttons[Common_context]      = Make_pushbuttons_mask({0, 7, 8, 15, 16, 17, 18, 23});
+
+    context_encoders[Performance_context]    = Make_encoders_mask({0, 2, 3, 4, 7, 8, 9, 11, 15, 16, 23, 24, 25});
+    context_pushbuttons[Performance_context] = Make_pushbuttons_mask({0, 1, 3, 7, 8, 10, 11, 15, 16, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35});
+
+    context_encoders[Sound_edit_context]     = Make_encoders_mask({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
+    context_pushbuttons[Sound_edit_context]  = Make_pushbuttons_mask({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Instrument_Vcf_context]    = Make_encoders_mask({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
+    context_pushbuttons[Instrument_Vcf_context] = Make_pushbuttons_mask({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Mixer_context]          = Make_encoders_mask({0, 3, 4, 7, 8, 15, 16, 19, 20, 24, 25});
+    context_pushbuttons[Mixer_context]       = Make_pushbuttons_mask({0, 4, 7, 8, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Delay_settings_context]    = Make_encoders_mask({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22, 24, 25});
+    context_pushbuttons[Delay_settings_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 19, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Live_Sampling_context]     = Make_encoders_mask({0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 24, 25});
+    context_pushbuttons[Live_Sampling_context]  = Make_pushbuttons_mask({0, 1, 2, 3, 4, 7, 8, 9, 10, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Direct_Sampling_context]    = Make_encoders_mask({0, 4, 7, 8, 15, 16, 23, 24, 25});
+    context_pushbuttons[Direct_Sampling_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Midi_Monitor_context]    = Make_encoders_mask({0, 7, 8, 15, 16});
+    context_pushbuttons[Midi_Monitor_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Midi_Loop_context]    = Make_encoders_mask({0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25});
+    context_pushbuttons[Midi_Loop_context] = Make_pushbuttons_mask({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Setup_context]    = Make_encoders_mask({0, 7, 8, 15, 16, 24, 25});
+    context_pushbuttons[Setup_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+
+    context_encoders[Control_Change_context]    = Make_encoders_mask({0, 7, 8, 16, 24, 25});
+    context_pushbuttons[Control_Change_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 23, 24, 25});
+}
+
+void ShiftRegisters::Set_context(LillaContext ctx)
+{
+    Set_monitored_encoders_pushbuttons(context_encoders[ctx], context_pushbuttons[ctx]);
 }
 
 void ShiftRegisters::Set_monitored_encoders_pushbuttons(const uint32_t &enc, const uint64_t &pb)
