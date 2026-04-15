@@ -77,16 +77,16 @@ private:
         {LS_column_row_window[0], LS_column_row_window[1]}
     };
 
-    static constexpr int LS_chars_play_mode = 12;
-    static constexpr int LS_chars_feedback = 5;
-    static constexpr int LS_chars_window = 8;
+    int LS_chars_play_mode = 12;
+    int LS_chars_feedback = 5;
+    int LS_chars_window = 8;
+    int LS_chars_element[LS_value_names] = {LS_chars_play_mode, LS_chars_feedback, LS_chars_window};
 
     static constexpr int LS_chars_loop_time = 12;
-    
     static constexpr int LS_chars_start_point = 15;
     static constexpr int LS_chars_step = 16;
 
-    static constexpr int LS_chars_element[LS_value_names] = {LS_chars_play_mode, LS_chars_feedback, LS_chars_window};
+    
 
     // elapsedMicros localtimer;
     //  int memo[2];

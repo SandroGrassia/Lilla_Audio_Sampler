@@ -81,9 +81,9 @@ void PointerLiveSampler::Move_pointer(const int value)
     Display_LiveSampler.LS_show_pointer_frame(pointer, true);
 }
 
-void PointerLiveSampler::Display_pointer(void)
+void PointerLiveSampler::Show_pointer(const bool show)
 {
-    Display_LiveSampler.LS_show_pointer_frame(pointer, true);
+    Display_LiveSampler.LS_show_pointer_frame(pointer, show);
 }
 
 LS_pointer_struct PointerLiveSampler::Get_pointer(void)

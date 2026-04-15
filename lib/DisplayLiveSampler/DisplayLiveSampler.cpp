@@ -121,6 +121,9 @@ void DisplayLiveSampler::Play_mode(void)
         tft.print(" ");
     }
     tft.print(name_mode[LS_mode]);
+
+    LS_chars_play_mode = (tft.getCursorX() - display_coordinate_x(LS_column_row_play_mode[0]))/6;
+    Serial.println(LS_chars_play_mode);
 }
 
 FLASHMEM

@@ -4684,7 +4684,7 @@ void loop()
 
                     LS_refresh_LS_page();
                     Pointer_LiveSampler.Restore_pointer();
-                    Pointer_LiveSampler.Display_pointer();
+                    Pointer_LiveSampler.Show_pointer(true);
 
                     Midi_reader.Start();
                 }
@@ -4724,7 +4724,7 @@ void loop()
 
                     LS_update_menu_elements();
                     Pointer_LiveSampler.Restore_pointer();
-                    Pointer_LiveSampler.Display_pointer();
+                    Pointer_LiveSampler.Show_pointer(true);
 
                     if (!LS_XY_lock)
                     {
@@ -4761,8 +4761,11 @@ void loop()
                         Players_Manager.Multicast_main_settings_editing(Patch_id, 1);
                     }
                     AudioInterrupts();
-
+                    
+                    Pointer_LiveSampler.Show_pointer(false);
                     Display_LiveSampler.Play_mode();
+                    Pointer_LiveSampler.Show_pointer(true);
+
                     Display_LiveSampler.Loop_time();
                     if (LS_state != REC)
                     {
@@ -4787,8 +4790,11 @@ void loop()
                     LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
                     LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
                     AudioInterrupts();
-
+                    
+                    Pointer_LiveSampler.Show_pointer(false);
                     Display_LiveSampler.Feedback();
+                    Pointer_LiveSampler.Show_pointer(true);
+                    
                     Serial.println(LS_fbk_table[LS_feedback]);
                 }
             }
