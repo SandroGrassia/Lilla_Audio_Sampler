@@ -340,12 +340,12 @@ PlayersStatistics Players_statistics;
 FlashFileRegisterParser File_scanner;
 PsramManager PSRAM_Manager;
 
-DisplayManager Display_Manager(Info);
+DisplayManager Display_Manager;
 DisplaySound Display_Sound;
 DisplayVCF Display_VCF;
 DisplayMixer Display_Mixer;
 DisplayDelay Display_Delay;
-DisplayLiveSampler Display_LiveSampler(Info);
+DisplayLiveSampler Display_LiveSampler;
 
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;

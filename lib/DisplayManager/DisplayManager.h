@@ -18,14 +18,12 @@
 #include "SharedLoop.h"
 #include "SharedDelay.h"
 #include "SharedMixer.h"
-#include "InfoMaster.h"
 #include "SharedPerformance.h"
+#include "GlobalInfoMaster.h"
 
 class DisplayManager
 {
 private:
-    // riferimenti esterni
-    InfoMaster &Info;
 
     void Note(const int note_number);
     int col;
@@ -126,7 +124,7 @@ private:
     static constexpr int Delay_ROW_BASE = 6;
 
 public:
-    DisplayManager(InfoMaster &Info) : Info(Info) {}
+    DisplayManager() {}
 
     void Lilla_cover_slow(void);
     void Lilla_cover_saturate(void);

@@ -13,12 +13,11 @@
 #include <AudioStream.h> // solo per definizione AUDIO_SAMPLE_RATE
 #include "SharedLS.h"
 #include "SharedMixer.h"
-#include "InfoMaster.h"
+#include "GlobalInfoMaster.h"
 
 class DisplayLiveSampler
 {
 private:
-    InfoMaster &Info;
 
     float LS_K_wave_color;
     float LS_wave_poit_distance_0 = 0;
@@ -92,7 +91,7 @@ private:
     //  int memo[2];
 
 public:
-    DisplayLiveSampler(InfoMaster &Obj) : Info(Obj) {}
+    DisplayLiveSampler() {}
 
     // Gestione LED
     void Led_LIVE_SAMPLING(bool on);
