@@ -105,16 +105,6 @@ private:
     int8_t Loop_X_position_menu_0 = 0;
     int8_t Loop_dimension_voice_menu_0 = 0;
 
-    // DIRECT_SAMPLING
-    static constexpr int DS_VUMETER_BAR_X = 210; // coordinate angolo in basso a SX
-    static constexpr int DS_VUMETER_BAR_Y = 175; // coordinate angolo in basso a SX
-    static constexpr int DS_VUMETER_BAR_DISTANCE = 6;
-    static constexpr int DS_VUMETER_BAR_DX = 12; // distanza tra le mediane delle DS_VUMETER_BAR_DISTANCE
-    static constexpr int DS_START_Y = DS_VUMETER_BAR_Y + 13;
-    static constexpr int DS_START_X = DS_VUMETER_BAR_X - 7;
-    static constexpr int DS_MV = 12;
-    int DS_frame_menu_position_0 = 0;
-    int DS_VU_meter_value_old[2] = {0, 0};
 
     // SETUP
     // Control Change
@@ -180,30 +170,6 @@ public:
     void P_show_TuningTone_instrument(int patch_id);
     void P_show_gain_TuningTone(int patch_id);
 
-    // DIRECT SAMPLING
-    void DS_confirm_EXIT_from_DS(void);
-    void DS_page(int recording);
-    void DS_sampler_IO(void);
-    void DS_bar(int channel, int value);
-    uint16_t DS_calc_bar_color(float value);
-    void DS_line_out(bool visible);
-    void DS_sampler_frame(bool visible);
-    void DS_sampler_txt(bool color);
-    void DS_available_memory(void);
-    void DS_raw_available_memory(void);
-    void DS_hide_recording(void);
-    void DS_advice_delete(bool value);
-    void DS_advice_no_conversion(int DS_export, bool value);
-    void DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export);
-    void DS_export_options(int file_L_RAW, int file_R_RAW, int DS_export);
-    void DS_Recording_description(int recording, bool led);
-    void DS_recording_seconds(void);
-    void DS_update_recording_seconds(float value);
-    void DS_volume(void);
-    void DS_update_volume(bool adj = true);
-    void DS_show_gain(void);
-    void DS_menu(void);
-    void DS_frame_menu(int position);
 
     // SETUP
     void SETUP_show_SETUP_page(void);

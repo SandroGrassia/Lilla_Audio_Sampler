@@ -239,7 +239,6 @@ void DisplayDelay::D_disabled(void)
     const int X_POPUP = (320 - L_POPUP) / 2;
     const int Y_POPUP = (240 - H_POPUP) / 2;
     const int Y_POPUP_TXT = 10;
-    const int Y_POPUP_OPT = 30;
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED); // does NOT delete frame
     tft.setCursor(X_POPUP + display_coordinate_x(3), Y_POPUP + Y_POPUP_TXT);

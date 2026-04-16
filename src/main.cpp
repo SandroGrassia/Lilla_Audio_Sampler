@@ -100,8 +100,9 @@
 #include <SPI.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_GFX.h>
-#include "output_noiseshaped_pwm.h"
+#include <array>
 
+#include "output_noiseshaped_pwm.h"
 #include "Gate.h"
 #include "MidiReader.h"
 #include "MidiOut.h"
@@ -166,6 +167,8 @@
 #include "DisplayMixer.h"
 #include "DisplayDelay.h"
 #include "DisplayLiveSampler.h"
+#include "DisplaySampler.h"
+#include "GlobalDisplaySampler.h"
 
 #include "PointerPerformance.h"
 #include "PointerSound.h"
@@ -346,6 +349,7 @@ DisplayVCF Display_VCF;
 DisplayMixer Display_Mixer;
 DisplayDelay Display_Delay;
 DisplayLiveSampler Display_LiveSampler;
+DisplaySampler Display_Sampler;
 
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
@@ -452,9 +456,8 @@ void Macro_VCF_modulation_none(void);
 
 // >>>>>>> SOUND_EDIT
 // menu
-int S_menu_change;
+int S_menu;
 int S_menu_max;
-
 Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // used to save all Sound starting a new patch_id
 uint8_t Sound_id;
 bool S_sound_original = true;
@@ -836,7 +839,7 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
 // SGTL5000 Audio_shield
 int headphones_volume_int = 40; // 0 --> 40
 
-int S_menu;
+
 
 // *************************************************************
 // *************************************************************
@@ -1079,6 +1082,7 @@ void setup()
 
     File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
     AudioInterrupts();
+
 }
 
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -4665,7 +4669,7 @@ void loop()
                         Players_Manager.Multicast_main_settings_editing(Patch_id, 1);
                     }
                     AudioInterrupts();
-                    
+
                     Pointer_LiveSampler.Show_pointer(false);
                     Display_LiveSampler.Play_mode();
                     Pointer_LiveSampler.Show_pointer(true);
@@ -4694,11 +4698,11 @@ void loop()
                     LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
                     LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
                     AudioInterrupts();
-                    
+
                     Pointer_LiveSampler.Show_pointer(false);
                     Display_LiveSampler.Feedback();
                     Pointer_LiveSampler.Show_pointer(true);
-                    
+
                     Serial.println(LS_fbk_table[LS_feedback]);
                 }
             }
@@ -4761,7 +4765,7 @@ void loop()
 
                     Pointer_LiveSampler.Show_pointer(false);
                     Display_LiveSampler.Window();
-                    Pointer_LiveSampler.Show_pointer(true);                    
+                    Pointer_LiveSampler.Show_pointer(true);
                 }
             }
             }
@@ -5141,14 +5145,14 @@ void loop()
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
-            Display_Manager.DS_update_volume();
+            Display_Sampler.DS_update_volume();
         }
 
         // Change gain
         if (Read_encoder(4, DS_gain, 40, 1, 1))
         {
             LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-            Display_Manager.DS_show_gain();
+            Display_Sampler.DS_show_gain();
         }
 
         // Update bar_displays
@@ -5158,12 +5162,12 @@ void loop()
             if (PeakTracking_L.available())
             {
                 val = 20 * log10(PeakTracking_L.read());       // 0 <= PeakTracking_L.read() <= 1.0 ; -inf < val < 0
-                Display_Manager.DS_bar(0, BAR_ELEMENTS + val); // Display_Manager.DS_bar(0, PeakTracking_L.read() * BAR_ELEMENTS);
+                Display_Sampler.DS_bar(0, BAR_ELEMENTS + val); // Display_Sampler.DS_bar(0, PeakTracking_L.read() * BAR_ELEMENTS);
             }
             if (PeakTracking_R.available())
             {
                 val = 20 * log10(PeakTracking_R.read());
-                Display_Manager.DS_bar(1, BAR_ELEMENTS + val); // Display_Manager.DS_bar(1, PeakTracking_R.read() * BAR_ELEMENTS);
+                Display_Sampler.DS_bar(1, BAR_ELEMENTS + val); // Display_Sampler.DS_bar(1, PeakTracking_R.read() * BAR_ELEMENTS);
             }
         }
 
@@ -5173,7 +5177,7 @@ void loop()
             if (DS_blink_timer >= 500)
             {
                 DS_blink_ON = !DS_blink_ON;
-                Display_Manager.DS_sampler_txt(DS_blink_ON);
+                Display_Sampler.DS_sampler_txt(DS_blink_ON);
                 DS_blink_timer = 0;
             }
 
@@ -5181,8 +5185,8 @@ void loop()
             if (DS_recording_time_update >= 200)
             {
                 DS_recording_time_update = 0;
-                Display_Manager.DS_update_recording_seconds(DS_recording_time);
-                Display_Manager.DS_available_memory();
+                Display_Sampler.DS_update_recording_seconds(DS_recording_time);
+                Display_Sampler.DS_available_memory();
             }
 
             // Stop if SteroSampler has stopped
@@ -5213,13 +5217,13 @@ void loop()
                 DS_blink_ON = false;
 
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_available_memory();
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_available_memory();
 
-                Display_Manager.DS_line_out(false);
-                Display_Manager.DS_sampler_frame(true);
-                Display_Manager.DS_sampler_txt(false);
+                Display_Sampler.DS_line_out(false);
+                Display_Sampler.DS_sampler_frame(true);
+                Display_Sampler.DS_sampler_txt(false);
 
                 VFS_Print_FAT();
                 P_Recording(recording);
@@ -5262,7 +5266,7 @@ void loop()
         if (Read_encoder(25, DS_menu, DS_menu_max, 0, 1))
 
         {
-            Display_Manager.DS_frame_menu(DS_menu);
+            Display_Sampler.DS_frame_menu(DS_menu);
         }
 
         // Choose menu item
@@ -5280,8 +5284,8 @@ void loop()
                 Players_Manager.Stop_all_players();
                 AudioInterrupts();
 
-                Display_Manager.DS_hide_recording();
-                Display_Manager.DS_advice_delete(true);
+                Display_Sampler.DS_hide_recording();
+                Display_Sampler.DS_advice_delete(true);
 
                 // Delete recording
                 Recording[recording].consistent = false;
@@ -5293,7 +5297,7 @@ void loop()
                 // restart from first recording (if exist)
                 recording = DS_get_next_Recording(-1);
                 DS_back_to_first_DS_Recording();
-                Display_Manager.DS_available_memory();
+                Display_Sampler.DS_available_memory();
                 break;
 
             case 1: // Pause+Rec (pause before recording, listening Audio Input)
@@ -5305,7 +5309,7 @@ void loop()
                 Players_Manager.Stop_all_players();
                 AudioInterrupts();
 
-                Display_Manager.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
+                Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
 
                 recording = DS_find_Recording_free();
                 Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
@@ -5313,16 +5317,16 @@ void loop()
                 Serial.println(recording);
 
                 // hide last recording data
-                Display_Manager.DS_hide_recording();
+                Display_Sampler.DS_hide_recording();
 
                 // switch on Line OUT monitor
                 MAIN_mixer_out_L.gain(1, 1.0);
                 MAIN_mixer_out_R.gain(1, 1.0);
 
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_line_out(true);
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_line_out(true);
                 break;
 
             case 2: // Mono Rec
@@ -5347,10 +5351,10 @@ void loop()
                 Serial.println(last_packet_L);
 
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_Recording_description(recording, false);
-                Display_Manager.DS_sampler_txt(true);
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_Recording_description(recording, false);
+                Display_Sampler.DS_sampler_txt(true);
 
                 DS_blink_timer = 0;
                 DS_blink_ON = true;
@@ -5383,10 +5387,10 @@ void loop()
                 Serial.println(first_packet_R);
 
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_Recording_description(recording, false);
-                Display_Manager.DS_sampler_txt(true);
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_Recording_description(recording, false);
+                Display_Sampler.DS_sampler_txt(true);
 
                 DS_blink_timer = 0;
                 DS_blink_ON = true;
@@ -5430,12 +5434,12 @@ void loop()
                 DS_blink_ON = false;
 
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_available_memory();
-                Display_Manager.DS_line_out(false);
-                Display_Manager.DS_sampler_frame(true);
-                Display_Manager.DS_sampler_txt(false);
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_available_memory();
+                Display_Sampler.DS_line_out(false);
+                Display_Sampler.DS_sampler_frame(true);
+                Display_Sampler.DS_sampler_txt(false);
 
                 // VFS_Print_FAT();
                 P_Recording(recording);
@@ -5530,17 +5534,17 @@ void loop()
 
                 if (DS_export <= 0)
                 {
-                    Display_Manager.DS_hide_recording();
-                    Display_Manager.DS_advice_no_conversion(DS_export, true);
+                    Display_Sampler.DS_hide_recording();
+                    Display_Sampler.DS_advice_no_conversion(DS_export, true);
                     delay(7000);
-                    Display_Manager.DS_advice_no_conversion(DS_export, false);
+                    Display_Sampler.DS_advice_no_conversion(DS_export, false);
 
                     DS_state = 0;
                     DS_define_model();
-                    Display_Manager.DS_menu();
-                    Display_Manager.DS_frame_menu(DS_menu);
+                    Display_Sampler.DS_menu();
+                    Display_Sampler.DS_frame_menu(DS_menu);
 
-                    Display_Manager.DS_Recording_description(recording, true);
+                    Display_Sampler.DS_Recording_description(recording, true);
 
                     // restore LED
                     Performance_led_set.Restore_all_LED();
@@ -5550,9 +5554,9 @@ void loop()
 
                 DS_menu = 0;
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
 
                 // Choose what to do
                 while (!confirmation)
@@ -5562,7 +5566,7 @@ void loop()
                     // move menu frame
                     if (Read_encoder(25, DS_menu, DS_menu_max, 0, 1))
                     {
-                        Display_Manager.DS_frame_menu(DS_menu);
+                        Display_Sampler.DS_frame_menu(DS_menu);
                     }
                     // choose the action
                     if (Read_pushbutton(25))
@@ -5625,15 +5629,15 @@ void loop()
                 // Return
                 DS_state = 0;
                 DS_menu = 0;
-                Display_Manager.DS_page(recording);
+                Display_Sampler.DS_page(recording);
                 DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_menu();
+                Display_Sampler.DS_frame_menu(DS_menu);
                 // Switch bar_display ON
                 PeakTracking_L.reset();
                 PeakTracking_R.reset();
-                Display_Manager.DS_bar(0, 0);
-                Display_Manager.DS_bar(1, 0);
+                Display_Sampler.DS_bar(0, 0);
+                Display_Sampler.DS_bar(1, 0);
             }
             break;
 
@@ -5659,15 +5663,15 @@ void loop()
                     delay(2000);
                     DS_state = 0;
                     DS_menu = 0;
-                    Display_Manager.DS_page(recording);
+                    Display_Sampler.DS_page(recording);
                     DS_define_model();
-                    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Manager.DS_frame_menu(DS_menu);
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+                    Display_Sampler.DS_frame_menu(DS_menu);
                     // Switch bar_display ON
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
-                    Display_Manager.DS_bar(0, 0);
-                    Display_Manager.DS_bar(1, 0);
+                    Display_Sampler.DS_bar(0, 0);
+                    Display_Sampler.DS_bar(1, 0);
                     break;
                 }
 
@@ -5679,14 +5683,14 @@ void loop()
                     delay(2000);
                     DS_state = 0;
                     DS_menu = 0;
-                    Display_Manager.DS_page(recording);
+                    Display_Sampler.DS_page(recording);
                     DS_define_model();
-                    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Manager.DS_frame_menu(DS_menu);
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+                    Display_Sampler.DS_frame_menu(DS_menu);
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
-                    Display_Manager.DS_bar(0, 0);
-                    Display_Manager.DS_bar(1, 0);
+                    Display_Sampler.DS_bar(0, 0);
+                    Display_Sampler.DS_bar(1, 0);
                     break;
                 }
 
@@ -5771,14 +5775,14 @@ void loop()
 
                         DS_state = 0;
                         DS_menu = 0;
-                        Display_Manager.DS_page(recording);
+                        Display_Sampler.DS_page(recording);
                         DS_define_model();
-                        Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                        Display_Manager.DS_frame_menu(DS_menu);
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+                        Display_Sampler.DS_frame_menu(DS_menu);
                         PeakTracking_L.reset();
                         PeakTracking_R.reset();
-                        Display_Manager.DS_bar(0, 0);
-                        Display_Manager.DS_bar(1, 0);
+                        Display_Sampler.DS_bar(0, 0);
+                        Display_Sampler.DS_bar(1, 0);
                         break;
                     }
 
@@ -5846,14 +5850,14 @@ void loop()
 
                             DS_state = 0;
                             DS_menu = 0;
-                            Display_Manager.DS_page(recording);
+                            Display_Sampler.DS_page(recording);
                             DS_define_model();
-                            Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                            Display_Manager.DS_frame_menu(DS_menu);
+                            Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+                            Display_Sampler.DS_frame_menu(DS_menu);
                             PeakTracking_L.reset();
                             PeakTracking_R.reset();
-                            Display_Manager.DS_bar(0, 0);
-                            Display_Manager.DS_bar(1, 0);
+                            Display_Sampler.DS_bar(0, 0);
+                            Display_Sampler.DS_bar(1, 0);
                         }
 
                         // Export is possible
@@ -5970,16 +5974,16 @@ void loop()
                     delay(2000);
                     DS_state = 0;
                     DS_menu = 0;
-                    Display_Manager.DS_page(recording);
+                    Display_Sampler.DS_page(recording);
                     DS_define_model();
-                    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Manager.DS_frame_menu(DS_menu);
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+                    Display_Sampler.DS_frame_menu(DS_menu);
 
                     // Switch bar_display ON
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
-                    Display_Manager.DS_bar(0, 0);
-                    Display_Manager.DS_bar(1, 0);
+                    Display_Sampler.DS_bar(0, 0);
+                    Display_Sampler.DS_bar(1, 0);
                 }
             } // END case 11 (export to SD)
             break;
@@ -8368,14 +8372,14 @@ void Golive_DIRECT_SAMPLING(void)
     PeakTracking_R.reset();
 
     DS_menu = 0;
-    Display_Manager.DS_page(recording);
-    Display_Manager.DS_line_out(false);
+    Display_Sampler.DS_page(recording);
+    Display_Sampler.DS_line_out(false);
 
     DS_define_model();
-    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-    Display_Manager.DS_frame_menu(DS_menu);
-    Display_Manager.DS_bar(0, 0);
-    Display_Manager.DS_bar(1, 0);
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+    Display_Sampler.DS_frame_menu(DS_menu);
+    Display_Sampler.DS_bar(0, 0);
+    Display_Sampler.DS_bar(1, 0);
 
     Print_Patch(Patch_id);
     Serial.println(F("*** DIRECT_SAMPLING ***  Sounds are:"));
@@ -8388,20 +8392,20 @@ void DS_refresh_DS_page(void)
     Lilla_state = DIRECT_SAMPLING;
     Shifters_manager.Set_context(Direct_Sampling_context);
 
-    Display_Manager.DS_page(recording);
-    Display_Manager.DS_line_out(false);
+    Display_Sampler.DS_page(recording);
+    Display_Sampler.DS_line_out(false);
     DS_define_model();
-    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-    Display_Manager.DS_frame_menu(DS_menu);
-    Display_Manager.DS_bar(0, 0);
-    Display_Manager.DS_bar(1, 0);
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+    Display_Sampler.DS_frame_menu(DS_menu);
+    Display_Sampler.DS_bar(0, 0);
+    Display_Sampler.DS_bar(1, 0);
 }
 
 void DS_ask_if_EXIT_from_DS(void)
 {
     confirmation = false;
     action = 0; // NO
-    Display_Manager.DS_confirm_EXIT_from_DS();
+    Display_Sampler.DS_confirm_EXIT_from_DS();
     Display_Manager.P_Confirm_patch_delete_popup_frame(0);
     delay(200);
 
@@ -8445,9 +8449,9 @@ void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
     Print_Sound(SOUNDS_MAX);
     Print_Sound(SOUNDS_MAX + 1);
 
-    Display_Manager.DS_hide_recording();
+    Display_Sampler.DS_hide_recording();
 
-    Display_Manager.DS_Recording_description(recording, true);
+    Display_Sampler.DS_Recording_description(recording, true);
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
@@ -8480,11 +8484,11 @@ void DS_back_to_first_DS_Recording(void)
 
     DS_menu = 0;
     DS_define_model(); // updates "Value_Max_encoder.DS_menu" used by encoder_menu
-    Display_Manager.DS_menu();
-    Display_Manager.DS_frame_menu(0);
-    Display_Manager.DS_hide_recording();
+    Display_Sampler.DS_menu();
+    Display_Sampler.DS_frame_menu(0);
+    Display_Sampler.DS_hide_recording();
 
-    Display_Manager.DS_Recording_description(recording, true);
+    Display_Sampler.DS_Recording_description(recording, true);
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
@@ -12152,7 +12156,6 @@ bool Read_encoder_fast(int element)
         return true;
     }
 }
-
 
 // **************************************************************************************************************
 // *************************************            BOOTSTRAP             ***************************************
