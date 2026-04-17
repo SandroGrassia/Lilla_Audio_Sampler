@@ -10,7 +10,7 @@
 #include <Adafruit_GFX.h>     // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
 #include <Adafruit_ILI9341.h> // 1.5.12 version - Hardware-specific library
 #include "SharedElements.h"
-#include "SharedDS.h"
+#include "SharedSampler.h"
 #include "DisplayPrimitives.h"
 #include "SharedMixer.h"
 

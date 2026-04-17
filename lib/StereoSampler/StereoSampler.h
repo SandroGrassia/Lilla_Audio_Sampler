@@ -12,7 +12,7 @@
 #include <AudioStream.h>
 #include <SerialFlash.h>
 #include <spi_interrupt.h>
-#include "SharedDS.h"
+#include "SharedSampler.h"
 #include "LillaSerialFlash.h"
 #include "ArchivingManager.h"
 #include "config.h"

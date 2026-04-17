@@ -13,7 +13,7 @@
 #include "DisplayPrimitives.h"
 
 #include "SharedElements.h"
-#include "SharedDS.h"
+#include "SharedSampler.h"
 #include "SharedLS.h"
 #include "SharedLoop.h"
 #include "SharedDelay.h"

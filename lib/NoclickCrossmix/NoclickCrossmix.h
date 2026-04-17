@@ -11,7 +11,7 @@
 #include <Arduino.h>
 #include <SerialFlash.h>
 #include "SharedElements.h"
-#include "SharedDS.h"
+#include "SharedSampler.h"
 #include "LillaSerialFlash.h"
 #include "config.h"
 

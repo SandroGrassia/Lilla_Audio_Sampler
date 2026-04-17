@@ -4,7 +4,7 @@
  *
  */
 
-#include "SharedDS.h"
+#include "SharedSampler.h"
 
 // DIRECT SAMPLING
 

@@ -10,7 +10,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include "DisplayPrimitives.h"
-#include "SharedDS.h"
+#include "SharedSampler.h"
 #include "SharedElements.h"
 #include "SharedVFS.h"
 #include "GlobalInfoMaster.h"
