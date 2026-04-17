@@ -420,7 +420,7 @@ void DisplaySampler::DS_menu(void)
     Delete_text_row(2);
     tft.setTextColor(MENU_COLOR);
 
-    for (auto element = 0; element < DS_MV; ++element)
+    for (auto element = 0; element < DS_menu_elements; ++element)
     {
         if (Menu_DS[element])
         {
@@ -450,4 +450,22 @@ void DisplaySampler::DS_frame_menu(int position)
     Frame_by_col_row(X_position_Menu_DS[position], Y_position_Menu_DS[position], dimension_voice_Menu_DS[element_Menu_DS[position]], true);
     choice_DS_menu = element_Menu_DS[position];
     DS_frame_menu_position_0 = position;
+}
+
+void DisplaySampler::DS_show_pointer_frame(const DS_pointer_struct pointer, const bool show)
+{
+    if (pointer.field_name == field_DS_Menu)
+    {
+        const int position = position_Menu_DS[pointer.menu_element];
+        Frame_by_col_row(X_position_Menu_DS[position], Y_position_Menu_DS[position], dimension_voice_Menu_DS[element_Menu_DS[position]], show);
+    }
+    else
+    {
+        switch (pointer.value_element)
+        {
+        case value_DS_Recording:
+            Frame_by_col_row(DS_column_row_RECORDING[0] + 10, DS_column_row_RECORDING[1], DS_chars_recording, show);
+            break;
+        }
+    }
 }

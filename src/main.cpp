@@ -533,7 +533,7 @@ DELAY_element_name DELAY_local_pointer;
 // >>>>>>> DIRECT_SAMPLING
 // menu
 int DS_menu;
-int DS_menu_max;
+
 
 // variables
 const int myInput = AUDIO_INPUT_LINEIN; // AUDIO_INPUT_MIC oppure AUDIO_INPUT_LINEIN;
@@ -8782,7 +8782,7 @@ bool DS_check_conversion(void)
 void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
 {
     // voices that can be displayed
-    Menu_DS[0] = true; // DELETE
+    Menu_DS[0] = true; // CANCEL_RECORDING
     Menu_DS[1] = true; // PAUSE+REC
     Menu_DS[2] = true; // MONO-REC
     Menu_DS[3] = true; // STEREO-REC
@@ -8794,7 +8794,7 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
     Menu_DS[8] = true;  // CONVERT LEFT
     Menu_DS[9] = true;  // CONVERT RIGHT
     Menu_DS[10] = true; // CONVERT BOTH
-    Menu_DS[11] = true; // EXPORT TO SD
+    Menu_DS[11] = true; // EXPORT_RAW_TO_SD
 
     if (DS_state == 1 || DS_state == 2 || DS_state == 3 || recordings == 0)
     {
@@ -8887,14 +8887,14 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
     }
 
     DS_menu_max = -1;
-    for (auto i = 0; i < DS_MV; ++i)
+    for (auto i = 0; i < DS_menu_elements; ++i)
     {
         DS_menu_max += Menu_DS[i];
     }
 
-    if (true)
+    if (false)
     {
-        for (auto i = 0; i < DS_MV; ++i)
+        for (auto i = 0; i < DS_menu_elements; ++i)
         {
             Serial.println(Menu_DS[i]);
         }
