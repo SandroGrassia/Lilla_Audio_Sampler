@@ -11,7 +11,7 @@
 #include <Adafruit_ILI9341.h> // 1.5.12 version - Hardware-specific library
 #include "DisplayPrimitives.h"
 #include <AudioStream.h> // solo per definizione AUDIO_SAMPLE_RATE
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "SharedMixer.h"
 #include "GlobalInfoMaster.h"
 

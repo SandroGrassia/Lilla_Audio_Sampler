@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include <SerialFlash.h>
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "StereoLiveSampler.h"
 #include "LillaSerialFlash.h"
 #include "config.h"

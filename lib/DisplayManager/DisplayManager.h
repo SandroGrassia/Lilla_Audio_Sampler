@@ -14,7 +14,7 @@
 
 #include "SharedElements.h"
 #include "SharedSampler.h"
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "SharedLoop.h"
 #include "SharedDelay.h"
 #include "SharedMixer.h"

@@ -11,8 +11,6 @@
 #include "SharedElements.h"
 
 
-// LIVE SAMPLING
-
 // Virtual tape
 /*
 Dalla PSRAM totale si esclude spazio per i puntatori; lo spazio utile deve poter essere divisibile per  2 (L/R) poi per 256 (128 samples)

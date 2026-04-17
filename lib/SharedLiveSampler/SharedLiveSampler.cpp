@@ -4,7 +4,7 @@
  *
  */
 
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 
 // LIVE SAMPLING
 

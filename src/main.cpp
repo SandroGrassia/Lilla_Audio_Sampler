@@ -118,7 +118,7 @@
 #include "SharedSound.h"
 #include "SharedVCF.h"
 #include "SharedSampler.h"
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "SharedLoop.h"
 #include "SharedDelay.h"
 #include "SharedVFS.h"

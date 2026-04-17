@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include "config.h"
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "DisplayPrimitives.h"
 #include "GlobalDisplayLiveSampler.h"
 
