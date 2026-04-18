@@ -18,7 +18,7 @@ FLASHMEM
 void PointerSampler::Move_pointer(const int value)
 {
 	bool change = false;
-    pointer_old = pointer;
+	pointer_old = pointer;
 
 	switch (pointer.field_name)
 	{
@@ -32,18 +32,18 @@ void PointerSampler::Move_pointer(const int value)
 			{
 				pointer.field_name = field_DS_Value;
 				pointer.value_element = value_DS_Recording;
-                change = true;
+				change = true;
 			}
 			else
 			{
 				pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[++menu_position]);
-                change = true;
+				change = true;
 			}
 		}
 		else if (value == -1 && menu_position > 0)
 		{
 			pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[--menu_position]);
-            change = true;
+			change = true;
 		}
 	}
 	break;
@@ -54,10 +54,44 @@ void PointerSampler::Move_pointer(const int value)
 		{
 			pointer.field_name = field_DS_Menu;
 			pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[DS_menu_max]);
-            change = true;
+			change = true;
 		}
 	}
 	break;
+	}
+
+	if (change)
+	{
+		Display_Sampler.DS_show_pointer_frame(pointer_old, false);
+		Display_Sampler.DS_show_pointer_frame(pointer, true);
+	}
+}
+
+void PointerSampler::Move_pointer_within_menu(const int value)
+{
+	bool change = false;
+	pointer_old = pointer;
+
+	if (pointer.field_name == field_DS_Menu)
+	{
+		int menu_position = position_Menu_DS[pointer.menu_element];
+
+		if (value == 1)
+		{
+			if (menu_position < DS_menu_max)
+			{
+				pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[++menu_position]);
+				change = true;
+			}
+		}
+		else if (value == -1)
+		{
+			if (menu_position > 0)
+				{
+					pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[--menu_position]);
+					change = true;
+				}
+		}
 	}
 
 	if (change)

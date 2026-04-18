@@ -532,8 +532,7 @@ DELAY_element_name DELAY_local_pointer;
 
 // >>>>>>> DIRECT_SAMPLING
 // menu
-int DS_menu;
-
+DS_pointer_struct DS_local_pointer;
 
 // variables
 const int myInput = AUDIO_INPUT_LINEIN; // AUDIO_INPUT_MIC oppure AUDIO_INPUT_LINEIN;
@@ -841,8 +840,6 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
 // SGTL5000 Audio_shield
 int headphones_volume_int = 40; // 0 --> 40
 
-
-
 // *************************************************************
 // *************************************************************
 // ********************      SETUP     *************************
@@ -1084,7 +1081,6 @@ void setup()
 
     File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
     AudioInterrupts();
-
 }
 
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -5121,26 +5117,34 @@ void loop()
     // ********************  DIRECT SAMPLING  **********************
     // *************************************************************
 
-    /*
-
-    Direct Sampling (SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX, dei Sound SOUNDS_MAX e (SOUNDS_MAX + 1) e di 2 Instrument:
-    - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left oppure Mono
-    - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
-
-    Entrambi gli instrument hanno:
-    from_note = 0
-    to_note = 127
-    root_key = 60
-    midi_ch = 0 (midi channel 1)
-
-    Se la registrazione è stereo, i due Sound sono associati a due distinti file .rec consecutivi; se la registrazione è mono i due Sound sono associati allo stsso file .rec.
-
-    */
-
     if (Lilla_state == DIRECT_SAMPLING)
     {
+
+        /*
+        Direct Sampling (SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX, dei Sound SOUNDS_MAX e (SOUNDS_MAX + 1) e di 2 Instrument:
+        - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left oppure Mono
+        - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
+
+        Entrambi gli instrument hanno:
+        from_note = 0
+        to_note = 127
+        root_key = 60
+        midi_ch = 0 (midi channel 1)
+
+        Se la registrazione è stereo, i due Sound sono associati a due distinti file .rec consecutivi; se la registrazione è mono i due Sound sono associati allo stsso file .rec.
+
+        */
+
+        // ******************************************  Move to SETTINGS Change line_in gain
+        // Change gain
+        if (Read_encoder(4, DS_gain, 40, 1, 1))
+        {
+            LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
+            Display_Sampler.DS_show_gain();
+        }
+
         // Change volume_patch
-        if (DS_state == 0 && Read_encoder(15, volume_patch, 40, 0, 1))
+        if (DS_state == 0 && Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -5150,16 +5154,9 @@ void loop()
             Display_Sampler.DS_update_volume();
         }
 
-        // Change gain
-        if (Read_encoder(4, DS_gain, 40, 1, 1))
-        {
-            LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-            Display_Sampler.DS_show_gain();
-        }
-
-        // Update bar_displays
         if (DS_state == 0 || DS_state == 1 || DS_state == 2)
         {
+            // Update VU meter
             float val;
             if (PeakTracking_L.available())
             {
@@ -5195,7 +5192,7 @@ void loop()
             if (!DirectSampler.Is_recording())
             {
                 DS_state = 0;
-                DS_menu = 0;
+
                 // switch OFF Audio Input monitor
                 MAIN_mixer_out_L.gain(1, 0.0);
                 MAIN_mixer_out_R.gain(1, 0.0);
@@ -5215,12 +5212,17 @@ void loop()
                 }
 
                 DS_update_recordings();
+
                 // Switch off blinking REC
                 DS_blink_ON = false;
 
+                // Menu
                 DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
+                Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                // Pointer
+                Pointer_Sampler.Set_pointer_to_first_menu_element();
+
                 Display_Sampler.DS_available_memory();
 
                 Display_Sampler.DS_line_out(false);
@@ -5228,559 +5230,461 @@ void loop()
                 Display_Sampler.DS_sampler_txt(false);
 
                 VFS_Print_FAT();
-                P_Recording(recording);
 
                 DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+
+                // Reporting
+                P_Recording(recording);
             }
         }
 
-        // Change recording
-        if (DS_state == 0)
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
         {
-            result = Read_encoder_simple(23);
-            if (result != 0)
-            {
-                DS_recording_change = recording;
-                if (result == +1)
-                {
-                    DS_recording_change = DS_get_next_Recording(recording);
-                }
-                else
-                {
-                    DS_recording_change = DS_get_previous_Recording(recording);
-                }
+            Pointer_Sampler.Move_pointer(result);
+            DS_local_pointer = Pointer_Sampler.Get_pointer();
+        }
 
-                if (DS_recording_change != recording)
+        // Change values
+        switch (DS_local_pointer.field_name)
+        {
+        case field_DS_Menu:
+        {
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            {
+                int first_packet_L = 0;
+                int packets_per_channel = 0;
+                int last_packet_L = 0;
+                int first_packet_R = 0;
+
+                switch (choice_DS_menu) // {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
                 {
+                case 0: // Delete
                     AudioNoInterrupts();
                     Players_Manager.Stop_all_players();
                     AudioInterrupts();
 
-                    recording = DS_recording_change;
-                    DS_Jump_to_DIRECT_SAMPLING_recording(recording);
-                    P_Recording(recording);
-                }
-            }
-        }
-
-        // Change menu item
-
-        if (Read_encoder(25, DS_menu, DS_menu_max, 0, 1))
-
-        {
-            Display_Sampler.DS_frame_menu(DS_menu);
-        }
-
-        // Choose menu item
-        if (Read_pushbutton(25))
-        {
-            int first_packet_L = 0;
-            int packets_per_channel = 0;
-            int last_packet_L = 0;
-            int first_packet_R = 0;
-
-            switch (choice_DS_menu) // {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
-            {
-            case 0: // Delete
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                Display_Sampler.DS_hide_recording();
-                Display_Sampler.DS_advice_delete(true);
-
-                // Delete recording
-                Recording[recording].consistent = false;
-                VFS_Clean_up_VFS();
-                VFS_Defragment();
-                DS_update_recordings();
-                VFS_Print_FAT();
-
-                // restart from first recording (if exist)
-                recording = DS_get_next_Recording(-1);
-                DS_back_to_first_DS_Recording();
-                Display_Sampler.DS_available_memory();
-                break;
-
-            case 1: // Pause+Rec (pause before recording, listening Audio Input)
-                DS_state = 1;
-                DS_menu = 0;
-
-                AudioNoInterrupts();
-                Midi_reader.Stop();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
-
-                recording = DS_find_Recording_free();
-                Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
-                Serial.print(F("**** Prossimo recording: "));
-                Serial.println(recording);
-
-                // hide last recording data
-                Display_Sampler.DS_hide_recording();
-
-                // switch on Line OUT monitor
-                MAIN_mixer_out_L.gain(1, 1.0);
-                MAIN_mixer_out_R.gain(1, 1.0);
-
-                DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
-                Display_Sampler.DS_line_out(true);
-                break;
-
-            case 2: // Mono Rec
-                DS_state = 2;
-                DS_menu = 0;
-
-                Recording[recording].stereo = false;
-                Recording[recording].consistent = false;
-
-                // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
-                // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
-                // result:  * * * * L L L L L L L  L  L  L  L  L  L  L  L
-
-                packets_per_channel = VFS_Get_packets_free();             // 15
-                first_packet_L = VFS_Get_first_packet_free();             // 4
-                last_packet_L = first_packet_L + packets_per_channel - 1; // 4 + 15 - 1 = 18
-
-                Serial.println(F("*** Start MONO Sampling! *** "));
-                Serial.print(F("Mono recording from packet: "));
-                Serial.print(first_packet_L);
-                Serial.print(F("  up to packet: "));
-                Serial.println(last_packet_L);
-
-                DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
-                Display_Sampler.DS_Recording_description(recording, false);
-                Display_Sampler.DS_sampler_txt(true);
-
-                DS_blink_timer = 0;
-                DS_blink_ON = true;
-
-                DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
-                DS_recording_time = 0;
-                DS_recording_time_update = 0;
-                break;
-
-            case 3: // Stereo Rec
-                DS_state = 2;
-                DS_menu = 0;
-
-                Recording[recording].stereo = true;
-                Recording[recording].consistent = false;
-
-                // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
-                // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
-                // result:  * * * * L R L R L R L  R  L  R  L  R  L  R  _
-
-                packets_per_channel = VFS_Get_packets_free() / 2;               // (15/2) = 7
-                first_packet_L = VFS_Get_first_packet_free();                   // 4
-                last_packet_L = first_packet_L + 2 * (packets_per_channel - 1); // 16
-                first_packet_R = first_packet_L + 1;
-
-                Serial.println(F("*** Start STEREO Sampling! *** "));
-                Serial.print(F("Left recording from packet: "));
-                Serial.print(first_packet_L);
-                Serial.print(F("  Right recording from packet: "));
-                Serial.println(first_packet_R);
-
-                DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
-                Display_Sampler.DS_Recording_description(recording, false);
-                Display_Sampler.DS_sampler_txt(true);
-
-                DS_blink_timer = 0;
-                DS_blink_ON = true;
-
-                DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
-                DS_recording_time = 0;
-                DS_recording_time_update = 0;
-                break;
-
-            case 4: // Stop
-                Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
-                if (DS_state == 2)
-                {
-                    DirectSampler.Book_stop();
-                }
-                DS_state = 0;
-                DS_menu = 0;
-
-                // switch OFF Line OUT monitor
-                MAIN_mixer_out_L.gain(1, 0.0);
-                MAIN_mixer_out_R.gain(1, 0.0);
-
-                if (Recording[recording].packets == 0)
-                {
-                    Serial.print(F("Recording: "));
-                    Serial.print(recording);
-                    Serial.println(F(" cancelled."));
-                    recording = DS_get_next_Recording(-1);
-                }
-
-                else
-                {
-                    Recording[recording].consistent = true;
-                    // consistent Recording must be saved
-                    Archive.Save_DS_Recording(recording);
-                    DS_read_Recording(recording); // only to update .bytes and .seconds
-                }
-
-                DS_update_recordings();
-                // Switch off blinking REC
-                DS_blink_ON = false;
-
-                DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
-                Display_Sampler.DS_available_memory();
-                Display_Sampler.DS_line_out(false);
-                Display_Sampler.DS_sampler_frame(true);
-                Display_Sampler.DS_sampler_txt(false);
-
-                // VFS_Print_FAT();
-                P_Recording(recording);
-
-                DS_Jump_to_DIRECT_SAMPLING_recording(recording);
-                Midi_reader.Start();
-                break;
-
-            case 5: // CONVERT_REC_TO_RAW
-            {
-                DS_state = 3;
-
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                confirmation = false; // no action
-                int file_L_RAW = -1;
-                int file_R_RAW = -1;
-                int blocks_per_file = ceil(Recording[recording].bytes / 256.0f); // quanti block compongono il file
-
-                if (!Recording[recording].stereo)
-                {
-                    if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
-                    {
-                        DS_export = -1; // no filename available;
-                        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-                        {
-                            if (!SerialFlash.exists(name_file[i]))
-                            {
-                                file_L_RAW = i;
-                                DS_export = 1;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                        DS_export = 0; // no space available
-                }
-
-                else
-                {
-                    if ((Get_flash_size() - Get_flash_occupation()) >= (2 * Recording[recording].bytes))
-                    {
-                        DS_export = -1; // no filename available;
-                        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-                        {
-                            if (!SerialFlash.exists(name_file[i]))
-                            {
-                                file_L_RAW = i;
-                                DS_export = 1;
-                                break;
-                            }
-                        }
-                        if (DS_export == 1)
-                        {
-                            for (auto i = file_L_RAW + 1; i < FIRST_RECORDING_FILE; ++i)
-                            {
-                                if (!SerialFlash.exists(name_file[i]))
-                                {
-                                    file_R_RAW = i;
-                                    DS_export = 2;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    else if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
-                    {
-                        DS_export = -1; // no filename available;
-                        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-                        {
-                            if (!SerialFlash.exists(name_file[i]))
-                            {
-                                file_L_RAW = i;
-                                DS_export = 1;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                        DS_export = 0; // no space available
-                }
-
-                Serial.print("DS_export ");
-                Serial.println(DS_export);
-                Serial.print("file_L_RAW proposto ");
-                Serial.println(file_L_RAW);
-                Serial.print("file_R_RAW proposto ");
-                Serial.println(file_R_RAW);
-                Serial.println();
-
-                if (DS_export <= 0)
-                {
                     Display_Sampler.DS_hide_recording();
-                    Display_Sampler.DS_advice_no_conversion(DS_export, true);
-                    delay(7000);
-                    Display_Sampler.DS_advice_no_conversion(DS_export, false);
+                    Display_Sampler.DS_advice_delete(true);
 
-                    DS_state = 0;
-                    DS_define_menu();
-                    Display_Sampler.DS_menu();
-                    Display_Sampler.DS_frame_menu(DS_menu);
-
-                    Display_Sampler.DS_Recording_description(recording, true);
-
-                    // restore LED
-                    Performance_led_set.Restore_all_LED();
-
-                    break;
-                }
-
-                DS_menu = 0;
-                DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
-                Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
-
-                // Choose what to do
-                while (!confirmation)
-                {
-                    Shifters_manager.Update();
-
-                    // move menu frame
-                    if (Read_encoder(25, DS_menu, DS_menu_max, 0, 1))
-                    {
-                        Display_Sampler.DS_frame_menu(DS_menu);
-                    }
-                    // choose the action
-                    if (Read_pushbutton(25))
-                    {
-                        confirmation = true;
-                    }
-                }
-
-                switch (choice_DS_menu)
-                {
-                case 6: // Cancel (don't export)
-                    Serial.println(F("Don't convert any file"));
-                    break;
-
-                case 7:                                                   // Convert Mono (file_L)
-                    DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                case 8:                                                   // Convert file_L
-                    DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                case 9:                                                   // Convert file_R
-                    DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                case 10:                                                  // Convert both file_L and file_R
-                    DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                    DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                default:
-                    Serial.println(F("Don't convert any file"));
-                    break;
-                }
-
-                // Delete recording
-                if (choice_DS_menu > 6)
-                {
+                    // Delete recording
                     Recording[recording].consistent = false;
                     VFS_Clean_up_VFS();
                     VFS_Defragment();
                     DS_update_recordings();
                     VFS_Print_FAT();
+
                     // restart from first recording (if exist)
                     recording = DS_get_next_Recording(-1);
                     DS_back_to_first_DS_Recording();
-                }
+                    Display_Sampler.DS_available_memory();
+                    break;
 
-                Print_flash_file_list();
+                case 1: // Pause+Rec (pause before recording, listening Audio Input)
+                    DS_state = 1;
 
-                // Return
-                DS_state = 0;
-                DS_menu = 0;
-                Display_Sampler.DS_page(recording);
-                DS_define_menu();
-                Display_Sampler.DS_menu();
-                Display_Sampler.DS_frame_menu(DS_menu);
-                // Switch bar_display ON
-                PeakTracking_L.reset();
-                PeakTracking_R.reset();
-                Display_Sampler.DS_bar(0, 0);
-                Display_Sampler.DS_bar(1, 0);
-            }
-            break;
+                    AudioNoInterrupts();
+                    Midi_reader.Stop();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
 
-            case 11: // EXPORT AS RAW TO SD
-            {
-                DS_state = 4;
-                Sd2Card card;
-                SdVolume volume;
-                SdFile root;
-                double SD_volumesize;
-                double SD_occupied;
+                    Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
 
-                confirmation = false; // no action
-                const char DS_export_directory[] = "/LILLARAW_EXPORT/";
-                String DS_export_M_RAW;
-                String DS_export_L_RAW;
-                String DS_export_R_RAW;
+                    recording = DS_find_Recording_free();
+                    Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
+                    Serial.print(F("**** Prossimo recording: "));
+                    Serial.println(recording);
 
-                // check SD presence
-                if (!SD.begin(BUILTIN_SDCARD))
-                {
-                    Show_popup_text("SD CARD MISSING", ILI9341_WHITE, ILI9341_RED);
-                    delay(2000);
-                    DS_state = 0;
-                    DS_menu = 0;
-                    Display_Sampler.DS_page(recording);
+                    // Hide last recording data
+                    Display_Sampler.DS_hide_recording();
+
+                    // Switch on Line OUT monitor
+                    MAIN_mixer_out_L.gain(1, 1.0);
+                    MAIN_mixer_out_R.gain(1, 1.0);
+
+                    // Menu
                     DS_define_menu();
                     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Sampler.DS_frame_menu(DS_menu);
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                    Display_Sampler.DS_line_out(true);
+                    break;
+
+                case 2: // Mono Rec
+                    DS_state = 2;
+
+                    Recording[recording].stereo = false;
+                    Recording[recording].consistent = false;
+
+                    // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+                    // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
+                    // result:  * * * * L L L L L L L  L  L  L  L  L  L  L  L
+
+                    packets_per_channel = VFS_Get_packets_free();             // 15
+                    first_packet_L = VFS_Get_first_packet_free();             // 4
+                    last_packet_L = first_packet_L + packets_per_channel - 1; // 4 + 15 - 1 = 18
+
+                    Serial.println(F("*** Start MONO Sampling! *** "));
+                    Serial.print(F("Mono recording from packet: "));
+                    Serial.print(first_packet_L);
+                    Serial.print(F("  up to packet: "));
+                    Serial.println(last_packet_L);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                    Display_Sampler.DS_Recording_description(recording, false);
+                    Display_Sampler.DS_sampler_txt(true);
+
+                    DS_blink_timer = 0;
+                    DS_blink_ON = true;
+
+                    DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
+                    DS_recording_time = 0;
+                    DS_recording_time_update = 0;
+                    break;
+
+                case 3: // Stereo Rec
+                    DS_state = 2;
+
+                    Recording[recording].stereo = true;
+                    Recording[recording].consistent = false;
+
+                    // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+                    // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
+                    // result:  * * * * L R L R L R L  R  L  R  L  R  L  R  _
+
+                    packets_per_channel = VFS_Get_packets_free() / 2;               // (15/2) = 7
+                    first_packet_L = VFS_Get_first_packet_free();                   // 4
+                    last_packet_L = first_packet_L + 2 * (packets_per_channel - 1); // 16
+                    first_packet_R = first_packet_L + 1;
+
+                    Serial.println(F("*** Start STEREO Sampling! *** "));
+                    Serial.print(F("Left recording from packet: "));
+                    Serial.print(first_packet_L);
+                    Serial.print(F("  Right recording from packet: "));
+                    Serial.println(first_packet_R);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                    Display_Sampler.DS_Recording_description(recording, false);
+                    Display_Sampler.DS_sampler_txt(true);
+
+                    DS_blink_timer = 0;
+                    DS_blink_ON = true;
+
+                    DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
+                    DS_recording_time = 0;
+                    DS_recording_time_update = 0;
+                    break;
+
+                case 4: // Stop
+                    Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
+                    if (DS_state == 2)
+                    {
+                        DirectSampler.Book_stop();
+                    }
+                    DS_state = 0;
+
+                    // switch OFF Line OUT monitor
+                    MAIN_mixer_out_L.gain(1, 0.0);
+                    MAIN_mixer_out_R.gain(1, 0.0);
+
+                    if (Recording[recording].packets == 0)
+                    {
+                        Serial.print(F("Recording: "));
+                        Serial.print(recording);
+                        Serial.println(F(" cancelled."));
+                        recording = DS_get_next_Recording(-1);
+                    }
+
+                    else
+                    {
+                        Recording[recording].consistent = true;
+                        // consistent Recording must be saved
+                        Archive.Save_DS_Recording(recording);
+                        DS_read_Recording(recording); // only to update .bytes and .seconds
+                    }
+
+                    DS_update_recordings();
+                    // Switch off blinking REC
+                    DS_blink_ON = false;
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                    Display_Sampler.DS_available_memory();
+                    Display_Sampler.DS_line_out(false);
+                    Display_Sampler.DS_sampler_frame(true);
+                    Display_Sampler.DS_sampler_txt(false);
+
+                    // VFS_Print_FAT();
+                    P_Recording(recording);
+
+                    DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+                    Midi_reader.Start();
+                    break;
+
+                case 5: // CONVERT_REC_TO_RAW
+                {
+                    DS_state = 3;
+
+                    AudioNoInterrupts();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
+                    confirmation = false; // no action
+                    int file_L_RAW = -1;
+                    int file_R_RAW = -1;
+                    int blocks_per_file = ceil(Recording[recording].bytes / 256.0f); // quanti block compongono il file
+
+                    if (!Recording[recording].stereo)
+                    {
+                        if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        {
+                            DS_export = -1; // no filename available;
+                            for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
+                            {
+                                if (!SerialFlash.exists(name_file[i]))
+                                {
+                                    file_L_RAW = i;
+                                    DS_export = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            DS_export = 0; // no space available
+                    }
+
+                    else
+                    {
+                        if ((Get_flash_size() - Get_flash_occupation()) >= (2 * Recording[recording].bytes))
+                        {
+                            DS_export = -1; // no filename available;
+                            for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
+                            {
+                                if (!SerialFlash.exists(name_file[i]))
+                                {
+                                    file_L_RAW = i;
+                                    DS_export = 1;
+                                    break;
+                                }
+                            }
+                            if (DS_export == 1)
+                            {
+                                for (auto i = file_L_RAW + 1; i < FIRST_RECORDING_FILE; ++i)
+                                {
+                                    if (!SerialFlash.exists(name_file[i]))
+                                    {
+                                        file_R_RAW = i;
+                                        DS_export = 2;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        {
+                            DS_export = -1; // no filename available;
+                            for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
+                            {
+                                if (!SerialFlash.exists(name_file[i]))
+                                {
+                                    file_L_RAW = i;
+                                    DS_export = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            DS_export = 0; // no space available
+                    }
+
+                    Serial.print("DS_export ");
+                    Serial.println(DS_export);
+                    Serial.print("file_L_RAW proposto ");
+                    Serial.println(file_L_RAW);
+                    Serial.print("file_R_RAW proposto ");
+                    Serial.println(file_R_RAW);
+                    Serial.println();
+
+                    if (DS_export <= 0)
+                    {
+                        Display_Sampler.DS_hide_recording();
+                        Display_Sampler.DS_advice_no_conversion(DS_export, true);
+                        delay(7000);
+
+                        Display_Sampler.DS_advice_no_conversion(DS_export, false);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                        Display_Sampler.DS_Recording_description(recording, true);
+
+                        // Restore LED
+                        Performance_led_set.Restore_all_LED();
+
+                        break;
+                    }
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                    Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
+
+                    // Choose what to do
+                    while (!confirmation)
+                    {
+                        Shifters_manager.Update();
+
+                        // Move pointer
+                        result = Read_encoder_simple(EN_PB_Select);
+                        if (result != 0)
+                        {
+                            Pointer_Sampler.Move_pointer_within_menu(result);
+                        }
+
+                        // Choose element
+                        if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+                        {
+                            confirmation = true;
+                        }
+                    }
+
+                    switch (choice_DS_menu)
+                    {
+                    case 6: // Cancel (don't export)
+                        Serial.println(F("Don't convert any file"));
+                        break;
+
+                    case 7:                                                   // Convert Mono (file_L)
+                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    case 8:                                                   // Convert file_L
+                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    case 9:                                                   // Convert file_R
+                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    case 10:                                                  // Convert both file_L and file_R
+                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    default:
+                        // Reporting
+                        Serial.println(F("Don't convert any file"));
+                        break;
+                    }
+
+                    // Delete recording
+                    if (choice_DS_menu > 6)
+                    {
+                        Recording[recording].consistent = false;
+                        VFS_Clean_up_VFS();
+                        VFS_Defragment();
+                        DS_update_recordings();
+                        VFS_Print_FAT();
+
+                        // Load first recording (if exist)
+                        recording = DS_get_next_Recording(-1);
+                        DS_back_to_first_DS_Recording();
+                    }
+
+                    Print_flash_file_list();
+
+                    // Return
+                    DS_state = 0;
+
+                    Display_Sampler.DS_page(recording);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
                     // Switch bar_display ON
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
                     Display_Sampler.DS_bar(0, 0);
                     Display_Sampler.DS_bar(1, 0);
-                    break;
                 }
+                break;
 
-                // verifica se NON formattata
-                card.init(SPI_HALF_SPEED, BUILTIN_SDCARD);
-                if (!volume.init(card))
+                case 11: // EXPORT AS RAW TO SD
                 {
-                    Show_popup_text("SD CARD UNFORMATTED", ILI9341_WHITE, ILI9341_RED);
-                    delay(2000);
-                    DS_state = 0;
-                    DS_menu = 0;
-                    Display_Sampler.DS_page(recording);
-                    DS_define_menu();
-                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Sampler.DS_frame_menu(DS_menu);
-                    PeakTracking_L.reset();
-                    PeakTracking_R.reset();
-                    Display_Sampler.DS_bar(0, 0);
-                    Display_Sampler.DS_bar(1, 0);
-                    break;
-                }
+                    DS_state = 4;
+                    Sd2Card card;
+                    SdVolume volume;
+                    SdFile root;
+                    double SD_volumesize;
+                    double SD_occupied;
 
-                // se formattata si procede
-                else
-                {
-                    // calcola lo spazio disponibile
-                    Serial.print("\nCard type: ");
-                    switch (card.type())
+                    confirmation = false; // no action
+                    const char DS_export_directory[] = "/LILLARAW_EXPORT/";
+                    String DS_export_M_RAW;
+                    String DS_export_L_RAW;
+                    String DS_export_R_RAW;
+
+                    // check SD presence
+                    if (!SD.begin(BUILTIN_SDCARD))
                     {
-                    case SD_CARD_TYPE_SD1:
-                        Serial.println("SD1");
-                        break;
-                    case SD_CARD_TYPE_SD2:
-                        Serial.println("SD2");
-                        break;
-                    case SD_CARD_TYPE_SDHC:
-                        Serial.println("SDHC");
-                        break;
-                    default:
-                        Serial.println("Unknown");
-                    }
-
-                    SD_volumesize = volume.blocksPerCluster(); // clusters are collections of blocks
-                    SD_volumesize *= volume.clusterCount();    // numero di blocchi da 512 byte
-                    SD_volumesize = SD_volumesize / 2048;      // MB
-                    Serial.print(F("SD Volume size (MB): "));
-                    Serial.println(SD_volumesize);
-
-                    File root = SD.open("/");
-                    big_result = 0;
-                    DS_Print_Directory(root, 0);
-                    SD_occupied = big_result / 1048576; // MB
-
-                    Serial.println(F("SD total occupied space (MB): "));
-                    Serial.println(SD_occupied);
-                    Serial.println(F("SD space free (MB): "));
-                    Serial.println(SD_volumesize - SD_occupied);
-
-                    // calcola lo spazio richiesto se MONO
-                    if (!Recording[recording].stereo)
-                    {
-                        // export possibile
-                        if ((SD_volumesize - SD_occupied) * 1024 > Recording[recording].bytes / 1024)
-                        {
-                            DS_export = 1;
-                        }
-                        // export NON possibile
-                        else
-                        {
-                            DS_export = 0;
-                        }
-                    }
-
-                    // calcola lo spazio richiesto se STEREO
-                    else
-                    {
-                        // stereo export is possible
-                        if ((SD_volumesize - SD_occupied) * 1024 > ((2 * Recording[recording].bytes) / 1024))
-                        {
-                            DS_export = 2;
-                        }
-
-                        // only mono export is possible
-                        else if ((SD_volumesize - SD_occupied) * 1024 > (Recording[recording].bytes / 1024))
-                        {
-                            DS_export = 1;
-                        }
-
-                        // there is not space enough, export is impossible
-                        else
-                        {
-                            DS_export = 0;
-                        }
-                    }
-
-                    // If there is no space, terminates
-                    if (DS_export == 0)
-                    {
-                        Show_popup_text("SD CARD IS FULL - CANNOT WRITE NEW FILES", ILI9341_WHITE, ILI9341_RED);
+                        Show_popup_text("SD CARD MISSING", ILI9341_WHITE, ILI9341_RED);
                         delay(2000);
-
                         DS_state = 0;
-                        DS_menu = 0;
+
                         Display_Sampler.DS_page(recording);
+
+                        // Menu
                         DS_define_menu();
                         Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-                        Display_Sampler.DS_frame_menu(DS_menu);
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                        // Switch bar_display ON
                         PeakTracking_L.reset();
                         PeakTracking_R.reset();
                         Display_Sampler.DS_bar(0, 0);
@@ -5788,155 +5692,222 @@ void loop()
                         break;
                     }
 
-                    // If there is space, go on!
+                    // verifica se NON formattata
+                    card.init(SPI_HALF_SPEED, BUILTIN_SDCARD);
+                    if (!volume.init(card))
+                    {
+                        Show_popup_text("SD CARD UNFORMATTED", ILI9341_WHITE, ILI9341_RED);
+                        delay(2000);
+                        DS_state = 0;
+
+                        Display_Sampler.DS_page(recording);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                        PeakTracking_L.reset();
+                        PeakTracking_R.reset();
+                        Display_Sampler.DS_bar(0, 0);
+                        Display_Sampler.DS_bar(1, 0);
+                        break;
+                    }
+
+                    // se formattata si procede
                     else
                     {
-                        confirmation = false;
-
-                        // If /LILLA_EXPORT folder doesn't exist, creates and proposes the new .raw file(s) names
-                        if (!SD.exists("/LILLARAW_EXPORT"))
+                        // calcola lo spazio disponibile
+                        Serial.print("\nCard type: ");
+                        switch (card.type())
                         {
-                            SD.mkdir("/LILLARAW_EXPORT");
-                            Serial.println("/LILLARAW_EXPORT directory created on SD");
-                            DS_export_M_RAW = DS_export_directory;
-                            DS_export_M_RAW += "0M.raw";
-                            DS_export_L_RAW += "0L.raw";
-                            DS_export_R_RAW += "0R.raw";
-                            confirmation = true;
+                        case SD_CARD_TYPE_SD1:
+                            Serial.println("SD1");
+                            break;
+                        case SD_CARD_TYPE_SD2:
+                            Serial.println("SD2");
+                            break;
+                        case SD_CARD_TYPE_SDHC:
+                            Serial.println("SDHC");
+                            break;
+                        default:
+                            Serial.println("Unknown");
                         }
 
-                        // If /LILLA_EXPORT folder exists, defines mono (stereo) file(s) name(s)
-                        else
+                        SD_volumesize = volume.blocksPerCluster(); // clusters are collections of blocks
+                        SD_volumesize *= volume.clusterCount();    // numero di blocchi da 512 byte
+                        SD_volumesize = SD_volumesize / 2048;      // MB
+                        Serial.print(F("SD Volume size (MB): "));
+                        Serial.println(SD_volumesize);
+
+                        File root = SD.open("/");
+                        big_result = 0;
+                        DS_Print_Directory(root, 0);
+                        SD_occupied = big_result / 1048576; // MB
+
+                        Serial.println(F("SD total occupied space (MB): "));
+                        Serial.println(SD_occupied);
+                        Serial.println(F("SD space free (MB): "));
+                        Serial.println(SD_volumesize - SD_occupied);
+
+                        // calcola lo spazio richiesto se MONO
+                        if (!Recording[recording].stereo)
                         {
-                            // Finds free name(s) for the new .raw file(s) to create on micro-SD
-                            for (auto i = 0; i < 100000; ++i)
+                            // export possibile
+                            if ((SD_volumesize - SD_occupied) * 1024 > Recording[recording].bytes / 1024)
                             {
-                                DS_export_M_RAW = DS_export_directory;
-                                DS_export_M_RAW.concat(i);
-                                DS_export_M_RAW.concat("M.raw");
-                                DS_export_L_RAW = DS_export_directory;
-                                DS_export_L_RAW.concat(i);
-                                DS_export_L_RAW.concat("L.raw");
-                                DS_export_R_RAW = DS_export_directory;
-                                DS_export_R_RAW.concat(i);
-                                DS_export_R_RAW.concat("R.raw");
-
-                                if (!SD.exists(DS_export_M_RAW.c_str()) && !SD.exists(DS_export_L_RAW.c_str()) && !SD.exists(DS_export_R_RAW.c_str()))
-                                {
-                                    confirmation = true;
-                                    if (!Recording[recording].stereo)
-                                    {
-                                        Serial.print("it's OK: ");
-                                        Serial.println(DS_export_M_RAW);
-                                        break;
-                                    }
-
-                                    else
-                                    {
-                                        Serial.print("Both OK: ");
-                                        Serial.print(DS_export_L_RAW);
-                                        Serial.print("  and: ");
-                                        Serial.println(DS_export_R_RAW);
-                                        break;
-                                    }
-                                }
+                                DS_export = 1;
+                            }
+                            // export NON possibile
+                            else
+                            {
+                                DS_export = 0;
                             }
                         }
 
-                        // Direcotory full: export is impossible
-                        if (!confirmation)
+                        // calcola lo spazio richiesto se STEREO
+                        else
                         {
-                            //            "0123456789012345678901234567890123456789109876543210";
-                            Show_popup_text("/LILLARAW_EXPORT IS CROWDED --> DELETE SOME FILES", ILI9341_WHITE, ILI9341_RED);
+                            // stereo export is possible
+                            if ((SD_volumesize - SD_occupied) * 1024 > ((2 * Recording[recording].bytes) / 1024))
+                            {
+                                DS_export = 2;
+                            }
+
+                            // only mono export is possible
+                            else if ((SD_volumesize - SD_occupied) * 1024 > (Recording[recording].bytes / 1024))
+                            {
+                                DS_export = 1;
+                            }
+
+                            // there is not space enough, export is impossible
+                            else
+                            {
+                                DS_export = 0;
+                            }
+                        }
+
+                        // If there is no space, terminates
+                        if (DS_export == 0)
+                        {
+                            Show_popup_text("SD CARD IS FULL - CANNOT WRITE NEW FILES", ILI9341_WHITE, ILI9341_RED);
                             delay(2000);
 
                             DS_state = 0;
-                            DS_menu = 0;
+
                             Display_Sampler.DS_page(recording);
+
+                            // Menu
                             DS_define_menu();
                             Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-                            Display_Sampler.DS_frame_menu(DS_menu);
+
+                            // Pointer
+                            Pointer_Sampler.Set_pointer_to_first_menu_element();
+
                             PeakTracking_L.reset();
                             PeakTracking_R.reset();
                             Display_Sampler.DS_bar(0, 0);
                             Display_Sampler.DS_bar(1, 0);
+                            break;
                         }
 
-                        // Export is possible
+                        // If there is space, go on!
                         else
                         {
-                            byte buffer[256];
-                            int packet = 0;
-                            int last_blocks = -1;
-                            File destination_file;
-                            SerialFlashFile source_file;
+                            confirmation = false;
 
-                            // export one file (MONO copy)
-                            if (!Recording[recording].stereo)
+                            // If /LILLA_EXPORT folder doesn't exist, creates and proposes the new .raw file(s) names
+                            if (!SD.exists("/LILLARAW_EXPORT"))
                             {
-                                destination_file = SD.open(DS_export_M_RAW.c_str(), FILE_WRITE);
-
-                                // copies from first to penultimate paket
-                                for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
-                                {
-                                    source_file = SerialFlash.open(name_packet[packet]);
-                                    for (auto i = 0; i < 256; ++i)
-                                    {
-                                        source_file.read(buffer, 256);
-                                        destination_file.write(buffer, 256);
-                                    }
-                                }
-
-                                // copies last packet
-                                packet = Recording[recording].first_packet + Recording[recording].packets - 1;
-                                source_file = SerialFlash.open(name_packet[packet]);
-                                last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-                                for (auto i = 0; i < last_blocks; ++i)
-                                {
-                                    source_file.read(buffer, 256);
-                                    destination_file.write(buffer, 256);
-                                }
-                                source_file.close();
-                                destination_file.close();
-                                Serial.println(F("File MONO esportato correttamente su SD"));
+                                SD.mkdir("/LILLARAW_EXPORT");
+                                Serial.println("/LILLARAW_EXPORT directory created on SD");
+                                DS_export_M_RAW = DS_export_directory;
+                                DS_export_M_RAW += "0M.raw";
+                                DS_export_L_RAW += "0L.raw";
+                                DS_export_R_RAW += "0R.raw";
+                                confirmation = true;
                             }
 
-                            // Exports file_L and file_R (STEREO copy)
-                            else if (Recording[recording].stereo)
+                            // If /LILLA_EXPORT folder exists, defines mono (stereo) file(s) name(s)
+                            else
                             {
-                                // file_L
-                                destination_file = SD.open(DS_export_L_RAW.c_str(), FILE_WRITE);
-
-                                // copies from first to penultimate paket
-                                for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                // Finds free name(s) for the new .raw file(s) to create on micro-SD
+                                for (auto i = 0; i < 100000; ++i)
                                 {
-                                    source_file = SerialFlash.open(name_packet[packet]);
-                                    for (auto i = 0; i < 256; ++i)
+                                    DS_export_M_RAW = DS_export_directory;
+                                    DS_export_M_RAW.concat(i);
+                                    DS_export_M_RAW.concat("M.raw");
+                                    DS_export_L_RAW = DS_export_directory;
+                                    DS_export_L_RAW.concat(i);
+                                    DS_export_L_RAW.concat("L.raw");
+                                    DS_export_R_RAW = DS_export_directory;
+                                    DS_export_R_RAW.concat(i);
+                                    DS_export_R_RAW.concat("R.raw");
+
+                                    if (!SD.exists(DS_export_M_RAW.c_str()) && !SD.exists(DS_export_L_RAW.c_str()) && !SD.exists(DS_export_R_RAW.c_str()))
                                     {
-                                        source_file.read(buffer, 256);
-                                        destination_file.write(buffer, 256);
+                                        confirmation = true;
+                                        if (!Recording[recording].stereo)
+                                        {
+                                            Serial.print("it's OK: ");
+                                            Serial.println(DS_export_M_RAW);
+                                            break;
+                                        }
+
+                                        else
+                                        {
+                                            Serial.print("Both OK: ");
+                                            Serial.print(DS_export_L_RAW);
+                                            Serial.print("  and: ");
+                                            Serial.println(DS_export_R_RAW);
+                                            break;
+                                        }
                                     }
                                 }
+                            }
 
-                                // copies last packet
-                                packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
-                                source_file = SerialFlash.open(name_packet[packet]);
-                                last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-                                for (auto i = 0; i < last_blocks; ++i)
-                                {
-                                    source_file.read(buffer, 256);
-                                    destination_file.write(buffer, 256);
-                                }
-                                source_file.close();
-                                destination_file.close();
-                                Serial.println(F("File STEREO LEFT esportato correttamente su SD"));
+                            // Direcotory full: export is impossible
+                            if (!confirmation)
+                            {
+                                //            "0123456789012345678901234567890123456789109876543210";
+                                Show_popup_text("/LILLARAW_EXPORT IS CROWDED --> DELETE SOME FILES", ILI9341_WHITE, ILI9341_RED);
+                                delay(2000);
 
-                                // file_R
-                                destination_file = SD.open(DS_export_R_RAW.c_str(), FILE_WRITE);
-                                // copia dal primo al penultimo packet
-                                if (Recording[recording].packets > 1)
+                                DS_state = 0;
+
+                                Display_Sampler.DS_page(recording);
+
+                                // Menu
+                                DS_define_menu();
+                                Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                                // Pointer
+                                Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                                PeakTracking_L.reset();
+                                PeakTracking_R.reset();
+                                Display_Sampler.DS_bar(0, 0);
+                                Display_Sampler.DS_bar(1, 0);
+                            }
+
+                            // Export is possible
+                            else
+                            {
+                                byte buffer[256];
+                                int packet = 0;
+                                int last_blocks = -1;
+                                File destination_file;
+                                SerialFlashFile source_file;
+
+                                // export one file (MONO copy)
+                                if (!Recording[recording].stereo)
                                 {
-                                    for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                    destination_file = SD.open(DS_export_M_RAW.c_str(), FILE_WRITE);
+
+                                    // Copy from first to penultimate packet
+                                    for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
                                     {
                                         source_file = SerialFlash.open(name_packet[packet]);
                                         for (auto i = 0; i < 256; ++i)
@@ -5945,56 +5916,171 @@ void loop()
                                             destination_file.write(buffer, 256);
                                         }
                                     }
-                                }
-                                // copies last packet
-                                packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
-                                source_file = SerialFlash.open(name_packet[packet]);
-                                last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-                                for (auto i = 0; i < last_blocks; ++i)
-                                {
-                                    source_file.read(buffer, 256);
-                                    destination_file.write(buffer, 256);
-                                }
-                                source_file.close();
-                                destination_file.close();
-                                Serial.println(F("File STEREO RIGHT esportato correttamente su SD"));
-                            }
 
-                            // confirmation of successful export
-                            if (!Recording[recording].stereo)
-                            {
-                                Show_popup_text("MONO FILE EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
-                            }
-                            else
-                            {
-                                Show_popup_text("LEFT AND RIGHT FILES EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                                    // Copy last packet
+                                    packet = Recording[recording].first_packet + Recording[recording].packets - 1;
+                                    source_file = SerialFlash.open(name_packet[packet]);
+                                    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
+                                    for (auto i = 0; i < last_blocks; ++i)
+                                    {
+                                        source_file.read(buffer, 256);
+                                        destination_file.write(buffer, 256);
+                                    }
+                                    source_file.close();
+                                    destination_file.close();
+
+                                    // Reporting
+                                    Serial.println(F("File MONO esportato correttamente su SD"));
+                                }
+
+                                // Exports file_L and file_R (STEREO copy)
+                                else if (Recording[recording].stereo)
+                                {
+                                    // file_L
+                                    destination_file = SD.open(DS_export_L_RAW.c_str(), FILE_WRITE);
+
+                                    // Copy from first to penultimate packet
+                                    for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                    {
+                                        source_file = SerialFlash.open(name_packet[packet]);
+                                        for (auto i = 0; i < 256; ++i)
+                                        {
+                                            source_file.read(buffer, 256);
+                                            destination_file.write(buffer, 256);
+                                        }
+                                    }
+
+                                    // copies last packet
+                                    packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
+                                    source_file = SerialFlash.open(name_packet[packet]);
+                                    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
+                                    for (auto i = 0; i < last_blocks; ++i)
+                                    {
+                                        source_file.read(buffer, 256);
+                                        destination_file.write(buffer, 256);
+                                    }
+                                    source_file.close();
+                                    destination_file.close();
+
+                                    // Reporting
+                                    Serial.println(F("File STEREO LEFT esportato correttamente su SD"));
+
+                                    // file_R
+                                    destination_file = SD.open(DS_export_R_RAW.c_str(), FILE_WRITE);
+                                    // copia dal primo al penultimo packet
+                                    if (Recording[recording].packets > 1)
+                                    {
+                                        for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                        {
+                                            source_file = SerialFlash.open(name_packet[packet]);
+                                            for (auto i = 0; i < 256; ++i)
+                                            {
+                                                source_file.read(buffer, 256);
+                                                destination_file.write(buffer, 256);
+                                            }
+                                        }
+                                    }
+                                    // Copy last packet
+                                    packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
+                                    source_file = SerialFlash.open(name_packet[packet]);
+                                    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
+
+                                    for (auto i = 0; i < last_blocks; ++i)
+                                    {
+                                        source_file.read(buffer, 256);
+                                        destination_file.write(buffer, 256);
+                                    }
+
+                                    source_file.close();
+                                    destination_file.close();
+
+                                    // Reporting
+                                    Serial.println(F("File STEREO RIGHT esportato correttamente su SD"));
+                                }
+
+                                // Confirm successful export
+                                if (!Recording[recording].stereo)
+                                {
+                                    Show_popup_text("MONO FILE EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                                }
+                                else
+                                {
+                                    Show_popup_text("LEFT AND RIGHT FILES EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                                }
                             }
                         }
+
+                        // Return procedure
+                        delay(2000);
+                        DS_state = 0;
+
+                        Display_Sampler.DS_page(recording);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+                        // Switch bar_display ON
+                        PeakTracking_L.reset();
+                        PeakTracking_R.reset();
+                        Display_Sampler.DS_bar(0, 0);
+                        Display_Sampler.DS_bar(1, 0);
+                    }
+                } // END case 11 (export to SD)
+                break;
+
+                default:
+                    Serial.println("Switch MISSING! 5239");
+                    break;
+                } // END switch(choice_DS_menu)
+            }
+        }
+        break;
+
+        case field_DS_Value:
+        {
+
+            if (DS_state == 0)
+            {
+                result = Read_encoder_simple(EN_PB_Value);
+                if (result != 0)
+                {
+                    DS_recording_change = recording;
+                    if (result == +1)
+                    {
+                        DS_recording_change = DS_get_next_Recording(recording);
+                    }
+                    else
+                    {
+                        DS_recording_change = DS_get_previous_Recording(recording);
                     }
 
-                    // Return procedure
-                    delay(2000);
-                    DS_state = 0;
-                    DS_menu = 0;
-                    Display_Sampler.DS_page(recording);
-                    DS_define_menu();
-                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Sampler.DS_frame_menu(DS_menu);
+                    if (DS_recording_change != recording)
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Stop_all_players();
+                        AudioInterrupts();
 
-                    // Switch bar_display ON
-                    PeakTracking_L.reset();
-                    PeakTracking_R.reset();
-                    Display_Sampler.DS_bar(0, 0);
-                    Display_Sampler.DS_bar(1, 0);
+                        recording = DS_recording_change;
+                        DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+
+                        // Recording
+                        P_Recording(recording);
+                    }
                 }
-            } // END case 11 (export to SD)
-            break;
-
-            default:
-                Serial.println("Switch MISSING! 5239");
-                break;
-            } // END switch(choice_DS_menu)
+            }
         }
+        break;
+        }
+
+        // Change recording
+
+        // Change menu item
+
+        // Choose menu item
 
         if (Read_pushbutton_fast(35))
         {
@@ -8375,14 +8461,14 @@ void Golive_DIRECT_SAMPLING(void)
 
     Display_Sampler.DS_page(recording);
     Display_Sampler.DS_line_out(false);
-    
+
     // Menu
     DS_define_menu();
     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
 
     // Pointer
     Pointer_Sampler.Set_pointer_to_first_menu_element();
-    
+
     // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
     Display_Sampler.DS_bar(1, 0);
@@ -8408,7 +8494,7 @@ void DS_refresh_DS_page(void)
 
     // Pointer
     Pointer_Sampler.Set_pointer_to_first_menu_element();
-    
+
     // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
     Display_Sampler.DS_bar(1, 0);
@@ -8464,7 +8550,7 @@ void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
 
     // Restore LEDs
     Performance_led_set.Restore_all_LED();
-    
+
     // Report
     Print_Sound(SOUNDS_MAX);
     Print_Sound(SOUNDS_MAX + 1);
