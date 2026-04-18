@@ -358,7 +358,7 @@ DisplayMidiLoop Display_MidiLoop;
 
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
-LoopMetronomo LOOP_metronomo(Display_Manager);
+LoopMetronomo LOOP_metronomo(Display_MidiLoop);
 PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Noclick[0], &Wavetable[0]);
 MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
@@ -6421,23 +6421,23 @@ void loop()
                 LOOP_Copy_midi_loop_from_SD_to_RAM(LOOP_id);
 
                 // update LOOP_id on display
-                Display_Manager.Loop_loop_id();
+                Display_MidiLoop.Loop_loop_id();
 
                 // update LOOP_time on display
-                Display_Manager.Loop_time_stretched();
+                Display_MidiLoop.Loop_time_stretched();
 
                 // update tracks infos on display
                 for (auto local_track = 0; local_track < TRACKS; ++local_track)
                 {
-                    Display_Manager.Loop_track_data(local_track);
+                    Display_MidiLoop.Loop_track_data(local_track);
                 }
 
                 // update menu on display
                 LOOP_menu = 0;
-                Display_Manager.Loop_Delete_all_frame_menu();
+                Display_MidiLoop.Loop_Delete_all_frame_menu();
                 LOOP_select_menu_elements();
-                Display_Manager.Loop_menu();
-                Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                Display_MidiLoop.Loop_menu();
+                Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
 
                 // switch off all tracks LEDs on display
                 Loop_led_set.Request_all_LED_switch_off();
@@ -6554,10 +6554,10 @@ void loop()
 
                     // nomina loop_id
                     LOOP_id = NEW_LOOP;
-                    Display_Manager.Loop_loop_id();
+                    Display_MidiLoop.Loop_loop_id();
 
                     LOOP_time = 0;
-                    Display_Manager.Loop_time_stretched(); // accanto ai led del metronomo appare il tempo totale 0.0s
+                    Display_MidiLoop.Loop_time_stretched(); // accanto ai led del metronomo appare il tempo totale 0.0s
                 }
 
                 // Se si tratta del track master (0) non ancora esistente, oppure si tratta di un altro track ma con track master esistente
@@ -6566,21 +6566,21 @@ void loop()
                     // show (or delete) all tracks infos
                     for (auto local_track = 0; local_track < TRACKS; ++local_track)
                     {
-                        Display_Manager.Loop_track_data(local_track);
+                        Display_MidiLoop.Loop_track_data(local_track);
                     }
 
                     // display "n-REC"
-                    Display_Manager.Loop_REC_advice(LOOP_learning_track, true);
+                    Display_MidiLoop.Loop_REC_advice(LOOP_learning_track, true);
 
                     // switch off all tracks LEDs
                     Loop_led_set.Request_all_LED_switch_off();
 
                     // update menu
                     LOOP_menu = 0;
-                    Display_Manager.Loop_Delete_all_frame_menu();
+                    Display_MidiLoop.Loop_Delete_all_frame_menu();
                     LOOP_select_menu_elements();
-                    Display_Manager.Loop_menu();
-                    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Loop_menu();
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
 
                     // prepare learning
                     LOOP_learn_clock = 0;
@@ -6715,10 +6715,10 @@ void loop()
                         }
 
                         LOOP_menu = 0;
-                        Display_Manager.Loop_Delete_all_frame_menu();
+                        Display_MidiLoop.Loop_Delete_all_frame_menu();
                         LOOP_select_menu_elements();
-                        Display_Manager.Loop_menu();
-                        Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                        Display_MidiLoop.Loop_menu();
+                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
 
                         // report
                         Serial.println(" **************** ");
@@ -6762,12 +6762,12 @@ void loop()
                         LOOP_metronomo_flag_IN[0] = false;
                     }
 
-                    Display_Manager.Loop_track_data(track);
+                    Display_MidiLoop.Loop_track_data(track);
 
                     // visualizza durata totale
                     if (LOOP_learning_track == MASTER_TRACK)
                     {
-                        Display_Manager.Loop_time_stretched();
+                        Display_MidiLoop.Loop_time_stretched();
                     }
                 }
             }
@@ -6866,7 +6866,7 @@ void loop()
                     Loop_led_set.Request_track_LED_switch_off(track);
 
                     LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                    Display_Manager.Loop_track_data(track);
+                    Display_MidiLoop.Loop_track_data(track);
                 }
 
                 // Annulla slide temporale
@@ -6895,7 +6895,7 @@ void loop()
                         Loop_led_set.Request_track_LED_switch_off(track);
 
                         LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                        Display_Manager.Loop_track_data(track);
+                        Display_MidiLoop.Loop_track_data(track);
                     }
 
                 // Volume
@@ -6908,7 +6908,7 @@ void loop()
                     Players_Manager.Multicast_volume_for_MIDI_LOOP_running(track, LOOP_volume[track]);
                     AudioInterrupts();
 
-                    Display_Manager.Loop_track_data(track);
+                    Display_MidiLoop.Loop_track_data(track);
                     Serial.print("LOOP_volume: ");
                     Serial.println(LOOP_volume[track]);
                 }
@@ -6918,7 +6918,7 @@ void loop()
                 {
                     LOOP_original = false;
 
-                    Display_Manager.Loop_track_data(track);
+                    Display_MidiLoop.Loop_track_data(track);
                     Serial.print("LOOP_pitch_int: ");
                     Serial.println(LOOP_pitch_int[track]);
                 }
@@ -6952,8 +6952,8 @@ void loop()
                 if (LOOP_menu_change != LOOP_menu)
                 {
                     LOOP_menu = LOOP_menu_change;
-                    Display_Manager.Loop_Delete_all_frame_menu();
-                    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Loop_Delete_all_frame_menu();
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
                 }
             }
 
@@ -6978,10 +6978,10 @@ void loop()
                     LOOP_original = true;
 
                     LOOP_menu = 0;
-                    Display_Manager.Loop_Delete_all_frame_menu();
+                    Display_MidiLoop.Loop_Delete_all_frame_menu();
                     LOOP_select_menu_elements();
-                    Display_Manager.Loop_menu();
-                    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Loop_menu();
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
                     break;
 
                 case 2: // Save as new
@@ -6995,13 +6995,13 @@ void loop()
                         // Update menu
                         LOOP_original = true;
                         LOOP_menu = 0;
-                        Display_Manager.Loop_Delete_all_frame_menu();
+                        Display_MidiLoop.Loop_Delete_all_frame_menu();
                         LOOP_select_menu_elements();
-                        Display_Manager.Loop_menu();
-                        Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                        Display_MidiLoop.Loop_menu();
+                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
 
                         // Update loop_id
-                        Display_Manager.Loop_loop_id();
+                        Display_MidiLoop.Loop_loop_id();
                     }
                     break;
 
@@ -7040,7 +7040,7 @@ void loop()
                 LOOP_clock = LOOP_clock_memo * LOOP_stretch;
                 AudioInterrupts();
 
-                Display_Manager.Loop_time_stretched();
+                Display_MidiLoop.Loop_time_stretched();
 
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);
@@ -7061,7 +7061,7 @@ void loop()
                 LOOP_clock = LOOP_clock_memo;
                 AudioInterrupts();
 
-                Display_Manager.Loop_time_stretched();
+                Display_MidiLoop.Loop_time_stretched();
 
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);
@@ -8329,12 +8329,12 @@ void P_Update_instruments_leds()
                     // check led activity
                     if (Loop_led_set.Read_LED_activity(track, instrument_id) == 2)
                     {
-                        Display_Manager.Loop_led(track, instrument_id, true);
+                        Display_MidiLoop.Loop_led(track, instrument_id, true);
                         Loop_led_set.Write_LED_activity(track, instrument_id, true);
                     }
                     if (Loop_led_set.Read_LED_activity(track, instrument_id) == -2)
                     {
-                        Display_Manager.Loop_led(track, instrument_id, false);
+                        Display_MidiLoop.Loop_led(track, instrument_id, false);
                         Loop_led_set.Write_LED_activity(track, instrument_id, false);
                     }
                 }
@@ -9224,8 +9224,8 @@ void Golive_with_MIDI_LOOP(bool restart)
     LOOP_menu = 0;
     LOOP_select_menu_elements();
 
-    Display_Manager.Loop_show_Loop_page();
-    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+    Display_MidiLoop.Loop_show_Loop_page();
+    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
 
     // LEDs setup
     if (restart)

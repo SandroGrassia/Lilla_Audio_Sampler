@@ -13,6 +13,7 @@
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
 #include "GlobalDisplayManager.h"
+#include "GlobalDisplayMidiLoop.h"
 #include "GlobalInfoMaster.h"
 #include "SharedSound.h"
 

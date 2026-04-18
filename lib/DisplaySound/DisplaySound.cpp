@@ -28,7 +28,7 @@ void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
 
     if (Lilla_state_0 == MIDI_LOOP)
     {
-        Display_Manager.Loop_show_midi_loop_title();
+        Display_MidiLoop.Loop_show_midi_loop_title();
     }
     else
     {

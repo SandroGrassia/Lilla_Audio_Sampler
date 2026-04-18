@@ -96,16 +96,6 @@ private:
     static constexpr float TT_Instrument_INDENT_X0 = 0.5; // indentatura dell'header nella Performance (in caratteri) a sinistra
     static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance
 
-    // MIDI_LOOP
-    static constexpr int Loop_HEAD_R = 5;     // posizione "LOOP"
-    static constexpr int Loop_HEAD_C = 3;     // posizione "LOOP"
-    static constexpr int Loop_LOOPS_X = 11;   // centro prima track
-    static constexpr int Loop_LOOP_TIME = 20; // posizione di LOOP_time
-    int8_t Loop_menu_position_0 = 0;
-    int8_t Loop_X_position_menu_0 = 0;
-    int8_t Loop_dimension_voice_menu_0 = 0;
-
-
     // SETUP
     // Control Change
     static constexpr int Setup_Control_change_X = 13; // posizione (in caratteri)
@@ -222,22 +212,6 @@ public:
     void Copy_raw_files_SD_to_Flash_chip_flash_full_error(void); // Flash memory full!
     void Copy_raw_files_SD_to_Flash_chip_job_done(void);
     void Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const char *filename, uint32_t filesize);
-
-    // MIDI_LOOP
-    static constexpr int Loop_LED_Y = 151; // Y-PIXEL primo led
-    static constexpr int Loop_LED_X = 70;  // X-PIXEL primo led
-    static constexpr int Loop_LED_DY = 11; // spaziatura Y
-    void Loop_show_Loop_page(void);
-    void Loop_loop_id(void);
-    void Loop_show_midi_loop_title(void);
-    void Loop_track_data(int track);
-    void Loop_time_stretched(void);
-    void Loop_REC_advice(int track, bool on);
-    void Loop_led(int track, int instrument_id, bool on);    // displays track/instrument_id LED
-    void Loop_led_metronomo(int Xled, int Yled, bool ONled); // displays metronomo LED
-    void Loop_menu(void);
-    void Loop_show_frame_menu(int position, bool fresh);
-    void Loop_Delete_all_frame_menu(void);
 
     // MIDI_MONITOR
     void Midi_monitor_page(void);
