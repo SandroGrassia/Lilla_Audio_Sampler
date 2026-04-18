@@ -5137,11 +5137,13 @@ void loop()
 
         // ******************************************  Move to SETTINGS Change line_in gain
         // Change gain
+        /*
         if (Read_encoder(4, DS_gain, 40, 1, 1))
         {
             LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
             Display_Sampler.DS_show_gain();
         }
+        */
 
         // Change volume_patch
         if (DS_state == 0 && Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
@@ -5253,14 +5255,21 @@ void loop()
         {
             if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
+                Pointer_Sampler.Print_pointer();
+
+                Serial.println("CE SO ENTRATO");
+                
                 int first_packet_L = 0;
                 int packets_per_channel = 0;
                 int last_packet_L = 0;
                 int first_packet_R = 0;
 
-                switch (choice_DS_menu) // {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
+                switch (DS_local_pointer.menu_element)
                 {
                 case 0: // Delete
+                {
+                    Serial.println("MO SO QUA");
+                    
                     AudioNoInterrupts();
                     Players_Manager.Stop_all_players();
                     AudioInterrupts();
@@ -5279,10 +5288,13 @@ void loop()
                     recording = DS_get_next_Recording(-1);
                     DS_back_to_first_DS_Recording();
                     Display_Sampler.DS_available_memory();
-                    break;
+                }
+                break;
 
                 case 1: // Pause+Rec (pause before recording, listening Audio Input)
+                {
                     DS_state = 1;
+                    Serial.println("CE SO ENTRATO PURE");
 
                     AudioNoInterrupts();
                     Midi_reader.Stop();
@@ -5311,9 +5323,11 @@ void loop()
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
 
                     Display_Sampler.DS_line_out(true);
-                    break;
+                }
+                break;
 
                 case 2: // Mono Rec
+                {
                     DS_state = 2;
 
                     Recording[recording].stereo = false;
@@ -5349,9 +5363,11 @@ void loop()
                     DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
                     DS_recording_time = 0;
                     DS_recording_time_update = 0;
-                    break;
+                }
+                break;
 
                 case 3: // Stereo Rec
+                {
                     DS_state = 2;
 
                     Recording[recording].stereo = true;
@@ -5388,9 +5404,11 @@ void loop()
                     DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
                     DS_recording_time = 0;
                     DS_recording_time_update = 0;
-                    break;
+                }
+                break;
 
                 case 4: // Stop
+                {
                     Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
                     if (DS_state == 2)
                     {
@@ -5439,7 +5457,8 @@ void loop()
 
                     DS_Jump_to_DIRECT_SAMPLING_recording(recording);
                     Midi_reader.Start();
-                    break;
+                }
+                break;
 
                 case 5: // CONVERT_REC_TO_RAW
                 {
@@ -8468,6 +8487,7 @@ void Golive_DIRECT_SAMPLING(void)
 
     // Pointer
     Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
     // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
@@ -8997,12 +9017,14 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
     }
 
     // Reporting
-    if (false)
+    if (true)
     {
+        Serial.println("DS_define_menu(void) - Result: ");
         for (auto i = 0; i < DS_menu_elements; ++i)
         {
             Serial.println(Menu_DS[i]);
         }
+        Serial.println("*****************************");
     }
 }
 

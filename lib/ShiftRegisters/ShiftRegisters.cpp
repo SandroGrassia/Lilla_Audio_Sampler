@@ -130,11 +130,11 @@ void ShiftRegisters::Init_context_sets(void)
     context_encoders[Delay_settings_context]    = Make_encoders_mask({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22, 24, 25});
     context_pushbuttons[Delay_settings_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 19, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    context_encoders[Live_Sampling_context]     = Make_encoders_mask({0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 24, 25});
-    context_pushbuttons[Live_Sampling_context]  = Make_pushbuttons_mask({0, 1, 2, 3, 4, 7, 8, 9, 10, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    context_encoders[Live_Sampling_context]     = Make_encoders_mask({0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 24, 25});
+    context_pushbuttons[Live_Sampling_context]  = Make_pushbuttons_mask({0, 1, 2, 3, 4, 7, 8, 9, 10, 15, 16, 17, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
-    context_encoders[Direct_Sampling_context]    = Make_encoders_mask({0, 4, 7, 8, 15, 16, 23, 24, 25});
-    context_pushbuttons[Direct_Sampling_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
+    context_encoders[Direct_Sampling_context]    = Make_encoders_mask({0, 4, 7, 8, 15, 16, 17, 18, 23, 24, 25});
+    context_pushbuttons[Direct_Sampling_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 17, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
 
     context_encoders[Midi_Monitor_context]    = Make_encoders_mask({0, 7, 8, 15, 16});
     context_pushbuttons[Midi_Monitor_context] = Make_pushbuttons_mask({0, 7, 8, 15, 16, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});

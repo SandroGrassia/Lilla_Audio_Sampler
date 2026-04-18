@@ -10,9 +10,10 @@
 
 // DIRECT SAMPLING
 
-// bar VU-meter
+// VU-meter
 static constexpr int BAR_ELEMENTS = 50; // barre del VU-meter stereo
 
+// Menu
 static constexpr int DS_menu_elements = 12; // elementi di Menu_DS[]
 extern bool Menu_DS[DS_menu_elements];
 extern const char Menu_DS_char[DS_menu_elements][19];
@@ -30,8 +31,7 @@ extern int DS_gain;
 extern elapsedMillis DS_blink_timer;
 extern bool DS_blink_ON;
 
-
-// pointer
+// Pointer
 enum DS_field_name
 {
     field_DS_Menu,
@@ -53,11 +53,13 @@ enum DS_menu_element_name
     value_DS_MakeBoth,
     value_DS_ExportRawToSD
 };
+
 static constexpr int DS_value_names = 1;
 enum DS_value_name
 {
     value_DS_Recording
 };
+
 struct DS_pointer_struct
 {
 DS_field_name field_name;

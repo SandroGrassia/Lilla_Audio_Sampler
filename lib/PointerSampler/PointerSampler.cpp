@@ -12,6 +12,8 @@ void PointerSampler::Set_pointer_to_first_menu_element(void)
 	pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[0]);
 	pointer.value_element = value_DS_Recording;
 	Display_Sampler.DS_show_pointer_frame(pointer, true);
+
+	Print_pointer();
 }
 
 FLASHMEM
@@ -64,6 +66,8 @@ void PointerSampler::Move_pointer(const int value)
 	{
 		Display_Sampler.DS_show_pointer_frame(pointer_old, false);
 		Display_Sampler.DS_show_pointer_frame(pointer, true);
+
+		Print_pointer();
 	}
 }
 
@@ -87,10 +91,10 @@ void PointerSampler::Move_pointer_within_menu(const int value)
 		else if (value == -1)
 		{
 			if (menu_position > 0)
-				{
-					pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[--menu_position]);
-					change = true;
-				}
+			{
+				pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[--menu_position]);
+				change = true;
+			}
 		}
 	}
 
@@ -99,6 +103,17 @@ void PointerSampler::Move_pointer_within_menu(const int value)
 		Display_Sampler.DS_show_pointer_frame(pointer_old, false);
 		Display_Sampler.DS_show_pointer_frame(pointer, true);
 	}
+}
+
+FLASHMEM
+void PointerSampler::Print_pointer()
+{
+	Serial.print("SAMPLER pointer -  DS_field:");
+	Serial.print(pointer.field_name);
+	Serial.print("  DS_menu_element: ");
+	Serial.print(pointer.menu_element);
+	Serial.print("  DS_value_element: ");
+	Serial.println(pointer.value_element);
 }
 
 FLASHMEM
