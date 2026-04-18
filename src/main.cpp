@@ -169,6 +169,8 @@
 #include "DisplayLiveSampler.h"
 #include "DisplaySampler.h"
 #include "GlobalDisplaySampler.h"
+#include "DisplayMidiLoop.h"
+#include "GlobalDisplayMidiLoop.h"
 
 #include "PointerPerformance.h"
 #include "PointerSound.h"
@@ -177,6 +179,7 @@
 #include "PointerDelay.h"
 #include "PointerLiveSampler.h"
 #include "PointerSampler.h"
+#include "PointerMidiLoop.h"
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -351,6 +354,7 @@ DisplayMixer Display_Mixer;
 DisplayDelay Display_Delay;
 DisplayLiveSampler Display_LiveSampler;
 DisplaySampler Display_Sampler;
+DisplayMidiLoop Display_MidiLoop;
 
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
@@ -387,6 +391,7 @@ PointerMixer Pointer_Mixer;
 PointerDelay Pointer_Delay;
 PointerLiveSampler Pointer_LiveSampler;
 PointerSampler Pointer_Sampler;
+PointerMidiLoop Pointer_MidiLoop;
 
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************
