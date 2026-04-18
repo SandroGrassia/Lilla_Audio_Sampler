@@ -12,7 +12,7 @@
 static constexpr int NEW_LOOP = -1;
 static constexpr int NO_TRACK = -1; // track virtuale per note suonate da tastiera nello stato MIDI_LOOP
 static constexpr int MASTER_TRACK = 0;
-static constexpr int TRACKS = 6;        // numero di track
+static constexpr int TRACKS = 4;        // numero di track
 static constexpr int LOOP_EVENTS = 40; // numero massimo di eventi in un track
 static constexpr int LOOP_UI_A = 1;    // primo encoder prima fila
 static constexpr int LOOP_UI_B = 9;    // primo encoder seconda fila
@@ -49,27 +49,22 @@ extern elapsedMillis LOOP_learn_clock; // utilizzato per calcolare la durata di 
 extern int LOOP_clock_memo;
 extern int LOOP_last_event;
 
-
-// LOOP_metronomo
+// Metronomo
 extern bool LOOP_metronomo_run; // se "true" i led del metronomo sono visualizzati
 
-// LOOP metronomo, richieste da MidiReader a Main
+// Metronomo, richieste da MidiReader a Main
 extern bool LOOP_metronomo_flag_IN[2]; // accendi led_0, switch led del metronomo
 
-// LOOP metronomo, richieste da Main a MidiReader
-// extern bool LOOP_metronomo_flag_OUT; // run metronomo
-// extern unsigned long LOOP_metronomo_update_time; // prossimo istante di aggiornamento
-
-// LOOP Menu
-static constexpr int LOOP_MV = 4;
+// Menu
+static constexpr int LOOP_menu_values = 4;
 extern int Loop_menu_max;
 extern uint8_t choice_loop_menu;
-extern const char Menu_Loop_char[LOOP_MV][12];
-extern const uint8_t dimension_voice_Menu_Loop[LOOP_MV];
-extern uint8_t X_position_Menu_Loop[LOOP_MV]; // argument is position
-extern bool Menu_Loop[LOOP_MV];
-extern uint8_t element_Menu_Loop[LOOP_MV]; // argument is position
-extern uint8_t position_Menu_Loop[LOOP_MV]; // argument is element
+extern const char Menu_Loop_char[LOOP_menu_values][12];
+extern const uint8_t dimension_voice_Menu_Loop[LOOP_menu_values];
+extern uint8_t X_position_Menu_Loop[LOOP_menu_values]; // argument is position
+extern bool Menu_Loop[LOOP_menu_values];
+extern uint8_t element_Menu_Loop[LOOP_menu_values]; // argument is position
+extern uint8_t position_Menu_Loop[LOOP_menu_values]; // argument is element
 
 // LOOP funzioni
 unsigned long LOOP_Clock_time_from_virtual_time(int T_evento); // definita in main.cpp

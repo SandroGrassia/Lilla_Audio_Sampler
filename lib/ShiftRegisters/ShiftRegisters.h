@@ -41,7 +41,6 @@ When Lilla_state changes, also the set of monitored encoders changes:
 class ShiftRegisters
 {
 private:
-
     static constexpr uint8_t SHIFTER_ADDRESS[SHIFTERS] = {0x20, 0x21, 0x22, 0x23, 0x24, 0x25};
 
     Adafruit_MCP23X17 Shifter[SHIFTERS]; // Physical shift registers
@@ -63,7 +62,7 @@ private:
     uint8_t monitored_shifters;     // 0b 00 XXXXXX  -  X=1: shifter monitored, X=0: shifter excluded
     uint16_t monitored_channels[SHIFTERS];
 
-uint32_t context_encoders[LILLA_CONTEXTS];
+    uint32_t context_encoders[LILLA_CONTEXTS];
     uint64_t context_pushbuttons[LILLA_CONTEXTS];
 
     // Setup physical shifter

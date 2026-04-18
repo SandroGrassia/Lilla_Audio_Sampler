@@ -538,7 +538,16 @@ DS_pointer_struct DS_local_pointer;
 const int myInput = AUDIO_INPUT_LINEIN; // AUDIO_INPUT_MIC oppure AUDIO_INPUT_LINEIN;
 int DS_export;                          // export mono, export stereo
 bool DS_gain_volume;
-int DS_state; // 0:waiting  1:pause  2:recording
+
+enum DS_state_name
+{
+    DS_waiting_state,
+    DS_pause_state,
+    DS_recording_state,
+    DS_convert_state,
+    DS_export_SD_state
+};
+DS_state_name DS_state; // 0:waiting  1:pause  2:recording
 elapsedMillis DS_recording_time;
 elapsedMillis DS_recording_time_update;
 int DS_recording_change;
@@ -3565,7 +3574,7 @@ void loop()
     // *************************************************************
     if (Lilla_state == MIXER)
     {
-        if (Lilla_state_0 == PERFORMANCE || (Lilla_state_0 == DIRECT_SAMPLING && DS_state == 0) || Lilla_state_0 == LIVE_SAMPLING)
+        if (Lilla_state_0 == PERFORMANCE || (Lilla_state_0 == DIRECT_SAMPLING && DS_state == DS_waiting_state) || Lilla_state_0 == LIVE_SAMPLING)
         {
             if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
             {
@@ -5150,7 +5159,7 @@ void loop()
         */
 
         // Change volume_patch
-        if (DS_state == 0 && Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (DS_state == DS_waiting_state && Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -5160,9 +5169,9 @@ void loop()
             Display_Sampler.DS_update_volume();
         }
 
-        if (DS_state == 0 || DS_state == 1 || DS_state == 2)
+        // Update VU meter
+        if (DS_state == DS_waiting_state || DS_state == DS_pause_state || DS == DS_recording_state)
         {
-            // Update VU meter
             float val;
             if (PeakTracking_L.available())
             {
@@ -5176,7 +5185,7 @@ void loop()
             }
         }
 
-        if (DS_state == 2)
+        if (DS_state == DS_recording_state)
         {
             // Update blinking REC
             if (DS_blink_timer >= 500)
@@ -5197,7 +5206,7 @@ void loop()
             // Stop if SteroSampler has stopped
             if (!DirectSampler.Is_recording())
             {
-                DS_state = 0;
+                DS_state = DS_waiting_state;
 
                 // switch OFF Audio Input monitor
                 MAIN_mixer_out_L.gain(1, 0.0);
@@ -5262,8 +5271,6 @@ void loop()
             {
                 Pointer_Sampler.Print_pointer();
 
-                Serial.println("CE SO ENTRATO");
-                
                 int first_packet_L = 0;
                 int packets_per_channel = 0;
                 int last_packet_L = 0;
@@ -5273,8 +5280,6 @@ void loop()
                 {
                 case 0: // Delete
                 {
-                    Serial.println("MO SO QUA");
-                    
                     AudioNoInterrupts();
                     Players_Manager.Stop_all_players();
                     AudioInterrupts();
@@ -5298,8 +5303,7 @@ void loop()
 
                 case 1: // Pause+Rec (pause before recording, listening Audio Input)
                 {
-                    DS_state = 1;
-                    Serial.println("CE SO ENTRATO PURE");
+                    DS_state = DS_pause_state;
 
                     AudioNoInterrupts();
                     Midi_reader.Stop();
@@ -5334,7 +5338,7 @@ void loop()
 
                 case 2: // Mono Rec
                 {
-                    DS_state = 2;
+                    DS_state = DS_recording_state;
 
                     Recording[recording].stereo = false;
                     Recording[recording].consistent = false;
@@ -5375,7 +5379,7 @@ void loop()
 
                 case 3: // Stereo Rec
                 {
-                    DS_state = 2;
+                    DS_state = DS_recording_state;
 
                     Recording[recording].stereo = true;
                     Recording[recording].consistent = false;
@@ -5418,11 +5422,11 @@ void loop()
                 case 4: // Stop
                 {
                     Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
-                    if (DS_state == 2)
+                    if (DS_state == DS_recording_state)
                     {
                         DirectSampler.Book_stop();
                     }
-                    DS_state = 0;
+                    DS_state = DS_waiting_state;
 
                     // switch OFF Line OUT monitor
                     MAIN_mixer_out_L.gain(1, 0.0);
@@ -5471,7 +5475,7 @@ void loop()
 
                 case 5: // CONVERT_REC_TO_RAW
                 {
-                    DS_state = 3;
+                    DS_state = DS_convert_state;
 
                     AudioNoInterrupts();
                     Players_Manager.Stop_all_players();
@@ -5665,7 +5669,7 @@ void loop()
                     Print_flash_file_list();
 
                     // Return
-                    DS_state = 0;
+                    DS_state = DS_waiting_state;
 
                     Display_Sampler.DS_page(recording);
 
@@ -5687,7 +5691,8 @@ void loop()
 
                 case 11: // EXPORT AS RAW TO SD
                 {
-                    DS_state = 4;
+                    DS_state = DS_export_SD_state;
+
                     Sd2Card card;
                     SdVolume volume;
                     SdFile root;
@@ -5705,7 +5710,8 @@ void loop()
                     {
                         Show_popup_text("SD CARD MISSING", ILI9341_WHITE, ILI9341_RED);
                         delay(2000);
-                        DS_state = 0;
+
+                        DS_state = DS_waiting_state;
 
                         Display_Sampler.DS_page(recording);
 
@@ -5731,7 +5737,7 @@ void loop()
                     {
                         Show_popup_text("SD CARD UNFORMATTED", ILI9341_WHITE, ILI9341_RED);
                         delay(2000);
-                        DS_state = 0;
+                        DS_state = DS_waiting_state;
 
                         Display_Sampler.DS_page(recording);
 
@@ -5829,7 +5835,7 @@ void loop()
                             Show_popup_text("SD CARD IS FULL - CANNOT WRITE NEW FILES", ILI9341_WHITE, ILI9341_RED);
                             delay(2000);
 
-                            DS_state = 0;
+                            DS_state = DS_waiting_state;
 
                             Display_Sampler.DS_page(recording);
 
@@ -5910,7 +5916,7 @@ void loop()
                                 Show_popup_text("/LILLARAW_EXPORT IS CROWDED --> DELETE SOME FILES", ILI9341_WHITE, ILI9341_RED);
                                 delay(2000);
 
-                                DS_state = 0;
+                                DS_state = DS_waiting_state;
 
                                 Display_Sampler.DS_page(recording);
 
@@ -6048,7 +6054,7 @@ void loop()
 
                         // Return procedure
                         delay(2000);
-                        DS_state = 0;
+                        DS_state = DS_waiting_state;
 
                         Display_Sampler.DS_page(recording);
 
@@ -6080,7 +6086,7 @@ void loop()
         case field_DS_Value:
         {
 
-            if (DS_state == 0)
+            if (DS_state == DS_waiting_state)
             {
                 result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0)
@@ -8490,7 +8496,7 @@ void Golive_DIRECT_SAMPLING(void)
     Lilla_state = DIRECT_SAMPLING;
     Shifters_manager.Set_context(Direct_Sampling_context);
 
-    DS_state = 0;
+    DS_state = DS_waiting_state;
 
     // Switch ON the VU meter
     PeakTracking_L.reset();
@@ -8940,12 +8946,12 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
     Menu_DS[10] = true; // CONVERT BOTH
     Menu_DS[11] = true; // EXPORT_RAW_TO_SD
 
-    if (DS_state == 1 || DS_state == 2 || DS_state == 3 || recordings == 0)
+    if (DS_state == DS_pause_state || DS_state == DS_recording_state || DS_state == DS_convert_state || recordings == 0)
     {
         Menu_DS[11] = false; // EXPORT TO SD
     }
 
-    if (DS_state != 3)
+    if (DS_state != DS_convert_state)
     {
         Menu_DS[6] = false;  // CANCEL
         Menu_DS[7] = false;  // CONVERT MONO
@@ -8954,7 +8960,7 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         Menu_DS[10] = false; // CONVERT BOTH
     }
 
-    if (DS_state == 3 && DS_export > 0)
+    if (DS_state == DS_convert_state && DS_export > 0)
     {
         Menu_DS[0] = false; // DELETE
         Menu_DS[1] = false; // PAUSE+REC
@@ -8964,7 +8970,7 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         Menu_DS[5] = false; // CONVERT REC-TO-RAW
     }
 
-    if (DS_state == 3 && DS_export == 0)
+    if (DS_state == DS_convert_state && DS_export == 0)
     {
         Menu_DS[7] = false;  // CONVERT_MONO
         Menu_DS[8] = false;  // CONVERT_LEFT
@@ -8972,14 +8978,14 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         Menu_DS[10] = false; // CONVERT_BOTH
     }
 
-    if (DS_state == 3 && DS_export == 1)
+    if (DS_state == DS_convert_state && DS_export == 1)
     {
         Menu_DS[8] = false;  // CONVERT LEFT
         Menu_DS[9] = false;  // CONVERT RIGHT
         Menu_DS[10] = false; // CONVERT BOTH
     }
 
-    if (DS_state == 3 && DS_export == 2)
+    if (DS_state == DS_convert_state && DS_export == 2)
     {
         Menu_DS[7] = false; // CONVERT MONO
     }
@@ -8997,21 +9003,21 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         Menu_DS[1] = false; // PAUSE+REC
     }
 
-    if (DS_state == 0)
+    if (DS_state == DS_waiting_state)
     {
         Menu_DS[2] = false; // MONO-REC
         Menu_DS[3] = false; // STEREO-REC
         Menu_DS[4] = false; // STOP
     }
 
-    if (DS_state == 1) // Pause+Rec
+    if (DS_state == DS_pause_state) // Pause+Rec
     {
         Menu_DS[0] = false; // CANCEL
         Menu_DS[1] = false; // PAUSE+REC
         Menu_DS[5] = false; // CONVERT REC-TO-RAW
     }
 
-    if (DS_state == 2 || DS_state == 3) // Recording
+    if (DS_state == DS_recording_state || DS_state == DS_convert_state) // Recording
     {
         Menu_DS[0] = false; // DELETE
         Menu_DS[1] = false; // PAUSE+REC
@@ -9258,14 +9264,14 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
 {
     switch (DS_state)
     {
-    case 0: // no activity
+    case DS_waiting_state: // no activity
         AudioNoInterrupts();
         P_Rebuild_patch_old();
         Turn_ON_Delay(true);
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
         break;
-    case 1: // pause + rec
+    case DS_pause_state: // pause + rec
         // switch OFF Line OUT monitor
         MAIN_mixer_out_L.gain(1, 0.0);
         MAIN_mixer_out_R.gain(1, 0.0);
@@ -9278,7 +9284,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
         break;
-    case 2: // recording
+    case DS_recording_state: // recording
         DS_ask_if_EXIT_from_DS();
         if (action == 0) // remain
         {
@@ -9314,7 +9320,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             Switch_from_PERFORMANCE_to_MIDI_LOOP();
         }
         break;
-    case 3: // convert REC --> RAW
+    case DS_convert_state: // convert REC --> RAW
         AudioNoInterrupts();
         P_Rebuild_patch_old();
         Turn_ON_Delay(true);
@@ -9438,13 +9444,13 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 {
     switch (DS_state)
     {
-    case 0: // no activity
+    case DS_waiting_state: // no activity
         Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
         AudioNoInterrupts();
         Turn_ON_Delay(true);
         AudioInterrupts();
         break;
-    case 1: // pause + rec
+    case DS_pause_state: // pause + rec
         // switch OFF Line OUT monitor
         MAIN_mixer_out_L.gain(1, 0.0);
         MAIN_mixer_out_R.gain(1, 0.0);
@@ -9456,7 +9462,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         Turn_ON_Delay(true);
         AudioInterrupts();
         break;
-    case 2: // recording
+    case DS_recording_state: // recording
         DS_ask_if_EXIT_from_DS();
         if (action == 0) // remain
         {
@@ -9491,7 +9497,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             AudioInterrupts();
         }
         break;
-    case 3: // convert REC --> RAW
+    case DS_convert_state: // convert REC --> RAW
         Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
         AudioNoInterrupts();
         Turn_ON_Delay(true);
@@ -9584,11 +9590,11 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 {
     switch (DS_state)
     {
-    case 0:                  // no activity
+    case DS_waiting_state:                  // no activity
         Turn_ON_Delay(true); // switch on/off Delay (using Instrument routing)
         Switch_to_PERFORMANCE_patch_old();
         break;
-    case 1: // pause + rec
+    case DS_pause_state: // pause + rec
         // switch OFF Line OUT monitor
         MAIN_mixer_out_L.gain(1, 0.0);
         MAIN_mixer_out_R.gain(1, 0.0);
@@ -9599,7 +9605,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         Turn_ON_Delay(true); // switch on/off Delay (using Instrument routing)
         Switch_to_PERFORMANCE_patch_old();
         break;
-    case 2: // recording
+    case DS_recording_state: // recording
         DS_ask_if_EXIT_from_DS();
         if (action == 0) // remain
         {
@@ -9637,7 +9643,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
             Switch_to_PERFORMANCE_patch_old();
         }
         break;
-    case 3:
+    case DS_convert_state:
         Turn_ON_Delay(true);
         Switch_to_PERFORMANCE_patch_old();
         break;
