@@ -4536,6 +4536,7 @@ void loop()
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
                     Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
                     LiveSampler.Start(LS_stereo);
                     LS_wave_refresh_timer = 0;
@@ -4550,6 +4551,7 @@ void loop()
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
                     Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
                     delay(20);
                     if (!LS_XY_lock)
@@ -4590,6 +4592,7 @@ void loop()
 
                     LS_refresh_LS_page();
                     Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
                     Pointer_LiveSampler.Show_pointer(true);
 
                     Midi_reader.Start();
@@ -4630,6 +4633,7 @@ void loop()
 
                     LS_update_menu_elements();
                     Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
                     Pointer_LiveSampler.Show_pointer(true);
 
                     if (!LS_XY_lock)
@@ -5224,6 +5228,7 @@ void loop()
 
                 // Pointer
                 Pointer_Sampler.Set_pointer_to_first_menu_element();
+                DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                 Display_Sampler.DS_available_memory();
 
@@ -5321,6 +5326,7 @@ void loop()
 
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     Display_Sampler.DS_line_out(true);
                 }
@@ -5353,6 +5359,7 @@ void loop()
 
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     Display_Sampler.DS_Recording_description(recording, false);
                     Display_Sampler.DS_sampler_txt(true);
@@ -5394,6 +5401,7 @@ void loop()
 
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     Display_Sampler.DS_Recording_description(recording, false);
                     Display_Sampler.DS_sampler_txt(true);
@@ -5446,6 +5454,7 @@ void loop()
 
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     Display_Sampler.DS_available_memory();
                     Display_Sampler.DS_line_out(false);
@@ -5558,6 +5567,7 @@ void loop()
 
                         // Pointer
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                         Display_Sampler.DS_Recording_description(recording, true);
 
@@ -5573,6 +5583,7 @@ void loop()
 
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
 
@@ -5586,6 +5597,7 @@ void loop()
                         if (result != 0)
                         {
                             Pointer_Sampler.Move_pointer_within_menu(result);
+                            DS_local_pointer = Pointer_Sampler.Get_pointer();
                         }
 
                         // Choose element
@@ -5663,6 +5675,7 @@ void loop()
 
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     // Switch bar_display ON
                     PeakTracking_L.reset();
@@ -5702,6 +5715,7 @@ void loop()
 
                         // Pointer
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                         // Switch bar_display ON
                         PeakTracking_L.reset();
@@ -5727,6 +5741,7 @@ void loop()
 
                         // Pointer
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                         PeakTracking_L.reset();
                         PeakTracking_R.reset();
@@ -5824,6 +5839,7 @@ void loop()
 
                             // Pointer
                             Pointer_Sampler.Set_pointer_to_first_menu_element();
+                            DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                             PeakTracking_L.reset();
                             PeakTracking_R.reset();
@@ -5904,6 +5920,7 @@ void loop()
 
                                 // Pointer
                                 Pointer_Sampler.Set_pointer_to_first_menu_element();
+                                DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                                 PeakTracking_L.reset();
                                 PeakTracking_R.reset();
@@ -6041,6 +6058,7 @@ void loop()
 
                         // Pointer
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                         // Switch bar_display ON
                         PeakTracking_L.reset();
@@ -8514,6 +8532,7 @@ void DS_refresh_DS_page(void)
 
     // Pointer
     Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
     // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
@@ -8607,6 +8626,7 @@ void DS_back_to_first_DS_Recording(void)
 
     // Pointer
     Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
     Display_Sampler.DS_hide_recording();
     Display_Sampler.DS_Recording_description(recording, true);
@@ -9359,6 +9379,7 @@ void Golive_with_LIVE_SAMPLING(void)
     LS_update_menu_elements();
     Display_LiveSampler.Menu();
     Pointer_LiveSampler.Set_pointer_to_first_menu_element();
+    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
     if (!LS_XY_lock)
     {

@@ -63,7 +63,7 @@ private:
     uint8_t monitored_shifters;     // 0b 00 XXXXXX  -  X=1: shifter monitored, X=0: shifter excluded
     uint16_t monitored_channels[SHIFTERS];
 
-    uint32_t context_encoders[LILLA_CONTEXTS];
+uint32_t context_encoders[LILLA_CONTEXTS];
     uint64_t context_pushbuttons[LILLA_CONTEXTS];
 
     // Setup physical shifter
