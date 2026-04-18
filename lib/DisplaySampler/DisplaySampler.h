@@ -53,7 +53,7 @@ private:
 
     // value positions [col, row] — lowercase = updatable value
     static constexpr float DS_column_row_volume[2] = {48, 0};
-    static constexpr float DS_column_row_recording[2] = {48, 0};
+    static constexpr float DS_column_row_recording[2] = {12.5, 0};
     static constexpr float DS_column_row_available_memory[2] = {22, DS_ROW_MEMORY + 1};
     static constexpr float DS_column_row_raw_available_memory[2] = {21, DS_ROW_MEMORY + 2};
     static constexpr float DS_column_row_length[2] = {7, DS_ROW_RECORDING + 2}; // row overridden for stereo

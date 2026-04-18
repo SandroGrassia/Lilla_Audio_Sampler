@@ -567,7 +567,7 @@ int DS_get_next_Recording(int value);
 int DS_get_last_Recording(void);
 int DS_get_previous_Recording(int value);
 bool DS_check_conversion(void);
-void DS_define_model(void);
+void DS_define_menu(void);
 void DS_set_DS_Sampling_Patch(void);
 int DS_get_samples_in_Recording(int value);
 void P_Recording(int value);
@@ -5218,7 +5218,7 @@ void loop()
                 // Switch off blinking REC
                 DS_blink_ON = false;
 
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 Display_Sampler.DS_available_memory();
@@ -5325,7 +5325,7 @@ void loop()
                 MAIN_mixer_out_L.gain(1, 1.0);
                 MAIN_mixer_out_R.gain(1, 1.0);
 
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 Display_Sampler.DS_line_out(true);
@@ -5352,7 +5352,7 @@ void loop()
                 Serial.print(F("  up to packet: "));
                 Serial.println(last_packet_L);
 
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 Display_Sampler.DS_Recording_description(recording, false);
@@ -5388,7 +5388,7 @@ void loop()
                 Serial.print(F("  Right recording from packet: "));
                 Serial.println(first_packet_R);
 
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 Display_Sampler.DS_Recording_description(recording, false);
@@ -5435,7 +5435,7 @@ void loop()
                 // Switch off blinking REC
                 DS_blink_ON = false;
 
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 Display_Sampler.DS_available_memory();
@@ -5542,7 +5542,7 @@ void loop()
                     Display_Sampler.DS_advice_no_conversion(DS_export, false);
 
                     DS_state = 0;
-                    DS_define_model();
+                    DS_define_menu();
                     Display_Sampler.DS_menu();
                     Display_Sampler.DS_frame_menu(DS_menu);
 
@@ -5555,7 +5555,7 @@ void loop()
                 }
 
                 DS_menu = 0;
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
@@ -5632,7 +5632,7 @@ void loop()
                 DS_state = 0;
                 DS_menu = 0;
                 Display_Sampler.DS_page(recording);
-                DS_define_model();
+                DS_define_menu();
                 Display_Sampler.DS_menu();
                 Display_Sampler.DS_frame_menu(DS_menu);
                 // Switch bar_display ON
@@ -5666,7 +5666,7 @@ void loop()
                     DS_state = 0;
                     DS_menu = 0;
                     Display_Sampler.DS_page(recording);
-                    DS_define_model();
+                    DS_define_menu();
                     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
                     Display_Sampler.DS_frame_menu(DS_menu);
                     // Switch bar_display ON
@@ -5686,7 +5686,7 @@ void loop()
                     DS_state = 0;
                     DS_menu = 0;
                     Display_Sampler.DS_page(recording);
-                    DS_define_model();
+                    DS_define_menu();
                     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
                     Display_Sampler.DS_frame_menu(DS_menu);
                     PeakTracking_L.reset();
@@ -5778,7 +5778,7 @@ void loop()
                         DS_state = 0;
                         DS_menu = 0;
                         Display_Sampler.DS_page(recording);
-                        DS_define_model();
+                        DS_define_menu();
                         Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
                         Display_Sampler.DS_frame_menu(DS_menu);
                         PeakTracking_L.reset();
@@ -5853,7 +5853,7 @@ void loop()
                             DS_state = 0;
                             DS_menu = 0;
                             Display_Sampler.DS_page(recording);
-                            DS_define_model();
+                            DS_define_menu();
                             Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
                             Display_Sampler.DS_frame_menu(DS_menu);
                             PeakTracking_L.reset();
@@ -5977,7 +5977,7 @@ void loop()
                     DS_state = 0;
                     DS_menu = 0;
                     Display_Sampler.DS_page(recording);
-                    DS_define_model();
+                    DS_define_menu();
                     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
                     Display_Sampler.DS_frame_menu(DS_menu);
 
@@ -8369,20 +8369,25 @@ void Golive_DIRECT_SAMPLING(void)
 
     DS_state = 0;
 
-    // Switch bar_display ON
+    // Switch ON the VU meter
     PeakTracking_L.reset();
     PeakTracking_R.reset();
 
-    DS_menu = 0;
     Display_Sampler.DS_page(recording);
     Display_Sampler.DS_line_out(false);
-
-    DS_define_model();
+    
+    // Menu
+    DS_define_menu();
     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-    Display_Sampler.DS_frame_menu(DS_menu);
+
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+    
+    // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
     Display_Sampler.DS_bar(1, 0);
 
+    // Reporting
     Print_Patch(Patch_id);
     Serial.println(F("*** DIRECT_SAMPLING ***  Sounds are:"));
     Print_Sound(SOUNDS_MAX);
@@ -8396,9 +8401,15 @@ void DS_refresh_DS_page(void)
 
     Display_Sampler.DS_page(recording);
     Display_Sampler.DS_line_out(false);
-    DS_define_model();
+
+    // Menu
+    DS_define_menu();
     Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-    Display_Sampler.DS_frame_menu(DS_menu);
+
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+    
+    // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
     Display_Sampler.DS_bar(1, 0);
 }
@@ -8448,15 +8459,15 @@ void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
     Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
     AudioInterrupts();
 
-    Print_Sound(SOUNDS_MAX);
-    Print_Sound(SOUNDS_MAX + 1);
-
     Display_Sampler.DS_hide_recording();
-
     Display_Sampler.DS_Recording_description(recording, true);
 
-    // restore LEDs
+    // Restore LEDs
     Performance_led_set.Restore_all_LED();
+    
+    // Report
+    Print_Sound(SOUNDS_MAX);
+    Print_Sound(SOUNDS_MAX + 1);
 }
 
 void DS_back_to_first_DS_Recording(void)
@@ -8484,12 +8495,14 @@ void DS_back_to_first_DS_Recording(void)
     Print_Sound(SOUNDS_MAX);
     Print_Sound(SOUNDS_MAX + 1);
 
-    DS_menu = 0;
-    DS_define_model(); // updates "Value_Max_encoder.DS_menu" used by encoder_menu
-    Display_Sampler.DS_menu();
-    Display_Sampler.DS_frame_menu(0);
-    Display_Sampler.DS_hide_recording();
+    // Menu
+    DS_define_menu();
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
 
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+
+    Display_Sampler.DS_hide_recording();
     Display_Sampler.DS_Recording_description(recording, true);
 
     // restore LEDs
@@ -8604,6 +8617,7 @@ void DS_convert_file_R(int file_R_RAW, int bytes) // bytes = blocks_per_file * 2
             }
         }
     }
+
     // copia l'ultimo packet
     packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
     SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
@@ -8665,11 +8679,15 @@ void DS_seed_all_Recordings(void)
 void DS_update_recordings(void)
 {
     recordings = 0;
+
     for (auto i = 0; i < RECORDINGS; ++i)
+    {
         if (Recording[i].packets > 0 && Recording[i].consistent == true)
         {
             ++recordings;
         }
+    }
+
     Serial.print(F("recordings are: "));
     Serial.println(recordings);
     Serial.println();
@@ -8779,7 +8797,7 @@ bool DS_check_conversion(void)
     return false;
 }
 
-void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
+void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
 {
     // voices that can be displayed
     Menu_DS[0] = true; // CANCEL_RECORDING
@@ -8892,6 +8910,7 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
         DS_menu_max += Menu_DS[i];
     }
 
+    // Reporting
     if (false)
     {
         for (auto i = 0; i < DS_menu_elements; ++i)

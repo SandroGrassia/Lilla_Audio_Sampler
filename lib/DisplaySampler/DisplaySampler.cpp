@@ -464,7 +464,7 @@ void DisplaySampler::DS_show_pointer_frame(const DS_pointer_struct pointer, cons
         switch (pointer.value_element)
         {
         case value_DS_Recording:
-            Frame_by_col_row(DS_column_row_RECORDING[0] + 10, DS_column_row_RECORDING[1], DS_chars_recording, show);
+            Frame_by_col_row(DS_column_row_recording[0] + 10, DS_column_row_recording[1], DS_chars_recording, show);
             break;
         }
     }
