@@ -5170,7 +5170,7 @@ void loop()
         }
 
         // Update VU meter
-        if (DS_state == DS_waiting_state || DS_state == DS_pause_state || DS == DS_recording_state)
+        if (DS_state == DS_waiting_state || DS_state == DS_pause_state || DS_state == DS_recording_state)
         {
             float val;
             if (PeakTracking_L.available())
