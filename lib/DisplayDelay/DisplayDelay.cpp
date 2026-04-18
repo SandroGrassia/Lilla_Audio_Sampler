@@ -10,25 +10,49 @@ FLASHMEM
 void DisplayDelay::D_show_page()
 {
     tft.fillScreen(ILI9341_BLACK);
-
-    if (Lilla_state_0 == PERFORMANCE)
+    switch (Lilla_state_0)
     {
-        Backgorund_red(0, 0, 17); // DISPLAY_board(float col, float row, int chars)
-        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-        tft.setTextColor(ILI9341_WHITE);
-        tft.print("PERFORMANCE ");
-        tft.setTextColor(ILI9341_WHITE);
-        tft.print("DELAY");
-    }
+        case PERFORMANCE:
+        {
+            Backgorund_red(0, 0, 17); // DISPLAY_board(float col, float row, int chars)
+            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("PERFORMANCE ");
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("DELAY");
+        }
+        break;
 
-    else if (Lilla_state_0 == LIVE_SAMPLING)
-    {
-        Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
-        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-        tft.setTextColor(ILI9341_WHITE);
-        tft.print("LIVE SAMPLER ");
-        tft.setTextColor(ILI9341_WHITE);
-        tft.print("DELAY");
+        case LIVE_SAMPLING:
+        {
+            Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
+            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("LIVE SAMPLER ");
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("DELAY");
+        }
+        break;
+
+        case MIDI_LOOP:
+        {
+            Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
+            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("MIDI LOOP ");
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("DELAY");
+        }
+        break;
+
+        default:
+        {
+            Backgorund_red(0, 0, 5); // DISPLAY_board(float col, float row, int chars)
+            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+            tft.setTextColor(ILI9341_WHITE);
+            tft.print("DELAY");
+        }
+        break;
     }
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_VOLUME[0]), display_coordinate_y(DELAY_column_row_VOLUME[1]));
@@ -229,8 +253,6 @@ void DisplayDelay::D_modulation_phase_LR(void)
     tft.print("deg");
 }
 
-
-
 FLASHMEM
 void DisplayDelay::D_disabled(void)
 {
@@ -250,5 +272,5 @@ void DisplayDelay::D_disabled(void)
 
 void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show)
 {
-Frame_by_col_row(DELAY_column_row_element[pointer][0], DELAY_column_row_element[pointer][1], DELAY_chars_element[pointer], show);
+    Frame_by_col_row(DELAY_column_row_element[pointer][0], DELAY_column_row_element[pointer][1], DELAY_chars_element[pointer], show);
 }
