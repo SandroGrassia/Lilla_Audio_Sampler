@@ -6424,7 +6424,7 @@ void loop()
                 Display_MidiLoop.Loop_loop_id();
 
                 // update LOOP_time on display
-                Display_MidiLoop.Loop_time_stretched();
+                Display_MidiLoop.Loop_total_time();
 
                 // update tracks infos on display
                 for (auto local_track = 0; local_track < TRACKS; ++local_track)
@@ -6557,7 +6557,7 @@ void loop()
                     Display_MidiLoop.Loop_loop_id();
 
                     LOOP_time = 0;
-                    Display_MidiLoop.Loop_time_stretched(); // accanto ai led del metronomo appare il tempo totale 0.0s
+                    Display_MidiLoop.Loop_total_time(); // accanto ai led del metronomo appare il tempo totale 0.0s
                 }
 
                 // Se si tratta del track master (0) non ancora esistente, oppure si tratta di un altro track ma con track master esistente
@@ -6767,7 +6767,7 @@ void loop()
                     // visualizza durata totale
                     if (LOOP_learning_track == MASTER_TRACK)
                     {
-                        Display_MidiLoop.Loop_time_stretched();
+                        Display_MidiLoop.Loop_total_time();
                     }
                 }
             }
@@ -7040,7 +7040,7 @@ void loop()
                 LOOP_clock = LOOP_clock_memo * LOOP_stretch;
                 AudioInterrupts();
 
-                Display_MidiLoop.Loop_time_stretched();
+                Display_MidiLoop.Loop_total_time();
 
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);
@@ -7061,7 +7061,7 @@ void loop()
                 LOOP_clock = LOOP_clock_memo;
                 AudioInterrupts();
 
-                Display_MidiLoop.Loop_time_stretched();
+                Display_MidiLoop.Loop_total_time();
 
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);

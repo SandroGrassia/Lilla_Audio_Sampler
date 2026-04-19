@@ -66,9 +66,18 @@ extern bool Menu_Loop[LOOP_menu_values];
 extern uint8_t element_Menu_Loop[LOOP_menu_values]; // argument is position
 extern uint8_t position_Menu_Loop[LOOP_menu_values]; // argument is element
 
-// LOOP funzioni
+// Functions
 unsigned long LOOP_Clock_time_from_virtual_time(int T_evento); // definita in main.cpp
 unsigned long LOOP_Clock(void); // definita in main.cpp
 
-// LOOP salvataggio su SD
+// Save to SD
 extern int LOOP_id; // loop_id actually displayed
+
+// Pointer
+static constexpr int LOOP_track_values = 3;
+enum LOOP_track_value_name
+{
+    value_LOOP_slide,
+    value_LOOP_trasnport,
+    value_LOOP_level
+};

@@ -11,14 +11,14 @@ void DisplayMidiLoop::Loop_REC_advice(int track, bool on)
 {
     if (on)
     {
-        tft.setCursor(display_coordinate_x(Loop_LOOPS_X + 7 * track), display_coordinate_y(Loop_HEAD_R));
+        tft.setCursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]));
         tft.setTextColor(ILI9341_WHITE);
         tft.print(track + 1);
         tft.print("-REC");
     }
     else
     {
-        Cancel_text_reset_cursor(display_coordinate_x(Loop_LOOPS_X + 7 * track), display_coordinate_y(Loop_HEAD_R), 5);
+        Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]), 5);
     }
 }
 
@@ -33,21 +33,26 @@ void DisplayMidiLoop::Loop_show_Loop_page(void)
     Display_Manager.ALL_show_effects();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(18), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(Loop_column_row_LOOP[0]),   display_coordinate_y(Loop_column_row_LOOP[1]));
     tft.print("LOOP");
     Loop_loop_id();
 
-    tft.setCursor(display_coordinate_x(Loop_HEAD_C - 1), display_coordinate_y(Loop_HEAD_R - 1));
+    tft.setCursor(display_coordinate_x(Loop_column_row_METRO[0]),  display_coordinate_y(Loop_column_row_METRO[1]));
     tft.print("METRO");
-    tft.setCursor(display_coordinate_x(Loop_HEAD_C - 1), display_coordinate_y(Loop_HEAD_R));
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_TRACK[0]),  display_coordinate_y(Loop_column_row_TRACK[1]));
     tft.print("TRACK");
-    tft.setCursor(display_coordinate_x(Loop_HEAD_C - 1), display_coordinate_y(Loop_HEAD_R + 1));
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_SLIDE[0]),  display_coordinate_y(Loop_column_row_SLIDE[1]));
     tft.print("SLIDE");
-    tft.setCursor(display_coordinate_x(Loop_HEAD_C - 2), display_coordinate_y(Loop_HEAD_R + 2));
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_TRANSP[0]), display_coordinate_y(Loop_column_row_TRANSP[1]));
     tft.print("TRANSP");
-    tft.setCursor(display_coordinate_x(Loop_HEAD_C - 1), display_coordinate_y(Loop_HEAD_R + 3));
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_LEVEL[0]),  display_coordinate_y(Loop_column_row_LEVEL[1]));
     tft.print("LEVEL");
-    tft.setCursor(display_coordinate_x(Loop_HEAD_C - 1), display_coordinate_y(Loop_HEAD_R + 4));
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_SOUND[0]),  display_coordinate_y(Loop_column_row_SOUND[1]));
     tft.print("SOUND");
 
     tft.setTextColor(ILI9341_WHITE);
@@ -56,7 +61,8 @@ void DisplayMidiLoop::Loop_show_Loop_page(void)
     {
         if (Patch[Patch_id].Instrument[instrument_id].used)
         {
-            tft.setCursor(display_coordinate_x(Loop_HEAD_C + 3), 151 + instrument_id * 11);
+            // tft.setCursor(display_coordinate_x(Loop_HEAD_C + 4), 151 + instrument_id * 11);
+            tft.setCursor(display_coordinate_x(Loop_column_row_sound_id_0[0]), display_coordinate_y(Loop_column_row_sound_id_0[1] + Loop_coefficient_row_sound_id * instrument_id));
             tft.print(instrument_id + 1);
         }
     }
@@ -66,7 +72,7 @@ void DisplayMidiLoop::Loop_show_Loop_page(void)
         Loop_track_data(track);
     }
 
-    Loop_time_stretched();
+    Loop_total_time();
 }
 
 FLASHMEM
@@ -161,7 +167,7 @@ FLASHMEM
 void DisplayMidiLoop::Loop_track_data(int track)
 {
     // Numero
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_LOOPS_X + 7 * track), display_coordinate_y(Loop_HEAD_R), 5);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]), 5);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_WHITE);
@@ -169,7 +175,7 @@ void DisplayMidiLoop::Loop_track_data(int track)
     }
 
     // Slide
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_LOOPS_X + 7 * track), display_coordinate_y(Loop_HEAD_R + 1), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_slide[track][0]), display_coordinate_y(Loop_column_row_slide[track][1]), 6);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -179,7 +185,7 @@ void DisplayMidiLoop::Loop_track_data(int track)
     }
 
     // Pitch
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_LOOPS_X + 7 * track), display_coordinate_y(Loop_HEAD_R + 2), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_transpose[track][0]), display_coordinate_y(Loop_column_row_transpose[track][1]), 7);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -189,7 +195,7 @@ void DisplayMidiLoop::Loop_track_data(int track)
     }
 
     // Volume
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_LOOPS_X + 7 * track), display_coordinate_y(Loop_HEAD_R + 3), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_level[track][0]), display_coordinate_y(Loop_column_row_level[track][1]), 6);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -198,9 +204,9 @@ void DisplayMidiLoop::Loop_track_data(int track)
 }
 
 FLASHMEM
-void DisplayMidiLoop::Loop_time_stretched(void)
+void DisplayMidiLoop::Loop_total_time(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_LOOP_TIME), display_coordinate_y(Loop_HEAD_R - 1), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_total_time[0]), display_coordinate_y(Loop_column_row_total_time[1]), 7);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print((float)(LOOP_time * LOOP_stretch) / 1000.0);
     tft.setTextColor(ILI9341_ORANGE);
@@ -209,7 +215,8 @@ void DisplayMidiLoop::Loop_time_stretched(void)
 
 void DisplayMidiLoop::Loop_led(int track, int instrument_id, bool on)
 {
-    tft.drawBitmap(Loop_LED_X + track * 42, Loop_LED_Y + instrument_id * Loop_LED_DY, led_pic, 8, 8, on ? GREEN_ON : GREEN_OFF);
+    // tft.drawBitmap(Loop_LED_X + track * 42, Loop_LED_Y + instrument_id * Loop_LED_DY, led_pic, 8, 8, on ? GREEN_ON : GREEN_OFF);
+    tft.drawBitmap(display_coordinate_x(Loop_column_row_sound_LED_0[0] + track * Loop_coefficients_column_row_sound_LED[0]), display_coordinate_y(Loop_column_row_sound_LED_0[1] + instrument_id * Loop_coefficients_column_row_sound_LED[1]), led_pic, 8, 8, on ? GREEN_ON : GREEN_OFF);
 }
 
 void DisplayMidiLoop::Loop_led_metronomo(int Xled, int Yled, bool ONled)
