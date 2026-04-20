@@ -11,11 +11,27 @@
 #include "GlobalDisplayMidiLoop.h"
 
 /*
+static constexpr int LOOP_menu_values = 4;
+enum LOOP_menu_element_name
+{
+    value_LOOP_New,
+    value_LOOP_Save,
+    value_LOOP_SaveAsNew,
+    value_LOOP_Delete
+};
+
+static constexpr int LOOP_main_values = 2;
+enum LOOP_main_element_name
+{
+    value_LOOP_Loop,
+    value_LOOP_Patch
+};
+
 static constexpr int LOOP_track_values = 3;
 enum LOOP_track_value_name
 {
     value_LOOP_slide,
-    value_LOOP_trasnport,
+    value_LOOP_transport,
     value_LOOP_level
 };
 */
@@ -24,27 +40,29 @@ enum LOOP_track_value_name
 class PointerMidiLoop
 {
     private:
-    int pointer_menu;
-    int pointer_menu_old;
-    int pointer_loop_patch;
-    int pointer_loop_patch_old;
-    LOOP_track_value_name pointer_track[TRACKS];
-    LOOP_track_value_name pointer_track_old[TRACKS];
+    LOOP_menu_element_name pointerMenu;
+    LOOP_menu_element_name pointerMenu_old;
+
+    LOOP_main_element_name pointerMain;
+    LOOP_main_element_name pointerMain_old;
+    
+    LOOP_track_value_name pointerTrack[TRACKS];
+    LOOP_track_value_name pointerTrack_old[TRACKS];
 
 
     public:
     PointerMidiLoop() {}
 
-    void Set_pointer_menu_to_first_menu_element(const int pointer);
-    int Get_pointer_menu(const int pointer);
-    void Move_pointer_menu(const int value);
+    void Set_pointerMenu_to_first_menu_element(void);
+    void Move_pointerMenu(const int value);
+    LOOP_menu_element_name Get_pointerMenu(void);
 
-    void Set_pointer_loop_patch_to_loop(void);
-    void Switch_pointer_loop_patch(void);
-    int Get_pointer_loop_patch(void);
+    void Set_pointerMain_to_loop(void);
+    void Switch_pointerMain(void);
+    LOOP_main_element_name Get_pointerMain(void);
 
-    void Move_pointer_track(const int pointer, const int value);
-    LOOP_track_value_name Get_pointer_track (const int pointer);
-    void Set_pointer_track_to_level(const int pointer);
-    void Show_pointer_track(const int pointer, const bool show);
+    void Move_pointerTrack(const int track, const int value);
+    void Set_pointerTrack_to_level(const int track);
+    void Show_pointerTrack(const int track, const bool show);
+    LOOP_track_value_name Get_pointerTrack (const int track);
 };

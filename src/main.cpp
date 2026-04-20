@@ -653,8 +653,14 @@ bool LOOP_run_button_state; // stato pulsante 7 true: run loop abilitati -  fals
 bool LOOP_track_run_memo[TRACKS] = {false};
 int LOOP_stretch_int = 100; // stretch comune ai track, in %
 bool LOOP_original;
-int LOOP_menu;
-int LOOP_menu_change;
+
+// Pointer
+int LOOP_local_pointerMenu;
+int LOOP_local_pointerPatch;
+int LOOP_local_pointerTrack[TRACKS];
+int LOOP_local_pointerMenu_old;
+int LOOP_local_pointerPatch_old;
+int LOOP_local_pointerTrack_old[TRACKS];
 
 // functions
 void LOOP_reset_all_data(void);
@@ -6385,7 +6391,7 @@ void loop()
     if (Lilla_state == MIDI_LOOP)
     {
         // Change volume_patch
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_PreListenVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -6395,8 +6401,222 @@ void loop()
             Display_Manager.P_Patch_volume_value(true);
         }
 
+        // Move pointerMenu
+        if (LOOP_events[MASTER_TRACK] > 0)
+        {
+            result = Read_encoder_simple(EN_PB_Select);
+                if (result != 0)
+                {
+                    if (LOOP_menu < Loop_menu_max)
+                    {
+                        LOOP_menu_change = LOOP_menu + 1;
+                    }
+                }
+                else
+                {
+                    if (LOOP_menu > 0)
+                    {
+                        LOOP_menu_change = LOOP_menu - 1;
+                    }
+                }
+
+                if (LOOP_menu_change != LOOP_menu)
+                {
+                    LOOP_menu = LOOP_menu_change;
+                    Display_MidiLoop.Loop_Delete_all_frame_menu();
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                }
+        }
+
+        // Move pointerTrack
+        if (Read_pushbutton_fast(EN_PB_Value))
+        {
+            result = Read_encoder_simple(EN_PB_Track1);
+            if (result != 0)
+            {
+                Pointer_MidiLoop.Move_pointerTrack(0, result);
+                LOOP_local_pointerTrack[0] = Pointer_MidiLoop.Get_pointerTrack(0);
+            }
+
+            result = Read_encoder_simple(EN_PB_Track2);
+            if (result != 0)
+            {
+                Pointer_MidiLoop.Move_pointerTrack(1, result);
+                LOOP_local_pointerTrack[1] = Pointer_MidiLoop.Get_pointerTrack(1);
+            }
+
+            result = Read_encoder_simple(EN_PB_Track3);
+            if (result != 0)
+            {
+                Pointer_MidiLoop.Move_pointerTrack(2, result);
+                LOOP_local_pointerTrack[2] = Pointer_MidiLoop.Get_pointerTrack(2);
+            }
+
+            result = Read_encoder_simple(EN_PB_Track4);
+            if (result != 0)
+            {
+                Pointer_MidiLoop.Move_pointerTrack(3, result);
+                LOOP_local_pointerTrack[3] = Pointer_MidiLoop.Get_pointerTrack(3);
+            }
+        }
+
+        // Change track values
+        for (auto track = 0; track < TRACKS; ++track)
+        {
+            // Only existing track
+            if (LOOP_events[track] > 0)
+            {
+                // Track start-stop
+                if (Read_pushbutton(LOOP_UI_C + track))
+                {
+                    // Stop
+                    if (LOOP_track_run[track])
+                    {
+                        LOOP_track_run[track] = false;
+
+                        // interrompi i Player di track
+                        AudioNoInterrupts();
+                        Players_Manager.Release_all_players_loop(track);
+                        AudioInterrupts();
+
+                        // spegni i led del loop
+                        Loop_led_set.Request_track_LED_switch_off(track);
+                    }
+
+                    // Start
+                    else
+                    {
+                        // accendi il primo led del metronomo
+                        // LOOP_metronomo.Led_ON(0);
+                        AudioNoInterrupts();
+                        // dopo uno stop a tutti i loop, alla prima ripartenza va azzerato LOOP_clock e va fatto ripartire il metronomo
+                        if (!LOOP_metronomo_run)
+                        {
+                            // se LOOP_run_button_state == false va ripristinato
+                            LOOP_run_button_state = true;
+
+                            LOOP_restart_clock();
+
+                            // calcolo prossimo evento metronomo
+                            LOOP_metronomo.metro_time = 0 + LOOP_metronomo.Read_metro_delta_ms();
+
+                            // avvia il metronomo
+                            LOOP_metronomo_run = true;
+                        }
+                        LOOP_restart_procedure(track); // Procedura di ripartenza
+                        AudioInterrupts();
+                    }
+                }
+
+                // Slide temporale
+                result = Read_encoder_simple(LOOP_UI_A + track);
+                if (result != 0)
+                {
+                    LOOP_original = false;
+
+                    int jump;
+
+                    if (result == 1)
+                    {
+                        jump = 100;
+                    }
+
+                    else
+                    {
+                        if (LOOP_time >= 100)
+                        {
+                            jump = LOOP_time - 100;
+                        }
+                        else
+                        {
+                            jump = 0;
+                        }
+                    }
+
+                    Serial.print("Shift ms:");
+                    Serial.println(jump);
+
+                    AudioNoInterrupts();
+                    for (auto event = 0; event < LOOP_events[track]; ++event)
+                    {
+                        LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
+                    }
+
+                    // Interrompi i Player di track
+                    Players_Manager.Release_all_players_loop(track);
+
+                    // Effettua l'ordinamento temporale degli eventi
+                    LOOP_set_time_order(LOOP_learning_track);
+
+                    // Procedura di ripartenza
+                    LOOP_restart_procedure(track);
+                    AudioInterrupts();
+
+                    // Spegni i led del loop
+                    Loop_led_set.Request_track_LED_switch_off(track);
+
+                    LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
+                    Display_MidiLoop.Loop_track_data(track);
+                }
+
+                // Annulla slide temporale
+                if (LOOP_slide[track] > 0)
+                    if (Read_pushbutton_fast(LOOP_UI_A + track))
+                    {
+                        int jump = LOOP_time - LOOP_slide[track];
+
+                        AudioNoInterrupts();
+                        for (auto event = 0; event < LOOP_events[track]; ++event)
+                        {
+                            LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
+                        }
+
+                        // Interrompi i Player di loop
+                        Players_Manager.Release_all_players_loop(track);
+
+                        // Effettua l'ordinamento temporale degli eventi
+                        LOOP_set_time_order(LOOP_learning_track);
+
+                        // Procedura di ripartenza
+                        LOOP_restart_procedure(track);
+                        AudioInterrupts();
+
+                        // Spegni i led del loop
+                        Loop_led_set.Request_track_LED_switch_off(track);
+
+                        LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
+                        Display_MidiLoop.Loop_track_data(track);
+                    }
+
+                // Volume
+                if (Read_encoder(LOOP_UI_C + track, LOOP_volume_int[track], 40, 0, 1))
+                {
+                    LOOP_original = false;
+
+                    AudioNoInterrupts();
+                    LOOP_volume[track] = LOOP_volume_int[track] / 20.0f;
+                    Players_Manager.Multicast_volume_for_MIDI_LOOP_running(track, LOOP_volume[track]);
+                    AudioInterrupts();
+
+                    Display_MidiLoop.Loop_track_data(track);
+                    Serial.print("LOOP_volume: ");
+                    Serial.println(LOOP_volume[track]);
+                }
+
+                // Pitch
+                if (Read_encoder(LOOP_UI_B + track, LOOP_pitch_int[track], 24, -24, 1))
+                {
+                    LOOP_original = false;
+
+                    Display_MidiLoop.Loop_track_data(track);
+                    Serial.print("LOOP_pitch_int: ");
+                    Serial.println(LOOP_pitch_int[track]);
+                }
+            }
+        }
+
         // Change LOOP_id
-        result = Read_encoder_simple(7);
+        result = Read_encoder_simple(EN_PB_Loop);
         if (result != 0)
         {
             int new_loop_id;
@@ -6770,192 +6990,15 @@ void loop()
                         Display_MidiLoop.Loop_total_time();
                     }
                 }
-            }
-            // qui sopra le funzionalita' learn
-
-            // Existing track
-            if (LOOP_events[track] > 0)
-            {
-                // Track start-stop
-                if (Read_pushbutton(LOOP_UI_C + track))
-                {
-                    // Stop
-                    if (LOOP_track_run[track])
-                    {
-                        LOOP_track_run[track] = false;
-
-                        // interrompi i Player di track
-                        AudioNoInterrupts();
-                        Players_Manager.Release_all_players_loop(track);
-                        AudioInterrupts();
-
-                        // spegni i led del loop
-                        Loop_led_set.Request_track_LED_switch_off(track);
-                    }
-
-                    // Start
-                    else
-                    {
-                        // accendi il primo led del metronomo
-                        // LOOP_metronomo.Led_ON(0);
-                        AudioNoInterrupts();
-                        // dopo uno stop a tutti i loop, alla prima ripartenza va azzerato LOOP_clock e va fatto ripartire il metronomo
-                        if (!LOOP_metronomo_run)
-                        {
-                            // se LOOP_run_button_state == false va ripristinato
-                            LOOP_run_button_state = true;
-
-                            LOOP_restart_clock();
-
-                            // calcolo prossimo evento metronomo
-                            LOOP_metronomo.metro_time = 0 + LOOP_metronomo.Read_metro_delta_ms();
-
-                            // avvia il metronomo
-                            LOOP_metronomo_run = true;
-                        }
-                        LOOP_restart_procedure(track); // Procedura di ripartenza
-                        AudioInterrupts();
-                    }
-                }
-
-                // Slide temporale
-                result = Read_encoder_simple(LOOP_UI_A + track);
-                if (result != 0)
-                {
-                    LOOP_original = false;
-
-                    int jump;
-
-                    if (result == 1)
-                    {
-                        jump = 100;
-                    }
-
-                    else
-                    {
-                        if (LOOP_time >= 100)
-                        {
-                            jump = LOOP_time - 100;
-                        }
-                        else
-                        {
-                            jump = 0;
-                        }
-                    }
-
-                    Serial.print("Shift ms:");
-                    Serial.println(jump);
-
-                    AudioNoInterrupts();
-                    for (auto event = 0; event < LOOP_events[track]; ++event)
-                    {
-                        LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
-                    }
-
-                    // Interrompi i Player di track
-                    Players_Manager.Release_all_players_loop(track);
-
-                    // Effettua l'ordinamento temporale degli eventi
-                    LOOP_set_time_order(LOOP_learning_track);
-
-                    // Procedura di ripartenza
-                    LOOP_restart_procedure(track);
-                    AudioInterrupts();
-
-                    // Spegni i led del loop
-                    Loop_led_set.Request_track_LED_switch_off(track);
-
-                    LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                    Display_MidiLoop.Loop_track_data(track);
-                }
-
-                // Annulla slide temporale
-                if (LOOP_slide[track] > 0)
-                    if (Read_pushbutton_fast(LOOP_UI_A + track))
-                    {
-                        int jump = LOOP_time - LOOP_slide[track];
-
-                        AudioNoInterrupts();
-                        for (auto event = 0; event < LOOP_events[track]; ++event)
-                        {
-                            LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
-                        }
-
-                        // Interrompi i Player di loop
-                        Players_Manager.Release_all_players_loop(track);
-
-                        // Effettua l'ordinamento temporale degli eventi
-                        LOOP_set_time_order(LOOP_learning_track);
-
-                        // Procedura di ripartenza
-                        LOOP_restart_procedure(track);
-                        AudioInterrupts();
-
-                        // Spegni i led del loop
-                        Loop_led_set.Request_track_LED_switch_off(track);
-
-                        LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                        Display_MidiLoop.Loop_track_data(track);
-                    }
-
-                // Volume
-                if (Read_encoder(LOOP_UI_C + track, LOOP_volume_int[track], 40, 0, 1))
-                {
-                    LOOP_original = false;
-
-                    AudioNoInterrupts();
-                    LOOP_volume[track] = LOOP_volume_int[track] / 20.0f;
-                    Players_Manager.Multicast_volume_for_MIDI_LOOP_running(track, LOOP_volume[track]);
-                    AudioInterrupts();
-
-                    Display_MidiLoop.Loop_track_data(track);
-                    Serial.print("LOOP_volume: ");
-                    Serial.println(LOOP_volume[track]);
-                }
-
-                // Pitch
-                if (Read_encoder(LOOP_UI_B + track, LOOP_pitch_int[track], 24, -24, 1))
-                {
-                    LOOP_original = false;
-
-                    Display_MidiLoop.Loop_track_data(track);
-                    Serial.print("LOOP_pitch_int: ");
-                    Serial.println(LOOP_pitch_int[track]);
-                }
-            }
+            }        
         }
+
 
         // Comandi attivi se esiste MASTER_TRACK, comuni a tutti i track
         if (LOOP_events[MASTER_TRACK] > 0)
         {
             // change menu item
-            result = Read_encoder_simple(25);
-            if (result != 0)
-            {
 
-                if (result == +1)
-
-                {
-                    if (LOOP_menu < Loop_menu_max)
-                    {
-                        LOOP_menu_change = LOOP_menu + 1;
-                    }
-                }
-                else
-                {
-                    if (LOOP_menu > 0)
-                    {
-                        LOOP_menu_change = LOOP_menu - 1;
-                    }
-                }
-
-                if (LOOP_menu_change != LOOP_menu)
-                {
-                    LOOP_menu = LOOP_menu_change;
-                    Display_MidiLoop.Loop_Delete_all_frame_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
-                }
-            }
 
             // Choose menu item
             if (Read_pushbutton(25))
@@ -6963,7 +7006,6 @@ void loop()
                 int choice_loop_menu = element_Menu_Loop[LOOP_menu];
                 switch (choice_loop_menu)
                 {
-
                 case 0:                                     // New
                     LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
                     LOOP_id = NEW_LOOP;
@@ -7020,7 +7062,6 @@ void loop()
 
             // Change tempo
             if (Read_encoder_inverse(24, LOOP_stretch_int, 198, 1, 1))
-
             {
                 AudioNoInterrupts();
                 // Memorizza il tempo virtuale attuale
@@ -7189,6 +7230,7 @@ void loop()
             }
         }
 
+        // Edit Sounds
         if (Read_pushbutton(PB_number + 26) && Patch[Patch_id].Instrument[PB_number].used)
         {
             Lilla_state_0 = MIDI_LOOP;
@@ -9221,11 +9263,9 @@ void Golive_with_MIDI_LOOP(bool restart)
     Lilla_state = MIDI_LOOP;
     Shifters_manager.Set_context(Midi_Loop_context);
 
-    LOOP_menu = 0;
     LOOP_select_menu_elements();
-
     Display_MidiLoop.Loop_show_Loop_page();
-    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
 
     // LEDs setup
     if (restart)
@@ -9595,7 +9635,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 {
     switch (DS_state)
     {
-    case DS_waiting_state:                  // no activity
+    case DS_waiting_state:   // no activity
         Turn_ON_Delay(true); // switch on/off Delay (using Instrument routing)
         Switch_to_PERFORMANCE_patch_old();
         break;
