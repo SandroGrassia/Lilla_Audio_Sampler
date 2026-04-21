@@ -6424,7 +6424,7 @@ void loop()
                 {
                     LOOP_menu = LOOP_menu_change;
                     Display_MidiLoop.Loop_Delete_all_frame_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
                 }
         }
 
@@ -6657,7 +6657,7 @@ void loop()
                 Display_MidiLoop.Loop_Delete_all_frame_menu();
                 LOOP_select_menu_elements();
                 Display_MidiLoop.Loop_menu();
-                Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
 
                 // switch off all tracks LEDs on display
                 Loop_led_set.Request_all_LED_switch_off();
@@ -6800,7 +6800,7 @@ void loop()
                     Display_MidiLoop.Loop_Delete_all_frame_menu();
                     LOOP_select_menu_elements();
                     Display_MidiLoop.Loop_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
 
                     // prepare learning
                     LOOP_learn_clock = 0;
@@ -6938,7 +6938,7 @@ void loop()
                         Display_MidiLoop.Loop_Delete_all_frame_menu();
                         LOOP_select_menu_elements();
                         Display_MidiLoop.Loop_menu();
-                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
 
                         // report
                         Serial.println(" **************** ");
@@ -7023,7 +7023,7 @@ void loop()
                     Display_MidiLoop.Loop_Delete_all_frame_menu();
                     LOOP_select_menu_elements();
                     Display_MidiLoop.Loop_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
                     break;
 
                 case 2: // Save as new
@@ -7040,7 +7040,7 @@ void loop()
                         Display_MidiLoop.Loop_Delete_all_frame_menu();
                         LOOP_select_menu_elements();
                         Display_MidiLoop.Loop_menu();
-                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu, true);
+                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
 
                         // Update loop_id
                         Display_MidiLoop.Loop_loop_id();
@@ -9842,7 +9842,7 @@ void LOOP_select_menu_elements(void)
     {
         Menu_Loop[0] = false; // New
         Menu_Loop[1] = false; // Save
-        Menu_Loop[3] = false; // Delete
+        // Menu_Loop[3] = false; // Delete
 
         if (LOOP_events[0] == 0)  // nuovo loop vuoto
             Menu_Loop[2] = false; // Save as New

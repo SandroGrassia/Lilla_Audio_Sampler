@@ -14,7 +14,6 @@ float LOOP_stretch = 1.0;
 
 // Menu
 int Loop_menu_max;
-uint8_t choice_loop_menu;
 const char Menu_Loop_char[LOOP_menu_values][12] = {{"NEW"}, {"SAVE"}, {"SAVE_AS_NEW"}, {"DELETE"}};
 const uint8_t dimension_voice_Menu_Loop[LOOP_menu_values] = {3, 4, 11, 6};
 bool Menu_Loop[LOOP_menu_values];

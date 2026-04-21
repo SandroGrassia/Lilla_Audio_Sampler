@@ -23,36 +23,75 @@ void DisplayMidiLoop::Loop_REC_advice(int track, bool on)
 }
 
 FLASHMEM
+void DisplayMidiLoop::Loop_loop_id(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_loop[0]), display_coordinate_y(Loop_column_row_loop[1]), Loop_chars_loop);
+    tft.setTextColor(ILI9341_YELLOW);
+
+    if (LOOP_id < 0)
+    {
+        tft.print("---");
+        return;
+    }
+
+    tft.print(LOOP_id);
+}
+
+void DisplayMidiLoop::Loop_patch_id(void)
+{
+    static const int Loop_chars_patch = 3;
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_patch[0]), display_coordinate_y(Loop_column_row_patch[1]), Loop_chars_patch);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Patch_id);
+}
+
+void DisplayMidiLoop::Loop_volume(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_volume[0]), display_coordinate_y(Loop_column_row_volume[1]), Loop_chars_volume);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(volume_patch / 20.0f, 2);
+}
+
+FLASHMEM
 void DisplayMidiLoop::Loop_show_Loop_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
     Loop_show_midi_loop_title();
     Loop_menu();
-    Display_Manager.P_show_Patch_number(Patch_id);
-    Display_Manager.P_Patch_VOLUME(true);
+
     Display_Manager.ALL_show_effects();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(Loop_column_row_LOOP[0]),   display_coordinate_y(Loop_column_row_LOOP[1]));
+    tft.setCursor(display_coordinate_x(Loop_column_row_LOOP[0]), display_coordinate_y(Loop_column_row_LOOP[1]));
     tft.print("LOOP");
     Loop_loop_id();
 
-    tft.setCursor(display_coordinate_x(Loop_column_row_METRO[0]),  display_coordinate_y(Loop_column_row_METRO[1]));
+    tft.setCursor(display_coordinate_x(Loop_column_row_PATCH[0]), display_coordinate_y(Loop_column_row_PATCH[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("PATCH");
+    Loop_patch_id();
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_VOLUME[0]), display_coordinate_y(Loop_column_row_VOLUME[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("VOLUME");
+    Loop_volume();
+
+    tft.setCursor(display_coordinate_x(Loop_column_row_METRO[0]), display_coordinate_y(Loop_column_row_METRO[1]));
     tft.print("METRO");
 
-    tft.setCursor(display_coordinate_x(Loop_column_row_TRACK[0]),  display_coordinate_y(Loop_column_row_TRACK[1]));
+    tft.setCursor(display_coordinate_x(Loop_column_row_TRACK[0]), display_coordinate_y(Loop_column_row_TRACK[1]));
     tft.print("TRACK");
 
-    tft.setCursor(display_coordinate_x(Loop_column_row_SLIDE[0]),  display_coordinate_y(Loop_column_row_SLIDE[1]));
+    tft.setCursor(display_coordinate_x(Loop_column_row_SLIDE[0]), display_coordinate_y(Loop_column_row_SLIDE[1]));
     tft.print("SLIDE");
 
     tft.setCursor(display_coordinate_x(Loop_column_row_TRANSP[0]), display_coordinate_y(Loop_column_row_TRANSP[1]));
     tft.print("TRANSP");
 
-    tft.setCursor(display_coordinate_x(Loop_column_row_LEVEL[0]),  display_coordinate_y(Loop_column_row_LEVEL[1]));
+    tft.setCursor(display_coordinate_x(Loop_column_row_LEVEL[0]), display_coordinate_y(Loop_column_row_LEVEL[1]));
     tft.print("LEVEL");
 
-    tft.setCursor(display_coordinate_x(Loop_column_row_SOUND[0]),  display_coordinate_y(Loop_column_row_SOUND[1]));
+    tft.setCursor(display_coordinate_x(Loop_column_row_SOUND[0]), display_coordinate_y(Loop_column_row_SOUND[1]));
     tft.print("SOUND");
 
     tft.setTextColor(ILI9341_WHITE);
@@ -73,22 +112,6 @@ void DisplayMidiLoop::Loop_show_Loop_page(void)
     }
 
     Loop_total_time();
-}
-
-FLASHMEM
-void DisplayMidiLoop::Loop_loop_id(void)
-{
-    Cancel_text(display_coordinate_x(22), display_coordinate_y(0), 5);
-    tft.setCursor(display_coordinate_x(23), display_coordinate_y(0));
-    tft.setTextColor(ILI9341_YELLOW);
-
-    if (LOOP_id < 0)
-    {
-        tft.print("---");
-        return;
-    }
-
-    tft.print(LOOP_id);
 }
 
 FLASHMEM
@@ -122,25 +145,13 @@ void DisplayMidiLoop::Loop_menu(void)
 }
 
 FLASHMEM
-void DisplayMidiLoop::Loop_show_frame_menu(int position, bool fresh)
+void DisplayMidiLoop::Loop_show_frame_menu(int position)
 {
-    if (!fresh && Loop_menu_position_0 >= 0)
+    if (Loop_menu_max < 0) // if (!Menu_Loop[0] && !Menu_Loop[1] && !Menu_Loop[2])
     {
-        Frame_by_col_row(Loop_X_position_menu_0, 1, Loop_dimension_voice_menu_0, false);
-    }
-
-    if (!Menu_Loop[0] && !Menu_Loop[1] && !Menu_Loop[2])
-    {
-        Loop_menu_position_0 = -1;
         return;
     }
-
     Frame_by_col_row(X_position_Menu_Loop[position], 1, dimension_voice_Menu_Loop[element_Menu_Loop[position]], true);
-    choice_loop_menu = element_Menu_Loop[position];
-
-    Loop_X_position_menu_0 = X_position_Menu_Loop[position];
-    Loop_dimension_voice_menu_0 = dimension_voice_Menu_Loop[element_Menu_Loop[position]];
-    Loop_menu_position_0 = position;
 }
 
 void DisplayMidiLoop::Loop_Delete_all_frame_menu(void)
@@ -167,7 +178,7 @@ FLASHMEM
 void DisplayMidiLoop::Loop_track_data(int track)
 {
     // Numero
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]), 5);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]), Loop_chars_track_number);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_WHITE);
@@ -175,7 +186,7 @@ void DisplayMidiLoop::Loop_track_data(int track)
     }
 
     // Slide
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_slide[track][0]), display_coordinate_y(Loop_column_row_slide[track][1]), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_slide[track][0]), display_coordinate_y(Loop_column_row_slide[track][1]), Loop_chars_slide);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -185,7 +196,7 @@ void DisplayMidiLoop::Loop_track_data(int track)
     }
 
     // Pitch
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_transpose[track][0]), display_coordinate_y(Loop_column_row_transpose[track][1]), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_pitch[track][0]), display_coordinate_y(Loop_column_row_pitch[track][1]), Loop_chars_pitch);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -194,8 +205,8 @@ void DisplayMidiLoop::Loop_track_data(int track)
         tft.print("key");
     }
 
-    // Volume
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_level[track][0]), display_coordinate_y(Loop_column_row_level[track][1]), 6);
+    // Level
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_level[track][0]), display_coordinate_y(Loop_column_row_level[track][1]), Loop_chars_level);
     if (LOOP_events[track] > 0)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -206,7 +217,7 @@ void DisplayMidiLoop::Loop_track_data(int track)
 FLASHMEM
 void DisplayMidiLoop::Loop_total_time(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_total_time[0]), display_coordinate_y(Loop_column_row_total_time[1]), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_total_time[0]), display_coordinate_y(Loop_column_row_total_time[1]), Loop_chars_total_time);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print((float)(LOOP_time * LOOP_stretch) / 1000.0);
     tft.setTextColor(ILI9341_ORANGE);
@@ -222,4 +233,42 @@ void DisplayMidiLoop::Loop_led(int track, int instrument_id, bool on)
 void DisplayMidiLoop::Loop_led_metronomo(int Xled, int Yled, bool ONled)
 {
     tft.drawBitmap(Xled, Yled, led_pic, 8, 8, ONled ? RED_ON : RED_OFF);
+}
+
+void DisplayMidiLoop::Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show)
+{
+    const int position = position_Menu_Loop[pointer];
+    Frame_by_col_row(X_position_Menu_Loop[position], 1, dimension_voice_Menu_Loop[element_Menu_Loop[position]], true);
+}
+
+void DisplayMidiLoop::Loop_show_pointerMain(const LOOP_main_value_name pointer, const bool show)
+{
+    switch (pointer)
+    {
+    case value_LOOP_Loop:
+        Frame_by_col_row(Loop_column_row_loop[0], Loop_column_row_loop[1], Loop_chars_loop, show);
+        break;
+
+    case value_LOOP_Patch:
+        Frame_by_col_row(Loop_column_row_patch[0], Loop_column_row_patch[1], Loop_chars_patch, show);
+        break;
+    }
+}
+
+void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_value_name pointer, const bool show)
+{
+    switch (pointer)
+    {
+    case value_LOOP_slide:
+        Frame_by_col_row(Loop_column_row_slide[track][0], Loop_column_row_slide[track][1], Loop_chars_slide, show);
+        break;
+
+    case value_LOOP_transport:
+        Frame_by_col_row(Loop_column_row_pitch[track][0], Loop_column_row_pitch[track][1], Loop_chars_pitch, show);
+        break;
+
+    case value_LOOP_level:
+        Frame_by_col_row(Loop_column_row_level[track][0], Loop_column_row_level[track][1], Loop_chars_level, show);
+        break;
+    }
 }

@@ -58,7 +58,6 @@ extern bool LOOP_metronomo_flag_IN[2]; // accendi led_0, switch led del metronom
 // Menu
 static constexpr int LOOP_menu_values = 4;
 extern int Loop_menu_max;
-extern uint8_t choice_loop_menu;
 extern const char Menu_Loop_char[LOOP_menu_values][12];
 extern const uint8_t dimension_voice_Menu_Loop[LOOP_menu_values];
 extern uint8_t X_position_Menu_Loop[LOOP_menu_values]; // argument is position
@@ -83,7 +82,7 @@ enum LOOP_menu_element_name
 };
 
 static constexpr int LOOP_main_values = 2;
-enum LOOP_main_element_name
+enum LOOP_main_value_name
 {
     value_LOOP_Loop,
     value_LOOP_Patch

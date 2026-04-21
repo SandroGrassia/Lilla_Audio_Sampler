@@ -21,7 +21,7 @@ enum LOOP_menu_element_name
 };
 
 static constexpr int LOOP_main_values = 2;
-enum LOOP_main_element_name
+enum LOOP_main_value_name
 {
     value_LOOP_Loop,
     value_LOOP_Patch
@@ -43,8 +43,8 @@ class PointerMidiLoop
     LOOP_menu_element_name pointerMenu;
     LOOP_menu_element_name pointerMenu_old;
 
-    LOOP_main_element_name pointerMain;
-    LOOP_main_element_name pointerMain_old;
+    LOOP_main_value_name pointerMain;
+    LOOP_main_value_name pointerMain_old;
     
     LOOP_track_value_name pointerTrack[TRACKS];
     LOOP_track_value_name pointerTrack_old[TRACKS];
@@ -59,7 +59,7 @@ class PointerMidiLoop
 
     void Set_pointerMain_to_loop(void);
     void Switch_pointerMain(void);
-    LOOP_main_element_name Get_pointerMain(void);
+    LOOP_main_value_name Get_pointerMain(void);
 
     void Move_pointerTrack(const int track, const int value);
     void Set_pointerTrack_to_level(const int track);
