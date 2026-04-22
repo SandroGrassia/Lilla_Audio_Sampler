@@ -6407,7 +6407,7 @@ void loop()
             result = Read_encoder_simple(EN_PB_Select);
                 if (result != 0)
                 {
-                    if (LOOP_menu < Loop_menu_max)
+                    if (LOOP_menu < LOOP_menu_max)
                     {
                         LOOP_menu_change = LOOP_menu + 1;
                     }
@@ -7003,7 +7003,7 @@ void loop()
             // Choose menu item
             if (Read_pushbutton(25))
             {
-                int choice_loop_menu = element_Menu_Loop[LOOP_menu];
+                int choice_loop_menu = element_Menu_LOOP[LOOP_menu];
                 switch (choice_loop_menu)
                 {
                 case 0:                                     // New
@@ -9820,35 +9820,35 @@ void LOOP_stop_and_reset_runnig_loop_data(void)
 void LOOP_select_menu_elements(void)
 {
     // voices that can be displayed
-    Menu_Loop[0] = true; // New
-    Menu_Loop[1] = true; // Save
-    Menu_Loop[2] = true; // Save as New
-    Menu_Loop[3] = true; // Delete
+    Menu_LOOP[0] = true; // New
+    Menu_LOOP[1] = true; // Save
+    Menu_LOOP[2] = true; // Save as New
+    Menu_LOOP[3] = true; // Delete
 
     if (LOOP_id >= 0 && LOOP_events[0] == 0) // loop vuoto
     {
-        Menu_Loop[0] = false; // New
-        Menu_Loop[1] = false; // Save
-        Menu_Loop[2] = false; // Save as New
+        Menu_LOOP[0] = false; // New
+        Menu_LOOP[1] = false; // Save
+        Menu_LOOP[2] = false; // Save as New
     }
 
     if (LOOP_id >= 0 && LOOP_original) // loop su SD e inalterato
     {
-        Menu_Loop[1] = false; // Save
-        Menu_Loop[2] = false; // Save as New
+        Menu_LOOP[1] = false; // Save
+        Menu_LOOP[2] = false; // Save as New
     }
 
     if (LOOP_id == -1) // nuovo loop
     {
-        Menu_Loop[0] = false; // New
-        Menu_Loop[1] = false; // Save
-        // Menu_Loop[3] = false; // Delete
+        Menu_LOOP[0] = false; // New
+        Menu_LOOP[1] = false; // Save
+        // Menu_LOOP[3] = false; // Delete
 
         if (LOOP_events[0] == 0)  // nuovo loop vuoto
-            Menu_Loop[2] = false; // Save as New
+            Menu_LOOP[2] = false; // Save as New
     }
 
-    Loop_menu_max = Menu_Loop[0] + Menu_Loop[1] + Menu_Loop[2] + Menu_Loop[3] - 1;
+    LOOP_menu_max = Menu_LOOP[0] + Menu_LOOP[1] + Menu_LOOP[2] + Menu_LOOP[3] - 1;
 }
 
 void LOOP_restart_clock(void)

@@ -13,13 +13,13 @@ int LOOP_slide[TRACKS];
 float LOOP_stretch = 1.0;
 
 // Menu
-int Loop_menu_max;
-const char Menu_Loop_char[LOOP_menu_values][12] = {{"NEW"}, {"SAVE"}, {"SAVE_AS_NEW"}, {"DELETE"}};
-const uint8_t dimension_voice_Menu_Loop[LOOP_menu_values] = {3, 4, 11, 6};
-bool Menu_Loop[LOOP_menu_values];
-uint8_t X_position_Menu_Loop[LOOP_menu_values]; // argument is position
-uint8_t element_Menu_Loop[LOOP_menu_values];  // argument is position
-uint8_t position_Menu_Loop[LOOP_menu_values]; // argument is element
+int LOOP_menu_max;
+const char Menu_LOOP_char[LOOP_menu_values][12] = {{"NEW"}, {"SAVE"}, {"SAVE_AS_NEW"}, {"DELETE"}};
+const uint8_t dimension_voice_Menu_LOOP[LOOP_menu_values] = {3, 4, 11, 6};
+bool Menu_LOOP[LOOP_menu_values];
+uint8_t X_position_Menu_LOOP[LOOP_menu_values]; // argument is position
+uint8_t element_Menu_LOOP[LOOP_menu_values];  // argument is position
+uint8_t position_Menu_LOOP[LOOP_menu_values]; // argument is element
 
 // LOOP play/stop
 bool LOOP_track_run[TRACKS] = {false};
@@ -36,7 +36,6 @@ int LOOP_elements;
 elapsedMillis LOOP_learn_clock;
 int LOOP_clock_memo;
 int LOOP_last_event;
-
 
 // LOOP_metronomo
 bool LOOP_metronomo_run = false; // il metronomo e' running

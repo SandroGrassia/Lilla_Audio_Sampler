@@ -124,21 +124,21 @@ void DisplayMidiLoop::Loop_menu(void)
 
     for (auto element = 0; element < 4; ++element)
     {
-        if (Menu_Loop[element])
+        if (Menu_LOOP[element])
         {
             if (position == 0)
             {
-                X_position_Menu_Loop[position] = 0;
+                X_position_Menu_LOOP[position] = 0;
             }
             else
             {
-                X_position_Menu_Loop[position] = X_position_Menu_Loop[position - 1] + dimension_voice_Menu_Loop[element_Menu_Loop[position - 1]] + 1;
+                X_position_Menu_LOOP[position] = X_position_Menu_LOOP[position - 1] + dimension_voice_Menu_LOOP[element_Menu_LOOP[position - 1]] + 1;
             }
 
-            element_Menu_Loop[position] = element;
-            position_Menu_Loop[element] = position;
-            tft.setCursor(display_coordinate_x(X_position_Menu_Loop[position]), display_coordinate_y(1));
-            tft.print(Menu_Loop_char[element]);
+            element_Menu_LOOP[position] = element;
+            position_Menu_LOOP[element] = position;
+            tft.setCursor(display_coordinate_x(X_position_Menu_LOOP[position]), display_coordinate_y(1));
+            tft.print(Menu_LOOP_char[element]);
             ++position;
         }
     }
@@ -147,20 +147,20 @@ void DisplayMidiLoop::Loop_menu(void)
 FLASHMEM
 void DisplayMidiLoop::Loop_show_frame_menu(int position)
 {
-    if (Loop_menu_max < 0) // if (!Menu_Loop[0] && !Menu_Loop[1] && !Menu_Loop[2])
+    if (LOOP_menu_max < 0) // if (!Menu_LOOP[0] && !Menu_LOOP[1] && !Menu_LOOP[2])
     {
         return;
     }
-    Frame_by_col_row(X_position_Menu_Loop[position], 1, dimension_voice_Menu_Loop[element_Menu_Loop[position]], true);
+    Frame_by_col_row(X_position_Menu_LOOP[position], 1, dimension_voice_Menu_LOOP[element_Menu_LOOP[position]], true);
 }
 
 void DisplayMidiLoop::Loop_Delete_all_frame_menu(void)
 {
     for (auto element = 0; element < 4; ++element)
     {
-        if (Menu_Loop[element])
+        if (Menu_LOOP[element])
         {
-            Frame_by_col_row(X_position_Menu_Loop[position_Menu_Loop[element]], 1, dimension_voice_Menu_Loop[element], false);
+            Frame_by_col_row(X_position_Menu_LOOP[position_Menu_LOOP[element]], 1, dimension_voice_Menu_LOOP[element], false);
         }
     }
 }
@@ -237,8 +237,8 @@ void DisplayMidiLoop::Loop_led_metronomo(int Xled, int Yled, bool ONled)
 
 void DisplayMidiLoop::Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show)
 {
-    const int position = position_Menu_Loop[pointer];
-    Frame_by_col_row(X_position_Menu_Loop[position], 1, dimension_voice_Menu_Loop[element_Menu_Loop[position]], true);
+    const int position = position_Menu_LOOP[pointer];
+    Frame_by_col_row(X_position_Menu_LOOP[position], 1, dimension_voice_Menu_LOOP[element_Menu_LOOP[position]], true);
 }
 
 void DisplayMidiLoop::Loop_show_pointerMain(const LOOP_main_value_name pointer, const bool show)
@@ -255,9 +255,9 @@ void DisplayMidiLoop::Loop_show_pointerMain(const LOOP_main_value_name pointer, 
     }
 }
 
-void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_value_name pointer, const bool show)
+void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_value_name pointerTrack, const bool show)
 {
-    switch (pointer)
+    switch (pointerTrack)
     {
     case value_LOOP_slide:
         Frame_by_col_row(Loop_column_row_slide[track][0], Loop_column_row_slide[track][1], Loop_chars_slide, show);

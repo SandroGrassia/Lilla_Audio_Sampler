@@ -36,19 +36,12 @@ enum LOOP_track_value_name
 };
 */
 
-
 class PointerMidiLoop
 {
     private:
     LOOP_menu_element_name pointerMenu;
-    LOOP_menu_element_name pointerMenu_old;
-
-    LOOP_main_value_name pointerMain;
-    LOOP_main_value_name pointerMain_old;
-    
+    LOOP_main_value_name pointerMain; 
     LOOP_track_value_name pointerTrack[TRACKS];
-    LOOP_track_value_name pointerTrack_old[TRACKS];
-
 
     public:
     PointerMidiLoop() {}

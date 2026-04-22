@@ -57,13 +57,13 @@ extern bool LOOP_metronomo_flag_IN[2]; // accendi led_0, switch led del metronom
 
 // Menu
 static constexpr int LOOP_menu_values = 4;
-extern int Loop_menu_max;
-extern const char Menu_Loop_char[LOOP_menu_values][12];
-extern const uint8_t dimension_voice_Menu_Loop[LOOP_menu_values];
-extern uint8_t X_position_Menu_Loop[LOOP_menu_values]; // argument is position
-extern bool Menu_Loop[LOOP_menu_values];
-extern uint8_t element_Menu_Loop[LOOP_menu_values]; // argument is position
-extern uint8_t position_Menu_Loop[LOOP_menu_values]; // argument is element
+extern int LOOP_menu_max;
+extern const char Menu_LOOP_char[LOOP_menu_values][12];
+extern const uint8_t dimension_voice_Menu_LOOP[LOOP_menu_values];
+extern uint8_t X_position_Menu_LOOP[LOOP_menu_values]; // argument is position
+extern bool Menu_LOOP[LOOP_menu_values];
+extern uint8_t element_Menu_LOOP[LOOP_menu_values]; // argument is position
+extern uint8_t position_Menu_LOOP[LOOP_menu_values]; // argument is element
 
 // Functions
 unsigned long LOOP_Clock_time_from_virtual_time(int T_evento); // definita in main.cpp
