@@ -92,6 +92,6 @@ static constexpr int LOOP_track_values = 3;
 enum LOOP_track_value_name
 {
     value_LOOP_slide,
-    value_LOOP_transport,
+    value_LOOP_pitch,
     value_LOOP_level
 };

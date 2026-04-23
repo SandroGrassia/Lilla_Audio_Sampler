@@ -263,7 +263,7 @@ void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_v
         Frame_by_col_row(Loop_column_row_slide[track][0], Loop_column_row_slide[track][1], Loop_chars_slide, show);
         break;
 
-    case value_LOOP_transport:
+    case value_LOOP_pitch:
         Frame_by_col_row(Loop_column_row_pitch[track][0], Loop_column_row_pitch[track][1], Loop_chars_pitch, show);
         break;
 
