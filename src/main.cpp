@@ -6493,14 +6493,6 @@ void loop()
                     LOOP_local_pointerTrack[0] = Pointer_MidiLoop.Get_pointerTrack(track);
                 }
             }
-
-            // Move pointerMain
-            result = Read_encoder_simple(EN_PB_Loop);
-            if (result != 0)
-            {
-                Pointer_MidiLoop.Switch_pointerMain();
-                LOOP_local_pointerMain = Pointer_MidiLoop.Get_pointerMain();
-            }
         }
 
         // Change tracks values
@@ -6677,97 +6669,92 @@ void loop()
             }
         }
 
-        // Change LOOP_id - change Patch_id
-        switch (LOOP_local_pointerMain)
+        // Change LOOP_id
+        result = Read_encoder_simple(EN_PB_Loop);
+        if (result != 0)
         {
-        case value_LOOP_Loop:
-        {
-            result = Read_encoder_simple(EN_PB_Loop);
-            if (result != 0)
+            int new_loop_id;
+            if (result == +1)
             {
-                int new_loop_id;
-                if (result == +1)
-                {
-                    new_loop_id = LOOP_Get_next_loop_id_in_SD(LOOP_id);
-                }
-                else
-                {
-                    new_loop_id = LOOP_Get_previous_loop_id_in_SD(LOOP_id);
-                }
-
-                if (new_loop_id != -1 && new_loop_id != LOOP_id)
-                {
-                    // delete runnig loop data and stop metronomo
-                    LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
-
-                    // switch LOOP_id
-                    LOOP_id = new_loop_id;
-
-                    // import LOOP_id from SD
-                    LOOP_Copy_midi_loop_from_SD_to_RAM(LOOP_id);
-
-                    // update LOOP_id on display
-                    Display_MidiLoop.Loop_loop_id();
-
-                    // update LOOP_time on display
-                    Display_MidiLoop.Loop_total_time();
-
-                    // update tracks infos on display
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track)
-                    {
-                        Display_MidiLoop.Loop_track_data(local_track);
-                    }
-
-                    // update menu on display
-                    LOOP_menu = 0;
-                    Display_MidiLoop.Loop_Delete_all_frame_menu();
-                    LOOP_select_menu_elements();
-                    Display_MidiLoop.Loop_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
-
-                    // switch off all tracks LEDs on display
-                    Loop_led_set.Request_all_LED_switch_off();
-
-                    // switch on led_0
-                    LOOP_metronomo.Led_ON(0);
-
-                    // setup metronomo
-                    LOOP_metronomo.Setup(LOOP_time);
-
-                    // restart clock
-                    LOOP_restart_clock();
-
-                    // set first event for each track
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track)
-                    {
-                        LOOP_play_event[local_track] = 0;
-                    }
-
-                    // effettua l'ordinamento temporale degli eventi
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track)
-                    {
-                        LOOP_set_time_order(local_track);
-                    }
-
-                    // simula Start/Stop all tracks con tutte le tracks attive
-                    LOOP_run_button_state = false;
-
-                    // memorizza lo stato dei track prima di fermarli
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track)
-                    {
-                        LOOP_track_run_memo[local_track] = LOOP_events[local_track] > 0;
-                        LOOP_track_run[local_track] = false;
-                    }
-
-                    Serial.println("Loop uploaded; data in RAM:");
-                    LOOP_Print_midi_loop_complete_data(LOOP_id);
-                }
+                new_loop_id = LOOP_Get_next_loop_id_in_SD(LOOP_id);
             }
-        }
-        break;
+            else
+            {
+                new_loop_id = LOOP_Get_previous_loop_id_in_SD(LOOP_id);
+            }
 
-        case value_LOOP_Patch:
-            break;
+            if (new_loop_id != -1 && new_loop_id != LOOP_id)
+            {
+                // delete runnig loop data and stop metronomo
+                LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
+
+                // switch LOOP_id
+                LOOP_id = new_loop_id;
+
+                // import LOOP_id from SD
+                LOOP_Copy_midi_loop_from_SD_to_RAM(LOOP_id);
+
+                // update LOOP_id on display
+                Display_MidiLoop.Loop_loop_id();
+
+                // update LOOP_time on display
+                Display_MidiLoop.Loop_total_time();
+
+                // update tracks infos on display
+                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                {
+                    Display_MidiLoop.Loop_track_data(local_track);
+                }
+
+                // Update menu on display
+                Pointer_MidiLoop.Show_pointerMenu(false);
+                LOOP_select_menu_elements();
+                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                /*
+                LOOP_menu = 0;
+                Display_MidiLoop.Loop_Delete_all_frame_menu();
+                LOOP_select_menu_elements();
+                Display_MidiLoop.Loop_menu();
+                Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
+                */
+
+                // Switch off all tracks LEDs on display
+                Loop_led_set.Request_all_LED_switch_off();
+
+                // switch on led_0
+                LOOP_metronomo.Led_ON(0);
+
+                // setup metronomo
+                LOOP_metronomo.Setup(LOOP_time);
+
+                // restart clock
+                LOOP_restart_clock();
+
+                // set first event for each track
+                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                {
+                    LOOP_play_event[local_track] = 0;
+                }
+
+                // effettua l'ordinamento temporale degli eventi
+                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                {
+                    LOOP_set_time_order(local_track);
+                }
+
+                // simula Start/Stop all tracks con tutte le tracks attive
+                LOOP_run_button_state = false;
+
+                // memorizza lo stato dei track prima di fermarli
+                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                {
+                    LOOP_track_run_memo[local_track] = LOOP_events[local_track] > 0;
+                    LOOP_track_run[local_track] = false;
+                }
+
+                Serial.println("Loop uploaded; data in RAM:");
+                LOOP_Print_midi_loop_complete_data(LOOP_id);
+            }
         }
 
         // Learning

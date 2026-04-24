@@ -81,13 +81,6 @@ enum LOOP_menu_element_name
     value_LOOP_Delete
 };
 
-static constexpr int LOOP_main_values = 2;
-enum LOOP_main_value_name
-{
-    value_LOOP_Loop,
-    value_LOOP_Patch
-};
-
 static constexpr int LOOP_track_values = 3;
 enum LOOP_track_value_name
 {

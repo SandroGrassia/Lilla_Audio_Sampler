@@ -48,35 +48,6 @@ LOOP_menu_element_name PointerMidiLoop::Get_pointerMenu(void)
     return pointerMenu;
 }
 
-void PointerMidiLoop::Set_pointerMain_to_loop(void)
-{
-    pointerMain = value_LOOP_Loop;
-    Display_MidiLoop.Loop_show_pointerMain(pointerMain, true);
-}
-
-void PointerMidiLoop::Switch_pointerMain(void)
-{
-    switch (pointerMain)
-    {
-    case value_LOOP_Loop:
-        Display_MidiLoop.Loop_show_pointerMain(pointerMain, false);
-        pointerMain = value_LOOP_Patch;
-        Display_MidiLoop.Loop_show_pointerMain(pointerMain, true);
-        break;
-
-    case value_LOOP_Patch:
-        Display_MidiLoop.Loop_show_pointerMain(pointerMain, false);
-        pointerMain = value_LOOP_Loop;
-        Display_MidiLoop.Loop_show_pointerMain(pointerMain, true);
-        break;
-    }
-}
-
-LOOP_main_value_name PointerMidiLoop::Get_pointerMain(void)
-{
-    return pointerMain;
-}
-
 void PointerMidiLoop::Move_pointerTrack(const int track, const int value)
 {
     LOOP_track_value_name pointerTrack_old = pointerTrack[track];
@@ -122,4 +93,9 @@ void PointerMidiLoop::Set_pointerTrack_to_level(const int track)
 void PointerMidiLoop::Show_pointerTrack(const int track, const bool show)
 {
     Display_MidiLoop.Loop_show_pointerTrack(track, pointerTrack[track], show);
+}
+
+void PointerMidiLoop::Show_pointerMenu(const bool show)
+{
+    Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, show);
 }

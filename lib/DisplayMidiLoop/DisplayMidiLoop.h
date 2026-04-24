@@ -97,6 +97,5 @@ public:
 
     // pointer
     void Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show);
-    void Loop_show_pointerMain(const LOOP_main_value_name pointer, const bool show);
     void Loop_show_pointerTrack(const int track, const LOOP_track_value_name pointer, const bool show);
 };

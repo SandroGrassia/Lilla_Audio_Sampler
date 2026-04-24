@@ -241,20 +241,6 @@ void DisplayMidiLoop::Loop_show_pointerMenu(const LOOP_menu_element_name pointer
     Frame_by_col_row(X_position_Menu_LOOP[position], 1, dimension_voice_Menu_LOOP[element_Menu_LOOP[position]], true);
 }
 
-void DisplayMidiLoop::Loop_show_pointerMain(const LOOP_main_value_name pointer, const bool show)
-{
-    switch (pointer)
-    {
-    case value_LOOP_Loop:
-        Frame_by_col_row(Loop_column_row_loop[0], Loop_column_row_loop[1], Loop_chars_loop, show);
-        break;
-
-    case value_LOOP_Patch:
-        Frame_by_col_row(Loop_column_row_patch[0], Loop_column_row_patch[1], Loop_chars_patch, show);
-        break;
-    }
-}
-
 void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_value_name pointerTrack, const bool show)
 {
     switch (pointerTrack)
