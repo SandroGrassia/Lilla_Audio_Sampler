@@ -6706,9 +6706,10 @@ void loop()
                     Display_MidiLoop.Loop_track_data(local_track);
                 }
 
-                // Update menu on display
+                // Update menu and pointerMenu on display
                 Pointer_MidiLoop.Show_pointerMenu(false);
                 LOOP_select_menu_elements();
+                Display_MidiLoop.Loop_menu();
                 Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
                 /*
                 LOOP_menu = 0;
@@ -6761,7 +6762,7 @@ void loop()
         for (auto track = 0; track < TRACKS; ++track)
         {
             // ricezione richiesta
-            if (LOOP_run_button_state && Read_pushbutton(LOOP_UI_B + track))
+            if (LOOP_run_button_state && Read_pushbutton(PB_Rec[track]))
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
@@ -6854,12 +6855,11 @@ void loop()
                     // switch off all tracks LEDs
                     Loop_led_set.Request_all_LED_switch_off();
 
-                    // update menu
-                    LOOP_menu = 0;
-                    Display_MidiLoop.Loop_Delete_all_frame_menu();
-                    LOOP_select_menu_elements();
-                    Display_MidiLoop.Loop_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
+                    // Update menu and pointerMenu on display
+                Pointer_MidiLoop.Show_pointerMenu(false);
+                LOOP_select_menu_elements();
+                Display_MidiLoop.Loop_menu();
+                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
 
                     // prepare learning
                     LOOP_learn_clock = 0;
@@ -6993,13 +6993,13 @@ void loop()
                             LOOP_original = false;
                         }
 
-                        LOOP_menu = 0;
-                        Display_MidiLoop.Loop_Delete_all_frame_menu();
-                        LOOP_select_menu_elements();
-                        Display_MidiLoop.Loop_menu();
-                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
+                        // Update menu and pointerMenu on display
+                Pointer_MidiLoop.Show_pointerMenu(false);
+                LOOP_select_menu_elements();
+                Display_MidiLoop.Loop_menu();
+                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
 
-                        // report
+                        // Report
                         Serial.println(" **************** ");
                         Serial.print("eventi:");
                         Serial.println(LOOP_events[LOOP_learning_track]);
@@ -7055,10 +7055,8 @@ void loop()
         // Comandi attivi se esiste MASTER_TRACK, comuni a tutti i track
         if (LOOP_events[MASTER_TRACK] > 0)
         {
-            // change menu item
-
             // Choose menu item
-            if (Read_pushbutton(25))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 int choice_loop_menu = element_Menu_LOOP[LOOP_menu];
                 switch (choice_loop_menu)
