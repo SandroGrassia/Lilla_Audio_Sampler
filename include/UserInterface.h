@@ -15,7 +15,7 @@ static constexpr int PUSHBUTTONS = 36;
 static constexpr int SHIFTERS = 6;          // number of shifter chips
 static constexpr int SHIFTER_CHANNELS = 16; // number of channels in a shifter
 
-enum ShifterPort // (input) port id
+enum ShifterPort // (input/output) port id
 {
     a0,
     a1,

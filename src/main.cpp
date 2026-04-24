@@ -658,8 +658,6 @@ bool LOOP_original;
 // Pointer
 LOOP_menu_element_name LOOP_local_pointerMenu;
 LOOP_menu_element_name LOOP_local_pointerMenu_old;
-LOOP_main_value_name LOOP_local_pointerMain;
-LOOP_main_value_name LOOP_local_pointerMain_old;
 LOOP_track_value_name LOOP_local_pointerTrack[TRACKS];
 LOOP_track_value_name LOOP_local_pointerTrack_old[TRACKS];
 
@@ -2082,25 +2080,27 @@ void loop()
                 Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                 S_trim_step = S_Calc_trim_step(trim_speed);
 
-                // menu
+                // Menu
                 S_sound_original = S_Verify_is_Sound_original(Sound_id);
                 S_Select_menu_elements();
+                Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                // start page
+                // Display page
                 Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
 
-                // pointer
+                // Pointer
                 Pointer_Sound.Update_field_description(S_menu_max);
                 Pointer_Sound.Set_pointer_to_file(S_menu_max);
                 S_field_description = Pointer_Sound.Get_field_description();
                 Pointer_Sound.Display_pointer();
 
-                // restore LEDs
+                // Restore LEDs
                 Performance_led_set.Restore_all_LED();
 
+                // Wave
                 Display_Sound.S_show_wave(Instrument_id);
-                Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
+                // Report
                 Serial.print("Editing Sound: ");
                 Serial.println(Instrument_id);
                 Print_Sound(Sound_id);
@@ -2186,7 +2186,7 @@ void loop()
             AudioInterrupts();
         }
 
-        // Change S_pointer using encoder
+        // Move pointer
         result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
@@ -2830,7 +2830,7 @@ void loop()
             Display_Sound.S_show_Trim_step_value();
         }
 
-        // change A
+        // Change A
         result = Read_encoder_simple(1);
         if (result != 0)
         {
@@ -2918,7 +2918,7 @@ void loop()
             }
         }
 
-        // change B
+        // Change B
         result = Read_encoder_simple(3);
         if (result != 0)
         {
@@ -6706,18 +6706,11 @@ void loop()
                     Display_MidiLoop.Loop_track_data(local_track);
                 }
 
-                // Update menu and pointerMenu on display
+                // Update menu and pointerMenu
                 Pointer_MidiLoop.Show_pointerMenu(false);
                 LOOP_select_menu_elements();
                 Display_MidiLoop.Loop_menu();
                 Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-                /*
-                LOOP_menu = 0;
-                Display_MidiLoop.Loop_Delete_all_frame_menu();
-                LOOP_select_menu_elements();
-                Display_MidiLoop.Loop_menu();
-                Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
-                */
 
                 // Switch off all tracks LEDs on display
                 Loop_led_set.Request_all_LED_switch_off();
@@ -6753,6 +6746,7 @@ void loop()
                     LOOP_track_run[local_track] = false;
                 }
 
+                // Report
                 Serial.println("Loop uploaded; data in RAM:");
                 LOOP_Print_midi_loop_complete_data(LOOP_id);
             }
@@ -6855,11 +6849,11 @@ void loop()
                     // switch off all tracks LEDs
                     Loop_led_set.Request_all_LED_switch_off();
 
-                    // Update menu and pointerMenu on display
-                Pointer_MidiLoop.Show_pointerMenu(false);
-                LOOP_select_menu_elements();
-                Display_MidiLoop.Loop_menu();
-                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                    // Update menu and pointerMenu
+                    Pointer_MidiLoop.Show_pointerMenu(false);
+                    LOOP_select_menu_elements();
+                    Display_MidiLoop.Loop_menu();
+                    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
 
                     // prepare learning
                     LOOP_learn_clock = 0;
@@ -6994,10 +6988,10 @@ void loop()
                         }
 
                         // Update menu and pointerMenu on display
-                Pointer_MidiLoop.Show_pointerMenu(false);
-                LOOP_select_menu_elements();
-                Display_MidiLoop.Loop_menu();
-                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                        Pointer_MidiLoop.Show_pointerMenu(false);
+                        LOOP_select_menu_elements();
+                        Display_MidiLoop.Loop_menu();
+                        Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
 
                         // Report
                         Serial.println(" **************** ");
@@ -7055,33 +7049,48 @@ void loop()
         // Comandi attivi se esiste MASTER_TRACK, comuni a tutti i track
         if (LOOP_events[MASTER_TRACK] > 0)
         {
+            // Update metronomo
+            if (LOOP_metronomo_flag_IN[1])
+            {
+                LOOP_metronomo_flag_IN[1] = false;
+                LOOP_metronomo.Update();
+                LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
+            }
+
             // Choose menu item
             if (Read_pushbutton(EN_PB_Select))
             {
-                int choice_loop_menu = element_Menu_LOOP[LOOP_menu];
-                switch (choice_loop_menu)
+                const LOOP_menu_element_name LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+                
+                switch (LOOP_local_pointerMenu)
                 {
-                case 0:                                     // New
+                case value_LOOP_New:
+                {
                     LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
                     LOOP_id = NEW_LOOP;
                     LOOP_original = true;
                     LOOP_run_button_state = true;
+                    
                     Golive_with_MIDI_LOOP(true);
-                    break;
+                }
+                break;
 
-                case 1: // Save
+                case value_LOOP_Save:
+                {
                     LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
 
                     LOOP_original = true;
 
-                    LOOP_menu = 0;
-                    Display_MidiLoop.Loop_Delete_all_frame_menu();
+                    // Update menu and pointerMenu
+                    Pointer_MidiLoop.Show_pointerMenu(false);
                     LOOP_select_menu_elements();
                     Display_MidiLoop.Loop_menu();
-                    Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
-                    break;
+                    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                }
+                break;
 
-                case 2: // Save as new
+                case value_LOOP_SaveAsNew:
+                {
                     result = LOOP_Get_first_loop_id_free();
                     if (result >= 0)
                     {
@@ -7091,18 +7100,21 @@ void loop()
 
                         // Update menu
                         LOOP_original = true;
-                        LOOP_menu = 0;
-                        Display_MidiLoop.Loop_Delete_all_frame_menu();
+
+                        // Update menu and pointerMenu
+                        Pointer_MidiLoop.Show_pointerMenu(false);
                         LOOP_select_menu_elements();
                         Display_MidiLoop.Loop_menu();
-                        Display_MidiLoop.Loop_show_frame_menu(LOOP_menu);
+                        Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
 
                         // Update loop_id
                         Display_MidiLoop.Loop_loop_id();
                     }
-                    break;
+                }
+                break;
 
-                case 3: // Delete
+                case value_LOOP_Delete:
+                {
                     LOOP_Delete_midi_loop_from_SD(LOOP_id);
 
                     // new
@@ -7110,19 +7122,21 @@ void loop()
                     LOOP_id = NEW_LOOP;
                     LOOP_original = true;
                     LOOP_run_button_state = true;
+
                     Golive_with_MIDI_LOOP(true);
-                    break;
+                }
+                break;
                 }
             }
 
             // Change tempo
-            if (Read_encoder_inverse(24, LOOP_stretch_int, 198, 1, 1))
+            if (Read_encoder_inverse(EN_PB_Tempo, LOOP_stretch_int, 198, 1, 1))
             {
                 AudioNoInterrupts();
                 // Memorizza il tempo virtuale attuale
                 LOOP_clock_memo = LOOP_Clock();
 
-                // Aggiorna LOOP_stretch
+                // Update LOOP_stretch
                 if (LOOP_stretch_int <= 100)
                 {
                     LOOP_stretch = LOOP_stretch_int / 100.0;
@@ -7132,18 +7146,19 @@ void loop()
                     LOOP_stretch = 1.0 / (2.0f - LOOP_stretch_int / 100.0f);
                 }
 
-                // Ricalcolo LOOP_clock
+                // Update LOOP_clock
                 LOOP_clock = LOOP_clock_memo * LOOP_stretch;
                 AudioInterrupts();
 
                 Display_MidiLoop.Loop_total_time();
 
+                // Report
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);
             }
 
             // Back to original tempo
-            if (Read_pushbutton(24))
+            if (Read_pushbutton(EN_PB_Tempo))
             {
                 AudioNoInterrupts();
                 // Memorizza il tempo virtuale attuale
@@ -7163,16 +7178,8 @@ void loop()
                 Serial.println(LOOP_stretch);
             }
 
-            // Update metronomo tempo
-            if (LOOP_metronomo_flag_IN[1])
-            {
-                LOOP_metronomo_flag_IN[1] = false;
-                LOOP_metronomo.Update();
-                LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
-            }
-
             // Start/Stop all tracks
-            if (Read_pushbutton(7))
+            if (Read_pushbutton(EN_PB_Loop))
             {
                 // stop all tracks
                 if (LOOP_run_button_state)
@@ -7293,24 +7300,36 @@ void loop()
             Shifters_manager.Set_context(Sound_edit_context);
 
             Instrument_id = PB_number;
-            Serial.print("Editing Sound: ");
-            Serial.println(Instrument_id);
             Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-            Print_Sound(Sound_id);
-
+            
             samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
             Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
             S_trim_step = S_Calc_trim_step(trim_speed);
-            S_sound_original = S_Verify_is_Sound_original(Sound_id);
-            S_menu = 0;
 
+            // Display page
             Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
-            // to do: display LED
+            
+            // Menu
+            S_sound_original = S_Verify_is_Sound_original(Sound_id);
+            S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
+            Display_Sound.S_show_SOUND_menu(); 
 
+            // Pointer
+            Pointer_Sound.Update_field_description(S_menu_max);
+            Pointer_Sound.Set_pointer_to_first_element();
+            S_field_description = Pointer_Sound.Get_field_description();
+            Pointer_Sound.Display_pointer();
+
+            // Restore LEDs
+            Performance_led_set.Restore_all_LED();
+
+            // Wave
             Display_Sound.S_show_wave(Instrument_id);
 
-            Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
-            Display_Sound.S_show_menu_frame(S_menu);
+            // Report
+            Serial.print("Editing Sound: ");
+            Serial.println(Instrument_id);
+            Print_Sound(Sound_id);
         }
     }
 #pragma endregion // MIDI_LOOP
@@ -12298,6 +12317,12 @@ void S_Select_menu_elements(void)
     if (Patch[Patch_id].instruments == 1)
     {
         S_Menu[value_S_Drop] = false; // DELETE
+    }
+
+    if (Lilla_state_0 == MIDI_LOOP)
+    {
+       S_Menu[value_S_Clone] = false; 
+       S_Menu[value_S_Drop] = false;
     }
 
     S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] - 1;

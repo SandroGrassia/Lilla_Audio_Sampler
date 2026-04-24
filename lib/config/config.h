@@ -56,3 +56,5 @@ enum LillaContext
     Setup_context,
     Control_Change_context
 };
+
+static constexpr int TRACKS = 4; // MIDI Loop encoders and pushbuttons 
