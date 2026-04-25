@@ -39,7 +39,7 @@ void PointerMidiLoop::Move_pointerMenu(const int value)
     if (change)
     {
         Display_MidiLoop.Loop_show_pointerMenu(pointerMenu_old, false);
-        Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, false);
+        Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, true);
     }
 }
 

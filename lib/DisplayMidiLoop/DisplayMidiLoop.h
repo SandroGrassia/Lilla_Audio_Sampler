@@ -32,7 +32,7 @@ private:
     static constexpr int Loop_column_row_LEVEL[2] = {2, 8};
     static constexpr int Loop_column_row_SOUND[2] = {2, 9};
 
-    static constexpr int Loop_column_row_loop[2] = {22, 0};
+    static constexpr int Loop_column_row_loop[2] = {23, 0};
     static constexpr int Loop_column_row_patch[2] = {36, 0};
     static constexpr float Loop_column_row_volume[2] = {47.5, 0};
 
@@ -75,8 +75,7 @@ private:
     static const int Loop_chars_track_number = 1;
     static const int Loop_chars_slide = 6;
     static const int Loop_chars_pitch = 7;
-    static const int Loop_chars_level = 6;
-
+    static const int Loop_chars_level = 4;
 
 public:
     DisplayMidiLoop() {}
@@ -85,11 +84,11 @@ public:
     void Loop_patch_id(void);
     void Loop_volume(void);
     void Loop_show_midi_loop_title(void);
-    void Loop_track_data(int track);
+    void Show_track_all_data(const int track);
     void Loop_total_time(void);
-    void Loop_REC_advice(int track, bool on);
-    void Loop_led(int track, int instrument_id, bool on);
-    void Loop_led_metronomo(int Xled, int Yled, bool ONled);
+    void Loop_REC_advice(const int track, const bool on);
+    void Loop_led(const int track, const int instrument_id, const bool on);
+    void Loop_led_metronomo(const int Xled, const int Yled, const bool ONled);
     void Loop_menu(void);
  
     void Loop_show_frame_menu(int position);

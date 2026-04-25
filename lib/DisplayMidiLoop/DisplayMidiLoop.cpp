@@ -7,7 +7,7 @@
 #include "DisplayMidiLoop.h"
 
 FLASHMEM
-void DisplayMidiLoop::Loop_REC_advice(int track, bool on)
+void DisplayMidiLoop::Loop_REC_advice(const int track, const bool on)
 {
     if (on)
     {
@@ -108,7 +108,7 @@ void DisplayMidiLoop::Loop_show_Loop_page(void)
 
     for (auto track = 0; track < TRACKS; ++track)
     {
-        Loop_track_data(track);
+        Show_track_all_data(track);
     }
 
     Loop_total_time();
@@ -145,7 +145,7 @@ void DisplayMidiLoop::Loop_menu(void)
 }
 
 FLASHMEM
-void DisplayMidiLoop::Loop_show_frame_menu(int position)
+void DisplayMidiLoop::Loop_show_frame_menu(const int position)
 {
     if (LOOP_menu_max < 0) // if (!Menu_LOOP[0] && !Menu_LOOP[1] && !Menu_LOOP[2])
     {
@@ -175,7 +175,7 @@ void DisplayMidiLoop::Loop_show_midi_loop_title(void)
 }
 
 FLASHMEM
-void DisplayMidiLoop::Loop_track_data(int track)
+void DisplayMidiLoop::Show_track_all_data(const int track)
 {
     // Numero
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]), Loop_chars_track_number);
@@ -224,7 +224,7 @@ void DisplayMidiLoop::Loop_total_time(void)
     tft.print("s");
 }
 
-void DisplayMidiLoop::Loop_led(int track, int instrument_id, bool on)
+void DisplayMidiLoop::Loop_led(const int track, const int instrument_id, const bool on)
 {
     // tft.drawBitmap(Loop_LED_X + track * 42, Loop_LED_Y + instrument_id * Loop_LED_DY, led_pic, 8, 8, on ? GREEN_ON : GREEN_OFF);
     tft.drawBitmap(display_coordinate_x(Loop_column_row_sound_LED_0[0] + track * Loop_coefficients_column_row_sound_LED[0]), display_coordinate_y(Loop_column_row_sound_LED_0[1] + instrument_id * Loop_coefficients_column_row_sound_LED[1]), led_pic, 8, 8, on ? GREEN_ON : GREEN_OFF);
@@ -238,7 +238,12 @@ void DisplayMidiLoop::Loop_led_metronomo(int Xled, int Yled, bool ONled)
 void DisplayMidiLoop::Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show)
 {
     const int position = position_Menu_LOOP[pointer];
-    Frame_by_col_row(X_position_Menu_LOOP[position], 1, dimension_voice_Menu_LOOP[element_Menu_LOOP[position]], true);
+    Frame_by_col_row(X_position_Menu_LOOP[position], 1, dimension_voice_Menu_LOOP[element_Menu_LOOP[position]], show);
+
+    Serial.print("DisplayMidiLoop::Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show) - pointer: ");
+    Serial.print(pointer);
+    Serial.print(" show: ");
+    Serial.println(show);
 }
 
 void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_value_name pointerTrack, const bool show)

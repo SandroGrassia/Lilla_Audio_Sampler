@@ -751,6 +751,7 @@ uint32_t big_result;
 elapsedMicros microtimer;
 
 // Startup
+void Compile_tables(void);
 void Bootstrap_setup(void);
 
 int Line_in_gain;
@@ -789,7 +790,36 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
         return false;
     }
 }
+
+template <class T>
+bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
+{
+    auto R = Encoders_manager.Get_rotation(encoder);
+    if (R == 0)
+    {
+        return false;
+    }
+    else if (R == 1)
+    {
+        if (value > lowest)
+        {
+            value -= increment;
+            return true;
+        }
+        return false;
+    }
+    else
+    {
+        if (value < highest)
+        {
+            value += increment;
+            return true;
+        }
+        return false;
+    }
+}
 */
+
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
 {
@@ -843,35 +873,6 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
     }
 }
 
-/*
-template <class T>
-bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
-{
-    auto R = Encoders_manager.Get_rotation(encoder);
-    if (R == 0)
-    {
-        return false;
-    }
-    else if (R == 1)
-    {
-        if (value > lowest)
-        {
-            value -= increment;
-            return true;
-        }
-        return false;
-    }
-    else
-    {
-        if (value < highest)
-        {
-            value += increment;
-            return true;
-        }
-        return false;
-    }
-}
-*/
 
 template <class T>
 bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
@@ -884,11 +885,11 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     if constexpr (std::is_enum_v<T>)
     {
         auto v = static_cast<int>(value);
-        if (R == -1)
+        if (R == 1)
         {
             if (v > lowest)
             {
-                value = static_cast<T>(v + increment);
+                value = static_cast<T>(v - increment);
                 return true;
             }
             return false;
@@ -897,7 +898,7 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
         {
             if (v < highest)
             {
-                value = static_cast<T>(v - increment);
+                value = static_cast<T>(v + increment);
                 return true;
             }
             return false;
@@ -905,11 +906,11 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
     else
     {
-        if (R == -1)
+        if (R == 1)
         {
             if (value > lowest)
             {
-                value = value + increment;
+                value = value - increment;
                 return true;
             }
             return false;
@@ -918,13 +919,14 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
         {
             if (value < highest)
             {
-                value = value - increment;
+                value = value + increment;
                 return true;
             }
             return false;
         }
     }
 }
+
 
 // SGTL5000 Audio_shield
 int headphones_volume_int = 40; // 0 --> 40
@@ -946,6 +948,9 @@ void setup()
     */
     AudioMemory(80);
     Serial.begin(115200);
+    
+    // Value tables
+    Compile_tables();
 
     // udioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
     Line_in_gain = 15;
@@ -1239,6 +1244,7 @@ void loop()
     if (Read_encoder_inverse(0, resolution, RES_MAX, 0, 1))
     {
         resolution_reset = false;
+
         AudioNoInterrupts();
         Players_Manager.Multicast_effects(resolution_value[resolution], downsampling);
         AudioInterrupts();
@@ -1253,6 +1259,7 @@ void loop()
     if (Read_encoder_inverse(8, downsampling, 60, 1, 1))
     {
         downsampling_reset = false;
+
         AudioNoInterrupts();
         Players_Manager.Multicast_effects(resolution_value[resolution], downsampling);
         AudioInterrupts();
@@ -1263,13 +1270,20 @@ void loop()
         }
     }
 
+    // ****************************************************************************************************************
+    // *****************************************************   Test FRAM  *********************************************
+    /*
+    if (Read_pushbutton(0))
+    {
+        Archive.Test_Fram(0xAB);
+    }
+    */
+   // *****************************************************************************************************************
+   // *****************************************************************************************************************
+
     // Resolution (on/off) pushbutton
     if (Read_pushbutton(0))
     {
-
-        Archive.Test_Fram(0xAB);
-
-        /*
         if (!resolution_reset)
         {
             resolution_cache = resolution;
@@ -1288,10 +1302,9 @@ void loop()
 
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_old.Resolution();
+            Display_Manager.Resolution();
         }
         resolution_reset = !resolution_reset;
-        */
     }
 
     // Downsampling (on/off) pushbutton
@@ -2061,8 +2074,6 @@ void loop()
             }
             display_instrument_volume_flag = false;
         }
-
-        // choose MENU item
 
         // Pushbuttons
         if (!Read_pushbutton_fast(35))
@@ -6480,21 +6491,6 @@ void loop()
             }
         }
 
-        // Move pointerTrack - move pointerMain
-        if (Read_pushbutton_fast(EN_PB_Value))
-        {
-            // Move pointerTrack
-            for (auto track = 0; track < TRACKS; ++track)
-            {
-                result = Read_encoder_simple(EN_PB_Track[track]);
-                if (result != 0)
-                {
-                    Pointer_MidiLoop.Move_pointerTrack(track, result);
-                    LOOP_local_pointerTrack[0] = Pointer_MidiLoop.Get_pointerTrack(track);
-                }
-            }
-        }
-
         // Change tracks values
         else
         {
@@ -6598,7 +6594,7 @@ void loop()
                             Loop_led_set.Request_track_LED_switch_off(track);
 
                             LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                            Display_MidiLoop.Loop_track_data(track);
+                            Display_MidiLoop.Show_track_all_data(track);
                         }
 
                         // Annulla slide temporale
@@ -6628,7 +6624,7 @@ void loop()
                                 Loop_led_set.Request_track_LED_switch_off(track);
 
                                 LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                                Display_MidiLoop.Loop_track_data(track);
+                                Display_MidiLoop.Show_track_all_data(track);
                             }
                         }
                     }
@@ -6640,7 +6636,7 @@ void loop()
                         {
                             LOOP_original = false;
 
-                            Display_MidiLoop.Loop_track_data(track);
+                            Display_MidiLoop.Show_track_all_data(track);
                             Serial.print("LOOP_pitch_int: ");
                             Serial.println(LOOP_pitch_int[track]);
                         }
@@ -6658,7 +6654,7 @@ void loop()
                             Players_Manager.Multicast_volume_for_MIDI_LOOP_running(track, LOOP_volume[track]);
                             AudioInterrupts();
 
-                            Display_MidiLoop.Loop_track_data(track);
+                            Display_MidiLoop.Show_track_all_data(track);
                             Serial.print("LOOP_volume: ");
                             Serial.println(LOOP_volume[track]);
                         }
@@ -6703,7 +6699,7 @@ void loop()
                 // update tracks infos on display
                 for (auto local_track = 0; local_track < TRACKS; ++local_track)
                 {
-                    Display_MidiLoop.Loop_track_data(local_track);
+                    Display_MidiLoop.Show_track_all_data(local_track);
                 }
 
                 // Update menu and pointerMenu
@@ -6760,7 +6756,7 @@ void loop()
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
-                // attivita' prioritarie AudioNoInterrupts()
+                // High priority
                 AudioNoInterrupts();
                 if (LOOP_events[LOOP_learning_track] != 0)
                 {
@@ -6820,7 +6816,7 @@ void loop()
                 }
                 AudioInterrupts();
 
-                // attivita' sul display - NO AudioNoInterrupts()
+                // Display update, and other low priority procedures
                 if (LOOP_learning_track == MASTER_TRACK)
                 {
                     // Spegni i led del metronomo
@@ -6838,9 +6834,9 @@ void loop()
                 if (LOOP_learning_track == MASTER_TRACK || (LOOP_learning_track > MASTER_TRACK && LOOP_events[MASTER_TRACK] != 0))
                 {
                     // show (or delete) all tracks infos
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                    for (auto track = 0; track < TRACKS; ++track)
                     {
-                        Display_MidiLoop.Loop_track_data(local_track);
+                        Display_MidiLoop.Show_track_all_data(track);
                     }
 
                     // display "n-REC"
@@ -6915,27 +6911,29 @@ void loop()
                         }
                     }
 
-                    // from here LOOP_learn_flag == false
-                    Serial.println("Learning concluso!");
+                    // From here LOOP_learn_flag == false
                     LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
+                    Serial.println("Learning closed!");
 
-                    // new track is valid (contains events)
+                    // The new track is valid (contains events)
                     if (LOOP_events[LOOP_learning_track] > 0)
                     {
-                        // se e' il loop_master:
+                        // If MASTER_TRACK
                         if (LOOP_learning_track == MASTER_TRACK)
                         {
                             // Setup di LOOP_time (durata di tutti i loop)
                             LOOP_time = LOOP_learn_clock;
-                            Serial.print("LOOP_time:");
-                            Serial.println(LOOP_time);
-
-                            // restart clock
+                            
+                            // Restart clock
                             LOOP_restart_clock();
 
-                            // reset stretch
+                            // Reset stretch
                             LOOP_stretch_int = 100;
                             LOOP_stretch = 1.0;
+
+                            // Report
+                            Serial.print("LOOP_time:");
+                            Serial.println(LOOP_time);
                         }
 
                         // aggiungi info di slide
@@ -6961,9 +6959,10 @@ void loop()
                             // metronomo switch-on
                             LOOP_metronomo_run = true;
                         }
-
                         else
+                        {
                             LOOP_play_time[LOOP_learning_track] = LOOP_Clock_time_from_virtual_time(LOOP_element[LOOP_learning_track][0].time);
+                        }
 
                         // effettua l'ordinamento temporale degli eventi
                         LOOP_set_time_order(LOOP_learning_track);
@@ -7035,9 +7034,12 @@ void loop()
                         LOOP_metronomo_flag_IN[0] = false;
                     }
 
-                    Display_MidiLoop.Loop_track_data(track);
+                    Display_MidiLoop.Show_track_all_data(track);
 
-                    // visualizza durata totale
+                    // PointerTrack
+                    Pointer_MidiLoop.Set_pointerTrack_to_level(track);
+
+                    // Display loop time
                     if (LOOP_learning_track == MASTER_TRACK)
                     {
                         Display_MidiLoop.Loop_total_time();
@@ -7046,7 +7048,7 @@ void loop()
             }
         }
 
-        // Comandi attivi se esiste MASTER_TRACK, comuni a tutti i track
+        // All track active commands (if MASTER_TRACK exists)
         if (LOOP_events[MASTER_TRACK] > 0)
         {
             // Update metronomo
@@ -7057,11 +7059,29 @@ void loop()
                 LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
             }
 
+            // Move pointerTrack - move pointerMain
+            if (Read_pushbutton_fast(EN_PB_Value))
+            {
+                // Move pointerTrack
+                for (auto track = 0; track < TRACKS; ++track)
+                {
+                    if (LOOP_events[track] > 0)
+                    {
+                        result = Read_encoder_simple(EN_PB_Track[track]);
+                        if (result != 0)
+                        {
+                            Pointer_MidiLoop.Move_pointerTrack(track, result);
+                            LOOP_local_pointerTrack[0] = Pointer_MidiLoop.Get_pointerTrack(track);
+                        }
+                    }
+                }
+            }
+
             // Choose menu item
             if (Read_pushbutton(EN_PB_Select))
             {
                 const LOOP_menu_element_name LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
-                
+
                 switch (LOOP_local_pointerMenu)
                 {
                 case value_LOOP_New:
@@ -7070,7 +7090,7 @@ void loop()
                     LOOP_id = NEW_LOOP;
                     LOOP_original = true;
                     LOOP_run_button_state = true;
-                    
+
                     Golive_with_MIDI_LOOP(true);
                 }
                 break;
@@ -7301,18 +7321,18 @@ void loop()
 
             Instrument_id = PB_number;
             Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-            
+
             samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
             Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
             S_trim_step = S_Calc_trim_step(trim_speed);
 
             // Display page
             Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
-            
+
             // Menu
             S_sound_original = S_Verify_is_Sound_original(Sound_id);
             S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
-            Display_Sound.S_show_SOUND_menu(); 
+            Display_Sound.S_show_SOUND_menu();
 
             // Pointer
             Pointer_Sound.Update_field_description(S_menu_max);
@@ -7811,8 +7831,26 @@ void loop()
 // ***************************************************************************************************************
 // **********************************                   TABLES                  **********************************
 // ***************************************************************************************************************
-
 FLASHMEM
+void Compile_tables(void)
+{
+    const float value_float = 16.0;
+
+    for (auto i = 0; i < 10; ++i)
+    {
+        m_exp_table[i] = exp_table[i + 1] - exp_table[i];
+        m_sin_table[i] = sin_table[i + 1] - sin_table[i];
+        m_decay_table[i] = decay_table[i + 1] - decay_table[i];
+        m_release_table[i] = release_table[i + 1] - release_table[i];
+    }
+    for (auto i = 0; i <= 32; ++i)
+    {
+        pan_gain_L_table[i] = sin((value_float - (i - 16)) * 0.049087f); // Left channel , 0.049087 = M_PI/64.0
+        pan_gain_R_table[i] = sin((value_float + (i - 16)) * 0.049087f); // Right channel , 0.049087 = M_PI/64.0
+    }
+}
+
+
 // ***************************************************************************************************************
 // **********************************                 UTILITIES                 **********************************
 // ***************************************************************************************************************
@@ -12321,8 +12359,8 @@ void S_Select_menu_elements(void)
 
     if (Lilla_state_0 == MIDI_LOOP)
     {
-       S_Menu[value_S_Clone] = false; 
-       S_Menu[value_S_Drop] = false;
+        S_Menu[value_S_Clone] = false;
+        S_Menu[value_S_Drop] = false;
     }
 
     S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] - 1;

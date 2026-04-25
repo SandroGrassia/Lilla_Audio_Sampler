@@ -51,6 +51,14 @@ bool slicing_mode = true; // true: slicing AB  - false: slicing A-Samples
 const char name_mode[6][8] = {{"FWD"}, {"REV"}, {"FWD"}, {"FWD-REV"}, {"REV-FWD"}, {"REV"}};
 char loop_mode[6][5] = {{"once"}, {"once"}, {"loop"}, {"loop"}, {"loop"}, {"loop"}};
 
+// array compilati al setup()
+float m_exp_table[10];
+float m_sin_table[10];
+float m_decay_table[10];
+float m_release_table[10];
+float pan_gain_L_table[33];
+float pan_gain_R_table[33];
+
 // funzioni
 uint8_t Get_midi_channel(int patch_id, int instrument_id)
 {

@@ -168,35 +168,25 @@ extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by
 // == overloads
 inline bool operator==(const Instrument_filter_data_struct &lhs, const Instrument_filter_data_struct &rhs)
 {
-    return lhs.use == rhs.use
-        && lhs.type == rhs.type
-        && lhs.pivot == rhs.pivot
-        && lhs.resonance == rhs.resonance
-        && lhs.modulation == rhs.modulation
-        && lhs.index == rhs.index
-        && lhs.frequency_time == rhs.frequency_time;
+    return lhs.use == rhs.use && lhs.type == rhs.type && lhs.pivot == rhs.pivot && lhs.resonance == rhs.resonance && lhs.modulation == rhs.modulation && lhs.index == rhs.index && lhs.frequency_time == rhs.frequency_time;
 }
 
 inline bool operator==(const Instrument_struct &lhs, const Instrument_struct &rhs)
 {
-    return lhs.used == rhs.used
-        && lhs.sound_id == rhs.sound_id
-        && lhs.root_key == rhs.root_key
-        && lhs.from_note == rhs.from_note
-        && lhs.to_note == rhs.to_note
-        && lhs.precedence == rhs.precedence
-        && lhs.lock == rhs.lock
-        && lhs.Filter == rhs.Filter;
+    return lhs.used == rhs.used && lhs.sound_id == rhs.sound_id && lhs.root_key == rhs.root_key && lhs.from_note == rhs.from_note && lhs.to_note == rhs.to_note && lhs.precedence == rhs.precedence && lhs.lock == rhs.lock && lhs.Filter == rhs.Filter;
 }
 
 inline bool operator==(const Patch_struct &lhs, const Patch_struct &rhs)
 {
-    if (lhs.used != rhs.used || lhs.instruments != rhs.instruments) {
+    if (lhs.used != rhs.used || lhs.instruments != rhs.instruments)
+    {
         return false;
     }
 
-    for (int i = 0; i < INSTRUMENTS_MAX; ++i) {
-        if (!(lhs.Instrument[i] == rhs.Instrument[i])) {
+    for (int i = 0; i < INSTRUMENTS_MAX; ++i)
+    {
+        if (!(lhs.Instrument[i] == rhs.Instrument[i]))
+        {
             return false;
         }
     }
@@ -204,22 +194,9 @@ inline bool operator==(const Patch_struct &lhs, const Patch_struct &rhs)
     return true;
 }
 
-inline bool operator==(const Sound_struct& lhs, const Sound_struct& rhs)
+inline bool operator==(const Sound_struct &lhs, const Sound_struct &rhs)
 {
-    return lhs.used == rhs.used
-        && lhs.file == rhs.file
-        && lhs.mode == rhs.mode
-        && lhs.pitch == rhs.pitch
-        && lhs.A == rhs.A
-        && lhs.B == rhs.B
-        && lhs.Noclick == rhs.Noclick
-        && lhs.pan == rhs.pan
-        && lhs.data == rhs.data
-        && lhs.attack == rhs.attack
-        && lhs.decay == rhs.decay
-        && lhs.sustain == rhs.sustain
-        && lhs.release == rhs.release
-        && lhs.gain == rhs.gain;
+    return lhs.used == rhs.used && lhs.file == rhs.file && lhs.mode == rhs.mode && lhs.pitch == rhs.pitch && lhs.A == rhs.A && lhs.B == rhs.B && lhs.Noclick == rhs.Noclick && lhs.pan == rhs.pan && lhs.data == rhs.data && lhs.attack == rhs.attack && lhs.decay == rhs.decay && lhs.sustain == rhs.sustain && lhs.release == rhs.release && lhs.gain == rhs.gain;
 }
 
 // PERFORMANCE
@@ -228,7 +205,7 @@ extern uint8_t Patch_id;
 extern int volume_patch;
 extern uint8_t map_instrument_for_note[16][NOTE_NUMBERS];
 extern bool key_state[16][NOTE_NUMBERS]; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
-extern bool file_midi_ch_flag;  // quale funzionalita' regola l'encoder 2
+extern bool file_midi_ch_flag;           // quale funzionalita' regola l'encoder 2
 extern int8_t P_line_of_instrument[INSTRUMENTS_MAX];
 extern float pitch_from_note[NOTE_NUMBERS];
 extern bool display_instrument_volume_flag;
@@ -302,30 +279,47 @@ static constexpr float sin_table[11] = {0.0, 0.0245, 0.0955, 0.2061, 0.3455, 0.5
 static constexpr float decay_table[11] = {1.0, 0.9755, 0.9045, 0.7939, 0.6545, 0.5, 0.3455, 0.2061, 0.0955, 0.0245, 0.0};
 static constexpr float release_table[11] = {1.0, 0.4991, 0.2487, 0.1234, 0.0608, 0.0295, 0.0139, 0.0060, 0.0021, 0.0002, 0.0};
 
+// array compilati al setup()
+extern float m_exp_table[10];
+extern float m_sin_table[10];
+extern float m_decay_table[10];
+extern float m_release_table[10];
+extern float pan_gain_L_table[33];
+extern float pan_gain_R_table[33];
+
+/*
 // Compile-time helpers that build the interpolation and panning lookup tables; not intended for direct use outside this header
-namespace detail {
-    constexpr std::array<float, 10> make_delta(const float (&src)[11]) {
+namespace detail
+{
+    constexpr std::array<float, 10> make_delta(const float (&src)[11])
+    {
         std::array<float, 10> r{};
-        for (int i = 0; i < 10; ++i) r[i] = src[i + 1] - src[i];
+        for (int i = 0; i < 10; ++i)
+            r[i] = src[i + 1] - src[i];
         return r;
     }
-    constexpr std::array<float, 33> make_pan_L() {
+    inline std::array<float, 33> make_pan_L()
+    {
         std::array<float, 33> r{};
-        for (int i = 0; i <= 32; ++i) r[i] = __builtin_sinf((16.0f - float(i - 16)) * 0.049087f);
+        for (int i = 0; i <= 32; ++i)
+            r[i] = __builtin_sinf((16.0f - float(i - 16)) * 0.049087f);
         return r;
     }
-    constexpr std::array<float, 33> make_pan_R() {
+    inline std::array<float, 33> make_pan_R()
+    {
         std::array<float, 33> r{};
-        for (int i = 0; i <= 32; ++i) r[i] = __builtin_sinf((16.0f + float(i - 16)) * 0.049087f);
+        for (int i = 0; i <= 32; ++i)
+            r[i] = __builtin_sinf((16.0f + float(i - 16)) * 0.049087f);
         return r;
     }
 }
-inline constexpr auto m_exp_table     = detail::make_delta(exp_table);
-inline constexpr auto m_sin_table     = detail::make_delta(sin_table);
-inline constexpr auto m_decay_table   = detail::make_delta(decay_table);
+inline constexpr auto m_exp_table = detail::make_delta(exp_table);
+inline constexpr auto m_sin_table = detail::make_delta(sin_table);
+inline constexpr auto m_decay_table = detail::make_delta(decay_table);
 inline constexpr auto m_release_table = detail::make_delta(release_table);
-inline constexpr auto pan_gain_L_table = detail::make_pan_L();
-inline constexpr auto pan_gain_R_table = detail::make_pan_R();
+inline const auto pan_gain_L_table = detail::make_pan_L();
+inline const auto pan_gain_R_table = detail::make_pan_R();
+*/
 
 // funzioni
 uint8_t Get_midi_channel(int patch_id, int instrument_id);
