@@ -35,10 +35,9 @@ private:
     static constexpr int Loop_column_row_loop[2] = {23, 0};
     static constexpr int Loop_column_row_patch[2] = {36, 0};
     static constexpr float Loop_column_row_volume[2] = {47.5, 0};
-
     static constexpr int Loop_column_row_total_time[2] = {20, 4};
 
-    static constexpr int Loop_column_distance = 11;
+    static constexpr int Loop_column_distance = 10;
 
     static constexpr int Loop_column_row_track[TRACKS][2] = {
         {11, 5},

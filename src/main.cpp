@@ -6587,7 +6587,7 @@ void loop()
         for (auto track = 0; track < TRACKS; ++track)
         {
             // Learning
-            if (LOOP_run_button_state && Read_pushbutton(PB_Rec[track]))
+            if (Read_pushbutton(PB_Rec[track]) && LOOP_run_button_state)
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
@@ -6671,11 +6671,12 @@ void loop()
                     // Show (or delete) all tracks infos
                     for (auto track = 0; track < TRACKS; ++track)
                     {
+                        Display_MidiLoop.Show_track_all_data(track);
+
                         if (LOOP_events[track] == 0)
                         {
                             Pointer_MidiLoop.Show_pointerTrack(track, false);
                         }
-                        Display_MidiLoop.Show_track_all_data(track);
                     }
 
                     // Display "n-REC"
@@ -6875,7 +6876,7 @@ void loop()
 
                     Display_MidiLoop.Show_track_all_data(track);
 
-                    // PointerTrack
+                    // Pointer pointerTrack
                     Pointer_MidiLoop.Set_pointerTrack_to_level(track);
                     LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
 
@@ -9373,7 +9374,20 @@ void Golive_with_MIDI_LOOP(bool restart)
 
     LOOP_select_menu_elements();
     Display_MidiLoop.Show_Loop_page();
+
+    // Pointer pointerMenu
     Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+
+    // Pointers pointerTrack
+    for (auto track = 0; track < TRACKS; ++track)
+    {
+        if (LOOP_events[track] > 0)
+        {
+            Pointer_MidiLoop.Set_pointerTrack_to_level(track);
+            LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
+        }
+    }
 
     // LEDs setup
     if (restart)
@@ -9391,6 +9405,7 @@ void Golive_with_MIDI_LOOP(bool restart)
         if (restart)
         {
             LOOP_restart_clock();
+            
             // Accendi primo led metronomo
             LOOP_metronomo.Led_ON(0);
 
