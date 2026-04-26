@@ -28,7 +28,7 @@ void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
 
     if (Lilla_state_0 == MIDI_LOOP)
     {
-        Display_MidiLoop.Loop_show_midi_loop_title();
+        Display_MidiLoop.Show_MIDI_LOOP();
     }
     else
     {
@@ -49,7 +49,7 @@ void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
     tft.print("FILE");
     S_show_File_value(instrument_id);
 
-    Display_Manager.ALL_show_effects();
+    Display_Manager.Show_all_effects();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);

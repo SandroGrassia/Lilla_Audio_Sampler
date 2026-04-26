@@ -60,7 +60,7 @@ void DisplayDelay::D_show_page()
     tft.print("VOLUME");
     Display_Manager.P_Patch_volume_value(true);
 
-    Display_Manager.ALL_show_effects();
+    Display_Manager.Show_all_effects();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(DEL_ROW_SOUND));
     tft.setTextColor(TEXT_COLOR);

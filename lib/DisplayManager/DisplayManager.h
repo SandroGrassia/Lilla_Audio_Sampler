@@ -110,7 +110,7 @@ public:
     void Lilla_cover_saturate(void);
 
     // Funzioni comuni
-    void ALL_show_effects(void);
+    void Show_all_effects(void);
     void Resolution(void);
     void Downsampling(void);
     void Lowpass_filter(void);

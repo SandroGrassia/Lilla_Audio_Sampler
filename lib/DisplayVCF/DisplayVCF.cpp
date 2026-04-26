@@ -36,7 +36,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
     {
         if (Lilla_state_0 == MIDI_LOOP)
         {
-            Display_MidiLoop.Loop_show_midi_loop_title();
+            Display_MidiLoop.Show_MIDI_LOOP();
         }
         else
         {
@@ -65,7 +65,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
         tft.print("RETURN");
     }
 
-    Display_Manager.ALL_show_effects();
+    Display_Manager.Show_all_effects();
     VCF_show_solo_value();
 
     Backgorund_red(0, 6.8, 9); // Display.Board(float col, float row, int chars)

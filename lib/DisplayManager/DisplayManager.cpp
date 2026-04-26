@@ -207,7 +207,7 @@ void DisplayManager::P_show_PERFORMANCE_title(void)
 }
 
 FLASHMEM
-void DisplayManager::ALL_show_effects()
+void DisplayManager::Show_all_effects()
 {
     float Y_EFF;
 
@@ -505,7 +505,7 @@ void DisplayManager::P_Patch_header(bool change_patch, bool change_vol)
     P_show_PERFORMANCE_title();
     P_show_Patch_number(change_patch);
     P_Patch_VOLUME(change_vol);
-    ALL_show_effects();
+    Show_all_effects();
 }
 
 FLASHMEM
