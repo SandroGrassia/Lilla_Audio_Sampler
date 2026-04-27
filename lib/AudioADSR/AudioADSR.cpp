@@ -111,6 +111,7 @@ void AudioADSR::Fast_stop(void)
 {
     K_Release_delta = ADSR_gain; // [gain]
     phase = RELEASE;              // Release
+    K_Release_step = 10 / 128.0f; // gain fall to 0 in 10 samples!
     ADSR_point_0 = -K_Release_step;
 }
 
