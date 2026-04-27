@@ -8,6 +8,7 @@
 
 #include <Arduino.h>
 #include <FS.h>
+#include <array>
 #include "config.h"
 
 // Main constants
@@ -167,35 +168,25 @@ extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by
 // == overloads
 inline bool operator==(const Instrument_filter_data_struct &lhs, const Instrument_filter_data_struct &rhs)
 {
-    return lhs.use == rhs.use
-        && lhs.type == rhs.type
-        && lhs.pivot == rhs.pivot
-        && lhs.resonance == rhs.resonance
-        && lhs.modulation == rhs.modulation
-        && lhs.index == rhs.index
-        && lhs.frequency_time == rhs.frequency_time;
+    return lhs.use == rhs.use && lhs.type == rhs.type && lhs.pivot == rhs.pivot && lhs.resonance == rhs.resonance && lhs.modulation == rhs.modulation && lhs.index == rhs.index && lhs.frequency_time == rhs.frequency_time;
 }
 
 inline bool operator==(const Instrument_struct &lhs, const Instrument_struct &rhs)
 {
-    return lhs.used == rhs.used
-        && lhs.sound_id == rhs.sound_id
-        && lhs.root_key == rhs.root_key
-        && lhs.from_note == rhs.from_note
-        && lhs.to_note == rhs.to_note
-        && lhs.precedence == rhs.precedence
-        && lhs.lock == rhs.lock
-        && lhs.Filter == rhs.Filter;
+    return lhs.used == rhs.used && lhs.sound_id == rhs.sound_id && lhs.root_key == rhs.root_key && lhs.from_note == rhs.from_note && lhs.to_note == rhs.to_note && lhs.precedence == rhs.precedence && lhs.lock == rhs.lock && lhs.Filter == rhs.Filter;
 }
 
 inline bool operator==(const Patch_struct &lhs, const Patch_struct &rhs)
 {
-    if (lhs.used != rhs.used || lhs.instruments != rhs.instruments) {
+    if (lhs.used != rhs.used || lhs.instruments != rhs.instruments)
+    {
         return false;
     }
 
-    for (int i = 0; i < INSTRUMENTS_MAX; ++i) {
-        if (!(lhs.Instrument[i] == rhs.Instrument[i])) {
+    for (int i = 0; i < INSTRUMENTS_MAX; ++i)
+    {
+        if (!(lhs.Instrument[i] == rhs.Instrument[i]))
+        {
             return false;
         }
     }
@@ -203,22 +194,9 @@ inline bool operator==(const Patch_struct &lhs, const Patch_struct &rhs)
     return true;
 }
 
-inline bool operator==(const Sound_struct& lhs, const Sound_struct& rhs)
+inline bool operator==(const Sound_struct &lhs, const Sound_struct &rhs)
 {
-    return lhs.used == rhs.used
-        && lhs.file == rhs.file
-        && lhs.mode == rhs.mode
-        && lhs.pitch == rhs.pitch
-        && lhs.A == rhs.A
-        && lhs.B == rhs.B
-        && lhs.Noclick == rhs.Noclick
-        && lhs.pan == rhs.pan
-        && lhs.data == rhs.data
-        && lhs.attack == rhs.attack
-        && lhs.decay == rhs.decay
-        && lhs.sustain == rhs.sustain
-        && lhs.release == rhs.release
-        && lhs.gain == rhs.gain;
+    return lhs.used == rhs.used && lhs.file == rhs.file && lhs.mode == rhs.mode && lhs.pitch == rhs.pitch && lhs.A == rhs.A && lhs.B == rhs.B && lhs.Noclick == rhs.Noclick && lhs.pan == rhs.pan && lhs.data == rhs.data && lhs.attack == rhs.attack && lhs.decay == rhs.decay && lhs.sustain == rhs.sustain && lhs.release == rhs.release && lhs.gain == rhs.gain;
 }
 
 // PERFORMANCE
@@ -227,7 +205,7 @@ extern uint8_t Patch_id;
 extern int volume_patch;
 extern uint8_t map_instrument_for_note[16][NOTE_NUMBERS];
 extern bool key_state[16][NOTE_NUMBERS]; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
-extern bool file_midi_ch_flag;  // quale funzionalita' regola l'encoder 2
+extern bool file_midi_ch_flag;           // quale funzionalita' regola l'encoder 2
 extern int8_t P_line_of_instrument[INSTRUMENTS_MAX];
 extern float pitch_from_note[NOTE_NUMBERS];
 extern bool display_instrument_volume_flag;
@@ -301,7 +279,7 @@ static constexpr float sin_table[11] = {0.0, 0.0245, 0.0955, 0.2061, 0.3455, 0.5
 static constexpr float decay_table[11] = {1.0, 0.9755, 0.9045, 0.7939, 0.6545, 0.5, 0.3455, 0.2061, 0.0955, 0.0245, 0.0};
 static constexpr float release_table[11] = {1.0, 0.4991, 0.2487, 0.1234, 0.0608, 0.0295, 0.0139, 0.0060, 0.0021, 0.0002, 0.0};
 
-// array compilati al setup()
+// Other arrays of constants
 extern float m_exp_table[10];
 extern float m_sin_table[10];
 extern float m_decay_table[10];

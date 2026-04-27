@@ -6,15 +6,15 @@
 
 #include "DisplayLiveSampler.h"
 
-void DisplayLiveSampler::Led_LIVE_SAMPLING(bool on)
+void DisplayLiveSampler::Led_LIVE_SAMPLING(const bool on)
 {
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(3), led_pic, 6, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(39.5), display_coordinate_y(0), led_pic, 6, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
     }
     else
     {
-        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(3), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_OFF : GREEN_OFF));
+        tft.drawBitmap(display_coordinate_x(39.5), display_coordinate_y(0), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_OFF : GREEN_OFF));
     }
     return;
 }
@@ -48,32 +48,42 @@ void DisplayLiveSampler::Page(void)
     Page_title();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(37), display_coordinate_y(0));
-    tft.print("LENGTH");
-    Buffer_dimension();
-
-    tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(1.5), display_coordinate_y(3));
+    tft.setCursor(display_coordinate_x(LS_column_row_VOLUME[0]), display_coordinate_y(LS_column_row_VOLUME[1]));
     tft.print("VOLUME");
     Volume();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(37), display_coordinate_y(3));
-    tft.print("FEEDBACK");
-    Feedback();
+    tft.setCursor(display_coordinate_x(LS_column_row_BUFFER[0]), display_coordinate_y(LS_column_row_BUFFER[1]));
+    tft.print("BUFFER");
+    Buffer();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
+    tft.setCursor(display_coordinate_x(LS_column_row_PLAY_MODE[0]), display_coordinate_y(LS_column_row_PLAY_MODE[1]));
     tft.print("PLAY MODE");
     Play_mode();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
-    tft.print("START POINT");
-    X_sample_delta();
+    tft.setCursor(display_coordinate_x(LS_column_row_FEEDBACK[0]), display_coordinate_y(LS_column_row_FEEDBACK[1]));
+    tft.print("FEEDBACK");
+    Feedback();
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
+    tft.setCursor(display_coordinate_x(LS_column_row_WINDOW[0]), display_coordinate_y(LS_column_row_WINDOW[1]));
+    tft.print("WINDOW");
+    Window();
+
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_START_POINT[0]), display_coordinate_y(LS_column_row_START_POINT[1]));
+    tft.print("START POINT");
+    Start_point();
+
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_LOOP[0]), display_coordinate_y(LS_column_row_LOOP[1]));
+    tft.print("LOOP");
+    Loop_time();
+
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_STEP[0]), display_coordinate_y(LS_column_row_STEP[1]));
     tft.print("STEP");
     Step();
 }
@@ -82,53 +92,33 @@ FLASHMEM
 void DisplayLiveSampler::Page_title(void)
 {
     //("012345678901234567890"); // Size 1: 21 chars
-    Show_Board(0, 0, 12); // Display.Show_Board(float & col, float row, int chars)
+    Backgorund_red(0, 0, 12); // Display.Backgorund_red(float & col, float row, int chars)
     tft.setTextColor(ILI9341_WHITE);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
     tft.print("LIVE SAMPLER");
 }
 
 FLASHMEM
-void DisplayLiveSampler::Feedback(void)
+void DisplayLiveSampler::Volume(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(46), display_coordinate_y(3), 6);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_volume[0]), display_coordinate_y(LS_column_row_volume[1]), 4);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(100 * LS_fbk_table[LS_feedback], 2);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("%");
+    tft.print(volume_patch / 20.0f);
 }
 
 FLASHMEM
-void DisplayLiveSampler::Step(void)
+void DisplayLiveSampler::Buffer(void) //
 {
-    Cancel_text_reset_cursor(display_coordinate_x(5), display_coordinate_y(6), 16);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(LS_X_step);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("samples");
-}
-
-FLASHMEM
-void DisplayLiveSampler::Buffer_dimension(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(44), display_coordinate_y(0), 12);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_buffer[0]), display_coordinate_y(LS_column_row_buffer[1]), 12);
     tft.setTextColor(ILI9341_WHITE);
     tft.print(LS_buffer_dim / 44100.0f, 1);
     Show_measure_unit("sec", 3);
 }
 
 FLASHMEM
-void DisplayLiveSampler::Volume(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(8.5), display_coordinate_y(3), 4);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f);
-}
-
-FLASHMEM
 void DisplayLiveSampler::Play_mode(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(10), display_coordinate_y(4), 20);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_play_mode[0]), display_coordinate_y(LS_column_row_play_mode[1]), LS_chars_play_mode);
     tft.setTextColor(ILI9341_YELLOW);
     if (LS_mode > 1)
     {
@@ -136,31 +126,68 @@ void DisplayLiveSampler::Play_mode(void)
         tft.print(" ");
     }
     tft.print(name_mode[LS_mode]);
+
+    LS_chars_play_mode = (tft.getCursorX() - display_coordinate_x(LS_column_row_play_mode[0])) / 6;
+    Serial.println(LS_chars_play_mode);
+}
+
+FLASHMEM
+void DisplayLiveSampler::Feedback(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_feedback[0]), display_coordinate_y(LS_column_row_feedback[1]), LS_chars_feedback);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(100 * LS_fbk_table[LS_feedback], 2);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("%");
+
+    LS_chars_feedback = (tft.getCursorX() - display_coordinate_x(LS_column_row_feedback[0])) / 6;
+    Serial.println(LS_chars_feedback);
+}
+
+FLASHMEM
+void DisplayLiveSampler::Step(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_step[0]), display_coordinate_y(LS_column_row_step[1]), LS_chars_step);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(LS_X_step);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("samples");
+}
+
+FLASHMEM
+void DisplayLiveSampler::Window(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_window[0]), display_coordinate_y(LS_column_row_window[1]), LS_chars_window);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(LS_window_width / 44100.0f, 1);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("sec");
+
+    LS_chars_window = (tft.getCursorX() - display_coordinate_x(LS_column_row_window[0])) / 6;
+    Serial.println(LS_chars_window);
 }
 
 FLASHMEM
 void DisplayLiveSampler::Loop_time(void)
 {
-    tft.setTextColor(ILI9341_YELLOW);
-    if (LS_mode == 2)
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time[0]), display_coordinate_y(LS_column_row_loop_time[1]), LS_chars_loop_time);
+    if (LS_mode > 1)
     {
-        Cancel_text_reset_cursor(display_coordinate_x(19), display_coordinate_y(4), 9);
+        tft.setTextColor(ILI9341_YELLOW);
         tft.print(LS_XY_delta / 44100.0f, 2);
         Show_measure_unit("sec", 3);
     }
-    else if (LS_mode == 3)
+    else
     {
-        Cancel_text_reset_cursor(display_coordinate_x(23), display_coordinate_y(4), 9);
-        tft.print(LS_XY_delta / 44100.0f, 2);
-        Show_measure_unit("sec", 3);
+        tft.print("--");
     }
 }
 
 FLASHMEM
-void DisplayLiveSampler::X_sample_delta(void)
+void DisplayLiveSampler::Start_point(void) // X_sample_delta
 {
     float local_value = 0;
-    Cancel_text_reset_cursor(display_coordinate_x(12), display_coordinate_y(5), 40);
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_start_point[0]), display_coordinate_y(LS_column_row_start_point[1]), LS_chars_start_point);
     tft.setTextColor(ILI9341_YELLOW);
 
     if (LS_XY_lock)
@@ -217,7 +244,7 @@ void DisplayLiveSampler::Menu(void)
     Delete_text_row(1);
     tft.setTextColor(MENU_COLOR);
 
-    for (auto element = 0; element < LS_MV; ++element) // menu element
+    for (auto element = 0; element < LS_menu_elements; ++element) // menu element
     {
         if (Menu_LS[element])
         {
@@ -242,11 +269,10 @@ void DisplayLiveSampler::Menu(void)
 }
 
 FLASHMEM
-void DisplayLiveSampler::Menu_frame(int position)
+void DisplayLiveSampler::Menu_frame(const int position)
 {
     Delete_menu_frames();
     Frame_by_col_row(X_position_Menu_LS[position], 1, dimension_voice_Menu_LS[element_Menu_LS[position]], true);
-    // LS_menu_choice = element_Menu_LS[position]; // TRASFERITA NEL CODICE main.cpp
 }
 
 FLASHMEM
@@ -254,7 +280,7 @@ void DisplayLiveSampler::Delete_menu_frames(void)
 {
     int position;
 
-    for (auto element = 0; element < LS_MV; ++element)
+    for (auto element = 0; element < LS_menu_elements; ++element)
     {
         if (Menu_LS[element])
         {
@@ -264,7 +290,7 @@ void DisplayLiveSampler::Delete_menu_frames(void)
     }
 }
 
-void DisplayLiveSampler::Show_wave(int sound_id)
+void DisplayLiveSampler::Show_wave(const int sound_id)
 {
     int id_file = Sound[sound_id].file;
 
@@ -297,23 +323,23 @@ void DisplayLiveSampler::Show_wave(int sound_id)
                                 ---------------------------------------------------------------
                             0   |                                                             |
                                 |                                                             |
-                                |                                                             |                                                                                       
-                                |                                                             |                                
+                                |                                                             |
+                                |                                                             |
            CANVAS_WAVE_0 (48)   |-------------------------------------------------------------|
                                 |                                                             |
-                                |                                                             |                                                                                       
-                                |                                                             |                                
+                                |                                                             |
+                                |                                                             |
                                 |                                                             |
     WAVEBOARD_HEIGHT - 1 (96)   |_____________________________________________________________|
 
     */
-    
+
     int y0 = CANVAS_WAVE_0;
     int wave_pixel_0 = 0;
 
     for (auto wave_pixel = 0; wave_pixel < WAVEBOARD_WIDTH; ++wave_pixel)
     {
-        int yp = CANVAS_WAVE_0 - (*(Wave_array + wave_pixel) >> 10); // valore minimo = 48 - 32 = 16
+        int yp = CANVAS_WAVE_0 - (*(Wave_array + wave_pixel) >> 10);                   // valore minimo = 48 - 32 = 16
         int yn = CANVAS_WAVE_0 - (*(Wave_array + wave_pixel + WAVEBOARD_WIDTH) >> 10); // valore massimo 48 + 32 = 80
 
         uint16_t LS_wave_color = Get_wave_color(wave_pixel);
@@ -372,7 +398,7 @@ void DisplayLiveSampler::Show_wave(int sound_id)
         }
     }
 
-    canvas.setTextColor(TEXT_COLOR);
+    canvas.setTextColor(ILI9341_WHITE);
 
     if (!LS_stereo)
     {
@@ -391,20 +417,16 @@ void DisplayLiveSampler::Show_wave(int sound_id)
     }
 
     canvas.setTextColor(TEXT_COLOR);
-    canvas.setCursor(display_coordinate_x(0), Y_FOOTER_TEXT);
-    canvas.print("WINDOW ");
-    canvas.setTextColor(ILI9341_YELLOW);
-    canvas.print(LS_window_width / 44100.0f, 1);
-    canvas.setTextColor(ILI9341_ORANGE);
-    canvas.print("sec");
+    canvas.setCursor((WAVEBOARD_WIDTH / 2) - 30, Y_FOOTER_TEXT);
+    canvas.print("PLAY POINT");
 
     Draw_XY_lines();
     Update_REC_LED();
 
     // memo[0] = localtimer; // 530us
-    tft.drawRGBBitmap(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.getBuffer(), canvas.width(), canvas.height());
+    tft.drawRGBBitmap(LS_CANVAS_X, LS_CANVAS_Y, canvas.getBuffer(), canvas.width(), canvas.height());
     // memo[1] = localtimer; // memo[1] - memo[0] = 44.000us
-    
+
     // Serial.print("Fill canvas, microseconds:");
     // Serial.print(memo[0]);
     // Serial.print(" Fill display, microseconds:");
@@ -466,7 +488,7 @@ void DisplayLiveSampler::Draw_XY_lines(void)
     }
 }
 
-uint16_t DisplayLiveSampler::Get_wave_color(int point)
+uint16_t DisplayLiveSampler::Get_wave_color(const int point)
 {
     int position = LS_constrain_position(LS_window_A_sample + point * LS_K_wave_color);
 
@@ -485,4 +507,28 @@ uint16_t DisplayLiveSampler::Get_wave_color(int point)
 
     LS_wave_poit_distance_0 = distance;
     return (31 << 11) + (green << 5); // (red << 11) + (green << 5) + blue
+}
+
+void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
+{
+    if (pointer.field_name == field_LS_Menu)
+    {
+        Frame_by_col_row(X_position_Menu_LS[position_Menu_LS[pointer.menu_element]], LS_ROW_MENU, dimension_voice_Menu_LS[element_Menu_LS[position_Menu_LS[pointer.menu_element]]], show);
+    }
+    else
+    {
+        switch (pointer.value_element)
+        {
+        case value_LS_Play_mode:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_play_mode, show);
+            break;
+
+        case value_LS_Feedback:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_feedback, show);
+            break;
+
+        case value_LS_Window:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_window, show);
+        }
+    }
 }

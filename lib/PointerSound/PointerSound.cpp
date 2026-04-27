@@ -95,6 +95,15 @@ void PointerSound::Set_pointer_to_file(const int S_menu_max)
     Print_pointer_description();
 }
 
+void PointerSound::Set_pointer_to_first_element(void)
+{
+    pointer = 0;
+    Display_Sound.S_show_pointer_frame(field_description[pointer], true);
+
+    Serial.println("PointerSound::Set_pointer_to_first_element(void) - pointer: ");
+    Print_pointer_description();
+}
+
 FLASHMEM
 bool PointerSound::Move_pointer(const int value, const int S_menu_max)
 {

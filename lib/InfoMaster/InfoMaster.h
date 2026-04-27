@@ -11,7 +11,7 @@
 #include "LillaSerialFlash.h"
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "SharedVFS.h"
 #include "StereoLiveSampler.h"
 #include "config.h"

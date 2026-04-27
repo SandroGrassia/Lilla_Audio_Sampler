@@ -36,9 +36,9 @@ extern uint8_t analog_write_res;
 
 extern const struct _nspwm_pin_info_struct pwm_pin_info[];
 
-static AudioOutputNoiseShapedPWM *AudioOutputNoiseShapedPWM::instances[4];
-static int AudioOutputNoiseShapedPWM::units = 0;
-static bool AudioOutputNoiseShapedPWM::pins_in_use[64] = {false};
+AudioOutputNoiseShapedPWM *AudioOutputNoiseShapedPWM::instances[4];
+int AudioOutputNoiseShapedPWM::units = 0;
+bool AudioOutputNoiseShapedPWM::pins_in_use[64] = {false};
 
 void AudioOutputNoiseShapedPWM::begin(uint8_t pin)
 {

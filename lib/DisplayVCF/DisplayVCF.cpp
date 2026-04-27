@@ -6,111 +6,111 @@
 
 #include "DisplayVCF.h"
 
-DisplayVCF Display_VCF;
-
-FLASHMEM
-void DisplayVCF::VCF_show_pointer_frame(int pointer, bool show)
+void DisplayVCF::VCF_show_pointer_frame(const int pointer, const bool show)
 {
-        Frame_by_col_row(VCF_column_row_value_element[pointer][0], VCF_column_row_value_element[pointer][1], VCF_chars_value_element[pointer], show);
-
+    Frame_by_col_row(VCF_column_row_value_element[pointer][0], VCF_column_row_value_element[pointer][1], VCF_chars_value_element[pointer], show);
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_VCF_page(int patch_id, int instrument_id)
+void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
 {
     auto sound_id = Patch[patch_id].Instrument[instrument_id].sound_id;
 
     tft.fillScreen(ILI9341_BLACK);
-    if (Lilla_state_0 != LIVE_SAMPLING)
-    {
-        if (Lilla_state_0 != MIDI_LOOP)
-        {
-            Display_Manager.P_show_PERFORMANCE_title();
-        }
-        else
-        {
-            Display_Manager.Loop_show_midi_loop_title();
-        }
 
-        Display_Manager.P_show_Patch_number(false);
-
-        tft.setCursor(display_coordinate_x(23), display_coordinate_y(0));
-        tft.setTextColor(TEXT_COLOR);
-        tft.print("SOUND");
-        tft.setCursor(display_coordinate_x(28.5), display_coordinate_y(0));
-        tft.setTextColor(ILI9341_WHITE);
-        tft.print(instrument_id + 1);
-
-        tft.setCursor(display_coordinate_x(43), display_coordinate_y(0));
-        tft.setTextColor(TEXT_COLOR);
-        tft.print("GAIN");
-        VCF_show_sound_gain_value(sound_id);
-    }
-    else
+    if (Lilla_state_0 == LIVE_SAMPLING)
     {
         //("012345678901234567890"); // Size 1: 21 chars
-        Show_Board(0, 0, 12); // Display.Board(float & col, float row, int chars)
+        Backgorund_red(0, 0, 12); // Backgorund_red(float & col, float row, int chars)
         tft.setTextColor(ILI9341_WHITE);
-        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setCursor(display_coordinate_x(VCF_column_row_LIVE_SAMPLER[0]), display_coordinate_y(VCF_column_row_LIVE_SAMPLER[1]));
         tft.print("LIVE SAMPLER");
 
-        tft.setCursor(display_coordinate_x(41), display_coordinate_y(0));
+        tft.setCursor(display_coordinate_x(VCF_column_row_VOLUME[0]), display_coordinate_y(VCF_column_row_VOLUME[1]));
         tft.setTextColor(TEXT_COLOR);
         tft.print("VOLUME");
         Display_Manager.P_Patch_volume_value(true); // true: YELLOW
     }
 
-    if (Lilla_state_0 != MIDI_LOOP)
+    else
     {
-        tft.setCursor(display_coordinate_x(0), display_coordinate_y(1));
-        tft.setTextColor(MENU_COLOR);
-        tft.print("RETURN");
-        Frame_by_col_row(0, 1, 6, true);
+        if (Lilla_state_0 == MIDI_LOOP)
+        {
+            Display_MidiLoop.Show_MIDI_LOOP();
+        }
+        else
+        {
+            Display_Manager.P_show_PERFORMANCE_title();
+        }
+
+        Display_Manager.P_show_Patch_number(false);
+
+    tft.setCursor(display_coordinate_x(VCF_column_row_SOUND[0]), display_coordinate_y(VCF_column_row_SOUND[1]));
+        tft.setTextColor(TEXT_COLOR);
+        tft.print("SOUND");
+    tft.setCursor(display_coordinate_x(VCF_column_row_SOUND_NUMBER[0]), display_coordinate_y(VCF_column_row_SOUND_NUMBER[1]));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print(instrument_id + 1);
+
+    tft.setCursor(display_coordinate_x(VCF_column_row_GAIN[0]), display_coordinate_y(VCF_column_row_GAIN[1]));
+        tft.setTextColor(TEXT_COLOR);
+        tft.print("GAIN");
+        VCF_show_sound_gain_value(sound_id);
     }
 
-    Display_Manager.ALL_show_effects();
+    if (Lilla_state_0 != MIDI_LOOP)
+    {
+        tft.setCursor(display_coordinate_x(VCF_column_row_RETURN[0]), display_coordinate_y(VCF_column_row_RETURN[1]));
+        tft.setTextColor(MENU_COLOR);
+        tft.print("RETURN");
+    }
+
+    Display_Manager.Show_all_effects();
     VCF_show_solo_value();
 
-    Show_Board(0, 6.8, 9); // Display.Board(float   col, float row, int chars)
+    Backgorund_red(0, 6.8, 9); // Display.Board(float col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6.8));
     tft.setTextColor(ILI9341_WHITE);
     tft.print("VCF + LFO");
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
+    tft.setCursor(display_coordinate_x(VCF_column_row_FILTER_TYPE[0]), display_coordinate_y(VCF_column_row_FILTER_TYPE[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FILTER TYPE");
     VCF_show_filter_type_value(instrument_id);
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
+    tft.setCursor(display_coordinate_x(VCF_column_row_CUTOFF[0]), display_coordinate_y(VCF_column_row_CUTOFF[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("CUTOFF (PITCH 1.0)");
     VCF_show_cutoff_value(instrument_id);
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
+    tft.setCursor(display_coordinate_x(VCF_column_row_RESONANCE[0]), display_coordinate_y(VCF_column_row_RESONANCE[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("RESONANCE");
     VCF_show_resonance_value(instrument_id);
 
-    tft.setCursor(display_coordinate_x(30), display_coordinate_y(8));
+    tft.setCursor(display_coordinate_x(VCF_column_row_MODULATION_SOURCE[0]), display_coordinate_y(VCF_column_row_MODULATION_SOURCE[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("MODULATION_SOURCE");
-    VCF_show_lfo_Modulation(instrument_id);
+    tft.print("MODULATION SOURCE");
+    VCF_show_LFO_modulation_source(instrument_id);
 
-    tft.setCursor(display_coordinate_x(30), display_coordinate_y(9));
+    tft.setCursor(display_coordinate_x(VCF_column_row_MODULATION_FREQ_TIME[0]), display_coordinate_y(VCF_column_row_MODULATION_FREQ_TIME[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD FREQ/TIME");
-    VCF_show_lfo_freq_time(instrument_id);
+    VCF_show_LFO_freq_time(instrument_id);
 
-    tft.setCursor(display_coordinate_x(30), display_coordinate_y(10));
+    tft.setCursor(display_coordinate_x(VCF_column_row_MODULATION_DEPTH[0]), display_coordinate_y(VCF_column_row_MODULATION_DEPTH[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("MOD DEPTH");
-    VCF_show_lfo_modulation_depth(instrument_id);
+    tft.print("MODULATION DEPTH");
+    VCF_show_LFO_modulation_depth(instrument_id);
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_sound_gain_value(int sound_id)
+void DisplayVCF::VCF_show_sound_gain_value(const int sound_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(47.5), display_coordinate_y(0), 4);
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_Gain_Volume][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_Gain_Volume][1]),
+        VCF_chars_Gain);
     tft.setTextColor((Lilla_state_0 == LIVE_SAMPLING ? ILI9341_WHITE : ILI9341_YELLOW));
     tft.print(Sound[sound_id].gain / 20.0f);
 }
@@ -118,7 +118,7 @@ void DisplayVCF::VCF_show_sound_gain_value(int sound_id)
 FLASHMEM
 void DisplayVCF::VCF_show_solo_value(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(21.5), display_coordinate_y(4.9), 8);
+    Cancel_text_reset_cursor(display_coordinate_x(21.5), display_coordinate_y(4.9), VCF_chars_Solo);
     if (solo_flag)
     {
         tft.setTextColor(ILI9341_YELLOW);
@@ -127,9 +127,12 @@ void DisplayVCF::VCF_show_solo_value(void)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_filter_type_value(int instrument_id)
+void DisplayVCF::VCF_show_filter_type_value(const int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(12), display_coordinate_y(8), 13);
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_FilterType][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_FilterType][1]),
+        VCF_chars_FilterType);
     tft.setTextColor(ILI9341_YELLOW);
 
     if (Preset[instrument_id].Filter.use == 1)
@@ -157,9 +160,36 @@ void DisplayVCF::VCF_show_filter_type_value(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_lfo_Modulation(int instrument_id)
+void DisplayVCF::VCF_show_cutoff_value(const int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(41), display_coordinate_y(8), 9);
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_Cutoff][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_Cutoff][1]),
+        VCF_chars_Cutoff);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Preset[instrument_id].Filter.pivot, 0);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("Hz");
+}
+
+FLASHMEM
+void DisplayVCF::VCF_show_resonance_value(const int instrument_id)
+{
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_Resonance][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_Resonance][1]),
+        VCF_chars_Resonance);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Preset[instrument_id].Filter.resonance, 2);
+}
+
+FLASHMEM
+void DisplayVCF::VCF_show_LFO_modulation_source(const int instrument_id)
+{
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_LfoModulationType][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_LfoModulationType][1]),
+        VCF_chars_LfoModulation);
     tft.setTextColor(ILI9341_YELLOW);
 
     switch (Preset[instrument_id].Filter.modulation)
@@ -172,7 +202,6 @@ void DisplayVCF::VCF_show_lfo_Modulation(int instrument_id)
         break;
     case 2:
         tft.print("FALLING");
-        ;
         break;
     case 3:
         tft.print("LFO");
@@ -184,24 +213,16 @@ void DisplayVCF::VCF_show_lfo_Modulation(int instrument_id)
         break;
     }
 
-    VCF_show_lfo_freq_time(instrument_id);
+    VCF_show_LFO_freq_time(instrument_id); // if source changes, freq/time may need to switch
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_cutoff_value(int instrument_id)
+void DisplayVCF::VCF_show_LFO_freq_time(const int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(19), display_coordinate_y(9), 7);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Preset[instrument_id].Filter.pivot, 0);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("Hz");
-}
-
-
-FLASHMEM
-void DisplayVCF::VCF_show_lfo_freq_time(int instrument_id)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(44), display_coordinate_y(9), 7);
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_LfoModFreqTime][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_LfoModFreqTime][1]),
+        VCF_chars_ModFreqTime);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].Filter.frequency_time, 2);
 
@@ -216,17 +237,12 @@ void DisplayVCF::VCF_show_lfo_freq_time(int instrument_id)
 }
 
 FLASHMEM
-void DisplayVCF::VCF_show_resonance_value(int instrument_id)
+void DisplayVCF::VCF_show_LFO_modulation_depth(const int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(10), display_coordinate_y(10), 4);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Preset[instrument_id].Filter.resonance, 2);
-}
-
-FLASHMEM
-void DisplayVCF::VCF_show_lfo_modulation_depth(int instrument_id)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(40), display_coordinate_y(10), 4);
+    Cancel_text_reset_cursor(
+        display_coordinate_x(VCF_column_row_value_element[value_VCF_LfoModDepth][0]),
+        display_coordinate_y(VCF_column_row_value_element[value_VCF_LfoModDepth][1]),
+        VCF_chars_ModDepth);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(100 * Preset[instrument_id].Filter.index, 0);
     tft.print("%");

@@ -9,23 +9,21 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>     // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
 #include <Adafruit_ILI9341.h> // 1.5.12 version - Hardware-specific library
-#include <AudioStream.h> // solo per definizione AUDIO_SAMPLE_RATE
+#include <AudioStream.h>      // solo per definizione AUDIO_SAMPLE_RATE
 #include "DisplayPrimitives.h"
 
 #include "SharedElements.h"
-#include "SharedDS.h"
-#include "SharedLS.h"
+#include "SharedSampler.h"
+#include "SharedLiveSampler.h"
 #include "SharedLoop.h"
 #include "SharedDelay.h"
 #include "SharedMixer.h"
-#include "InfoMaster.h"
 #include "SharedPerformance.h"
+#include "GlobalInfoMaster.h"
 
 class DisplayManager
 {
 private:
-    // riferimenti esterni
-    InfoMaster &Info;
 
     void Note(const int note_number);
     int col;
@@ -58,12 +56,13 @@ private:
 
     // PERFORMANCE
     // Menu
-    static constexpr char P_menu_char[5][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DROP"}};
-    static constexpr uint8_t P_dimension_voice_menu[5] = {4, 4, 5, 11, 4};
-    int P_column_menu_element[5]; // argument is position
-    int P_row_menu_element[5];    // argument is position
-    uint8_t P_element_menu[5];    // argument is position
-    uint8_t P_position_Menu[5];   // argument is element
+    static constexpr int P_menu_elements = 5;
+    static constexpr char P_menu_char[P_menu_elements][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DROP"}};
+    static constexpr uint8_t P_dimension_voice_menu[P_menu_elements] = {4, 4, 5, 11, 4};
+    int P_column_menu_element[P_menu_elements]; // argument is position
+    int P_row_menu_element[P_menu_elements];    // argument is position
+    uint8_t P_element_menu[P_menu_elements];    // argument is position
+    uint8_t P_position_Menu[P_menu_elements];   // argument is element
 
     static constexpr float P_column_PATCH = 30;
     static constexpr float P_column_Patch_id = 36;
@@ -95,31 +94,7 @@ private:
 
     // TUNING TONE
     static constexpr float TT_Instrument_INDENT_X0 = 0.5; // indentatura dell'header nella Performance (in caratteri) a sinistra
-    static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance    
-
-    // MIXER
-    static constexpr int MX_X0 = 8; // (caratteri)
-    static constexpr int MX_Y0 = 5;
-
-    // MIDI_LOOP
-    static constexpr int Loop_HEAD_R = 5;     // posizione "LOOP"
-    static constexpr int Loop_HEAD_C = 3;     // posizione "LOOP"
-    static constexpr int Loop_LOOPS_X = 11;   // centro prima track
-    static constexpr int Loop_LOOP_TIME = 20; // posizione di LOOP_time
-    int8_t Loop_menu_position_0 = 0;
-    int8_t Loop_X_position_menu_0 = 0;
-    int8_t Loop_dimension_voice_menu_0 = 0;
-
-    // DIRECT_SAMPLING
-    static constexpr int DS_VUMETER_BAR_X = 210; // coordinate angolo in basso a SX
-    static constexpr int DS_VUMETER_BAR_Y = 175; // coordinate angolo in basso a SX
-    static constexpr int DS_VUMETER_BAR_DISTANCE = 6;
-    static constexpr int DS_VUMETER_BAR_DX = 12; // distanza tra le mediane delle DS_VUMETER_BAR_DISTANCE
-    static constexpr int DS_START_Y = DS_VUMETER_BAR_Y + 13;
-    static constexpr int DS_START_X = DS_VUMETER_BAR_X - 7;
-    static constexpr int DS_MV = 12;
-    int DS_frame_menu_position_0 = 0;
-    int DS_VU_meter_value_old[2] = {0, 0};
+    static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance
 
     // SETUP
     // Control Change
@@ -129,13 +104,13 @@ private:
     static constexpr int Delay_ROW_BASE = 6;
 
 public:
-    DisplayManager(InfoMaster &Info) : Info(Info) {}
+    DisplayManager() {}
 
     void Lilla_cover_slow(void);
     void Lilla_cover_saturate(void);
 
     // Funzioni comuni
-    void ALL_show_effects(void);
+    void Show_all_effects(void);
     void Resolution(void);
     void Downsampling(void);
     void Lowpass_filter(void);
@@ -185,42 +160,6 @@ public:
     void P_show_TuningTone_instrument(int patch_id);
     void P_show_gain_TuningTone(int patch_id);
 
-    // DELAY
-    void D_show_page(void);
-    void D_sounds(void);
-    void D_delay(void);
-    void D_read_gain(void); // feedback
-    void D_delay_LR(void);
-    void D_modulation_type(void);
-    void D_modulation_frequency(void);
-    void D_modulation_depth(void); // index
-    void D_modulation_phase_LR(void);
-    void D_disabled(void);
-
-    // DIRECT SAMPLING
-    void DS_confirm_EXIT_from_DS(void);
-    void DS_page(int recording);
-    void DS_sampler_IO(void);
-    void DS_bar(int channel, int value);
-    uint16_t DS_calc_bar_color(float value);
-    void DS_line_out(bool visible);
-    void DS_sampler_frame(bool visible);
-    void DS_sampler_txt(bool color);
-    void DS_available_memory(void);
-    void DS_raw_available_memory(void);
-    void DS_hide_recording(void);
-    void DS_advice_delete(bool value);
-    void DS_advice_no_conversion(int DS_export, bool value);
-    void DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export);
-    void DS_export_options(int file_L_RAW, int file_R_RAW, int DS_export);
-    void DS_Recording_description(int recording, bool led);
-    void DS_recording_seconds(void);
-    void DS_update_recording_seconds(float value);
-    void DS_volume(void);
-    void DS_update_volume(bool adj = true);
-    void DS_show_gain(void);
-    void DS_menu(void);
-    void DS_frame_menu(int position);
 
     // SETUP
     void SETUP_show_SETUP_page(void);
@@ -274,31 +213,8 @@ public:
     void Copy_raw_files_SD_to_Flash_chip_job_done(void);
     void Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const char *filename, uint32_t filesize);
 
-    // MIDI_LOOP
-    static constexpr int Loop_LED_Y = 151; // Y-PIXEL primo led
-    static constexpr int Loop_LED_X = 70;  // X-PIXEL primo led
-    static constexpr int Loop_LED_DY = 11; // spaziatura Y
-    void Loop_show_Loop_page(void);
-    void Loop_loop_id(void);
-    void Loop_show_midi_loop_title(void);
-    void Loop_track_data(int track);
-    void Loop_time_stretched(void);
-    void Loop_REC_advice(int track, bool on);
-    void Loop_led(int track, int instrument_id, bool on);    // displays track/instrument_id LED
-    void Loop_led_metronomo(int Xled, int Yled, bool ONled); // displays metronomo LED
-    void Loop_menu(void);
-    void Loop_show_frame_menu(int position, bool fresh);
-    void Loop_Delete_all_frame_menu(void);
-
     // MIDI_MONITOR
     void Midi_monitor_page(void);
     void Midi_monitor_frame(void);
     void Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number);
-
-    // MIXER
-    void MX_page(void);
-    void MX_source_values(int source);
-    void MX_source_values_write(int source);
-    void MX_source_values_edit(int source);
-    void MX_source_values_jump(int old_source, int new_source);
 };

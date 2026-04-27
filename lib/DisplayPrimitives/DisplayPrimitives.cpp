@@ -27,6 +27,17 @@ int display_coordinate_x(const float col)
     return 4 + (6.0 * col);
 }
 
+void Frame_by_col_row(const float col, const float row, const int chars, const int high, const bool show)
+{
+    Frame_by_pixels(display_coordinate_x(col), display_coordinate_y(row), chars, high, show);
+}
+
+void Frame_by_pixels(const int X, const int Y, const int chars, const int high, const bool show)
+{
+    tft.drawRect(X - 4, Y - 4, (6 * chars) + 7, 4 + (15.0 * high), (show ? FRAME_COLOR : ILI9341_BLACK)); // drawRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color)
+}
+
+
 void Frame_by_col_row(const float col, const float row, const int chars, const bool show)
 {
     Frame_by_pixels(display_coordinate_x(col), display_coordinate_y(row), chars, show);
@@ -51,7 +62,7 @@ void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color)
     tft.print(text);
 }
 
-void Show_Board(const float col, const float row, const int chars)
+void Backgorund_red(const float col, const float row, const int chars)
 {
     tft.fillRect(display_coordinate_x(col) - 4, display_coordinate_y(row) - 2, (6 * chars) + 7, 11, 0x9000); // fillRect(uint16_t x0, uint16_t y0, uint16_t width, uint16_t heigh, uint16_t color);
 }

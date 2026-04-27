@@ -118,21 +118,37 @@ If you use VS Code with the PlatformIO extension, you can also build and upload 
 The images below were copied from the original LILLA project documentation and show the hardware evolution over time.
 
 <p align="center">
-	<img width="30%" alt="LILLA history 0" src="doc/assets/images/story_0.jpg">
-	<img width="30%" alt="LILLA history 1" src="doc/assets/images/story_1.jpg">
-	<img width="30%" alt="LILLA history 2" src="doc/assets/images/story_2.jpg">
+<img width="400" src="/doc/assets/images/story_0.jpg")
 </p>
 
 <p align="center">
-	<img width="30%" alt="LILLA history 3" src="doc/assets/images/story_3.jpg">
-	<img width="30%" alt="LILLA history 4" src="doc/assets/images/story_4.jpg">
-	<img width="30%" alt="LILLA history 5" src="doc/assets/images/story_5.jpg">
+<img width="400" src="/doc/assets/images/story_1.jpg")
 </p>
 
 <p align="center">
-	<img width="30%" alt="LILLA history 6" src="doc/assets/images/story_6.jpg">
-	<img width="30%" alt="LILLA history 7" src="doc/assets/images/story_7.jpg">
+<img width="400" src="/doc/assets/images/story_2.jpg")
 </p>
+
+<p align="center">
+<img width="400" src="/doc/assets/images/story_3.jpg")
+</p>
+
+<p align="center">
+<img width="400" src="/doc/assets/images/story_4.jpg")
+</p>
+
+<p align="center">
+<img width="400" src="/doc/assets/images/story_5.jpg")
+</p>
+
+<p align="center">
+<img width="400" src="/doc/assets/images/story_6.jpg")
+</p>
+
+<p align="center">
+<img width="400" src="/doc/assets/images/story_7.jpg")
+</p>
+
 
 ## Links
 

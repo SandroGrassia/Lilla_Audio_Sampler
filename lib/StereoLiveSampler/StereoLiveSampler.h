@@ -11,7 +11,7 @@
 #include <Arduino.h>
 #include <AudioStream.h>
 #include <SerialFlash.h>
-#include "SharedLS.h"
+#include "SharedLiveSampler.h"
 #include "config.h"
 
 class StereoLiveSampler : public AudioStream

@@ -13,24 +13,43 @@
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
 #include "GlobalDisplayManager.h"
+#include "GlobalDisplayMidiLoop.h"
 #include "SharedVCF.h"
 
 class DisplayVCF
 {
 private:
+    // titles
+    static constexpr float VCF_column_row_LIVE_SAMPLER[2] = {0, 0};
+    static constexpr float VCF_column_row_PERFORMANCE[2] = {0, 0};
+    static constexpr float VCF_column_row_SOUND[2] = {23, 0};
+    static constexpr float VCF_column_row_SOUND_NUMBER[2] = {28.5, 0};
+    static constexpr float VCF_column_row_PATCH[2] = {35, 0};
+    static constexpr float VCF_column_row_GAIN[2] = {43, 0};
+    static constexpr float VCF_column_row_VOLUME[2] = {41, 0};
+    static constexpr float VCF_column_row_RETURN[2] = {0, 1};
+    static constexpr float VCF_column_row_VCF_LFO[2] = {0, 6.8};
+    static constexpr float VCF_column_row_FILTER_TYPE[2] = {0, 8};
+    static constexpr float VCF_column_row_CUTOFF[2] = {0, 9};
+    static constexpr float VCF_column_row_RESONANCE[2] = {0, 10};
+    static constexpr float VCF_column_row_MODULATION_SOURCE[2] = {0, 11};
+    static constexpr float VCF_column_row_MODULATION_FREQ_TIME[2] = {0, 12};
+    static constexpr float VCF_column_row_MODULATION_DEPTH[2] = {0, 13};
+
+
     // solo (constant value on this page)
     static constexpr float VCF_column_row_Solo[2] = {21.5, 5};
     static constexpr int VCF_chars_Solo = 8;
 
     // values (changed with pointer)
-    static constexpr float VCF_column_row_Menu[2] = {0, 0};
+    static constexpr float VCF_column_row_Menu[2] = {0, 1};
     static constexpr float VCF_column_row_Gain[2] = {47.5, 0};
     static constexpr float VCF_column_row_FilterType[2] = {12, 8};
     static constexpr float VCF_column_row_Cutoff[2] = {19, 9};
     static constexpr float VCF_column_row_Resonance[2] = {10, 10};
-    static constexpr float VCF_column_row_LfoModulation[2] = {12, 11};
-    static constexpr float VCF_column_row_LfoFreqTime[2] = {12, 12};
-    static constexpr float VCF_column_row_ModDepth[2] = {12, 13};
+    static constexpr float VCF_column_row_LFO_modulation_source[2] = {18, 11};
+    static constexpr float VCF_column_row_LFO_frequancy_time[2] = {14, 12};
+    static constexpr float VCF_column_row_LFO_modulation_depth[2] = {17, 13};
 
     static constexpr float VCF_column_row_value_element[VCF_value_names][2] =
         {
@@ -39,12 +58,11 @@ private:
             {VCF_column_row_FilterType[0], VCF_column_row_FilterType[1]},
             {VCF_column_row_Cutoff[0], VCF_column_row_Cutoff[1]},
             {VCF_column_row_Resonance[0], VCF_column_row_Resonance[1]},
-            {VCF_column_row_LfoModulation[0], VCF_column_row_LfoModulation[1]},
-            {VCF_column_row_LfoFreqTime[0], VCF_column_row_LfoFreqTime[1]},
-            {VCF_column_row_ModDepth[0], VCF_column_row_ModDepth[1]}};
-
+            {VCF_column_row_LFO_modulation_source[0], VCF_column_row_LFO_modulation_source[1]},
+            {VCF_column_row_LFO_frequancy_time[0], VCF_column_row_LFO_frequancy_time[1]},
+            {VCF_column_row_LFO_modulation_depth[0], VCF_column_row_LFO_modulation_depth[1]}};
     
-    static constexpr int VCF_chars_Menu = 5;
+    static constexpr int VCF_chars_Menu = 6;
     static constexpr int VCF_chars_Gain = 4;
     static constexpr int VCF_chars_FilterType = 8;
     static constexpr int VCF_chars_Cutoff = 7;
@@ -66,15 +84,15 @@ private:
 public:
     DisplayVCF() {}
 
-    void VCF_show_VCF_page(int patch_id, int instrument_id);
-    void VCF_show_pointer_frame(int pointer, bool show);
+    void VCF_show_VCF_page(const int patch_id, const int instrument_id);
+    void VCF_show_pointer_frame(const int pointer, const bool show);
     void VCF_show_solo_value(void);
 
-    void VCF_show_sound_gain_value(int sound_id);
-    void VCF_show_filter_type_value(int instrument_id);
-    void VCF_show_cutoff_value(int instrument_id);
-    void VCF_show_resonance_value(int instrument_id);
-    void VCF_show_lfo_Modulation(int instrument_id);
-    void VCF_show_lfo_freq_time(int instrument_id);
-    void VCF_show_lfo_modulation_depth(int instrument_id);
+    void VCF_show_sound_gain_value(const int sound_id);
+    void VCF_show_filter_type_value(const int instrument_id);
+    void VCF_show_cutoff_value(const int instrument_id);
+    void VCF_show_resonance_value(const int instrument_id);
+    void VCF_show_LFO_modulation_source(const int instrument_id);
+    void VCF_show_LFO_freq_time(const int instrument_id);
+    void VCF_show_LFO_modulation_depth(const int instrument_id);
 };

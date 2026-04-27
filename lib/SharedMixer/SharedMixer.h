@@ -10,11 +10,32 @@
 #include "SharedElements.h"
 #include "config.h"
 
+// pointer
+static constexpr int LINE_IN_source = 8;
+static constexpr int MX_sources = 9;
 
-// MIXER
+enum MX_field_name
+{
+    field_MX_Source,
+    field_MX_Elements
+};
 
-extern uint8_t MX_source;
-extern uint8_t PWM_volume;
-extern uint8_t MAIN_volume;
-extern uint8_t MX_routing_source[];
-extern bool MX_mute[];
+static constexpr int elements = 4;
+enum MX_Element_name
+{
+    value_MX_Mute_Gain,
+    value_MX_Pan,
+    value_MX_Lineout,
+    value_MX_Monitor
+};
+
+struct MX_pointer_struct
+{
+MX_field_name field_name;
+int source;
+int element;
+};
+
+// audio 
+extern uint8_t MX_routing_source[MX_sources];
+extern bool MX_mute[MX_sources];

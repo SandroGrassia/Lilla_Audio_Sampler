@@ -5,6 +5,7 @@
 */
 
 #include <Arduino.h>
+#include <type_traits>
 
 // **********************************************************
 // **************       VERSIONE LILLA         **************
@@ -100,8 +101,9 @@
 #include <SPI.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_GFX.h>
-#include "output_noiseshaped_pwm.h"
+#include <array>
 
+#include "output_noiseshaped_pwm.h"
 #include "Gate.h"
 #include "MidiReader.h"
 #include "MidiOut.h"
@@ -116,8 +118,8 @@
 #include "SharedPerformance.h"
 #include "SharedSound.h"
 #include "SharedVCF.h"
-#include "SharedDS.h"
-#include "SharedLS.h"
+#include "SharedSampler.h"
+#include "SharedLiveSampler.h"
 #include "SharedLoop.h"
 #include "SharedDelay.h"
 #include "SharedVFS.h"
@@ -160,13 +162,25 @@
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
 #include "DisplayManager.h"
-#include "DisplayLiveSampler.h"
-#include "DisplaySound.h"
 #include "DisplayPerformance.h"
+#include "DisplaySound.h"
+#include "DisplayVCF.h"
+#include "DisplayMixer.h"
+#include "DisplayDelay.h"
+#include "DisplayLiveSampler.h"
+#include "DisplaySampler.h"
+#include "GlobalDisplaySampler.h"
+#include "DisplayMidiLoop.h"
+#include "GlobalDisplayMidiLoop.h"
 
 #include "PointerPerformance.h"
 #include "PointerSound.h"
 #include "PointerVCF.h"
+#include "PointerMixer.h"
+#include "PointerDelay.h"
+#include "PointerLiveSampler.h"
+#include "PointerSampler.h"
+#include "PointerMidiLoop.h"
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -333,12 +347,19 @@ WaveLFO LFO_D[2];
 PlayersStatistics Players_statistics;
 FlashFileRegisterParser File_scanner;
 PsramManager PSRAM_Manager;
-DisplayManager Display_Manager(Info);
+
+DisplayManager Display_Manager;
 DisplaySound Display_Sound;
-DisplayLiveSampler Display_LiveSampler(Info);
+DisplayVCF Display_VCF;
+DisplayMixer Display_Mixer;
+DisplayDelay Display_Delay;
+DisplayLiveSampler Display_LiveSampler;
+DisplaySampler Display_Sampler;
+DisplayMidiLoop Display_MidiLoop;
+
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
-LoopMetronomo LOOP_metronomo(Display_Manager);
+LoopMetronomo LOOP_metronomo(Display_MidiLoop);
 PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Noclick[0], &Wavetable[0]);
 MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
@@ -367,6 +388,11 @@ LillaFRAM_MB85RC_I2C FRAMchip;
 PointerPerformance Pointer_Performance;
 PointerSound Pointer_Sound;
 PointerVCF Pointer_VCF;
+PointerMixer Pointer_Mixer;
+PointerDelay Pointer_Delay;
+PointerLiveSampler Pointer_LiveSampler;
+PointerSampler Pointer_Sampler;
+PointerMidiLoop Pointer_MidiLoop;
 
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************
@@ -423,7 +449,7 @@ uint8_t to_key_change;
 uint8_t patch_change;
 
 // functions
-void P_Update_instruments_leds(void);
+void Update_instruments_leds(void);
 void P_Update_line_of_all_instruments(void); // posizione di tutti gli Instrument sul display
 bool P_Verify_if_Instrument_original(const int instrument_id);
 void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, const int element);
@@ -438,9 +464,8 @@ void Macro_VCF_modulation_none(void);
 
 // >>>>>>> SOUND_EDIT
 // menu
-int S_menu_change;
+int S_menu;
 int S_menu_max;
-
 Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // used to save all Sound starting a new patch_id
 uint8_t Sound_id;
 bool S_sound_original = true;
@@ -508,16 +533,27 @@ int16_t *DELAY_fifo_L = NULL;
 int16_t *DELAY_fifo_R = NULL;
 uint8_t delay_instrument_routing; // indica un instrument_id se <=7; se 8 indica instrument_id 0 e 1
 
+// pointer
+DELAY_element_name DELAY_local_pointer;
+
 // >>>>>>> DIRECT_SAMPLING
 // menu
-int DS_menu;
-int DS_menu_max;
+DS_pointer_struct DS_local_pointer;
 
 // variables
 const int myInput = AUDIO_INPUT_LINEIN; // AUDIO_INPUT_MIC oppure AUDIO_INPUT_LINEIN;
 int DS_export;                          // export mono, export stereo
 bool DS_gain_volume;
-int DS_state; // 0:waiting  1:pause  2:recording
+
+enum DS_state_name
+{
+    DS_waiting_state,
+    DS_pause_state,
+    DS_recording_state,
+    DS_convert_state,
+    DS_export_SD_state
+};
+DS_state_name DS_state; // 0:waiting  1:pause  2:recording
 elapsedMillis DS_recording_time;
 elapsedMillis DS_recording_time_update;
 int DS_recording_change;
@@ -545,7 +581,7 @@ int DS_get_next_Recording(int value);
 int DS_get_last_Recording(void);
 int DS_get_previous_Recording(int value);
 bool DS_check_conversion(void);
-void DS_define_model(void);
+void DS_define_menu(void);
 void DS_set_DS_Sampling_Patch(void);
 int DS_get_samples_in_Recording(int value);
 void P_Recording(int value);
@@ -581,10 +617,8 @@ int Get_raw_files_volume(void);
 const char *id2chip(const unsigned char *id);
 
 // >>>>>>> LIVE_SAMPLING
-// menu
-uint8_t LS_menu_choice;
-int LS_menu;
-int LS_menu_max;
+// pointer
+LS_pointer_struct LS_local_pointer;
 
 // variables
 uint8_t LS_gain;
@@ -602,7 +636,7 @@ elapsedMillis LS_wave_refresh_timer;
 // functions
 void LS_refresh_LS_page(void);
 bool LS_ask_if_exit_from_LS(void);
-void LS_define_model(void);
+void LS_update_menu_elements(void);
 int LS_constrain_position(int value);
 void LS_lock_X_sample(void);
 void LS_update_both_X_Y_samples(void);
@@ -620,8 +654,12 @@ bool LOOP_run_button_state; // stato pulsante 7 true: run loop abilitati -  fals
 bool LOOP_track_run_memo[TRACKS] = {false};
 int LOOP_stretch_int = 100; // stretch comune ai track, in %
 bool LOOP_original;
-int LOOP_menu;
-int LOOP_menu_change;
+
+// Pointer
+LOOP_menu_element_name LOOP_local_pointerMenu;
+LOOP_menu_element_name LOOP_local_pointerMenu_old;
+LOOP_track_value_name LOOP_local_pointerTrack[TRACKS];
+LOOP_track_value_name LOOP_local_pointerTrack_old[TRACKS];
 
 // functions
 void LOOP_reset_all_data(void);
@@ -648,13 +686,16 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id);
 void LOOP_stop_and_reset_runnig_loop_data(void);
 
 // >>>>>>> MIXER
-// PWM Monitor
+MX_pointer_struct MX_local_pointer;
 int volume_MONITOR = 0;
-void Golive_MIXER(int instrument_id = -1);
+void Golive_MIXER(void);
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS_MAX;
 
 // EEPROM
 void Factory_setup_Eeprom(void);
+
+// SOUND PUSHBUTTONS
+int PB_number;
 
 // Switch
 void Switch_to_PERFORMANCE_patch_old(void);
@@ -713,81 +754,15 @@ elapsedMicros microtimer;
 void Compile_tables(void);
 void Bootstrap_setup(void);
 
-int PB_number;
+int Line_in_gain;
 
-// SHIFTERS
-constexpr int LILLA_CONTEXTS = 13;
-enum LillaContext
-{
-    Start_context,
-    Common_context,
-    Performance_context,
-    Sound_edit_context,
-    Instrument_Vcf_context,
-    Mixer_context,
-    Delay_settings_context,
-    Live_Sampling_context,
-    Direct_Sampling_context,
-    Midi_Monitor_context,
-    Midi_Loop_context,
-    Setup_context,
-    Control_Change_context
-};
-
-// UI devices
-constexpr int EN_PB_TuningTone = 7;
-constexpr int EN_PB_Resolution = 0;
-constexpr int EN_PB_Downsampling = 8;
-constexpr int EN_PB_Tempo = 5;
-constexpr int EN_PB_Loop = 6;
-constexpr int EN_PB_Track1 = 13;
-constexpr int EN_PB_Track2 = 14;
-constexpr int EN_PB_Track3 = 21;
-constexpr int EN_PB_Track4 = 22;
-constexpr int EN_PB_Select = 25;
-constexpr int EN_PB_Value = 24;
-constexpr int EN_PB_PreListenVol = 18;
-constexpr int EN_PB_From = 1;
-constexpr int EN_PB_Step = 2;
-constexpr int EN_PB_To = 3;
-constexpr int EN_PB_LineOutVol = 17;
-constexpr int SEL_Mixer = 27;       // PB_Shift +
-constexpr int SEL_Delay = 28;       // PB_Shift +
-constexpr int SEL_Setup = 33;       // PB_Shift +
-constexpr int SEL_Test = 31;        // PB_Shift +
-constexpr int SEL_Sampler = 30;     // PB_Shift +
-constexpr int SEL_LiveSampler = 29; // PB_Shift +
-constexpr int SEL_Performance = 26; // PB_Shift +
-constexpr int SEL_MidiLoop = 32;    // PB_Shift +
-constexpr int PB_SwitchTo = 35;
-constexpr int PB_Shift = 35;
-constexpr int PB_Rec1 = 9;
-constexpr int PB_Rec2 = 10;
-constexpr int PB_Rec3 = 11;
-constexpr int PB_Rec4 = 12;
-constexpr int PB_S1 = 26;
-constexpr int PB_S2 = 27;
-constexpr int PB_S3 = 28;
-constexpr int PB_S4 = 29;
-constexpr int PB_S5 = 30;
-constexpr int PB_S6 = 31;
-constexpr int PB_S7 = 32;
-constexpr int PB_S8 = 33;
-
-uint32_t SR_monitored_encoders_set[LILLA_CONTEXTS];
-uint64_t SR_monitored_pushbuttons_set[LILLA_CONTEXTS];
-
+// ENCODER - PUSHBUTTONS
 bool Read_pushbutton(int element);
 bool Read_pushbutton_fast(int element);
 int Read_encoder_simple(int element);
 bool Read_encoder_fast(int element);
-uint32_t Get_monitored_encoders(const int *list, const int &elements);
-uint32_t Get_monitored_encoders(std::initializer_list<int> list);
-uint64_t Get_monitored_pushbuttons(const int *list, const int &elements);
-uint64_t Get_monitored_pushbuttons(std::initializer_list<int> list);
 
-int Line_in_gain;
-
+/*
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
 {
@@ -800,7 +775,7 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
     {
         if (value > lowest)
         {
-            value -= increment;
+            value = value - increment;
             return true;
         }
         return false;
@@ -809,7 +784,7 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
     {
         if (value < highest)
         {
-            value += increment;
+            value = value + increment;
             return true;
         }
         return false;
@@ -843,11 +818,116 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
         return false;
     }
 }
+*/
+
+template <class T>
+bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
+{
+    auto R = Encoders_manager.Get_rotation(encoder);
+    if (R == 0)
+    {
+        return false;
+    }
+    if constexpr (std::is_enum_v<T>)
+    {
+        auto v = static_cast<int>(value);
+        if (R == -1)
+        {
+            if (v > lowest)
+            {
+                value = static_cast<T>(v - increment);
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (v < highest)
+            {
+                value = static_cast<T>(v + increment);
+                return true;
+            }
+            return false;
+        }
+    }
+    else
+    {
+        if (R == -1)
+        {
+            if (value > lowest)
+            {
+                value = value - increment;
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (value < highest)
+            {
+                value = value + increment;
+                return true;
+            }
+            return false;
+        }
+    }
+}
+
+template <class T>
+bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
+{
+    auto R = Encoders_manager.Get_rotation(encoder);
+    if (R == 0)
+    {
+        return false;
+    }
+    if constexpr (std::is_enum_v<T>)
+    {
+        auto v = static_cast<int>(value);
+        if (R == 1)
+        {
+            if (v > lowest)
+            {
+                value = static_cast<T>(v - increment);
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (v < highest)
+            {
+                value = static_cast<T>(v + increment);
+                return true;
+            }
+            return false;
+        }
+    }
+    else
+    {
+        if (R == 1)
+        {
+            if (value > lowest)
+            {
+                value = value - increment;
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (value < highest)
+            {
+                value = value + increment;
+                return true;
+            }
+            return false;
+        }
+    }
+}
 
 // SGTL5000 Audio_shield
 int headphones_volume_int = 40; // 0 --> 40
-
-int S_menu;
 
 // *************************************************************
 // *************************************************************
@@ -867,7 +947,7 @@ void setup()
     AudioMemory(80);
     Serial.begin(115200);
 
-    // Compila le tavole di costanti
+    // Value tables
     Compile_tables();
 
     // udioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
@@ -1009,77 +1089,7 @@ void setup()
     // *******************   SHIFTERS DATA   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    /*
-    const int LILLA_CONTEXTS = 13;
-    enum LillaContext
-    {
-    Start_context,
-    Common_context,
-    Performance_context,
-    Sound_edit_context,
-    Instrument_Vcf_context,
-    Mixer_context,
-    Delay_settings_context,
-    Live_Sampling_context,
-    Direct_Sampling_context,
-    Midi_Monitor_context,
-    Midi_Loop_context,
-    Setup_context,
-    Control_Change_context,
-    }
-    */
-
-    // Configure here encoders and pushbutton monitored in each context
-
-    SR_monitored_encoders_set[Start_context] = 0xFFFFFFFF;
-    SR_monitored_pushbuttons_set[Start_context] = 0xFFFFFFFFFFFFFFFF;
-
-    /*
-    SR_monitored_encoders_set[Common_context] = Get_monitored_encoders({0, 7, 8, 16});
-    SR_monitored_pushbuttons_set[Common_context] = Get_monitored_pushbuttons({0, 7, 8, 16, 17, 18});
-
-    SR_monitored_encoders_set[Performance_context] = Get_monitored_encoders({0, 1, 3, 7, 8, 16, 17, 18, 24, 25});
-    SR_monitored_pushbuttons_set[Performance_context] = Get_monitored_pushbuttons({0, 1, 3, 7, 8, 16, 17, 18, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35});
-    */
-
-    SR_monitored_encoders_set[Common_context] = Get_monitored_encoders({0, 7, 8, 16});
-    SR_monitored_pushbuttons_set[Common_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 17, 18, 23});
-
-    SR_monitored_encoders_set[Performance_context] = Get_monitored_encoders({0, 2, 3, 4, 7, 8, 9, 11, 15, 16, 23, 24, 25});
-    SR_monitored_pushbuttons_set[Performance_context] = Get_monitored_pushbuttons({0, 1, 3, 7, 8, 10, 11, 15, 16, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35});
-
-    SR_monitored_encoders_set[Sound_edit_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25});
-    SR_monitored_pushbuttons_set[Sound_edit_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Instrument_Vcf_context] = Get_monitored_encoders({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23});
-    SR_monitored_pushbuttons_set[Instrument_Vcf_context] = Get_monitored_pushbuttons({0, 2, 3, 5, 6, 7, 8, 11, 12, 15, 16, 17, 18, 21, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Mixer_context] = Get_monitored_encoders({0, 3, 4, 7, 8, 15, 16, 19, 20});
-    SR_monitored_pushbuttons_set[Mixer_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 15, 16, 19, 20, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Delay_settings_context] = Get_monitored_encoders({0, 7, 8, 12, 13, 14, 15, 16, 19, 20, 21, 22});
-    SR_monitored_pushbuttons_set[Delay_settings_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 19, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Live_Sampling_context] = Get_monitored_encoders({0, 1, 4, 7, 8, 9, 10, 11, 12, 15, 16, 17, 25});
-    SR_monitored_pushbuttons_set[Live_Sampling_context] = Get_monitored_pushbuttons({0, 4, 7, 8, 9, 10, 15, 16, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Direct_Sampling_context] = Get_monitored_encoders({0, 4, 7, 8, 15, 16, 23, 25});
-    SR_monitored_pushbuttons_set[Direct_Sampling_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Midi_Monitor_context] = Get_monitored_encoders({0, 7, 8, 15, 16});
-    SR_monitored_pushbuttons_set[Midi_Monitor_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Midi_Loop_context] = Get_monitored_encoders({0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25});
-    SR_monitored_pushbuttons_set[Midi_Loop_context] = Get_monitored_pushbuttons({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Setup_context] = Get_monitored_encoders({0, 7, 8, 15, 16, 24, 25});
-    SR_monitored_pushbuttons_set[Setup_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35});
-
-    SR_monitored_encoders_set[Control_Change_context] = Get_monitored_encoders({0, 7, 8, 16, 24, 25});
-    SR_monitored_pushbuttons_set[Control_Change_context] = Get_monitored_pushbuttons({0, 7, 8, 15, 16, 23, 24, 25});
-
-    // TEST Encoders Pushbutton
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Start_context], SR_monitored_pushbuttons_set[Start_context]);
+    Shifters_manager.Set_context(Start_context);
     Shifters_manager.Update();
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1098,7 +1108,7 @@ void setup()
 
     // Test encoder e pulsanti
     // indica quale encoder e' stato ruotato (+/-1) o pulsante e' stato premuto
-    if (Read_pushbutton(0)) // RESOLUTION
+    if (Read_pushbutton(0))
     {
         Display_Manager.Encoder_pushbutton_test_board();
 
@@ -1173,7 +1183,7 @@ void loop()
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
     // Update del/i led presenti (varia in base a LILLA_STATE)
-    P_Update_instruments_leds();
+    Update_instruments_leds();
 
     // Update shift registers
     Shifters_manager.Update();
@@ -1211,7 +1221,7 @@ void loop()
 
         if (Lilla_state == DELAY_SETTINGS)
         {
-            Display_Manager.D_read_gain();
+            Display_Delay.D_feedback();
         }
     }
 
@@ -1232,6 +1242,7 @@ void loop()
     if (Read_encoder_inverse(0, resolution, RES_MAX, 0, 1))
     {
         resolution_reset = false;
+
         AudioNoInterrupts();
         Players_Manager.Multicast_effects(resolution_value[resolution], downsampling);
         AudioInterrupts();
@@ -1246,6 +1257,7 @@ void loop()
     if (Read_encoder_inverse(8, downsampling, 60, 1, 1))
     {
         downsampling_reset = false;
+
         AudioNoInterrupts();
         Players_Manager.Multicast_effects(resolution_value[resolution], downsampling);
         AudioInterrupts();
@@ -1256,13 +1268,20 @@ void loop()
         }
     }
 
+    // ****************************************************************************************************************
+    // *****************************************************   Test FRAM  *********************************************
+    /*
+    if (Read_pushbutton(0))
+    {
+        Archive.Test_Fram(0xAB);
+    }
+    */
+    // *****************************************************************************************************************
+    // *****************************************************************************************************************
+
     // Resolution (on/off) pushbutton
     if (Read_pushbutton(0))
     {
-
-        Archive.Test_Fram(0xAB);
-
-        /*
         if (!resolution_reset)
         {
             resolution_cache = resolution;
@@ -1281,10 +1300,9 @@ void loop()
 
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_old.Resolution();
+            Display_Manager.Resolution();
         }
         resolution_reset = !resolution_reset;
-        */
     }
 
     // Downsampling (on/off) pushbutton
@@ -1593,7 +1611,7 @@ void loop()
                     if (P_Ask_if_delete_this_Patch()) // yes, delete the patch
                     {
                         Lilla_state = PERFORMANCE;
-                        // Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                        // Shifters_manager.Set_context(Performance_context);
 
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players();
@@ -2055,8 +2073,6 @@ void loop()
             display_instrument_volume_flag = false;
         }
 
-        // choose MENU item
-
         // Pushbuttons
         if (!Read_pushbutton_fast(35))
         {
@@ -2064,7 +2080,7 @@ void loop()
             {
                 Lilla_state_0 = PERFORMANCE;
                 Lilla_state = SOUND_EDIT;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+                Shifters_manager.Set_context(Sound_edit_context);
 
                 Instrument_id = PB_number;
                 Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -2073,24 +2089,27 @@ void loop()
                 Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                 S_trim_step = S_Calc_trim_step(trim_speed);
 
-                // menu
+                // Menu
                 S_sound_original = S_Verify_is_Sound_original(Sound_id);
                 S_Select_menu_elements();
-
-                // start page
-                Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
-
-                // pointer
-                Pointer_Sound.Update_field_description(S_menu_max);
-                Pointer_Sound.Set_pointer_to_file(S_menu_max);
-                Pointer_Sound.Display_pointer();
-
-                // restore LEDs
-                Performance_led_set.Restore_all_LED();
-
-                Display_Sound.S_show_wave(Instrument_id);
                 Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
+                // Display page
+                Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
+
+                // Pointer
+                Pointer_Sound.Update_field_description(S_menu_max);
+                Pointer_Sound.Set_pointer_to_file(S_menu_max);
+                S_field_description = Pointer_Sound.Get_field_description();
+                Pointer_Sound.Display_pointer();
+
+                // Restore LEDs
+                Performance_led_set.Restore_all_LED();
+
+                // Wave
+                Display_Sound.S_show_wave(Instrument_id);
+
+                // Report
                 Serial.print("Editing Sound: ");
                 Serial.println(Instrument_id);
                 Print_Sound(Sound_id);
@@ -2113,9 +2132,11 @@ void loop()
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -2174,14 +2195,13 @@ void loop()
             AudioInterrupts();
         }
 
-        // Change S_pointer using encoder
+        // Move pointer
         result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
             Pointer_Sound.Move_pointer(result, S_menu_max);
+            S_field_description = Pointer_Sound.Get_field_description();
         }
-
-        S_field_description = Pointer_Sound.Get_field_description();
 
         // Change values
         switch (S_field_description.field_name)
@@ -2197,7 +2217,7 @@ void loop()
                     S_Set_Sound_SOLO_OFF();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2229,7 +2249,7 @@ void loop()
                     S_Set_Sound_SOLO_OFF();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2253,7 +2273,7 @@ void loop()
                     AudioInterrupts();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2819,7 +2839,7 @@ void loop()
             Display_Sound.S_show_Trim_step_value();
         }
 
-        // change A
+        // Change A
         result = Read_encoder_simple(1);
         if (result != 0)
         {
@@ -2871,8 +2891,9 @@ void loop()
                     Sound[Sound_id].B = Sound[Sound_id].A + S_slicing_window - 1;
                 }
                 if (trim_speed == 5)
+                {
                     S_trim_step = S_Calc_trim_step(5);
-
+                }
                 // verify if stop players: it can happend if use_Wavetable switches to "false". Than update Preset[I].A (DO NOT invert the sequence)
                 Players_Manager.Verify_if_stop_players(Patch_id, Instrument_id);
                 Players_Manager.Update_Preset_A_B_Wavetable(Patch_id, Instrument_id);
@@ -2906,7 +2927,7 @@ void loop()
             }
         }
 
-        // change B
+        // Change B
         result = Read_encoder_simple(3);
         if (result != 0)
         {
@@ -2991,7 +3012,7 @@ void loop()
                 if (PB_number == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -3064,9 +3085,11 @@ void loop()
             {
                 S_Set_Sound_SOLO_OFF();
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3155,6 +3178,7 @@ void loop()
         {
         case value_VCF_Gain_Volume:
         {
+            // Volume
             if (Lilla_state_0 == LIVE_SAMPLING)
             {
                 if (Read_encoder(EN_PB_Value, volume_patch, 40, 0, 1))
@@ -3170,6 +3194,7 @@ void loop()
                     }
                 }
             }
+            // Gain
             else
             {
                 if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
@@ -3213,7 +3238,6 @@ void loop()
                 Macro_VCF_filter_on_none();
                 Display_VCF.VCF_show_filter_type_value(Instrument_id);
             }
-
             break;
 
         case value_VCF_Cutoff:
@@ -3282,12 +3306,12 @@ void loop()
                     AudioInterrupts();
                 }
 
-                Display_VCF.VCF_show_lfo_Modulation(Instrument_id);
+                Display_VCF.VCF_show_LFO_modulation_source(Instrument_id);
             }
             else if (Read_pushbutton(EN_PB_Value) || Read_pushbutton(EN_PB_Select))
             {
                 Macro_VCF_modulation_none();
-                Display_VCF.VCF_show_lfo_Modulation(Instrument_id);
+                Display_VCF.VCF_show_LFO_modulation_source(Instrument_id);
             }
             break;
 
@@ -3315,7 +3339,7 @@ void loop()
                 }
                 AudioInterrupts();
 
-                Display_VCF.VCF_show_lfo_freq_time(Instrument_id);
+                Display_VCF.VCF_show_LFO_freq_time(Instrument_id);
             }
             break;
 
@@ -3334,7 +3358,7 @@ void loop()
                 }
                 AudioInterrupts();
 
-                Display_VCF.VCF_show_lfo_modulation_depth(Instrument_id);
+                Display_VCF.VCF_show_LFO_modulation_depth(Instrument_id);
             }
             break;
 
@@ -3354,7 +3378,7 @@ void loop()
                         S_Set_Sound_SOLO_OFF();
 
                         Lilla_state = PERFORMANCE;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+                        Shifters_manager.Set_context(Performance_context);
 
                         patch_original = P_Verify_is_Patch_original(Patch_id);
                         P_Select_menu_elements();
@@ -3379,7 +3403,7 @@ void loop()
                         AudioInterrupts();
 
                         Lilla_state = SOUND_EDIT;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+                        Shifters_manager.Set_context(Sound_edit_context);
 
                         Instrument_id = PB_number;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -3492,7 +3516,7 @@ void loop()
                         AudioInterrupts();
 
                         Lilla_state = SOUND_EDIT;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+                        Shifters_manager.Set_context(Sound_edit_context);
 
                         Instrument_id = PB_number;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -3558,9 +3582,11 @@ void loop()
                     }
                 }
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -3637,9 +3663,9 @@ void loop()
     // *************************************************************
     if (Lilla_state == MIXER)
     {
-        if (Lilla_state_0 == PERFORMANCE || (Lilla_state_0 == DIRECT_SAMPLING && DS_state == 0) || Lilla_state_0 == LIVE_SAMPLING)
+        if (Lilla_state_0 == PERFORMANCE || (Lilla_state_0 == DIRECT_SAMPLING && DS_state == DS_waiting_state) || Lilla_state_0 == LIVE_SAMPLING)
         {
-            if (Read_encoder(15, volume_patch, 40, 0, 1))
+            if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
             {
                 AudioNoInterrupts();
                 Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -3648,227 +3674,261 @@ void loop()
             }
         }
 
-        // Choose source instrument: MX_sources 0 --> 7
-        if (!Read_pushbutton_fast(35))
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
         {
-            if (Read_pushbutton(PB_number + 26) && Patch[Patch_id].Instrument[PB_number].used)
+            Pointer_Mixer.Move_pointer(result);
+
+            MX_local_pointer = Pointer_Mixer.Get_pointer();
+            Instrument_id = (MX_local_pointer.source < LINE_IN_source ? MX_local_pointer.source : 0);
+            Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+        }
+
+        // Change values
+        if (MX_local_pointer.field_name == field_MX_Source)
+        {
+            // Enter inside
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
-                Display_Manager.MX_source_values_jump(MX_source, PB_number); // MX_source_values_jump(const uint8_t &old_source, const uint8_t &new_source) - qui si assegna il nuovo valore MX_source
-                Instrument_id = MX_source;
-                Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-                Serial.print("sound_id: ");
-                Serial.println(Sound_id);
+                Pointer_Mixer.Move_pointer_to_field_MX_Elements();
+                MX_local_pointer = Pointer_Mixer.Get_pointer();
             }
 
-            // Choose source LINE IN: MX_source 8
-            // Leggi dopo Sound 7 (non ad ogni loop!)
-            if (PB_number == 7 && Read_pushbutton(34))
+            if (Read_encoder_simple(EN_PB_Value))
             {
-                // MX_source = 8;
-                Display_Manager.MX_source_values_jump(MX_source, LINE_IN_CHANNEL); // aggiorna MX_source a 8
-                Serial.println("Line IN");
+                // reset encoder increment/decrement
             }
         }
 
-        // Change GAIN
-        if (MX_source < INSTRUMENTS_MAX)
+        else if (MX_local_pointer.field_name == field_MX_Elements)
         {
-            if (Read_encoder(4, Sound[Sound_id].gain, 40, 0, 1))
+            // Exit to Source
+            if (Read_pushbutton(EN_PB_Select))
             {
-                AudioNoInterrupts();
-                Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
-                AudioInterrupts();
-
-                Serial.println(Sound[Sound_id].gain);
-                Serial.println(MX_source);
-                Display_Manager.MX_source_values_edit(MX_source);
+                Pointer_Mixer.Move_pointer_to_field_MX_Source();
             }
-        }
-        else // MX_source == LINE_IN_CHANNEL
-        {
-            if (Read_encoder(4, DS_gain, 40, 1, 1))
+
+            switch (MX_local_pointer.element)
             {
-                LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-                Display_Manager.MX_source_values_edit(MX_source);
-            }
-        }
-
-        // Change PAN
-        if (MX_source < INSTRUMENTS_MAX)
-        {
-            if (Read_encoder(3, Sound[Sound_id].pan, 16, -16, 1))
+            case value_MX_Mute_Gain:
             {
-                AudioNoInterrupts();
-                Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
-                Players_Manager.Multicast_pan(Instrument_id);
-                AudioInterrupts();
 
-                Display_Manager.MX_source_values_edit(MX_source);
-            }
-        }
-        else // MX_source == LINE_IN_CHANNEL
-        {
-            // not supported
-        }
-
-        // Mute/unmute a source
-        if (Read_pushbutton(4))
-        {
-            MX_mute[MX_source] = !MX_mute[MX_source];
-
-            if (MX_source < INSTRUMENTS_MAX)
-            {
-                Serial.print((MX_mute[Instrument_id] ? "Mute MX_source:" : "umute MX_source:"));
-                Serial.println(Instrument_id);
-
-                AudioNoInterrupts();
-                Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
-                AudioInterrupts();
-            }
-            else if (MX_source == 8)
-            {
-                if (MX_mute[MX_source])
+                if (MX_local_pointer.source == LINE_IN_source) // MX_source == LINE_IN_CHANNEL
                 {
-                    Serial.print((MX_mute[MX_source] ? "Mute MX_source:" : "umute MX_source:"));
-                    Serial.println(MX_source);
+                    if (Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
+                    {
+                        LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
 
-                    MAIN_mixer_out_L.Mute(1);
-                    MAIN_mixer_out_R.Mute(1);
-                    PWM_mixer_out_L.Mute(1);
-                    PWM_mixer_out_R.Mute(1);
+                        Display_Mixer.MX_source_values_edit(LINE_IN_source);
+                    }
                 }
                 else
                 {
-                    Serial.print((MX_mute[MX_source] ? "Mute MX_source:" : "umute MX_source:"));
-                    Serial.println(MX_source);
+                    if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                        AudioInterrupts();
 
-                    MAIN_mixer_out_L.unmute(1);
-                    MAIN_mixer_out_R.unmute(1);
-                    PWM_mixer_out_L.unmute(1);
-                    PWM_mixer_out_R.unmute(1);
+                        Display_Mixer.MX_source_values_edit(Instrument_id);
+                    }
                 }
-            }
-            Display_Manager.MX_source_values_edit(MX_source);
-        }
 
-        // Route/unroute a source to MAIN
-        if (Read_pushbutton(19))
-        {
-            if (MX_routing_source[MX_source] == 0) // era tutto muto --> solo MAIN
-            {
-                MX_routing_source[MX_source] = 2;
-            }
-            else if (MX_routing_source[MX_source] == 1) // era solo MONITOR --> MONITOR e MAIN
-            {
-                MX_routing_source[MX_source] = 3;
-            }
-            else if (MX_routing_source[MX_source] == 2) // era solo MAIN --> tutto muto
-            {
-                MX_routing_source[MX_source] = 0;
-            }
-            else // era 3 (MONITOR e MAIN) --> solo MONITOR
-            {
-                MX_routing_source[MX_source] = 1;
-            }
-
-            if (MX_source < INSTRUMENTS_MAX)
-            {
-                AudioNoInterrupts();
-                Players_Manager.MX_multicast_change_routing(Instrument_id);
-                AudioInterrupts();
-            }
-
-            else if (MX_source == 8)
-            {
-                switch (MX_routing_source[MX_source])
+                if (Read_pushbutton(4))
                 {
-                case 0:
-                    MAIN_mixer_out_L.Mute(1);
-                    MAIN_mixer_out_R.Mute(1);
-                    break;
+                    MX_mute[MX_local_pointer.source] = !MX_mute[MX_local_pointer.source];
 
-                case 1:
-                    MAIN_mixer_out_L.Mute(1);
-                    MAIN_mixer_out_R.Mute(1);
-                    break;
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        if (MX_mute[MX_local_pointer.source])
+                        {
+                            MAIN_mixer_out_L.Mute(1);
+                            MAIN_mixer_out_R.Mute(1);
+                            PWM_mixer_out_L.Mute(1);
+                            PWM_mixer_out_R.Mute(1);
+                        }
+                        else
+                        {
+                            MAIN_mixer_out_L.unmute(1);
+                            MAIN_mixer_out_R.unmute(1);
+                            PWM_mixer_out_L.unmute(1);
+                            PWM_mixer_out_R.unmute(1);
+                        }
+                    }
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                        AudioInterrupts();
+                    }
 
-                case 2:
-                    MAIN_mixer_out_L.unmute(1);
-                    MAIN_mixer_out_R.unmute(1);
-                    break;
-
-                case 3:
-                    MAIN_mixer_out_L.unmute(1);
-                    MAIN_mixer_out_R.unmute(1);
-                    break;
-
-                default:
-                    Serial.println("Switch MISSING! 3303");
-                    break;
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
             }
-            Display_Manager.MX_source_values_edit(MX_source);
-        }
+            break;
 
-        // Route/unroute a source to MONITOR (PWM)
-        if (Read_pushbutton(20))
-        {
-            if (MX_routing_source[MX_source] == 0) // era tutto muto --> solo MONITOR
+            case value_MX_Pan:
             {
-                MX_routing_source[MX_source] = 1;
-            }
-            else if (MX_routing_source[MX_source] == 1) // era solo MONITOR --> tutto muto
-            {
-                MX_routing_source[MX_source] = 0;
-            }
-            else if (MX_routing_source[MX_source] == 2) // era solo MAIN --> MONITOR e MAIN
-            {
-                MX_routing_source[MX_source] = 3;
-            }
-            else // era 3 (MONITOR e MAIN) --> solo MAIN
-            {
-                MX_routing_source[MX_source] = 2;
-            }
-
-            if (MX_source < INSTRUMENTS_MAX)
-            {
-                AudioNoInterrupts();
-                Players_Manager.MX_multicast_change_routing(Instrument_id);
-                AudioInterrupts();
-            }
-
-            if (MX_source == 8)
-            {
-                switch (MX_routing_source[MX_source])
+                if (MX_local_pointer.source == LINE_IN_source)
                 {
-                case 0:
-                    PWM_mixer_out_L.Mute(1);
-                    PWM_mixer_out_R.Mute(1);
-                    break;
+                    // not supported
+                }
+                else
+                {
+                    if (Read_encoder(EN_PB_Value, Sound[Sound_id].pan, 16, -16, 1))
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
+                        Players_Manager.Multicast_pan(Instrument_id);
+                        AudioInterrupts();
 
-                case 1:
-                    PWM_mixer_out_L.unmute(1);
-                    PWM_mixer_out_R.unmute(1);
-                    break;
-
-                case 2:
-                    PWM_mixer_out_L.Mute(1);
-                    PWM_mixer_out_R.Mute(1);
-                    break;
-
-                case 3:
-                    PWM_mixer_out_L.unmute(1);
-                    PWM_mixer_out_R.unmute(1);
-                    break;
-
-                default:
-                    Serial.println("Switch MISSING! 3354");
-                    break;
+                        Display_Mixer.MX_source_values_edit(Instrument_id);
+                    }
                 }
             }
-            Display_Manager.MX_source_values_edit(MX_source);
+            break;
+
+            case value_MX_Lineout:
+            {
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    if (MX_routing_source[MX_local_pointer.source] == 0) // era tutto muto --> solo MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 2;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 1) // era solo MONITOR --> MONITOR e MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 3;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 2) // era solo MAIN --> tutto muto
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 0;
+                    }
+                    else // era 3 (MONITOR e MAIN) --> solo MONITOR
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 1;
+                    }
+
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        switch (MX_routing_source[MX_local_pointer.source])
+                        {
+                        case 0:
+                            MAIN_mixer_out_L.Mute(1);
+                            MAIN_mixer_out_R.Mute(1);
+                            break;
+
+                        case 1:
+                            MAIN_mixer_out_L.Mute(1);
+                            MAIN_mixer_out_R.Mute(1);
+                            break;
+
+                        case 2:
+                            MAIN_mixer_out_L.unmute(1);
+                            MAIN_mixer_out_R.unmute(1);
+                            break;
+
+                        case 3:
+                            MAIN_mixer_out_L.unmute(1);
+                            MAIN_mixer_out_R.unmute(1);
+                            break;
+
+                        default:
+                            Serial.println("Switch MISSING! 3303");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.MX_multicast_change_routing(Instrument_id);
+                        AudioInterrupts();
+                    }
+
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
+                }
+
+                if (Read_encoder_simple(EN_PB_Value))
+                {
+                    // reset encoder increment/decrement
+                }
+            }
+            break;
+
+            case value_MX_Monitor:
+            {
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    if (MX_routing_source[MX_local_pointer.source] == 0) // era tutto muto --> solo MONITOR
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 1;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 1) // era solo MONITOR --> tutto muto
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 0;
+                    }
+                    else if (MX_routing_source[MX_local_pointer.source] == 2) // era solo MAIN --> MONITOR e MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 3;
+                    }
+                    else // era 3 (MONITOR e MAIN) --> solo MAIN
+                    {
+                        MX_routing_source[MX_local_pointer.source] = 2;
+                    }
+
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        switch (MX_routing_source[MX_local_pointer.source])
+                        {
+                        case 0:
+                            PWM_mixer_out_L.Mute(1);
+                            PWM_mixer_out_R.Mute(1);
+                            break;
+
+                        case 1:
+                            PWM_mixer_out_L.unmute(1);
+                            PWM_mixer_out_R.unmute(1);
+                            break;
+
+                        case 2:
+                            PWM_mixer_out_L.Mute(1);
+                            PWM_mixer_out_R.Mute(1);
+                            break;
+
+                        case 3:
+                            PWM_mixer_out_L.unmute(1);
+                            PWM_mixer_out_R.unmute(1);
+                            break;
+
+                        default:
+                            Serial.println("Switch MISSING! 3354");
+                            break;
+                        }
+                    }
+
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.MX_multicast_change_routing(Instrument_id);
+                        AudioInterrupts();
+                    }
+
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
+                }
+
+                if (Read_encoder_simple(EN_PB_Value))
+                {
+                    // reset encoder increment/decrement
+                }
+            }
+            break;
+
+            default:
+                break;
+            }
         }
 
         if (Read_pushbutton_fast(35))
@@ -3899,23 +3959,25 @@ void loop()
             // Switch to DELAY
             else if (Read_pushbutton(28))
             {
-                if (Lilla_state_0 != DIRECT_SAMPLING)
+                if (Lilla_state_0 == DIRECT_SAMPLING)
                 {
-                    Lilla_state = DELAY_SETTINGS;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                    Display_Delay.D_disabled();
+                    delay(2000);
 
-                    Display_Manager.D_show_page();
+                    Display_Mixer.MX_page();
+                    for (auto source = 0; source < MX_sources; ++source)
+                    {
+                        Display_Mixer.MX_source_values(source, (source == 0 ? true : false));
+                    }
                 }
                 else
                 {
-                    Display_Manager.D_disabled();
-                    delay(2000);
+                    Lilla_state = DELAY_SETTINGS;
+                    Shifters_manager.Set_context(Delay_settings_context);
 
-                    Display_Manager.MX_page();
-                    for (auto source = 0; source < 9; ++source)
-                    {
-                        Display_Manager.MX_source_values(source);
-                    }
+                    Display_Delay.D_show_page();
+                    Pointer_Delay.Set_pointer_to_Feedback();
+                    DELAY_local_pointer = Pointer_Delay.Get_element_name();
                 }
             }
 
@@ -4015,7 +4077,7 @@ void loop()
     if (Lilla_state == DELAY_SETTINGS)
     {
         // Change Patch VOLUME
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -4025,123 +4087,189 @@ void loop()
             Display_Manager.P_Patch_volume_value(true);
         }
 
-        // Change feddback (gain tap 0)
-        if (Read_encoder(12, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
         {
-            Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-            Serial.println(Delay_values.loop_gain);
-
-            AudioNoInterrupts();
-            D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-            D_gain_R_n.Set_gain(Delay_values.loop_gain);
-            AudioInterrupts();
-
-            Display_Manager.D_read_gain();
+            Pointer_Delay.Move_pointer(result);
+            DELAY_local_pointer = Pointer_Delay.Get_element_name();
         }
 
-        // Change value (delay_central_value)
-        if (Read_encoder(13, Delay_data.samples, 99, 0, 1))
+        // Change values
         {
-            Delay_values.samples = Calc_delay_samples(Delay_data.samples);
-
-            AudioNoInterrupts();
-            if (Delay_values.samples_LR >= 0) // Left channel
+            switch (DELAY_local_pointer)
             {
-                Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                Delay_R.Set_delay_central_value(Delay_values.samples);
-            }
-            else
+            case value_DELAY_Feedback:
             {
-                Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                Delay_L.Set_delay_central_value(Delay_values.samples);
+                if (Read_encoder(EN_PB_Value, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
+                {
+                    Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
+                    Serial.println(Delay_values.loop_gain);
+
+                    AudioNoInterrupts();
+                    D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
+                    D_gain_R_n.Set_gain(Delay_values.loop_gain);
+                    AudioInterrupts();
+
+                    Display_Delay.D_feedback();
+                }
             }
-            AudioInterrupts();
+            break;
 
-            Display_Manager.D_delay();
-        }
-
-        // Change value_LR
-        if (Read_encoder(14, Delay_data.samples_LR, 10, -10, 1))
-        {
-            Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
-
-            AudioNoInterrupts();
-            if (Delay_values.samples_LR >= 0) // Left channel
+            case value_DELAY_Delay_time:
             {
-                Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                if (Read_encoder(EN_PB_Value, Delay_data.samples, 99, 0, 1))
+                {
+                    Delay_values.samples = Calc_delay_samples(Delay_data.samples);
+
+                    AudioNoInterrupts();
+                    if (Delay_values.samples_LR >= 0) // Left channel
+                    {
+                        Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                        Delay_R.Set_delay_central_value(Delay_values.samples);
+                    }
+                    else
+                    {
+                        Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                        Delay_L.Set_delay_central_value(Delay_values.samples);
+                    }
+                    AudioInterrupts();
+
+                    Display_Delay.D_delay_time();
+                }
             }
-            else
+            break;
+
+            case value_DELAY_Delay_time_LR:
             {
-                Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                if (Read_encoder(EN_PB_Value, Delay_data.samples_LR, 10, -10, 1))
+                {
+                    Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
+
+                    AudioNoInterrupts();
+                    if (Delay_values.samples_LR >= 0) // Left channel
+                    {
+                        Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                    }
+                    else
+                    {
+                        Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                    }
+                    AudioInterrupts();
+
+                    Display_Delay.D_delay_time_LR();
+                }
             }
-            AudioInterrupts();
+            break;
 
-            Display_Manager.D_delay_LR();
-        }
+            case value_DELAY_Modulation_source:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_source, 2, 0, 1))
+                {
+                    Delay_values.modulation_source = Delay_data.modulation_source;
 
-        // Change delay_modulation_type
-        if (Read_encoder(19, Delay_data.modulation_source, 2, 0, 1))
-        {
-            Delay_values.modulation_source = Delay_data.modulation_source;
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
+                    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-            Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-            AudioInterrupts();
+                    Display_Delay.D_modulation_source();
+                }
 
-            Display_Manager.D_modulation_type();
-        }
+                // Change delay_modulation_source = NONE
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Delay_data.modulation_source = 0;
+                    Delay_values.modulation_source = Delay_data.modulation_source;
 
-        // Change delay_modulation_source = NONE
-        if (Read_pushbutton(19))
-        {
-            Delay_data.modulation_source = 0;
-            Delay_values.modulation_source = Delay_data.modulation_source;
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
+                    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-            Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-            AudioInterrupts();
+                    Display_Delay.D_modulation_source();
+                }
+            }
+            break;
 
-            Display_Manager.D_modulation_type();
-        }
+            case value_DELAY_Modulation_frequency:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_frequency, 90, 0, 1))
+                {
+                    Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
 
-        // Change depth (depth)
-        if (Read_encoder(20, Delay_data.modulation_depth, 39, 0, 1))
-        {
-            Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
+                    AudioNoInterrupts();
+                    LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
+                    LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-            Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-            AudioInterrupts();
+                    Display_Delay.D_modulation_frequency();
+                }
+            }
+            break;
 
-            Display_Manager.D_modulation_depth();
-        }
+            case value_DELAY_Modulation_depth:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_depth, 39, 0, 1))
+                {
+                    Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
 
-        // Change delay_modulation_frequency
-        if (Read_encoder(21, Delay_data.modulation_frequency, 90, 0, 1))
-        {
-            Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    AudioInterrupts();
 
-            AudioNoInterrupts();
-            LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
-            LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
-            AudioInterrupts();
+                    Display_Delay.D_modulation_depth();
+                }
 
-            Display_Manager.D_modulation_frequency();
-        }
+                // Set delay_modulation_depth = 0
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Delay_data.modulation_depth = 0;
 
-        // Change modulation phase_LR
-        if (Read_encoder(22, Delay_data.modulation_phase_LR, 359, 0, 1))
-        {
-            Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+                    Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
 
-            AudioNoInterrupts();
-            LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-            AudioInterrupts();
+                    AudioNoInterrupts();
+                    Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                    AudioInterrupts();
 
-            Display_Manager.D_modulation_phase_LR();
+                    Display_Delay.D_modulation_depth();
+                }
+            }
+            break;
+
+            case value_DELAY_Modulation_phase_LR:
+            {
+                if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
+                {
+                    Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+
+                    AudioNoInterrupts();
+                    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+                    AudioInterrupts();
+
+                    Display_Delay.D_modulation_phase_LR();
+                }
+
+                // Change delay_modulation_phase_LR = 0
+                else if (Read_pushbutton(EN_PB_Value))
+                {
+                    Delay_data.modulation_phase_LR = 0;
+                    Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+
+                    AudioNoInterrupts();
+                    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+                    AudioInterrupts();
+
+                    Display_Delay.D_modulation_phase_LR();
+                }
+            }
+            break;
+
+            default:
+                break;
+            }
         }
 
         // Configure Instrument routing
@@ -4167,7 +4295,7 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    Display_Manager.D_sounds();
+                    Display_Delay.D_sounds();
                 }
                 else
                 {
@@ -4190,7 +4318,7 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    Display_Manager.D_sounds();
+                    Display_Delay.D_sounds();
                 }
             }
         }
@@ -4363,13 +4491,12 @@ void loop()
 
 #pragma region Live Sampler [rgba(244, 229, 26, 0.19)]
     // *************************************************************
-    // ********************   LIVE SAMPLING  ***********************
+    // ********************   LIVE SAMPLER   ***********************
     // *************************************************************
     if (Lilla_state == LIVE_SAMPLING)
     {
 
         /*
-
         Live Sampling (LIVE SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX.
 
         Se la registrazione è mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
@@ -4464,38 +4591,7 @@ void loop()
         sono sempre PROPORZIONALI a LS_window_width.
         */
 
-        // Change play MODE
-        if (Read_encoder(1, LS_mode, 3, 0, 1))
-        {
-            AudioNoInterrupts();
-            Sound[SOUNDS_MAX].mode = LS_mode;
-            Players_Manager.Update_Preset_mode(Patch_id, 0);
-            Players_Manager.Multicast_main_settings_editing(Patch_id, 0);
-            if (LS_stereo)
-            {
-                Sound[SOUNDS_MAX + 1].mode = LS_mode;
-                Players_Manager.Update_Preset_mode(Patch_id, 1);
-                Players_Manager.Multicast_main_settings_editing(Patch_id, 1);
-            }
-            AudioInterrupts();
-
-            Display_LiveSampler.Play_mode();
-            Display_LiveSampler.Loop_time();
-            if (LS_state != REC)
-            {
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-                Display_LiveSampler.Show_wave(LS_sound_id);
-            }
-        }
-
-        // Change line_in gain
+        // ******************************************  Move to SETTINGS Change line_in gain
         if (Read_encoder(4, Line_in_gain, 15, 0, 1))
         {
             AudioNoInterrupts();
@@ -4506,7 +4602,7 @@ void loop()
         }
 
         // Change volume_patch
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -4516,60 +4612,267 @@ void loop()
             Display_LiveSampler.Volume();
         }
 
-        // Change window WIDTH
-        result = Read_encoder_simple(9);
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
-            Info.LS_restart_antiflicker();
-            if (result == 1)
-            {
-                LS_window_width -= LS_window_width / 8;
-            }
-            else
-            {
-                LS_window_width += LS_window_width / 8;
-            }
-
-            LS_window_width = constrain(LS_window_width, 20 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim); // constrain(LS_window_width, 200 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim);
-            if (LS_state != REC)
-            {
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-                Display_LiveSampler.Show_wave(LS_sound_id);
-            }
-            LS_X_step = LS_window_width / LS_COMB;
-            Display_LiveSampler.Step();
+            Pointer_LiveSampler.Move_pointer(result);
+            LS_local_pointer = Pointer_LiveSampler.Get_pointer();
         }
 
-        // Set window_width to "ALL TAPE"
-        if (Read_pushbutton(9))
+        // Change values
+        if (LS_local_pointer.field_name == field_LS_Menu)
         {
-            Info.LS_restart_antiflicker();
-            LS_window_width = LS_buffer_dim;
-            if (LS_state != REC)
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
-                if (!LS_XY_lock)
+                switch (LS_local_pointer.menu_element)
                 {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
+                case value_LS_Recording:
                 {
-                    LS_update_Q_sample();
+                    LS_state = REC;
+
+                    LS_update_menu_elements();
+                    Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
+                    Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+                    LiveSampler.Start(LS_stereo);
+                    LS_wave_refresh_timer = 0;
+                    delay(10);
                 }
-                Display_LiveSampler.Show_wave(LS_sound_id);
+                break;
+                case value_LS_Stop:
+                {
+                    LS_state = PLAYONLY;
+                    LiveSampler.Stop();
+
+                    LS_update_menu_elements();
+                    Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
+                    Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+                    delay(20);
+                    if (!LS_XY_lock)
+                    {
+                        LS_update_both_X_Y_samples();
+                    }
+                    else // altrimenti e' gia' stato calcolato
+                    {
+                        LS_update_Q_sample();
+                    }
+                    Display_LiveSampler.Show_wave(LS_sound_id);
+                }
+                break;
+                case value_LS_MonoStereo:
+                {
+                    Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
+
+                    LS_stereo = !LS_stereo;
+                    LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
+                    LS_window_width = LS_buffer_dim;
+                    LS_window_step = LS_window_width / 8;
+                    LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
+                    LS_setup_LS_Patch(LS_stereo);
+
+                    AudioNoInterrupts();
+                    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+                    AudioInterrupts();
+
+                    P_Update_all_maps_Instrument_for_notes();
+                    Print_Patch(Patch_id);
+                    LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
+                    LS_instrument = 0;
+                    LS_X_delta = 0;
+                    LS_X_sample = 0;
+                    LS_XY_delta = 44100;
+                    LS_Y_sample = LS_X_sample + LS_XY_delta;
+                    LS_X_step = LS_window_width / LS_COMB;
+
+                    LS_refresh_LS_page();
+                    Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+                    Pointer_LiveSampler.Show_pointer(true);
+
+                    Midi_reader.Start();
+                }
+                break;
+                case value_LS_Erase:
+                {
+                    AudioNoInterrupts();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
+                    if (LS_stereo)
+                    {
+                        LS_erase_FIFO_array(LS_buffer_L_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+                        LS_erase_FIFO_array(LS_buffer_R_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+                    }
+                    else
+                        LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
+
+                    Serial.println("Live Samplier buffer(s) erased!");
+
+                    LiveSampler.Reset(); // reset Q_sample and P_sample
+                    LS_state = EMPTY;
+                    LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
+                    LS_instrument = 0;
+                    LS_window_width = LS_buffer_dim; // LS_window_width = 441001;
+                    LS_window_step = LS_window_width / 8;
+                    LS_X_sample = 0;
+                    LS_X_delta = 0;
+                    LS_XY_delta = 44100;
+                    LS_Y_sample = LS_X_sample + LS_XY_delta;
+                    LS_X_step = LS_window_width / LS_COMB;
+
+                    Display_LiveSampler.Page();
+
+                    // restore all LED
+                    Performance_led_set.Restore_all_LED();
+
+                    LS_update_menu_elements();
+                    Pointer_LiveSampler.Restore_pointer();
+                    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+                    Pointer_LiveSampler.Show_pointer(true);
+
+                    if (!LS_XY_lock)
+                    {
+                        LS_update_both_X_Y_samples();
+                    }
+                    else // altrimenti e' gia' stato calcolato
+                    {
+                        LS_update_Q_sample();
+                    }
+
+                    Display_LiveSampler.Show_wave(LS_sound_id);
+                }
+                break;
+                }
             }
-            LS_X_step = LS_window_width / LS_COMB;
-            Display_LiveSampler.Step();
+        }
+
+        else if (LS_local_pointer.field_name == field_LS_Value)
+        {
+            switch (LS_local_pointer.value_element)
+            {
+            case value_LS_Play_mode:
+            {
+                if (Read_encoder(EN_PB_Value, LS_mode, LOOP_FWD_REV, 0, 1))
+                {
+                    AudioNoInterrupts();
+                    Sound[SOUNDS_MAX].mode = LS_mode;
+                    Players_Manager.Update_Preset_mode(Patch_id, 0);
+                    Players_Manager.Multicast_main_settings_editing(Patch_id, 0);
+                    if (LS_stereo)
+                    {
+                        Sound[SOUNDS_MAX + 1].mode = LS_mode;
+                        Players_Manager.Update_Preset_mode(Patch_id, 1);
+                        Players_Manager.Multicast_main_settings_editing(Patch_id, 1);
+                    }
+                    AudioInterrupts();
+
+                    Pointer_LiveSampler.Show_pointer(false);
+                    Display_LiveSampler.Play_mode();
+                    Pointer_LiveSampler.Show_pointer(true);
+
+                    Display_LiveSampler.Loop_time();
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                }
+            }
+            break;
+            case value_LS_Feedback:
+            {
+                if (Read_encoder(EN_PB_Value, LS_feedback, 8, 0, 1))
+                {
+                    AudioNoInterrupts();
+                    LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
+                    LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
+                    AudioInterrupts();
+
+                    Pointer_LiveSampler.Show_pointer(false);
+                    Display_LiveSampler.Feedback();
+                    Pointer_LiveSampler.Show_pointer(true);
+
+                    Serial.println(LS_fbk_table[LS_feedback]);
+                }
+            }
+            break;
+            case value_LS_Window:
+            {
+                result = Read_encoder_simple(EN_PB_Value);
+                if (result != 0)
+                {
+                    Info.LS_restart_antiflicker();
+                    if (result == 1)
+                    {
+                        LS_window_width -= LS_window_width / 8;
+                    }
+                    else
+                    {
+                        LS_window_width += LS_window_width / 8;
+                    }
+
+                    LS_window_width = constrain(LS_window_width, 20 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim); // constrain(LS_window_width, 200 * AUDIO_BLOCK_SAMPLES, LS_buffer_dim);
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                    LS_X_step = LS_window_width / LS_COMB;
+                    // Display_LiveSampler.Step();
+
+                    Pointer_LiveSampler.Show_pointer(false);
+                    Display_LiveSampler.Window();
+                    Pointer_LiveSampler.Show_pointer(true);
+                }
+
+                // Set window_width to "ALL TAPE"
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    Info.LS_restart_antiflicker();
+                    LS_window_width = LS_buffer_dim;
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                    LS_X_step = LS_window_width / LS_COMB;
+                    // Display_LiveSampler.Step();
+
+                    Pointer_LiveSampler.Show_pointer(false);
+                    Display_LiveSampler.Window();
+                    Pointer_LiveSampler.Show_pointer(true);
+                }
+            }
+            }
         }
 
         // Change LS_X_sample o LS_X_delta
-        result = Read_encoder_simple(10);
+        result = Read_encoder_simple(EN_PB_From);
         if (result != 0)
         {
             // si usa LS_X_sample
@@ -4585,7 +4888,7 @@ void loop()
                 }
 
                 LS_X_sample = LS_constrain_position(LS_X_sample);
-                Display_LiveSampler.X_sample_delta();
+                Display_LiveSampler.Start_point();
 
                 Serial.print(F("LS_X_sample: "));
                 Serial.println(LS_X_sample);
@@ -4608,13 +4911,13 @@ void loop()
                 }
 
                 LS_X_delta = LS_constrain_position(LS_X_delta);
-                Display_LiveSampler.X_sample_delta();
+                Display_LiveSampler.Start_point();
 
                 Serial.print(F("LS_X_delta: "));
                 Serial.println(LS_X_delta);
             }
 
-            if (LS_mode > REC)
+            if (LS_state > REC)
             {
                 AudioNoInterrupts();
                 Players_Manager.Multicast_main_settings_editing(Patch_id, 0);
@@ -4640,7 +4943,7 @@ void loop()
         }
 
         // toggle LS_XY_lock/!LS_XY_lock
-        if (Read_pushbutton(10))
+        if (Read_pushbutton(EN_PB_Step))
         {
             if (LS_XY_lock)
             {
@@ -4661,7 +4964,7 @@ void loop()
                 Serial.println(LS_X_sample);
             }
 
-            Display_LiveSampler.X_sample_delta();
+            Display_LiveSampler.Start_point();
             Serial.print(F("LS_XY_lock: "));
             Serial.println(LS_XY_lock);
 
@@ -4680,7 +4983,7 @@ void loop()
         }
 
         // Change "Loop Width" (LS_XY_delta)
-        result = Read_encoder_simple(11);
+        result = Read_encoder_simple(EN_PB_To);
         if (result != 0)
         {
             if (result == 1)
@@ -4726,7 +5029,7 @@ void loop()
         }
 
         // Change "Step" (LS_X_step)
-        result = Read_encoder_simple(12);
+        result = Read_encoder_simple(EN_PB_Step);
         if (result != 0)
         {
             if (result == 1)
@@ -4742,153 +5045,6 @@ void loop()
             LS_COMB = constrain(LS_COMB, 8, 1024);
             LS_X_step = LS_window_width / LS_COMB;
             Display_LiveSampler.Step();
-        }
-
-        // change Feedback level
-        if (Read_encoder(17, LS_feedback, 8, 0, 1))
-        {
-            Serial.println(LS_fbk_table[LS_feedback]);
-
-            AudioNoInterrupts();
-            LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
-            LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
-            AudioInterrupts();
-
-            Display_LiveSampler.Feedback();
-        }
-
-        // change menu item
-        if (Read_encoder(25, LS_menu, LS_menu_max, 0, 1))
-        {
-            Serial.print(F("LS_menu: "));
-            Serial.println(LS_menu);
-            Display_LiveSampler.Menu_frame(LS_menu);
-            LS_menu_choice = element_Menu_LS[LS_menu];
-        }
-
-        // choose menu item
-        if (Read_pushbutton(25))
-        {
-            switch (LS_menu_choice) // {"Exit"}, {"Open"}, {"Close"}}
-            {
-            case 0: // Rec
-                LS_state = REC;
-
-                LS_define_model();
-                Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                LS_menu = 0;
-                Display_LiveSampler.Menu_frame(LS_menu);
-                LS_menu_choice = element_Menu_LS[LS_menu];
-                LiveSampler.Start(LS_stereo);
-                LS_wave_refresh_timer = 0;
-                delay(10);
-                break;
-
-            case 1: // Stop
-                LS_state = PLAYONLY;
-                LiveSampler.Stop();
-
-                LS_define_model();
-                Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                LS_menu = 0;
-                Display_LiveSampler.Menu_frame(LS_menu);
-                LS_menu_choice = element_Menu_LS[LS_menu];
-                delay(20);
-
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-
-                Display_LiveSampler.Show_wave(LS_sound_id);
-                break;
-
-            case 2:                 // Toggle Mono/Stereo
-                Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
-
-                LS_stereo = !LS_stereo;
-                LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
-                LS_window_width = LS_buffer_dim;
-                LS_window_step = LS_window_width / 8;
-                LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
-                LS_setup_LS_Patch(LS_stereo);
-                P_Update_all_maps_Instrument_for_notes();
-
-                AudioNoInterrupts();
-                Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-                AudioInterrupts();
-
-                Print_Patch(Patch_id);
-                LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
-                LS_instrument = 0;
-                LS_X_delta = 0;
-                LS_X_sample = 0;
-                LS_XY_delta = 44100;
-                LS_Y_sample = LS_X_sample + LS_XY_delta;
-                LS_X_step = LS_window_width / LS_COMB;
-                LS_menu = 0;
-                LS_refresh_LS_page();
-
-                Midi_reader.Start();
-                break;
-
-            case 3: // Erase
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                if (LS_stereo)
-                {
-                    LS_erase_FIFO_array(LS_buffer_L_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                    LS_erase_FIFO_array(LS_buffer_R_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                }
-                else
-                    LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                Serial.println("Live Samplier buffer(s) erased!");
-
-                LiveSampler.Reset(); // reset Q_sample and P_sample
-                LS_state = EMPTY;
-                LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
-                LS_instrument = 0;
-                LS_window_width = LS_buffer_dim; // LS_window_width = 441001;
-                LS_window_step = LS_window_width / 8;
-                LS_X_sample = 0;
-                LS_X_delta = 0;
-                LS_XY_delta = 44100;
-                LS_Y_sample = LS_X_sample + LS_XY_delta;
-                LS_X_step = LS_window_width / LS_COMB;
-
-                LS_menu = 0;
-                Display_LiveSampler.Page();
-
-                // restore all LED
-                Performance_led_set.Restore_all_LED();
-
-                LS_define_model();
-                Display_LiveSampler.Menu();
-                Display_LiveSampler.Menu_frame(LS_menu);
-                LS_menu_choice = element_Menu_LS[LS_menu];
-
-                if (!LS_XY_lock)
-                {
-                    LS_update_both_X_Y_samples();
-                }
-                else // altrimenti e' gia' stato calcolato
-                {
-                    LS_update_Q_sample();
-                }
-
-                Display_LiveSampler.Show_wave(LS_sound_id);
-                break;
-
-            default:
-                Serial.println("Switch MISSING! 4250");
-                break;
-            }
         }
 
         // Update wave
@@ -4911,94 +5067,74 @@ void loop()
             }
         }
 
-        if (!Read_pushbutton_fast(35))
+        // Toggle wave Left/Right and LPF
+        if (LS_stereo)
         {
-            //  toggle wave Left/Right and LPF
-            if (LS_stereo)
+            // Display Left wave or LPF
+            if (Read_pushbutton(EN_PB_From))
             {
-                // Display Left wave or LPF
-                if (Read_pushbutton(26))
+                if (LS_instrument == 1) // Right
                 {
-                    if (LS_instrument == 1) // Right
+                    LS_instrument = 0;        // Left
+                    LS_sound_id = SOUNDS_MAX; // Left
+                    if (LS_state != REC)
                     {
-                        LS_instrument = 0;        // Left
-                        LS_sound_id = SOUNDS_MAX; // Left
-                        if (LS_state != REC)
+                        if (!LS_XY_lock)
                         {
-                            if (!LS_XY_lock)
-                            {
-                                LS_update_both_X_Y_samples();
-                            }
-                            else // altrimenti e' gia' stato calcolato
-                            {
-                                LS_update_Q_sample();
-                            }
-
-                            Display_LiveSampler.Show_wave(LS_sound_id);
+                            LS_update_both_X_Y_samples();
                         }
-                    }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
 
-                    else
-                    {
-                        Instrument_id = 0;
-                        Sound_id = SOUNDS_MAX;
-                        Lilla_state_0 = LIVE_SAMPLING;
-                        Lilla_state = INSTRUMENT_VCF;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
-
-                        Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
-                        // restore all LED
-                        Performance_led_set.Restore_all_LED();
+                        Display_LiveSampler.Show_wave(LS_sound_id);
                     }
                 }
 
-                // Display Right wave or LPF
-                if (Read_pushbutton(27))
-                {
-                    if (LS_instrument == 0) // Left
-                    {
-                        LS_instrument = 1;            // Right
-                        LS_sound_id = SOUNDS_MAX + 1; // Right
-                        if (LS_state != REC)
-                        {
-                            if (!LS_XY_lock)
-                            {
-                                LS_update_both_X_Y_samples();
-                            }
-                            else // altrimenti e' gia' stato calcolato
-                            {
-                                LS_update_Q_sample();
-                            }
-                            Display_LiveSampler.Show_wave(LS_sound_id);
-                        }
-                    }
-
-                    else
-                    {
-                        Instrument_id = 1;
-                        Sound_id = SOUNDS_MAX + 1;
-                        Lilla_state_0 = LIVE_SAMPLING;
-                        Lilla_state = INSTRUMENT_VCF;
-                        Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
-
-                        Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
-                        // restore all LED
-                        Performance_led_set.Restore_all_LED();
-                    }
-                }
-            }
-
-            else
-            {
-                if (Read_pushbutton(26))
+                else
                 {
                     Instrument_id = 0;
                     Sound_id = SOUNDS_MAX;
                     Lilla_state_0 = LIVE_SAMPLING;
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Instrument_Vcf_context], SR_monitored_pushbuttons_set[Instrument_Vcf_context]);
+                    Shifters_manager.Set_context(Instrument_Vcf_context);
+
+                    Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                    // restore all LED
+                    Performance_led_set.Restore_all_LED();
+                }
+            }
+
+            // Display Right wave or LPF
+            if (Read_pushbutton(EN_PB_To))
+            {
+                if (LS_instrument == 0) // Left
+                {
+                    LS_instrument = 1;            // Right
+                    LS_sound_id = SOUNDS_MAX + 1; // Right
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else // altrimenti e' gia' stato calcolato
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                }
+
+                else
+                {
+                    Instrument_id = 1;
+                    Sound_id = SOUNDS_MAX + 1;
+                    Lilla_state_0 = LIVE_SAMPLING;
+                    Lilla_state = INSTRUMENT_VCF;
+                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -5008,6 +5144,24 @@ void loop()
             }
         }
 
+        else // Mono
+        {
+            if (Read_pushbutton(EN_PB_From) || Read_pushbutton(EN_PB_To))
+            {
+                Instrument_id = 0;
+                Sound_id = SOUNDS_MAX;
+                Lilla_state_0 = LIVE_SAMPLING;
+                Lilla_state = INSTRUMENT_VCF;
+                Shifters_manager.Set_context(Instrument_Vcf_context);
+
+                Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                // restore all LED
+                Performance_led_set.Restore_all_LED();
+            }
+        }
+
+        /*
         else
         {
             // Switch to PERFORMANCE
@@ -5055,6 +5209,7 @@ void loop()
                 Golive_SETUP();
             }
         }
+        */
     }
 
 #pragma endregion // LIVE_SAMPLING
@@ -5064,65 +5219,68 @@ void loop()
     // ********************  DIRECT SAMPLING  **********************
     // *************************************************************
 
-    /*
-
-    Direct Sampling (SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX, dei Sound SOUNDS_MAX e (SOUNDS_MAX + 1) e di 2 Instrument:
-    - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left oppure Mono
-    - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
-
-    Entrambi gli instrument hanno:
-    from_note = 0
-    to_note = 127
-    root_key = 60
-    midi_ch = 0 (midi channel 1)
-
-    Se la registrazione è stereo, i due Sound sono associati a due distinti file .rec consecutivi; se la registrazione è mono i due Sound sono associati allo stsso file .rec.
-
-    */
-
     if (Lilla_state == DIRECT_SAMPLING)
     {
+
+        /*
+        Direct Sampling (SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX, dei Sound SOUNDS_MAX e (SOUNDS_MAX + 1) e di 2 Instrument:
+        - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left oppure Mono
+        - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
+
+        Entrambi gli instrument hanno:
+        from_note = 0
+        to_note = 127
+        root_key = 60
+        midi_ch = 0 (midi channel 1)
+
+        Se la registrazione è stereo, i due Sound sono associati a due distinti file .rec consecutivi; se la registrazione è mono i due Sound sono associati allo stsso file .rec.
+
+        */
+
+        // ******************************************  Move to SETTINGS Change line_in gain
+        // Change gain
+        /*
+        if (Read_encoder(4, DS_gain, 40, 1, 1))
+        {
+            LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
+            Display_Sampler.DS_show_gain();
+        }
+        */
+
         // Change volume_patch
-        if (DS_state == 0 && Read_encoder(15, volume_patch, 40, 0, 1))
+        if (DS_state == DS_waiting_state && Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
-            Display_Manager.DS_update_volume();
+            Display_Sampler.DS_update_volume();
         }
 
-        // Change gain
-        if (Read_encoder(4, DS_gain, 40, 1, 1))
-        {
-            LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-            Display_Manager.DS_show_gain();
-        }
-
-        // Update bar_displays
-        if (DS_state == 0 || DS_state == 1 || DS_state == 2)
+        // Update VU meter
+        if (DS_state == DS_waiting_state || DS_state == DS_pause_state || DS_state == DS_recording_state)
         {
             float val;
             if (PeakTracking_L.available())
             {
                 val = 20 * log10(PeakTracking_L.read());       // 0 <= PeakTracking_L.read() <= 1.0 ; -inf < val < 0
-                Display_Manager.DS_bar(0, BAR_ELEMENTS + val); // Display_Manager.DS_bar(0, PeakTracking_L.read() * BAR_ELEMENTS);
+                Display_Sampler.DS_bar(0, BAR_ELEMENTS + val); // Display_Sampler.DS_bar(0, PeakTracking_L.read() * BAR_ELEMENTS);
             }
             if (PeakTracking_R.available())
             {
                 val = 20 * log10(PeakTracking_R.read());
-                Display_Manager.DS_bar(1, BAR_ELEMENTS + val); // Display_Manager.DS_bar(1, PeakTracking_R.read() * BAR_ELEMENTS);
+                Display_Sampler.DS_bar(1, BAR_ELEMENTS + val); // Display_Sampler.DS_bar(1, PeakTracking_R.read() * BAR_ELEMENTS);
             }
         }
 
-        if (DS_state == 2)
+        if (DS_state == DS_recording_state)
         {
             // Update blinking REC
             if (DS_blink_timer >= 500)
             {
                 DS_blink_ON = !DS_blink_ON;
-                Display_Manager.DS_sampler_txt(DS_blink_ON);
+                Display_Sampler.DS_sampler_txt(DS_blink_ON);
                 DS_blink_timer = 0;
             }
 
@@ -5130,15 +5288,15 @@ void loop()
             if (DS_recording_time_update >= 200)
             {
                 DS_recording_time_update = 0;
-                Display_Manager.DS_update_recording_seconds(DS_recording_time);
-                Display_Manager.DS_available_memory();
+                Display_Sampler.DS_update_recording_seconds(DS_recording_time);
+                Display_Sampler.DS_available_memory();
             }
 
             // Stop if SteroSampler has stopped
             if (!DirectSampler.Is_recording())
             {
-                DS_state = 0;
-                DS_menu = 0;
+                DS_state = DS_waiting_state;
+
                 // switch OFF Audio Input monitor
                 MAIN_mixer_out_L.gain(1, 0.0);
                 MAIN_mixer_out_R.gain(1, 0.0);
@@ -5158,728 +5316,729 @@ void loop()
                 }
 
                 DS_update_recordings();
+
                 // Switch off blinking REC
                 DS_blink_ON = false;
 
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_available_memory();
+                // Menu
+                DS_define_menu();
+                Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
 
-                Display_Manager.DS_line_out(false);
-                Display_Manager.DS_sampler_frame(true);
-                Display_Manager.DS_sampler_txt(false);
+                // Pointer
+                Pointer_Sampler.Set_pointer_to_first_menu_element();
+                DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                Display_Sampler.DS_available_memory();
+
+                Display_Sampler.DS_line_out(false);
+                Display_Sampler.DS_sampler_frame(true);
+                Display_Sampler.DS_sampler_txt(false);
 
                 VFS_Print_FAT();
-                P_Recording(recording);
 
                 DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+
+                // Reporting
+                P_Recording(recording);
             }
         }
 
-        // Change recording
-        if (DS_state == 0)
+        // Move pointer
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
         {
-            result = Read_encoder_simple(23);
-            if (result != 0)
-            {
-                DS_recording_change = recording;
-                if (result == +1)
-                {
-                    DS_recording_change = DS_get_next_Recording(recording);
-                }
-                else
-                {
-                    DS_recording_change = DS_get_previous_Recording(recording);
-                }
+            Pointer_Sampler.Move_pointer(result);
+            DS_local_pointer = Pointer_Sampler.Get_pointer();
+        }
 
-                if (DS_recording_change != recording)
+        // Change values
+        switch (DS_local_pointer.field_name)
+        {
+        case field_DS_Menu:
+        {
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            {
+                Pointer_Sampler.Print_pointer();
+
+                int first_packet_L = 0;
+                int packets_per_channel = 0;
+                int last_packet_L = 0;
+                int first_packet_R = 0;
+
+                switch (DS_local_pointer.menu_element)
+                {
+                case 0: // Delete
                 {
                     AudioNoInterrupts();
                     Players_Manager.Stop_all_players();
                     AudioInterrupts();
 
-                    recording = DS_recording_change;
-                    DS_Jump_to_DIRECT_SAMPLING_recording(recording);
-                    P_Recording(recording);
-                }
-            }
-        }
+                    Display_Sampler.DS_hide_recording();
+                    Display_Sampler.DS_advice_delete(true);
 
-        // Change menu item
-
-        if (Read_encoder(25, DS_menu, DS_menu_max, 0, 1))
-
-        {
-            Display_Manager.DS_frame_menu(DS_menu);
-        }
-
-        // Choose menu item
-        if (Read_pushbutton(25))
-        {
-            int first_packet_L = 0;
-            int packets_per_channel = 0;
-            int last_packet_L = 0;
-            int first_packet_R = 0;
-
-            switch (choice_DS_menu) // {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
-            {
-            case 0: // Delete
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                Display_Manager.DS_hide_recording();
-                Display_Manager.DS_advice_delete(true);
-
-                // Delete recording
-                Recording[recording].consistent = false;
-                VFS_Clean_up_VFS();
-                VFS_Defragment();
-                DS_update_recordings();
-                VFS_Print_FAT();
-
-                // restart from first recording (if exist)
-                recording = DS_get_next_Recording(-1);
-                DS_back_to_first_DS_Recording();
-                Display_Manager.DS_available_memory();
-                break;
-
-            case 1: // Pause+Rec (pause before recording, listening Audio Input)
-                DS_state = 1;
-                DS_menu = 0;
-
-                AudioNoInterrupts();
-                Midi_reader.Stop();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                Display_Manager.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
-
-                recording = DS_find_Recording_free();
-                Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
-                Serial.print(F("**** Prossimo recording: "));
-                Serial.println(recording);
-
-                // hide last recording data
-                Display_Manager.DS_hide_recording();
-
-                // switch on Line OUT monitor
-                MAIN_mixer_out_L.gain(1, 1.0);
-                MAIN_mixer_out_R.gain(1, 1.0);
-
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_line_out(true);
-                break;
-
-            case 2: // Mono Rec
-                DS_state = 2;
-                DS_menu = 0;
-
-                Recording[recording].stereo = false;
-                Recording[recording].consistent = false;
-
-                // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
-                // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
-                // result:  * * * * L L L L L L L  L  L  L  L  L  L  L  L
-
-                packets_per_channel = VFS_Get_packets_free();             // 15
-                first_packet_L = VFS_Get_first_packet_free();             // 4
-                last_packet_L = first_packet_L + packets_per_channel - 1; // 4 + 15 - 1 = 18
-
-                Serial.println(F("*** Start MONO Sampling! *** "));
-                Serial.print(F("Mono recording from packet: "));
-                Serial.print(first_packet_L);
-                Serial.print(F("  up to packet: "));
-                Serial.println(last_packet_L);
-
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_Recording_description(recording, false);
-                Display_Manager.DS_sampler_txt(true);
-
-                DS_blink_timer = 0;
-                DS_blink_ON = true;
-
-                DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
-                DS_recording_time = 0;
-                DS_recording_time_update = 0;
-                break;
-
-            case 3: // Stereo Rec
-                DS_state = 2;
-                DS_menu = 0;
-
-                Recording[recording].stereo = true;
-                Recording[recording].consistent = false;
-
-                // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
-                // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
-                // result:  * * * * L R L R L R L  R  L  R  L  R  L  R  _
-
-                packets_per_channel = VFS_Get_packets_free() / 2;               // (15/2) = 7
-                first_packet_L = VFS_Get_first_packet_free();                   // 4
-                last_packet_L = first_packet_L + 2 * (packets_per_channel - 1); // 16
-                first_packet_R = first_packet_L + 1;
-
-                Serial.println(F("*** Start STEREO Sampling! *** "));
-                Serial.print(F("Left recording from packet: "));
-                Serial.print(first_packet_L);
-                Serial.print(F("  Right recording from packet: "));
-                Serial.println(first_packet_R);
-
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_Recording_description(recording, false);
-                Display_Manager.DS_sampler_txt(true);
-
-                DS_blink_timer = 0;
-                DS_blink_ON = true;
-
-                DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
-                DS_recording_time = 0;
-                DS_recording_time_update = 0;
-                break;
-
-            case 4: // Stop
-                Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
-                if (DS_state == 2)
-                {
-                    DirectSampler.Book_stop();
-                }
-                DS_state = 0;
-                DS_menu = 0;
-
-                // switch OFF Line OUT monitor
-                MAIN_mixer_out_L.gain(1, 0.0);
-                MAIN_mixer_out_R.gain(1, 0.0);
-
-                if (Recording[recording].packets == 0)
-                {
-                    Serial.print(F("Recording: "));
-                    Serial.print(recording);
-                    Serial.println(F(" cancelled."));
-                    recording = DS_get_next_Recording(-1);
-                }
-
-                else
-                {
-                    Recording[recording].consistent = true;
-                    // consistent Recording must be saved
-                    Archive.Save_DS_Recording(recording);
-                    DS_read_Recording(recording); // only to update .bytes and .seconds
-                }
-
-                DS_update_recordings();
-                // Switch off blinking REC
-                DS_blink_ON = false;
-
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_available_memory();
-                Display_Manager.DS_line_out(false);
-                Display_Manager.DS_sampler_frame(true);
-                Display_Manager.DS_sampler_txt(false);
-
-                // VFS_Print_FAT();
-                P_Recording(recording);
-
-                DS_Jump_to_DIRECT_SAMPLING_recording(recording);
-                Midi_reader.Start();
-                break;
-
-            case 5: // CONVERT_REC_TO_RAW
-            {
-                DS_state = 3;
-
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
-
-                confirmation = false; // no action
-                int file_L_RAW = -1;
-                int file_R_RAW = -1;
-                int blocks_per_file = ceil(Recording[recording].bytes / 256.0f); // quanti block compongono il file
-
-                if (!Recording[recording].stereo)
-                {
-                    if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
-                    {
-                        DS_export = -1; // no filename available;
-                        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-                        {
-                            if (!SerialFlash.exists(name_file[i]))
-                            {
-                                file_L_RAW = i;
-                                DS_export = 1;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                        DS_export = 0; // no space available
-                }
-
-                else
-                {
-                    if ((Get_flash_size() - Get_flash_occupation()) >= (2 * Recording[recording].bytes))
-                    {
-                        DS_export = -1; // no filename available;
-                        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-                        {
-                            if (!SerialFlash.exists(name_file[i]))
-                            {
-                                file_L_RAW = i;
-                                DS_export = 1;
-                                break;
-                            }
-                        }
-                        if (DS_export == 1)
-                        {
-                            for (auto i = file_L_RAW + 1; i < FIRST_RECORDING_FILE; ++i)
-                            {
-                                if (!SerialFlash.exists(name_file[i]))
-                                {
-                                    file_R_RAW = i;
-                                    DS_export = 2;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    else if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
-                    {
-                        DS_export = -1; // no filename available;
-                        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-                        {
-                            if (!SerialFlash.exists(name_file[i]))
-                            {
-                                file_L_RAW = i;
-                                DS_export = 1;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                        DS_export = 0; // no space available
-                }
-
-                Serial.print("DS_export ");
-                Serial.println(DS_export);
-                Serial.print("file_L_RAW proposto ");
-                Serial.println(file_L_RAW);
-                Serial.print("file_R_RAW proposto ");
-                Serial.println(file_R_RAW);
-                Serial.println();
-
-                if (DS_export <= 0)
-                {
-                    Display_Manager.DS_hide_recording();
-                    Display_Manager.DS_advice_no_conversion(DS_export, true);
-                    delay(7000);
-                    Display_Manager.DS_advice_no_conversion(DS_export, false);
-
-                    DS_state = 0;
-                    DS_define_model();
-                    Display_Manager.DS_menu();
-                    Display_Manager.DS_frame_menu(DS_menu);
-
-                    Display_Manager.DS_Recording_description(recording, true);
-
-                    // restore LED
-                    Performance_led_set.Restore_all_LED();
-
-                    break;
-                }
-
-                DS_menu = 0;
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                Display_Manager.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
-
-                // Choose what to do
-                while (!confirmation)
-                {
-                    Shifters_manager.Update();
-
-                    // move menu frame
-                    if (Read_encoder(25, DS_menu, DS_menu_max, 0, 1))
-                    {
-                        Display_Manager.DS_frame_menu(DS_menu);
-                    }
-                    // choose the action
-                    if (Read_pushbutton(25))
-                    {
-                        confirmation = true;
-                    }
-                }
-
-                switch (choice_DS_menu)
-                {
-                case 6: // Cancel (don't export)
-                    Serial.println(F("Don't convert any file"));
-                    break;
-
-                case 7:                                                   // Convert Mono (file_L)
-                    DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                case 8:                                                   // Convert file_L
-                    DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                case 9:                                                   // Convert file_R
-                    DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                case 10:                                                  // Convert both file_L and file_R
-                    DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                    DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
-                    // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
-                    File_scanner.Read_all_file_data();
-                    break;
-
-                default:
-                    Serial.println(F("Don't convert any file"));
-                    break;
-                }
-
-                // Delete recording
-                if (choice_DS_menu > 6)
-                {
+                    // Delete recording
                     Recording[recording].consistent = false;
                     VFS_Clean_up_VFS();
                     VFS_Defragment();
                     DS_update_recordings();
                     VFS_Print_FAT();
+
                     // restart from first recording (if exist)
                     recording = DS_get_next_Recording(-1);
                     DS_back_to_first_DS_Recording();
+                    Display_Sampler.DS_available_memory();
                 }
+                break;
 
-                Print_flash_file_list();
-
-                // Return
-                DS_state = 0;
-                DS_menu = 0;
-                Display_Manager.DS_page(recording);
-                DS_define_model();
-                Display_Manager.DS_menu();
-                Display_Manager.DS_frame_menu(DS_menu);
-                // Switch bar_display ON
-                PeakTracking_L.reset();
-                PeakTracking_R.reset();
-                Display_Manager.DS_bar(0, 0);
-                Display_Manager.DS_bar(1, 0);
-            }
-            break;
-
-            case 11: // EXPORT AS RAW TO SD
-            {
-                DS_state = 4;
-                Sd2Card card;
-                SdVolume volume;
-                SdFile root;
-                double SD_volumesize;
-                double SD_occupied;
-
-                confirmation = false; // no action
-                const char DS_export_directory[] = "/LILLARAW_EXPORT/";
-                String DS_export_M_RAW;
-                String DS_export_L_RAW;
-                String DS_export_R_RAW;
-
-                // check SD presence
-                if (!SD.begin(BUILTIN_SDCARD))
+                case 1: // Pause+Rec (pause before recording, listening Audio Input)
                 {
-                    Show_popup_text("SD CARD MISSING", ILI9341_WHITE, ILI9341_RED);
-                    delay(2000);
-                    DS_state = 0;
-                    DS_menu = 0;
-                    Display_Manager.DS_page(recording);
-                    DS_define_model();
-                    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Manager.DS_frame_menu(DS_menu);
+                    DS_state = DS_pause_state;
+
+                    AudioNoInterrupts();
+                    Midi_reader.Stop();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
+                    Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
+
+                    recording = DS_find_Recording_free();
+                    Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
+                    Serial.print(F("**** Prossimo recording: "));
+                    Serial.println(recording);
+
+                    // Hide last recording data
+                    Display_Sampler.DS_hide_recording();
+
+                    // Switch on Line OUT monitor
+                    MAIN_mixer_out_L.gain(1, 1.0);
+                    MAIN_mixer_out_R.gain(1, 1.0);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Display_Sampler.DS_line_out(true);
+                }
+                break;
+
+                case 2: // Mono Rec
+                {
+                    DS_state = DS_recording_state;
+
+                    Recording[recording].stereo = false;
+                    Recording[recording].consistent = false;
+
+                    // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+                    // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
+                    // result:  * * * * L L L L L L L  L  L  L  L  L  L  L  L
+
+                    packets_per_channel = VFS_Get_packets_free();             // 15
+                    first_packet_L = VFS_Get_first_packet_free();             // 4
+                    last_packet_L = first_packet_L + packets_per_channel - 1; // 4 + 15 - 1 = 18
+
+                    Serial.println(F("*** Start MONO Sampling! *** "));
+                    Serial.print(F("Mono recording from packet: "));
+                    Serial.print(first_packet_L);
+                    Serial.print(F("  up to packet: "));
+                    Serial.println(last_packet_L);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Display_Sampler.DS_Recording_description(recording, false);
+                    Display_Sampler.DS_sampler_txt(true);
+
+                    DS_blink_timer = 0;
+                    DS_blink_ON = true;
+
+                    DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
+                    DS_recording_time = 0;
+                    DS_recording_time_update = 0;
+                }
+                break;
+
+                case 3: // Stereo Rec
+                {
+                    DS_state = DS_recording_state;
+
+                    Recording[recording].stereo = true;
+                    Recording[recording].consistent = false;
+
+                    // packet:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+                    // free:    * * * * 1 2 3 4 5 6 7  8  9  10 11 12 13 14 15
+                    // result:  * * * * L R L R L R L  R  L  R  L  R  L  R  _
+
+                    packets_per_channel = VFS_Get_packets_free() / 2;               // (15/2) = 7
+                    first_packet_L = VFS_Get_first_packet_free();                   // 4
+                    last_packet_L = first_packet_L + 2 * (packets_per_channel - 1); // 16
+                    first_packet_R = first_packet_L + 1;
+
+                    Serial.println(F("*** Start STEREO Sampling! *** "));
+                    Serial.print(F("Left recording from packet: "));
+                    Serial.print(first_packet_L);
+                    Serial.print(F("  Right recording from packet: "));
+                    Serial.println(first_packet_R);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Display_Sampler.DS_Recording_description(recording, false);
+                    Display_Sampler.DS_sampler_txt(true);
+
+                    DS_blink_timer = 0;
+                    DS_blink_ON = true;
+
+                    DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
+                    DS_recording_time = 0;
+                    DS_recording_time_update = 0;
+                }
+                break;
+
+                case 4: // Stop
+                {
+                    Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
+                    if (DS_state == DS_recording_state)
+                    {
+                        DirectSampler.Book_stop();
+                    }
+                    DS_state = DS_waiting_state;
+
+                    // switch OFF Line OUT monitor
+                    MAIN_mixer_out_L.gain(1, 0.0);
+                    MAIN_mixer_out_R.gain(1, 0.0);
+
+                    if (Recording[recording].packets == 0)
+                    {
+                        Serial.print(F("Recording: "));
+                        Serial.print(recording);
+                        Serial.println(F(" cancelled."));
+                        recording = DS_get_next_Recording(-1);
+                    }
+
+                    else
+                    {
+                        Recording[recording].consistent = true;
+                        // consistent Recording must be saved
+                        Archive.Save_DS_Recording(recording);
+                        DS_read_Recording(recording); // only to update .bytes and .seconds
+                    }
+
+                    DS_update_recordings();
+                    // Switch off blinking REC
+                    DS_blink_ON = false;
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Display_Sampler.DS_available_memory();
+                    Display_Sampler.DS_line_out(false);
+                    Display_Sampler.DS_sampler_frame(true);
+                    Display_Sampler.DS_sampler_txt(false);
+
+                    // VFS_Print_FAT();
+                    P_Recording(recording);
+
+                    DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+                    Midi_reader.Start();
+                }
+                break;
+
+                case 5: // CONVERT_REC_TO_RAW
+                {
+                    DS_state = DS_convert_state;
+
+                    AudioNoInterrupts();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
+                    confirmation = false; // no action
+                    int file_L_RAW = -1;
+                    int file_R_RAW = -1;
+                    int blocks_per_file = ceil(Recording[recording].bytes / 256.0f); // quanti block compongono il file
+
+                    if (!Recording[recording].stereo)
+                    {
+                        if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        {
+                            DS_export = -1; // no filename available;
+                            for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
+                            {
+                                if (!SerialFlash.exists(name_file[i]))
+                                {
+                                    file_L_RAW = i;
+                                    DS_export = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            DS_export = 0; // no space available
+                    }
+
+                    else
+                    {
+                        if ((Get_flash_size() - Get_flash_occupation()) >= (2 * Recording[recording].bytes))
+                        {
+                            DS_export = -1; // no filename available;
+                            for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
+                            {
+                                if (!SerialFlash.exists(name_file[i]))
+                                {
+                                    file_L_RAW = i;
+                                    DS_export = 1;
+                                    break;
+                                }
+                            }
+                            if (DS_export == 1)
+                            {
+                                for (auto i = file_L_RAW + 1; i < FIRST_RECORDING_FILE; ++i)
+                                {
+                                    if (!SerialFlash.exists(name_file[i]))
+                                    {
+                                        file_R_RAW = i;
+                                        DS_export = 2;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        {
+                            DS_export = -1; // no filename available;
+                            for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
+                            {
+                                if (!SerialFlash.exists(name_file[i]))
+                                {
+                                    file_L_RAW = i;
+                                    DS_export = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            DS_export = 0; // no space available
+                    }
+
+                    Serial.print("DS_export ");
+                    Serial.println(DS_export);
+                    Serial.print("file_L_RAW proposto ");
+                    Serial.println(file_L_RAW);
+                    Serial.print("file_R_RAW proposto ");
+                    Serial.println(file_R_RAW);
+                    Serial.println();
+
+                    if (DS_export <= 0)
+                    {
+                        Display_Sampler.DS_hide_recording();
+                        Display_Sampler.DS_advice_no_conversion(DS_export, true);
+                        delay(7000);
+
+                        Display_Sampler.DS_advice_no_conversion(DS_export, false);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                        Display_Sampler.DS_Recording_description(recording, true);
+
+                        // Restore LED
+                        Performance_led_set.Restore_all_LED();
+
+                        break;
+                    }
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
+
+                    // Choose what to do
+                    while (!confirmation)
+                    {
+                        Shifters_manager.Update();
+
+                        // Move pointer
+                        result = Read_encoder_simple(EN_PB_Select);
+                        if (result != 0)
+                        {
+                            Pointer_Sampler.Move_pointer_within_menu(result);
+                            DS_local_pointer = Pointer_Sampler.Get_pointer();
+                        }
+
+                        // Choose element
+                        if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+                        {
+                            confirmation = true;
+                        }
+                    }
+
+                    switch (choice_DS_menu)
+                    {
+                    case 6: // Cancel (don't export)
+                        Serial.println(F("Don't convert any file"));
+                        break;
+
+                    case 7:                                                   // Convert Mono (file_L)
+                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    case 8:                                                   // Convert file_L
+                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    case 9:                                                   // Convert file_R
+                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    case 10:                                                  // Convert both file_L and file_R
+                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+
+                        // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
+                        File_scanner.Read_all_file_data();
+                        break;
+
+                    default:
+                        // Reporting
+                        Serial.println(F("Don't convert any file"));
+                        break;
+                    }
+
+                    // Delete recording
+                    if (choice_DS_menu > 6)
+                    {
+                        Recording[recording].consistent = false;
+                        VFS_Clean_up_VFS();
+                        VFS_Defragment();
+                        DS_update_recordings();
+                        VFS_Print_FAT();
+
+                        // Load first recording (if exist)
+                        recording = DS_get_next_Recording(-1);
+                        DS_back_to_first_DS_Recording();
+                    }
+
+                    Print_flash_file_list();
+
+                    // Return
+                    DS_state = DS_waiting_state;
+
+                    Display_Sampler.DS_page(recording);
+
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
                     // Switch bar_display ON
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
-                    Display_Manager.DS_bar(0, 0);
-                    Display_Manager.DS_bar(1, 0);
-                    break;
+                    Display_Sampler.DS_bar(0, 0);
+                    Display_Sampler.DS_bar(1, 0);
                 }
+                break;
 
-                // verifica se NON formattata
-                card.init(SPI_HALF_SPEED, BUILTIN_SDCARD);
-                if (!volume.init(card))
+                case 11: // EXPORT AS RAW TO SD
                 {
-                    Show_popup_text("SD CARD UNFORMATTED", ILI9341_WHITE, ILI9341_RED);
-                    delay(2000);
-                    DS_state = 0;
-                    DS_menu = 0;
-                    Display_Manager.DS_page(recording);
-                    DS_define_model();
-                    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Manager.DS_frame_menu(DS_menu);
-                    PeakTracking_L.reset();
-                    PeakTracking_R.reset();
-                    Display_Manager.DS_bar(0, 0);
-                    Display_Manager.DS_bar(1, 0);
-                    break;
-                }
+                    DS_state = DS_export_SD_state;
 
-                // se formattata si procede
-                else
-                {
-                    // calcola lo spazio disponibile
-                    Serial.print("\nCard type: ");
-                    switch (card.type())
+                    Sd2Card card;
+                    SdVolume volume;
+                    SdFile root;
+                    double SD_volumesize;
+                    double SD_occupied;
+
+                    confirmation = false; // no action
+                    const char DS_export_directory[] = "/LILLARAW_EXPORT/";
+                    String DS_export_M_RAW;
+                    String DS_export_L_RAW;
+                    String DS_export_R_RAW;
+
+                    // check SD presence
+                    if (!SD.begin(BUILTIN_SDCARD))
                     {
-                    case SD_CARD_TYPE_SD1:
-                        Serial.println("SD1");
-                        break;
-                    case SD_CARD_TYPE_SD2:
-                        Serial.println("SD2");
-                        break;
-                    case SD_CARD_TYPE_SDHC:
-                        Serial.println("SDHC");
-                        break;
-                    default:
-                        Serial.println("Unknown");
-                    }
-
-                    SD_volumesize = volume.blocksPerCluster(); // clusters are collections of blocks
-                    SD_volumesize *= volume.clusterCount();    // numero di blocchi da 512 byte
-                    SD_volumesize = SD_volumesize / 2048;      // MB
-                    Serial.print(F("SD Volume size (MB): "));
-                    Serial.println(SD_volumesize);
-
-                    File root = SD.open("/");
-                    big_result = 0;
-                    DS_Print_Directory(root, 0);
-                    SD_occupied = big_result / 1048576; // MB
-
-                    Serial.println(F("SD total occupied space (MB): "));
-                    Serial.println(SD_occupied);
-                    Serial.println(F("SD space free (MB): "));
-                    Serial.println(SD_volumesize - SD_occupied);
-
-                    // calcola lo spazio richiesto se MONO
-                    if (!Recording[recording].stereo)
-                    {
-                        // export possibile
-                        if ((SD_volumesize - SD_occupied) * 1024 > Recording[recording].bytes / 1024)
-                        {
-                            DS_export = 1;
-                        }
-                        // export NON possibile
-                        else
-                        {
-                            DS_export = 0;
-                        }
-                    }
-
-                    // calcola lo spazio richiesto se STEREO
-                    else
-                    {
-                        // stereo export is possible
-                        if ((SD_volumesize - SD_occupied) * 1024 > ((2 * Recording[recording].bytes) / 1024))
-                        {
-                            DS_export = 2;
-                        }
-
-                        // only mono export is possible
-                        else if ((SD_volumesize - SD_occupied) * 1024 > (Recording[recording].bytes / 1024))
-                        {
-                            DS_export = 1;
-                        }
-
-                        // there is not space enough, export is impossible
-                        else
-                        {
-                            DS_export = 0;
-                        }
-                    }
-
-                    // If there is no space, terminates
-                    if (DS_export == 0)
-                    {
-                        Show_popup_text("SD CARD IS FULL - CANNOT WRITE NEW FILES", ILI9341_WHITE, ILI9341_RED);
+                        Show_popup_text("SD CARD MISSING", ILI9341_WHITE, ILI9341_RED);
                         delay(2000);
 
-                        DS_state = 0;
-                        DS_menu = 0;
-                        Display_Manager.DS_page(recording);
-                        DS_define_model();
-                        Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                        Display_Manager.DS_frame_menu(DS_menu);
+                        DS_state = DS_waiting_state;
+
+                        Display_Sampler.DS_page(recording);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                        // Switch bar_display ON
                         PeakTracking_L.reset();
                         PeakTracking_R.reset();
-                        Display_Manager.DS_bar(0, 0);
-                        Display_Manager.DS_bar(1, 0);
+                        Display_Sampler.DS_bar(0, 0);
+                        Display_Sampler.DS_bar(1, 0);
                         break;
                     }
 
-                    // If there is space, go on!
+                    // verifica se NON formattata
+                    card.init(SPI_HALF_SPEED, BUILTIN_SDCARD);
+                    if (!volume.init(card))
+                    {
+                        Show_popup_text("SD CARD UNFORMATTED", ILI9341_WHITE, ILI9341_RED);
+                        delay(2000);
+                        DS_state = DS_waiting_state;
+
+                        Display_Sampler.DS_page(recording);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                        PeakTracking_L.reset();
+                        PeakTracking_R.reset();
+                        Display_Sampler.DS_bar(0, 0);
+                        Display_Sampler.DS_bar(1, 0);
+                        break;
+                    }
+
+                    // se formattata si procede
                     else
                     {
-                        confirmation = false;
-
-                        // If /LILLA_EXPORT folder doesn't exist, creates and proposes the new .raw file(s) names
-                        if (!SD.exists("/LILLARAW_EXPORT"))
+                        // calcola lo spazio disponibile
+                        Serial.print("\nCard type: ");
+                        switch (card.type())
                         {
-                            SD.mkdir("/LILLARAW_EXPORT");
-                            Serial.println("/LILLARAW_EXPORT directory created on SD");
-                            DS_export_M_RAW = DS_export_directory;
-                            DS_export_M_RAW += "0M.raw";
-                            DS_export_L_RAW += "0L.raw";
-                            DS_export_R_RAW += "0R.raw";
-                            confirmation = true;
+                        case SD_CARD_TYPE_SD1:
+                            Serial.println("SD1");
+                            break;
+                        case SD_CARD_TYPE_SD2:
+                            Serial.println("SD2");
+                            break;
+                        case SD_CARD_TYPE_SDHC:
+                            Serial.println("SDHC");
+                            break;
+                        default:
+                            Serial.println("Unknown");
                         }
 
-                        // If /LILLA_EXPORT folder exists, defines mono (stereo) file(s) name(s)
-                        else
+                        SD_volumesize = volume.blocksPerCluster(); // clusters are collections of blocks
+                        SD_volumesize *= volume.clusterCount();    // numero di blocchi da 512 byte
+                        SD_volumesize = SD_volumesize / 2048;      // MB
+                        Serial.print(F("SD Volume size (MB): "));
+                        Serial.println(SD_volumesize);
+
+                        File root = SD.open("/");
+                        big_result = 0;
+                        DS_Print_Directory(root, 0);
+                        SD_occupied = big_result / 1048576; // MB
+
+                        Serial.println(F("SD total occupied space (MB): "));
+                        Serial.println(SD_occupied);
+                        Serial.println(F("SD space free (MB): "));
+                        Serial.println(SD_volumesize - SD_occupied);
+
+                        // calcola lo spazio richiesto se MONO
+                        if (!Recording[recording].stereo)
                         {
-                            // Finds free name(s) for the new .raw file(s) to create on micro-SD
-                            for (auto i = 0; i < 100000; ++i)
+                            // export possibile
+                            if ((SD_volumesize - SD_occupied) * 1024 > Recording[recording].bytes / 1024)
                             {
-                                DS_export_M_RAW = DS_export_directory;
-                                DS_export_M_RAW.concat(i);
-                                DS_export_M_RAW.concat("M.raw");
-                                DS_export_L_RAW = DS_export_directory;
-                                DS_export_L_RAW.concat(i);
-                                DS_export_L_RAW.concat("L.raw");
-                                DS_export_R_RAW = DS_export_directory;
-                                DS_export_R_RAW.concat(i);
-                                DS_export_R_RAW.concat("R.raw");
-
-                                if (!SD.exists(DS_export_M_RAW.c_str()) && !SD.exists(DS_export_L_RAW.c_str()) && !SD.exists(DS_export_R_RAW.c_str()))
-                                {
-                                    confirmation = true;
-                                    if (!Recording[recording].stereo)
-                                    {
-                                        Serial.print("it's OK: ");
-                                        Serial.println(DS_export_M_RAW);
-                                        break;
-                                    }
-
-                                    else
-                                    {
-                                        Serial.print("Both OK: ");
-                                        Serial.print(DS_export_L_RAW);
-                                        Serial.print("  and: ");
-                                        Serial.println(DS_export_R_RAW);
-                                        break;
-                                    }
-                                }
+                                DS_export = 1;
+                            }
+                            // export NON possibile
+                            else
+                            {
+                                DS_export = 0;
                             }
                         }
 
-                        // Direcotory full: export is impossible
-                        if (!confirmation)
+                        // calcola lo spazio richiesto se STEREO
+                        else
                         {
-                            //            "0123456789012345678901234567890123456789109876543210";
-                            Show_popup_text("/LILLARAW_EXPORT IS CROWDED --> DELETE SOME FILES", ILI9341_WHITE, ILI9341_RED);
+                            // stereo export is possible
+                            if ((SD_volumesize - SD_occupied) * 1024 > ((2 * Recording[recording].bytes) / 1024))
+                            {
+                                DS_export = 2;
+                            }
+
+                            // only mono export is possible
+                            else if ((SD_volumesize - SD_occupied) * 1024 > (Recording[recording].bytes / 1024))
+                            {
+                                DS_export = 1;
+                            }
+
+                            // there is not space enough, export is impossible
+                            else
+                            {
+                                DS_export = 0;
+                            }
+                        }
+
+                        // If there is no space, terminates
+                        if (DS_export == 0)
+                        {
+                            Show_popup_text("SD CARD IS FULL - CANNOT WRITE NEW FILES", ILI9341_WHITE, ILI9341_RED);
                             delay(2000);
 
-                            DS_state = 0;
-                            DS_menu = 0;
-                            Display_Manager.DS_page(recording);
-                            DS_define_model();
-                            Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                            Display_Manager.DS_frame_menu(DS_menu);
+                            DS_state = DS_waiting_state;
+
+                            Display_Sampler.DS_page(recording);
+
+                            // Menu
+                            DS_define_menu();
+                            Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                            // Pointer
+                            Pointer_Sampler.Set_pointer_to_first_menu_element();
+                            DS_local_pointer = Pointer_Sampler.Get_pointer();
+
                             PeakTracking_L.reset();
                             PeakTracking_R.reset();
-                            Display_Manager.DS_bar(0, 0);
-                            Display_Manager.DS_bar(1, 0);
+                            Display_Sampler.DS_bar(0, 0);
+                            Display_Sampler.DS_bar(1, 0);
+                            break;
                         }
 
-                        // Export is possible
+                        // If there is space, go on!
                         else
                         {
-                            byte buffer[256];
-                            int packet = 0;
-                            int last_blocks = -1;
-                            File destination_file;
-                            SerialFlashFile source_file;
+                            confirmation = false;
 
-                            // export one file (MONO copy)
-                            if (!Recording[recording].stereo)
+                            // If /LILLA_EXPORT folder doesn't exist, creates and proposes the new .raw file(s) names
+                            if (!SD.exists("/LILLARAW_EXPORT"))
                             {
-                                destination_file = SD.open(DS_export_M_RAW.c_str(), FILE_WRITE);
-
-                                // copies from first to penultimate paket
-                                for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
-                                {
-                                    source_file = SerialFlash.open(name_packet[packet]);
-                                    for (auto i = 0; i < 256; ++i)
-                                    {
-                                        source_file.read(buffer, 256);
-                                        destination_file.write(buffer, 256);
-                                    }
-                                }
-
-                                // copies last packet
-                                packet = Recording[recording].first_packet + Recording[recording].packets - 1;
-                                source_file = SerialFlash.open(name_packet[packet]);
-                                last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-                                for (auto i = 0; i < last_blocks; ++i)
-                                {
-                                    source_file.read(buffer, 256);
-                                    destination_file.write(buffer, 256);
-                                }
-                                source_file.close();
-                                destination_file.close();
-                                Serial.println(F("File MONO esportato correttamente su SD"));
+                                SD.mkdir("/LILLARAW_EXPORT");
+                                Serial.println("/LILLARAW_EXPORT directory created on SD");
+                                DS_export_M_RAW = DS_export_directory;
+                                DS_export_M_RAW += "0M.raw";
+                                DS_export_L_RAW += "0L.raw";
+                                DS_export_R_RAW += "0R.raw";
+                                confirmation = true;
                             }
 
-                            // Exports file_L and file_R (STEREO copy)
-                            else if (Recording[recording].stereo)
+                            // If /LILLA_EXPORT folder exists, defines mono (stereo) file(s) name(s)
+                            else
                             {
-                                // file_L
-                                destination_file = SD.open(DS_export_L_RAW.c_str(), FILE_WRITE);
-
-                                // copies from first to penultimate paket
-                                for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                // Finds free name(s) for the new .raw file(s) to create on micro-SD
+                                for (auto i = 0; i < 100000; ++i)
                                 {
-                                    source_file = SerialFlash.open(name_packet[packet]);
-                                    for (auto i = 0; i < 256; ++i)
+                                    DS_export_M_RAW = DS_export_directory;
+                                    DS_export_M_RAW.concat(i);
+                                    DS_export_M_RAW.concat("M.raw");
+                                    DS_export_L_RAW = DS_export_directory;
+                                    DS_export_L_RAW.concat(i);
+                                    DS_export_L_RAW.concat("L.raw");
+                                    DS_export_R_RAW = DS_export_directory;
+                                    DS_export_R_RAW.concat(i);
+                                    DS_export_R_RAW.concat("R.raw");
+
+                                    if (!SD.exists(DS_export_M_RAW.c_str()) && !SD.exists(DS_export_L_RAW.c_str()) && !SD.exists(DS_export_R_RAW.c_str()))
                                     {
-                                        source_file.read(buffer, 256);
-                                        destination_file.write(buffer, 256);
+                                        confirmation = true;
+                                        if (!Recording[recording].stereo)
+                                        {
+                                            Serial.print("it's OK: ");
+                                            Serial.println(DS_export_M_RAW);
+                                            break;
+                                        }
+
+                                        else
+                                        {
+                                            Serial.print("Both OK: ");
+                                            Serial.print(DS_export_L_RAW);
+                                            Serial.print("  and: ");
+                                            Serial.println(DS_export_R_RAW);
+                                            break;
+                                        }
                                     }
                                 }
+                            }
 
-                                // copies last packet
-                                packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
-                                source_file = SerialFlash.open(name_packet[packet]);
-                                last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-                                for (auto i = 0; i < last_blocks; ++i)
-                                {
-                                    source_file.read(buffer, 256);
-                                    destination_file.write(buffer, 256);
-                                }
-                                source_file.close();
-                                destination_file.close();
-                                Serial.println(F("File STEREO LEFT esportato correttamente su SD"));
+                            // Direcotory full: export is impossible
+                            if (!confirmation)
+                            {
+                                //            "0123456789012345678901234567890123456789109876543210";
+                                Show_popup_text("/LILLARAW_EXPORT IS CROWDED --> DELETE SOME FILES", ILI9341_WHITE, ILI9341_RED);
+                                delay(2000);
 
-                                // file_R
-                                destination_file = SD.open(DS_export_R_RAW.c_str(), FILE_WRITE);
-                                // copia dal primo al penultimo packet
-                                if (Recording[recording].packets > 1)
+                                DS_state = DS_waiting_state;
+
+                                Display_Sampler.DS_page(recording);
+
+                                // Menu
+                                DS_define_menu();
+                                Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                                // Pointer
+                                Pointer_Sampler.Set_pointer_to_first_menu_element();
+                                DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                                PeakTracking_L.reset();
+                                PeakTracking_R.reset();
+                                Display_Sampler.DS_bar(0, 0);
+                                Display_Sampler.DS_bar(1, 0);
+                            }
+
+                            // Export is possible
+                            else
+                            {
+                                byte buffer[256];
+                                int packet = 0;
+                                int last_blocks = -1;
+                                File destination_file;
+                                SerialFlashFile source_file;
+
+                                // export one file (MONO copy)
+                                if (!Recording[recording].stereo)
                                 {
-                                    for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                    destination_file = SD.open(DS_export_M_RAW.c_str(), FILE_WRITE);
+
+                                    // Copy from first to penultimate packet
+                                    for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
                                     {
                                         source_file = SerialFlash.open(name_packet[packet]);
                                         for (auto i = 0; i < 256; ++i)
@@ -5888,56 +6047,172 @@ void loop()
                                             destination_file.write(buffer, 256);
                                         }
                                     }
-                                }
-                                // copies last packet
-                                packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
-                                source_file = SerialFlash.open(name_packet[packet]);
-                                last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-                                for (auto i = 0; i < last_blocks; ++i)
-                                {
-                                    source_file.read(buffer, 256);
-                                    destination_file.write(buffer, 256);
-                                }
-                                source_file.close();
-                                destination_file.close();
-                                Serial.println(F("File STEREO RIGHT esportato correttamente su SD"));
-                            }
 
-                            // confirmation of successful export
-                            if (!Recording[recording].stereo)
-                            {
-                                Show_popup_text("MONO FILE EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
-                            }
-                            else
-                            {
-                                Show_popup_text("LEFT AND RIGHT FILES EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                                    // Copy last packet
+                                    packet = Recording[recording].first_packet + Recording[recording].packets - 1;
+                                    source_file = SerialFlash.open(name_packet[packet]);
+                                    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
+                                    for (auto i = 0; i < last_blocks; ++i)
+                                    {
+                                        source_file.read(buffer, 256);
+                                        destination_file.write(buffer, 256);
+                                    }
+                                    source_file.close();
+                                    destination_file.close();
+
+                                    // Reporting
+                                    Serial.println(F("File MONO esportato correttamente su SD"));
+                                }
+
+                                // Exports file_L and file_R (STEREO copy)
+                                else if (Recording[recording].stereo)
+                                {
+                                    // file_L
+                                    destination_file = SD.open(DS_export_L_RAW.c_str(), FILE_WRITE);
+
+                                    // Copy from first to penultimate packet
+                                    for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                    {
+                                        source_file = SerialFlash.open(name_packet[packet]);
+                                        for (auto i = 0; i < 256; ++i)
+                                        {
+                                            source_file.read(buffer, 256);
+                                            destination_file.write(buffer, 256);
+                                        }
+                                    }
+
+                                    // copies last packet
+                                    packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
+                                    source_file = SerialFlash.open(name_packet[packet]);
+                                    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
+                                    for (auto i = 0; i < last_blocks; ++i)
+                                    {
+                                        source_file.read(buffer, 256);
+                                        destination_file.write(buffer, 256);
+                                    }
+                                    source_file.close();
+                                    destination_file.close();
+
+                                    // Reporting
+                                    Serial.println(F("File STEREO LEFT esportato correttamente su SD"));
+
+                                    // file_R
+                                    destination_file = SD.open(DS_export_R_RAW.c_str(), FILE_WRITE);
+                                    // copia dal primo al penultimo packet
+                                    if (Recording[recording].packets > 1)
+                                    {
+                                        for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
+                                        {
+                                            source_file = SerialFlash.open(name_packet[packet]);
+                                            for (auto i = 0; i < 256; ++i)
+                                            {
+                                                source_file.read(buffer, 256);
+                                                destination_file.write(buffer, 256);
+                                            }
+                                        }
+                                    }
+                                    // Copy last packet
+                                    packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
+                                    source_file = SerialFlash.open(name_packet[packet]);
+                                    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
+
+                                    for (auto i = 0; i < last_blocks; ++i)
+                                    {
+                                        source_file.read(buffer, 256);
+                                        destination_file.write(buffer, 256);
+                                    }
+
+                                    source_file.close();
+                                    destination_file.close();
+
+                                    // Reporting
+                                    Serial.println(F("File STEREO RIGHT esportato correttamente su SD"));
+                                }
+
+                                // Confirm successful export
+                                if (!Recording[recording].stereo)
+                                {
+                                    Show_popup_text("MONO FILE EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                                }
+                                else
+                                {
+                                    Show_popup_text("LEFT AND RIGHT FILES EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                                }
                             }
                         }
+
+                        // Return procedure
+                        delay(2000);
+                        DS_state = DS_waiting_state;
+
+                        Display_Sampler.DS_page(recording);
+
+                        // Menu
+                        DS_define_menu();
+                        Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+                        // Pointer
+                        Pointer_Sampler.Set_pointer_to_first_menu_element();
+                        DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                        // Switch bar_display ON
+                        PeakTracking_L.reset();
+                        PeakTracking_R.reset();
+                        Display_Sampler.DS_bar(0, 0);
+                        Display_Sampler.DS_bar(1, 0);
+                    }
+                } // END case 11 (export to SD)
+                break;
+
+                default:
+                    Serial.println("Switch MISSING! 5239");
+                    break;
+                } // END switch(choice_DS_menu)
+            }
+        }
+        break;
+
+        case field_DS_Value:
+        {
+
+            if (DS_state == DS_waiting_state)
+            {
+                result = Read_encoder_simple(EN_PB_Value);
+                if (result != 0)
+                {
+                    DS_recording_change = recording;
+                    if (result == +1)
+                    {
+                        DS_recording_change = DS_get_next_Recording(recording);
+                    }
+                    else
+                    {
+                        DS_recording_change = DS_get_previous_Recording(recording);
                     }
 
-                    // Return procedure
-                    delay(2000);
-                    DS_state = 0;
-                    DS_menu = 0;
-                    Display_Manager.DS_page(recording);
-                    DS_define_model();
-                    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-                    Display_Manager.DS_frame_menu(DS_menu);
+                    if (DS_recording_change != recording)
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Stop_all_players();
+                        AudioInterrupts();
 
-                    // Switch bar_display ON
-                    PeakTracking_L.reset();
-                    PeakTracking_R.reset();
-                    Display_Manager.DS_bar(0, 0);
-                    Display_Manager.DS_bar(1, 0);
+                        recording = DS_recording_change;
+                        DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+
+                        // Recording
+                        P_Recording(recording);
+                    }
                 }
-            } // END case 11 (export to SD)
-            break;
-
-            default:
-                Serial.println("Switch MISSING! 5239");
-                break;
-            } // END switch(choice_DS_menu)
+            }
         }
+        break;
+        }
+
+        // Change recording
+
+        // Change menu item
+
+        // Choose menu item
 
         if (Read_pushbutton_fast(35))
         {
@@ -5959,7 +6234,7 @@ void loop()
             else if (Read_pushbutton(28))
             {
                 Serial.println("DISPLAY_delay_disabled!");
-                Display_Manager.D_disabled();
+                Display_Delay.D_disabled();
                 delay(2000);
                 DS_refresh_DS_page();
             }
@@ -6088,9 +6363,11 @@ void loop()
             else if (Read_pushbutton(28))
             {
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -6192,7 +6469,7 @@ void loop()
     if (Lilla_state == MIDI_LOOP)
     {
         // Change volume_patch
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_PreListenVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -6202,8 +6479,19 @@ void loop()
             Display_Manager.P_Patch_volume_value(true);
         }
 
+        // Move pointerMenu
+        if (LOOP_events[MASTER_TRACK] > 0)
+        {
+            result = Read_encoder_simple(EN_PB_Select);
+            if (result != 0)
+            {
+                Pointer_MidiLoop.Move_pointerMenu(result);
+                LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+            }
+        }
+
         // Change LOOP_id
-        result = Read_encoder_simple(7);
+        result = Read_encoder_simple(EN_PB_Loop);
         if (result != 0)
         {
             int new_loop_id;
@@ -6221,83 +6509,93 @@ void loop()
                 // delete runnig loop data and stop metronomo
                 LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
 
-                // switch LOOP_id
+                // Change LOOP_id
                 LOOP_id = new_loop_id;
 
-                // import LOOP_id from SD
+                // Import LOOP_id from SD
                 LOOP_Copy_midi_loop_from_SD_to_RAM(LOOP_id);
 
-                // update LOOP_id on display
-                Display_Manager.Loop_loop_id();
+                // Show LOOP_id on display
+                Display_MidiLoop.Show_loop_id();
 
-                // update LOOP_time on display
-                Display_Manager.Loop_time_stretched();
+                // Show LOOP_time on display
+                Display_MidiLoop.Loop_total_time();
 
-                // update tracks infos on display
-                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                // Show track infos on display
+                for (auto track = 0; track < TRACKS; ++track)
                 {
-                    Display_Manager.Loop_track_data(local_track);
+                    Display_MidiLoop.Show_track_all_data(track);
                 }
 
-                // update menu on display
-                LOOP_menu = 0;
-                Display_Manager.Loop_Delete_all_frame_menu();
+                // Update menu and pointerMenu
+                Pointer_MidiLoop.Show_pointerMenu(false);
                 LOOP_select_menu_elements();
-                Display_Manager.Loop_menu();
-                Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                Display_MidiLoop.Show_menu();
+                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
 
-                // switch off all tracks LEDs on display
+                // Switch off all tracks LEDs on display
                 Loop_led_set.Request_all_LED_switch_off();
 
-                // switch on led_0
+                // Switch on led_0
                 LOOP_metronomo.Led_ON(0);
 
-                // setup metronomo
+                // Setup metronomo
                 LOOP_metronomo.Setup(LOOP_time);
 
                 // restart clock
                 LOOP_restart_clock();
 
-                // set first event for each track
-                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                // Set first event for each track
+                for (auto track = 0; track < TRACKS; ++track)
                 {
-                    LOOP_play_event[local_track] = 0;
+                    LOOP_play_event[track] = 0;
                 }
 
-                // effettua l'ordinamento temporale degli eventi
-                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                // Sort events by timestamp
+                for (auto track = 0; track < TRACKS; ++track)
                 {
-                    LOOP_set_time_order(local_track);
+                    LOOP_set_time_order(track);
                 }
 
-                // simula Start/Stop all tracks con tutte le tracks attive
+                // Simulate all tracks Start/Stop, with all tracks active
                 LOOP_run_button_state = false;
 
-                // memorizza lo stato dei track prima di fermarli
-                for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                // Save track states before stopping
+                for (auto track = 0; track < TRACKS; ++track)
                 {
-                    LOOP_track_run_memo[local_track] = LOOP_events[local_track] > 0;
-                    LOOP_track_run[local_track] = false;
+                    LOOP_track_run_memo[track] = LOOP_events[track] > 0;
+                    LOOP_track_run[track] = false;
                 }
 
+                // Show pointerTrack
+                for (auto track = 0; track < TRACKS; ++track)
+                {
+                    if (LOOP_events[track] > 0)
+                    {
+                        Pointer_MidiLoop.Set_pointerTrack_to_level(track);
+                        LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
+                    }
+                }
+
+                // Report
                 Serial.println("Loop uploaded; data in RAM:");
                 LOOP_Print_midi_loop_complete_data(LOOP_id);
             }
         }
 
-        // Learning
         for (auto track = 0; track < TRACKS; ++track)
         {
-            // ricezione richiesta
-            if (LOOP_run_button_state && Read_pushbutton(LOOP_UI_B + track))
+            // Learning
+            if (Read_pushbutton(PB_Rec[track]) && LOOP_run_button_state)
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
-                // attivita' prioritarie AudioNoInterrupts()
+                // High priority
                 AudioNoInterrupts();
                 if (LOOP_events[LOOP_learning_track] != 0)
                 {
-                    // se si tratta di MASTER_TRACK (0) si fermano e cancellano tutti i track
+                    // se si tratta di MASTER_TRACK si fermano e cancellano tutti i track
                     if (LOOP_learning_track == MASTER_TRACK)
                     {
                         // Interrompi i Player che eseguono note di qualsiasi track
@@ -6353,7 +6651,7 @@ void loop()
                 }
                 AudioInterrupts();
 
-                // attivita' sul display - NO AudioNoInterrupts()
+                // Display update, and other low priority procedures
                 if (LOOP_learning_track == MASTER_TRACK)
                 {
                     // Spegni i led del metronomo
@@ -6361,71 +6659,71 @@ void loop()
 
                     // nomina loop_id
                     LOOP_id = NEW_LOOP;
-                    Display_Manager.Loop_loop_id();
+                    Display_MidiLoop.Show_loop_id();
 
                     LOOP_time = 0;
-                    Display_Manager.Loop_time_stretched(); // accanto ai led del metronomo appare il tempo totale 0.0s
+                    Display_MidiLoop.Loop_total_time(); // accanto ai led del metronomo appare il tempo totale 0.0s
                 }
 
                 // Se si tratta del track master (0) non ancora esistente, oppure si tratta di un altro track ma con track master esistente
-                if (LOOP_learning_track == MASTER_TRACK || (LOOP_learning_track > MASTER_TRACK && LOOP_events[MASTER_TRACK] != 0))
+                if (LOOP_learning_track == MASTER_TRACK || LOOP_events[MASTER_TRACK] != 0)
                 {
-                    // show (or delete) all tracks infos
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track)
+                    // Show (or delete) all tracks infos
+                    for (auto track = 0; track < TRACKS; ++track)
                     {
-                        Display_Manager.Loop_track_data(local_track);
+                        Display_MidiLoop.Show_track_all_data(track);
+
+                        if (LOOP_events[track] == 0)
+                        {
+                            Pointer_MidiLoop.Show_pointerTrack(track, false);
+                        }
                     }
 
-                    // display "n-REC"
-                    Display_Manager.Loop_REC_advice(LOOP_learning_track, true);
+                    // Display "n-REC"
+                    Display_MidiLoop.Loop_REC_advice(LOOP_learning_track, true);
 
-                    // switch off all tracks LEDs
+                    // Switch off all tracks LEDs
                     Loop_led_set.Request_all_LED_switch_off();
 
-                    // update menu
-                    LOOP_menu = 0;
-                    Display_Manager.Loop_Delete_all_frame_menu();
+                    // Update menu and pointerMenu
+                    Pointer_MidiLoop.Show_pointerMenu(false);
                     LOOP_select_menu_elements();
-                    Display_Manager.Loop_menu();
-                    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                    Display_MidiLoop.Show_menu();
+                    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
 
-                    // prepare learning
+                    // Prepare learning
                     LOOP_learn_clock = 0;
                     LOOP_elements = 0;      // ancora nessun evento
                     LOOP_learn_flag = true; // avvia il learning
-                    Serial.println("Learning inizializzato!");
 
-                    // learnig
+                    // Feedback
+                    Serial.println(F("Learning inizializzato!"));
+
+                    // Learning
                     while (LOOP_learn_flag)
                     {
                         Shifters_manager.Update();
 
-                        // Termina il learning
-                        if (Read_pushbutton(LOOP_UI_B + LOOP_learning_track))
+                        // Stop learning
+                        if (Read_pushbutton(PB_Rec[LOOP_learning_track]))
                         {
                             // Chiude il learning
                             LOOP_learn_flag = false;
 
+                            // Feedback
                             Serial.println("Loop correttamente chiuso manualmente!");
                             break;
                         }
 
-                        // Dall'avvio sono passati 20 secondi senza eventi --> cancella il loop
+                        // After 20 secons without events --> cancel track
                         else if (LOOP_elements == 0 && LOOP_learn_clock > 20000)
                         {
-                            // Chiude il learning
+                            // Close learning
                             LOOP_learn_flag = false;
-                            Serial.println("Loop chiuso e cancellato perche' dimenticato aperto!");
-                            break;
-                        }
 
-                        // richiesto annullamento del loop_learn
-                        else if (Read_pushbutton(LOOP_UI_C + LOOP_learning_track))
-                        {
-                            // Chiude il learning
-                            LOOP_learn_flag = false;
-                            LOOP_elements = 0;
-                            Serial.println("Loop chiuso e cancellato");
+                            // Feedback
+                            Serial.println(F("Loop chiuso e cancellato perche' dimenticato aperto!"));
                             break;
                         }
 
@@ -6433,12 +6731,13 @@ void loop()
                         else if (LOOP_learning_track == MASTER_TRACK && LOOP_metronomo_flag_IN[0])
                         {
                             LOOP_metronomo_flag_IN[0] = false;
-                            // ask metronomo to switch on first led (metronomo is not runnig)
+
+                            // Ask metronomo to switch on first led (metronomo is not runnig)
                             LOOP_metronomo.Led_ON(0);
                         }
 
-                        // aggiornamento continuo dei led
-                        P_Update_instruments_leds();
+                        // Continously update LEDs
+                        Update_instruments_leds();
 
                         // se NON si tratta del track master (0) c'e' l'aggiornamento continuo del metronomo
                         if (LOOP_metronomo_flag_IN[1])
@@ -6449,27 +6748,31 @@ void loop()
                         }
                     }
 
-                    // from here LOOP_learn_flag == false
-                    Serial.println("Learning concluso!");
+                    // Learnig closed. From here: LOOP_learn_flag == false
                     LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
 
-                    // new track is valid (contains events)
+                    // Feedback
+                    Serial.println("Learning closed!");
+
+                    // The new track is valid (contains events)
                     if (LOOP_events[LOOP_learning_track] > 0)
                     {
-                        // se e' il loop_master:
+                        // If MASTER_TRACK
                         if (LOOP_learning_track == MASTER_TRACK)
                         {
                             // Setup di LOOP_time (durata di tutti i loop)
                             LOOP_time = LOOP_learn_clock;
-                            Serial.print("LOOP_time:");
-                            Serial.println(LOOP_time);
 
-                            // restart clock
+                            // Restart clock
                             LOOP_restart_clock();
 
-                            // reset stretch
+                            // Reset stretch
                             LOOP_stretch_int = 100;
                             LOOP_stretch = 1.0;
+
+                            // Report
+                            Serial.print("LOOP_time:");
+                            Serial.println(LOOP_time);
                         }
 
                         // aggiungi info di slide
@@ -6495,9 +6798,10 @@ void loop()
                             // metronomo switch-on
                             LOOP_metronomo_run = true;
                         }
-
                         else
+                        {
                             LOOP_play_time[LOOP_learning_track] = LOOP_Clock_time_from_virtual_time(LOOP_element[LOOP_learning_track][0].time);
+                        }
 
                         // effettua l'ordinamento temporale degli eventi
                         LOOP_set_time_order(LOOP_learning_track);
@@ -6521,13 +6825,14 @@ void loop()
                             LOOP_original = false;
                         }
 
-                        LOOP_menu = 0;
-                        Display_Manager.Loop_Delete_all_frame_menu();
+                        // Update menu and pointerMenu on display
+                        Pointer_MidiLoop.Show_pointerMenu(false);
                         LOOP_select_menu_elements();
-                        Display_Manager.Loop_menu();
-                        Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                        Display_MidiLoop.Show_menu();
+                        Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                        LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
 
-                        // report
+                        // Report
                         Serial.println(" **************** ");
                         Serial.print("eventi:");
                         Serial.println(LOOP_events[LOOP_learning_track]);
@@ -6569,24 +6874,27 @@ void loop()
                         LOOP_metronomo_flag_IN[0] = false;
                     }
 
-                    Display_Manager.Loop_track_data(track);
+                    Display_MidiLoop.Show_track_all_data(track);
 
-                    // visualizza durata totale
+                    // Pointer pointerTrack
+                    Pointer_MidiLoop.Set_pointerTrack_to_level(track);
+                    LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
+
+                    // Display loop time
                     if (LOOP_learning_track == MASTER_TRACK)
                     {
-                        Display_Manager.Loop_time_stretched();
+                        Display_MidiLoop.Loop_total_time();
                     }
                 }
             }
-            // qui sopra le funzionalita' learn
 
-            // Existing track
+            // Change values
             if (LOOP_events[track] > 0)
             {
                 // Track start-stop
-                if (Read_pushbutton(LOOP_UI_C + track))
+                if (Read_pushbutton(EN_PB_Track[track]))
                 {
-                    // Stop
+                    // Stop track
                     if (LOOP_track_run[track])
                     {
                         LOOP_track_run[track] = false;
@@ -6600,7 +6908,7 @@ void loop()
                         Loop_led_set.Request_track_LED_switch_off(track);
                     }
 
-                    // Start
+                    // Play track
                     else
                     {
                         // accendi il primo led del metronomo
@@ -6625,173 +6933,196 @@ void loop()
                     }
                 }
 
-                // Slide temporale
-                result = Read_encoder_simple(LOOP_UI_A + track);
-                if (result != 0)
+                // Change track values
+                if (!Read_pushbutton_fast(EN_PB_Value))
                 {
-                    LOOP_original = false;
-
-                    int jump;
-
-                    if (result == 1)
+                    switch (LOOP_local_pointerTrack[track])
                     {
-                        jump = 100;
-                    }
-
-                    else
+                    // Slide temporale
+                    case value_LOOP_slide:
                     {
-                        if (LOOP_time >= 100)
+                        if (!Read_pushbutton_fast(EN_PB_Track[track]))
+                            result = Read_encoder_simple(EN_PB_Track[track]);
+                        if (result != 0)
                         {
-                            jump = LOOP_time - 100;
-                        }
-                        else
-                        {
-                            jump = 0;
-                        }
-                    }
+                            LOOP_original = false;
 
-                    Serial.print("Shift ms:");
-                    Serial.println(jump);
+                            int jump;
+                            if (result == 1)
+                            {
+                                jump = 100;
+                            }
+                            else
+                            {
+                                if (LOOP_time >= 100)
+                                {
+                                    jump = LOOP_time - 100;
+                                }
+                                else
+                                {
+                                    jump = 0;
+                                }
+                            }
 
-                    AudioNoInterrupts();
-                    for (auto event = 0; event < LOOP_events[track]; ++event)
-                    {
-                        LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
-                    }
+                            // Report
+                            Serial.print("Shift ms:");
+                            Serial.println(jump);
 
-                    // Interrompi i Player di track
-                    Players_Manager.Release_all_players_loop(track);
+                            AudioNoInterrupts();
+                            for (auto event = 0; event < LOOP_events[track]; ++event)
+                            {
+                                LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
+                            }
 
-                    // Effettua l'ordinamento temporale degli eventi
-                    LOOP_set_time_order(LOOP_learning_track);
+                            // Stop Players for this track
+                            Players_Manager.Release_all_players_loop(track);
 
-                    // Procedura di ripartenza
-                    LOOP_restart_procedure(track);
-                    AudioInterrupts();
+                            // Sort events by timestamp
+                            LOOP_set_time_order(LOOP_learning_track);
 
-                    // Spegni i led del loop
-                    Loop_led_set.Request_track_LED_switch_off(track);
+                            // Restart procedure
+                            LOOP_restart_procedure(track);
+                            AudioInterrupts();
 
-                    LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                    Display_Manager.Loop_track_data(track);
-                }
+                            // Switch off track LEDs
+                            Loop_led_set.Request_track_LED_switch_off(track);
 
-                // Annulla slide temporale
-                if (LOOP_slide[track] > 0)
-                    if (Read_pushbutton_fast(LOOP_UI_A + track))
-                    {
-                        int jump = LOOP_time - LOOP_slide[track];
+                            LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
 
-                        AudioNoInterrupts();
-                        for (auto event = 0; event < LOOP_events[track]; ++event)
-                        {
-                            LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
+                            Display_MidiLoop.Show_track_all_data(track);
                         }
 
-                        // Interrompi i Player di loop
-                        Players_Manager.Release_all_players_loop(track);
+                        // Cancel (time) slide
+                        if (Read_pushbutton_fast(EN_PB_Track[track]))
+                        {
+                            int jump = LOOP_time - LOOP_slide[track];
 
-                        // Effettua l'ordinamento temporale degli eventi
-                        LOOP_set_time_order(LOOP_learning_track);
+                            AudioNoInterrupts();
+                            for (auto event = 0; event < LOOP_events[track]; ++event)
+                            {
+                                LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
+                            }
 
-                        // Procedura di ripartenza
-                        LOOP_restart_procedure(track);
-                        AudioInterrupts();
+                            // Stop all track Players
+                            Players_Manager.Release_all_players_loop(track);
 
-                        // Spegni i led del loop
-                        Loop_led_set.Request_track_LED_switch_off(track);
+                            // Effettua l'ordinamento temporale degli eventi
+                            LOOP_set_time_order(LOOP_learning_track);
 
-                        LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
-                        Display_Manager.Loop_track_data(track);
+                            // Restart procedure
+                            LOOP_restart_procedure(track);
+                            AudioInterrupts();
+
+                            // Switch off track LEDs
+                            Loop_led_set.Request_track_LED_switch_off(track);
+
+                            LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
+                            Display_MidiLoop.Show_track_all_data(track);
+                        }
                     }
+                    break;
 
-                // Volume
-                if (Read_encoder(LOOP_UI_C + track, LOOP_volume_int[track], 40, 0, 1))
-                {
-                    LOOP_original = false;
+                    case value_LOOP_pitch:
+                    {
+                        if (Read_encoder(EN_PB_Track[track], LOOP_pitch_int[track], 24, -24, 1))
+                        {
+                            LOOP_original = false;
 
-                    AudioNoInterrupts();
-                    LOOP_volume[track] = LOOP_volume_int[track] / 20.0f;
-                    Players_Manager.Multicast_volume_for_MIDI_LOOP_running(track, LOOP_volume[track]);
-                    AudioInterrupts();
+                            Display_MidiLoop.Show_track_all_data(track);
 
-                    Display_Manager.Loop_track_data(track);
-                    Serial.print("LOOP_volume: ");
-                    Serial.println(LOOP_volume[track]);
-                }
+                            // Report
+                            Serial.print("LOOP_pitch_int: ");
+                            Serial.println(LOOP_pitch_int[track]);
+                        }
+                    }
+                    break;
 
-                // Pitch
-                if (Read_encoder(LOOP_UI_B + track, LOOP_pitch_int[track], 24, -24, 1))
-                {
-                    LOOP_original = false;
+                    case value_LOOP_level:
+                    {
+                        if (Read_encoder(EN_PB_Track[track], LOOP_volume_int[track], 40, 0, 1))
+                        {
+                            LOOP_original = false;
 
-                    Display_Manager.Loop_track_data(track);
-                    Serial.print("LOOP_pitch_int: ");
-                    Serial.println(LOOP_pitch_int[track]);
+                            AudioNoInterrupts();
+                            LOOP_volume[track] = LOOP_volume_int[track] / 20.0f;
+                            Players_Manager.Multicast_volume_for_MIDI_LOOP_running(track, LOOP_volume[track]);
+                            AudioInterrupts();
+
+                            Display_MidiLoop.Show_track_all_data(track);
+
+                            // Report
+                            Serial.print("LOOP_volume: ");
+                            Serial.println(LOOP_volume[track]);
+                        }
+                    }
+                    break;
+                    }
                 }
             }
         }
 
-        // Comandi attivi se esiste MASTER_TRACK, comuni a tutti i track
+        // All track active commands (if MASTER_TRACK exists)
         if (LOOP_events[MASTER_TRACK] > 0)
         {
-            // change menu item
-            result = Read_encoder_simple(25);
-            if (result != 0)
+            // Update metronomo
+            if (LOOP_metronomo_flag_IN[1])
             {
+                LOOP_metronomo_flag_IN[1] = false;
+                LOOP_metronomo.Update();
+                LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
+            }
 
-                if (result == +1)
-
+            // Move pointerTrack - move pointerMain
+            if (Read_pushbutton_fast(EN_PB_Value))
+            {
+                // Move pointerTrack
+                for (auto track = 0; track < TRACKS; ++track)
                 {
-                    if (LOOP_menu < Loop_menu_max)
+                    if (LOOP_events[track] > 0)
                     {
-                        LOOP_menu_change = LOOP_menu + 1;
+                        result = Read_encoder_simple(EN_PB_Track[track]);
+                        if (result != 0)
+                        {
+                            Pointer_MidiLoop.Move_pointerTrack(track, result);
+                            LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
+                        }
                     }
-                }
-                else
-                {
-                    if (LOOP_menu > 0)
-                    {
-                        LOOP_menu_change = LOOP_menu - 1;
-                    }
-                }
-
-                if (LOOP_menu_change != LOOP_menu)
-                {
-                    LOOP_menu = LOOP_menu_change;
-                    Display_Manager.Loop_Delete_all_frame_menu();
-                    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
                 }
             }
 
             // Choose menu item
-            if (Read_pushbutton(25))
+            if (Read_pushbutton(EN_PB_Select))
             {
-                int choice_loop_menu = element_Menu_Loop[LOOP_menu];
-                switch (choice_loop_menu)
+                switch (LOOP_local_pointerMenu)
                 {
-
-                case 0:                                     // New
+                case value_LOOP_New:
+                {
                     LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
                     LOOP_id = NEW_LOOP;
                     LOOP_original = true;
                     LOOP_run_button_state = true;
-                    Golive_with_MIDI_LOOP(true);
-                    break;
 
-                case 1: // Save
+                    Golive_with_MIDI_LOOP(true);
+                }
+                break;
+
+                case value_LOOP_Save:
+                {
                     LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
 
                     LOOP_original = true;
 
-                    LOOP_menu = 0;
-                    Display_Manager.Loop_Delete_all_frame_menu();
+                    // Update menu and pointerMenu
+                    Pointer_MidiLoop.Show_pointerMenu(false);
                     LOOP_select_menu_elements();
-                    Display_Manager.Loop_menu();
-                    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
-                    break;
+                    Display_MidiLoop.Show_menu();
+                    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+                }
+                break;
 
-                case 2: // Save as new
+                case value_LOOP_SaveAsNew:
+                {
                     result = LOOP_Get_first_loop_id_free();
                     if (result >= 0)
                     {
@@ -6801,18 +7132,22 @@ void loop()
 
                         // Update menu
                         LOOP_original = true;
-                        LOOP_menu = 0;
-                        Display_Manager.Loop_Delete_all_frame_menu();
+
+                        // Update menu and pointerMenu
+                        Pointer_MidiLoop.Show_pointerMenu(false);
                         LOOP_select_menu_elements();
-                        Display_Manager.Loop_menu();
-                        Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+                        Display_MidiLoop.Show_menu();
+                        Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+                        LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
 
                         // Update loop_id
-                        Display_Manager.Loop_loop_id();
+                        Display_MidiLoop.Show_loop_id();
                     }
-                    break;
+                }
+                break;
 
-                case 3: // Delete
+                case value_LOOP_Delete:
+                {
                     LOOP_Delete_midi_loop_from_SD(LOOP_id);
 
                     // new
@@ -6820,20 +7155,21 @@ void loop()
                     LOOP_id = NEW_LOOP;
                     LOOP_original = true;
                     LOOP_run_button_state = true;
+
                     Golive_with_MIDI_LOOP(true);
-                    break;
+                }
+                break;
                 }
             }
 
             // Change tempo
-            if (Read_encoder_inverse(24, LOOP_stretch_int, 198, 1, 1))
-
+            if (Read_encoder_inverse(EN_PB_Tempo, LOOP_stretch_int, 198, 1, 1))
             {
                 AudioNoInterrupts();
                 // Memorizza il tempo virtuale attuale
                 LOOP_clock_memo = LOOP_Clock();
 
-                // Aggiorna LOOP_stretch
+                // Update LOOP_stretch
                 if (LOOP_stretch_int <= 100)
                 {
                     LOOP_stretch = LOOP_stretch_int / 100.0;
@@ -6843,18 +7179,19 @@ void loop()
                     LOOP_stretch = 1.0 / (2.0f - LOOP_stretch_int / 100.0f);
                 }
 
-                // Ricalcolo LOOP_clock
+                // Update LOOP_clock
                 LOOP_clock = LOOP_clock_memo * LOOP_stretch;
                 AudioInterrupts();
 
-                Display_Manager.Loop_time_stretched();
+                Display_MidiLoop.Loop_total_time();
 
+                // Report
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);
             }
 
             // Back to original tempo
-            if (Read_pushbutton(24))
+            if (Read_pushbutton(EN_PB_Tempo))
             {
                 AudioNoInterrupts();
                 // Memorizza il tempo virtuale attuale
@@ -6868,22 +7205,14 @@ void loop()
                 LOOP_clock = LOOP_clock_memo;
                 AudioInterrupts();
 
-                Display_Manager.Loop_time_stretched();
+                Display_MidiLoop.Loop_total_time();
 
                 Serial.print("LOOP_stretch: ");
                 Serial.println(LOOP_stretch);
             }
 
-            // Update metronomo tempo
-            if (LOOP_metronomo_flag_IN[1])
-            {
-                LOOP_metronomo_flag_IN[1] = false;
-                LOOP_metronomo.Update();
-                LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
-            }
-
             // Start/Stop all tracks
-            if (Read_pushbutton(7))
+            if (Read_pushbutton(EN_PB_Loop))
             {
                 // stop all tracks
                 if (LOOP_run_button_state)
@@ -6964,9 +7293,11 @@ void loop()
             {
                 Lilla_state_0 = MIDI_LOOP;
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
 
             // Switch to LIVE_SAMPLING
@@ -6994,31 +7325,44 @@ void loop()
             }
         }
 
+        // Edit Sounds
         if (Read_pushbutton(PB_number + 26) && Patch[Patch_id].Instrument[PB_number].used)
         {
             Lilla_state_0 = MIDI_LOOP;
             Lilla_state = SOUND_EDIT;
-            Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Sound_edit_context], SR_monitored_pushbuttons_set[Sound_edit_context]);
+            Shifters_manager.Set_context(Sound_edit_context);
 
             Instrument_id = PB_number;
-            Serial.print("Editing Sound: ");
-            Serial.println(Instrument_id);
             Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-            Print_Sound(Sound_id);
 
             samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
             Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
             S_trim_step = S_Calc_trim_step(trim_speed);
-            S_sound_original = S_Verify_is_Sound_original(Sound_id);
-            S_menu = 0;
 
+            // Display page
             Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
-            // to do: display LED
 
+            // Menu
+            S_sound_original = S_Verify_is_Sound_original(Sound_id);
+            S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
+            Display_Sound.S_show_SOUND_menu();
+
+            // Pointer
+            Pointer_Sound.Update_field_description(S_menu_max);
+            Pointer_Sound.Set_pointer_to_first_element();
+            S_field_description = Pointer_Sound.Get_field_description();
+            Pointer_Sound.Display_pointer();
+
+            // Restore LEDs
+            Performance_led_set.Restore_all_LED();
+
+            // Wave
             Display_Sound.S_show_wave(Instrument_id);
 
-            Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
-            Display_Sound.S_show_menu_frame(S_menu);
+            // Report
+            Serial.print("Editing Sound: ");
+            Serial.println(Instrument_id);
+            Print_Sound(Sound_id);
         }
     }
 #pragma endregion // MIDI_LOOP
@@ -7085,7 +7429,7 @@ void loop()
             {
             case 3: // switch to CC Settings
                 Lilla_state = CC_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Control_Change_context], SR_monitored_pushbuttons_set[Control_Change_context]);
+                Shifters_manager.Set_context(Control_Change_context);
 
                 display_wait = false;
 
@@ -7298,9 +7642,11 @@ void loop()
                     Archive.Save_first_octave(first_octave);
                 }
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+                Shifters_manager.Set_context(Delay_settings_context);
 
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
                 break;
             }
 
@@ -7498,15 +7844,17 @@ void loop()
 // ***************************************************************************************************************
 // **********************************                   TABLES                  **********************************
 // ***************************************************************************************************************
-
 FLASHMEM
 void Compile_tables(void)
 {
     const float value_float = 16.0;
+    Serial.println("void Compile_tables(void)");
 
     for (auto i = 0; i < 10; ++i)
     {
         m_exp_table[i] = exp_table[i + 1] - exp_table[i];
+        Serial.println(m_exp_table[i], 20);
+
         m_sin_table[i] = sin_table[i + 1] - sin_table[i];
         m_decay_table[i] = decay_table[i + 1] - decay_table[i];
         m_release_table[i] = release_table[i + 1] - release_table[i];
@@ -7701,10 +8049,21 @@ uint8_t P_Get_previous_Patch_id_existing(void)
     } while (1);
 }
 
+bool P_Verify_if_Instrument_original(const int instrument_id)
+{
+    if (!Patch[Patch_id].Instrument[instrument_id].used && !Patch_cache_P.Instrument[instrument_id].used)
+    {
+        return true;
+    }
+
+    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
+           S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
+}
+
 void Golive_with_PERFORMANCE(int patch_id)
 {
     Lilla_state = PERFORMANCE;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Performance_context], SR_monitored_pushbuttons_set[Performance_context]);
+    Shifters_manager.Set_context(Performance_context);
 
     patch_original = P_Verify_is_Patch_original(patch_id);
     P_Select_menu_elements();
@@ -7929,6 +8288,71 @@ int P_sound_id_from_instrument_id(const int instrument_id)
 // **********************************           SOUND, INSTRUMENT              ***********************************
 // ***************************************************************************************************************
 
+bool S_Verify_is_Sound_original(const int sound_id)
+{
+    return Sound[sound_id] == S_Sound_cache_P[sound_id];
+}
+
+void S_Copy_all_Sound_to_Sound_cache_P(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        S_Sound_cache_P[sound_id] = Sound[sound_id];
+    }
+}
+
+void S_Save_all_Sounds_changed(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        // Sound which have been changed only for .used
+        if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
+        {
+            Archive.Save_Sound(sound_id);
+            Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
+            Serial.println(sound_id);
+        }
+
+        // Sound used which have been changed
+        else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
+        {
+            Archive.Save_Sound(sound_id);
+            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su EEPROM per per sound_id: ");
+            Serial.println(sound_id);
+        }
+    }
+}
+
+void S_Pull_all_Sound_from_Sound_cache_P(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        Sound[sound_id] = S_Sound_cache_P[sound_id];
+    }
+}
+
+uint8_t S_Get_sounds_free(void)
+{
+    auto result = 0;
+
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        if (!Sound[sound_id].used)
+        {
+            result++;
+        }
+    }
+    return result;
+}
+
+void S_Read_all_Sounds(void)
+{
+    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
+    {
+        Archive.Read_Sound(sound_id);
+    }
+}
+
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel)
 {
     // .data contains midi channel in its bits: 7 6 5 M I D I 0
@@ -8043,7 +8467,7 @@ bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
 // **********************************                 LEDS                     ***********************************
 // ***************************************************************************************************************
 
-void P_Update_instruments_leds()
+void Update_instruments_leds()
 {
     if (Lilla_state == MIDI_LOOP)
     {
@@ -8056,12 +8480,12 @@ void P_Update_instruments_leds()
                     // check led activity
                     if (Loop_led_set.Read_LED_activity(track, instrument_id) == 2)
                     {
-                        Display_Manager.Loop_led(track, instrument_id, true);
+                        Display_MidiLoop.Loop_led(track, instrument_id, true);
                         Loop_led_set.Write_LED_activity(track, instrument_id, true);
                     }
                     if (Loop_led_set.Read_LED_activity(track, instrument_id) == -2)
                     {
-                        Display_Manager.Loop_led(track, instrument_id, false);
+                        Display_MidiLoop.Loop_led(track, instrument_id, false);
                         Loop_led_set.Write_LED_activity(track, instrument_id, false);
                     }
                 }
@@ -8226,24 +8650,30 @@ void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
 void Golive_DIRECT_SAMPLING(void)
 {
     Lilla_state = DIRECT_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Direct_Sampling_context], SR_monitored_pushbuttons_set[Direct_Sampling_context]);
+    Shifters_manager.Set_context(Direct_Sampling_context);
 
-    DS_state = 0;
+    DS_state = DS_waiting_state;
 
-    // Switch bar_display ON
+    // Switch ON the VU meter
     PeakTracking_L.reset();
     PeakTracking_R.reset();
 
-    DS_menu = 0;
-    Display_Manager.DS_page(recording);
-    Display_Manager.DS_line_out(false);
+    Display_Sampler.DS_page(recording);
+    Display_Sampler.DS_line_out(false);
 
-    DS_define_model();
-    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-    Display_Manager.DS_frame_menu(DS_menu);
-    Display_Manager.DS_bar(0, 0);
-    Display_Manager.DS_bar(1, 0);
+    // Menu
+    DS_define_menu();
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
 
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+    // Display the VU meter
+    Display_Sampler.DS_bar(0, 0);
+    Display_Sampler.DS_bar(1, 0);
+
+    // Reporting
     Print_Patch(Patch_id);
     Serial.println(F("*** DIRECT_SAMPLING ***  Sounds are:"));
     Print_Sound(SOUNDS_MAX);
@@ -8253,22 +8683,29 @@ void Golive_DIRECT_SAMPLING(void)
 void DS_refresh_DS_page(void)
 {
     Lilla_state = DIRECT_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Direct_Sampling_context], SR_monitored_pushbuttons_set[Direct_Sampling_context]);
+    Shifters_manager.Set_context(Direct_Sampling_context);
 
-    Display_Manager.DS_page(recording);
-    Display_Manager.DS_line_out(false);
-    DS_define_model();
-    Display_Manager.DS_menu(); // display the menu and updates DS_menu_max
-    Display_Manager.DS_frame_menu(DS_menu);
-    Display_Manager.DS_bar(0, 0);
-    Display_Manager.DS_bar(1, 0);
+    Display_Sampler.DS_page(recording);
+    Display_Sampler.DS_line_out(false);
+
+    // Menu
+    DS_define_menu();
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+    // Display the VU meter
+    Display_Sampler.DS_bar(0, 0);
+    Display_Sampler.DS_bar(1, 0);
 }
 
 void DS_ask_if_EXIT_from_DS(void)
 {
     confirmation = false;
     action = 0; // NO
-    Display_Manager.DS_confirm_EXIT_from_DS();
+    Display_Sampler.DS_confirm_EXIT_from_DS();
     Display_Manager.P_Confirm_patch_delete_popup_frame(0);
     delay(200);
 
@@ -8309,15 +8746,15 @@ void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
     Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
     AudioInterrupts();
 
+    Display_Sampler.DS_hide_recording();
+    Display_Sampler.DS_Recording_description(recording, true);
+
+    // Restore LEDs
+    Performance_led_set.Restore_all_LED();
+
+    // Report
     Print_Sound(SOUNDS_MAX);
     Print_Sound(SOUNDS_MAX + 1);
-
-    Display_Manager.DS_hide_recording();
-
-    Display_Manager.DS_Recording_description(recording, true);
-
-    // restore LEDs
-    Performance_led_set.Restore_all_LED();
 }
 
 void DS_back_to_first_DS_Recording(void)
@@ -8345,13 +8782,16 @@ void DS_back_to_first_DS_Recording(void)
     Print_Sound(SOUNDS_MAX);
     Print_Sound(SOUNDS_MAX + 1);
 
-    DS_menu = 0;
-    DS_define_model(); // updates "Value_Max_encoder.DS_menu" used by encoder_menu
-    Display_Manager.DS_menu();
-    Display_Manager.DS_frame_menu(0);
-    Display_Manager.DS_hide_recording();
+    // Menu
+    DS_define_menu();
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
 
-    Display_Manager.DS_Recording_description(recording, true);
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+    Display_Sampler.DS_hide_recording();
+    Display_Sampler.DS_Recording_description(recording, true);
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
@@ -8465,6 +8905,7 @@ void DS_convert_file_R(int file_R_RAW, int bytes) // bytes = blocks_per_file * 2
             }
         }
     }
+
     // copia l'ultimo packet
     packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
     SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
@@ -8526,11 +8967,15 @@ void DS_seed_all_Recordings(void)
 void DS_update_recordings(void)
 {
     recordings = 0;
+
     for (auto i = 0; i < RECORDINGS; ++i)
+    {
         if (Recording[i].packets > 0 && Recording[i].consistent == true)
         {
             ++recordings;
         }
+    }
+
     Serial.print(F("recordings are: "));
     Serial.println(recordings);
     Serial.println();
@@ -8640,10 +9085,10 @@ bool DS_check_conversion(void)
     return false;
 }
 
-void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
+void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
 {
     // voices that can be displayed
-    Menu_DS[0] = true; // DELETE
+    Menu_DS[0] = true; // CANCEL_RECORDING
     Menu_DS[1] = true; // PAUSE+REC
     Menu_DS[2] = true; // MONO-REC
     Menu_DS[3] = true; // STEREO-REC
@@ -8655,14 +9100,14 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
     Menu_DS[8] = true;  // CONVERT LEFT
     Menu_DS[9] = true;  // CONVERT RIGHT
     Menu_DS[10] = true; // CONVERT BOTH
-    Menu_DS[11] = true; // EXPORT TO SD
+    Menu_DS[11] = true; // EXPORT_RAW_TO_SD
 
-    if (DS_state == 1 || DS_state == 2 || DS_state == 3 || recordings == 0)
+    if (DS_state == DS_pause_state || DS_state == DS_recording_state || DS_state == DS_convert_state || recordings == 0)
     {
         Menu_DS[11] = false; // EXPORT TO SD
     }
 
-    if (DS_state != 3)
+    if (DS_state != DS_convert_state)
     {
         Menu_DS[6] = false;  // CANCEL
         Menu_DS[7] = false;  // CONVERT MONO
@@ -8671,7 +9116,7 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
         Menu_DS[10] = false; // CONVERT BOTH
     }
 
-    if (DS_state == 3 && DS_export > 0)
+    if (DS_state == DS_convert_state && DS_export > 0)
     {
         Menu_DS[0] = false; // DELETE
         Menu_DS[1] = false; // PAUSE+REC
@@ -8681,7 +9126,7 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
         Menu_DS[5] = false; // CONVERT REC-TO-RAW
     }
 
-    if (DS_state == 3 && DS_export == 0)
+    if (DS_state == DS_convert_state && DS_export == 0)
     {
         Menu_DS[7] = false;  // CONVERT_MONO
         Menu_DS[8] = false;  // CONVERT_LEFT
@@ -8689,14 +9134,14 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
         Menu_DS[10] = false; // CONVERT_BOTH
     }
 
-    if (DS_state == 3 && DS_export == 1)
+    if (DS_state == DS_convert_state && DS_export == 1)
     {
         Menu_DS[8] = false;  // CONVERT LEFT
         Menu_DS[9] = false;  // CONVERT RIGHT
         Menu_DS[10] = false; // CONVERT BOTH
     }
 
-    if (DS_state == 3 && DS_export == 2)
+    if (DS_state == DS_convert_state && DS_export == 2)
     {
         Menu_DS[7] = false; // CONVERT MONO
     }
@@ -8714,21 +9159,21 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
         Menu_DS[1] = false; // PAUSE+REC
     }
 
-    if (DS_state == 0)
+    if (DS_state == DS_waiting_state)
     {
         Menu_DS[2] = false; // MONO-REC
         Menu_DS[3] = false; // STEREO-REC
         Menu_DS[4] = false; // STOP
     }
 
-    if (DS_state == 1) // Pause+Rec
+    if (DS_state == DS_pause_state) // Pause+Rec
     {
         Menu_DS[0] = false; // CANCEL
         Menu_DS[1] = false; // PAUSE+REC
         Menu_DS[5] = false; // CONVERT REC-TO-RAW
     }
 
-    if (DS_state == 2 || DS_state == 3) // Recording
+    if (DS_state == DS_recording_state || DS_state == DS_convert_state) // Recording
     {
         Menu_DS[0] = false; // DELETE
         Menu_DS[1] = false; // PAUSE+REC
@@ -8748,17 +9193,20 @@ void DS_define_model(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"},
     }
 
     DS_menu_max = -1;
-    for (auto i = 0; i < DS_MV; ++i)
+    for (auto i = 0; i < DS_menu_elements; ++i)
     {
         DS_menu_max += Menu_DS[i];
     }
 
+    // Reporting
     if (true)
     {
-        for (auto i = 0; i < DS_MV; ++i)
+        Serial.println("DS_define_menu(void) - Result: ");
+        for (auto i = 0; i < DS_menu_elements; ++i)
         {
             Serial.println(Menu_DS[i]);
         }
+        Serial.println("*****************************");
     }
 }
 
@@ -8922,13 +9370,24 @@ void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void)
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Midi_Loop_context], SR_monitored_pushbuttons_set[Midi_Loop_context]);
+    Shifters_manager.Set_context(Midi_Loop_context);
 
-    LOOP_menu = 0;
     LOOP_select_menu_elements();
+    Display_MidiLoop.Show_Loop_page();
 
-    Display_Manager.Loop_show_Loop_page();
-    Display_Manager.Loop_show_frame_menu(LOOP_menu, true);
+    // Pointer pointerMenu
+    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
+    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+
+    // Pointers pointerTrack
+    for (auto track = 0; track < TRACKS; ++track)
+    {
+        if (LOOP_events[track] > 0)
+        {
+            Pointer_MidiLoop.Set_pointerTrack_to_level(track);
+            LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
+        }
+    }
 
     // LEDs setup
     if (restart)
@@ -8937,7 +9396,7 @@ void Golive_with_MIDI_LOOP(bool restart)
         Loop_led_set.Request_all_LED_switch_off();
     }
 
-    // P_Update_instruments_leds();
+    // Update_instruments_leds();
     LOOP_metronomo.Leds_off(); // spegni i LED del metronomo
 
     // Se esiste loop_0, accendi il metronomo
@@ -8946,6 +9405,7 @@ void Golive_with_MIDI_LOOP(bool restart)
         if (restart)
         {
             LOOP_restart_clock();
+            
             // Accendi primo led metronomo
             LOOP_metronomo.Led_ON(0);
 
@@ -8972,14 +9432,14 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
 {
     switch (DS_state)
     {
-    case 0: // no activity
+    case DS_waiting_state: // no activity
         AudioNoInterrupts();
         P_Rebuild_patch_old();
         Turn_ON_Delay(true);
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
         break;
-    case 1: // pause + rec
+    case DS_pause_state: // pause + rec
         // switch OFF Line OUT monitor
         MAIN_mixer_out_L.gain(1, 0.0);
         MAIN_mixer_out_R.gain(1, 0.0);
@@ -8992,7 +9452,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
         break;
-    case 2: // recording
+    case DS_recording_state: // recording
         DS_ask_if_EXIT_from_DS();
         if (action == 0) // remain
         {
@@ -9028,7 +9488,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             Switch_from_PERFORMANCE_to_MIDI_LOOP();
         }
         break;
-    case 3: // convert REC --> RAW
+    case DS_convert_state: // convert REC --> RAW
         AudioNoInterrupts();
         P_Rebuild_patch_old();
         Turn_ON_Delay(true);
@@ -9083,18 +9543,17 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
 void Golive_with_LIVE_SAMPLING(void)
 {
     Lilla_state = LIVE_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Live_Sampling_context], SR_monitored_pushbuttons_set[Live_Sampling_context]);
+    Shifters_manager.Set_context(Live_Sampling_context);
 
-    LS_menu = 0;
     Display_LiveSampler.Page();
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
 
-    LS_define_model();
+    LS_update_menu_elements();
     Display_LiveSampler.Menu();
-    Display_LiveSampler.Menu_frame(LS_menu);
-    LS_menu_choice = element_Menu_LS[LS_menu];
+    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
+    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
     if (!LS_XY_lock)
     {
@@ -9153,13 +9612,13 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 {
     switch (DS_state)
     {
-    case 0: // no activity
+    case DS_waiting_state: // no activity
         Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
         AudioNoInterrupts();
         Turn_ON_Delay(true);
         AudioInterrupts();
         break;
-    case 1: // pause + rec
+    case DS_pause_state: // pause + rec
         // switch OFF Line OUT monitor
         MAIN_mixer_out_L.gain(1, 0.0);
         MAIN_mixer_out_R.gain(1, 0.0);
@@ -9171,7 +9630,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         Turn_ON_Delay(true);
         AudioInterrupts();
         break;
-    case 2: // recording
+    case DS_recording_state: // recording
         DS_ask_if_EXIT_from_DS();
         if (action == 0) // remain
         {
@@ -9206,7 +9665,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             AudioInterrupts();
         }
         break;
-    case 3: // convert REC --> RAW
+    case DS_convert_state: // convert REC --> RAW
         Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
         AudioNoInterrupts();
         Turn_ON_Delay(true);
@@ -9264,7 +9723,9 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             }
             else if (Lilla_state == DELAY_SETTINGS)
             {
-                Display_Manager.D_show_page();
+                Display_Delay.D_show_page();
+                Pointer_Delay.Set_pointer_to_Feedback();
+                DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
         }
         else // true: stop and exit
@@ -9297,11 +9758,11 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 {
     switch (DS_state)
     {
-    case 0:                  // no activity
+    case DS_waiting_state:   // no activity
         Turn_ON_Delay(true); // switch on/off Delay (using Instrument routing)
         Switch_to_PERFORMANCE_patch_old();
         break;
-    case 1: // pause + rec
+    case DS_pause_state: // pause + rec
         // switch OFF Line OUT monitor
         MAIN_mixer_out_L.gain(1, 0.0);
         MAIN_mixer_out_R.gain(1, 0.0);
@@ -9312,7 +9773,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         Turn_ON_Delay(true); // switch on/off Delay (using Instrument routing)
         Switch_to_PERFORMANCE_patch_old();
         break;
-    case 2: // recording
+    case DS_recording_state: // recording
         DS_ask_if_EXIT_from_DS();
         if (action == 0) // remain
         {
@@ -9350,7 +9811,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
             Switch_to_PERFORMANCE_patch_old();
         }
         break;
-    case 3:
+    case DS_convert_state:
         Turn_ON_Delay(true);
         Switch_to_PERFORMANCE_patch_old();
         break;
@@ -9388,9 +9849,11 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
         Delay_values.instrument_route[1] = true;
     }
     Lilla_state = DELAY_SETTINGS;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Delay_settings_context], SR_monitored_pushbuttons_set[Delay_settings_context]);
+    Shifters_manager.Set_context(Delay_settings_context);
 
-    Display_Manager.D_show_page();
+    Display_Delay.D_show_page();
+    Pointer_Delay.Set_pointer_to_Feedback();
+    DELAY_local_pointer = Pointer_Delay.Get_element_name();
 }
 
 void Golive_MIDI_MONITOR(void)
@@ -9400,7 +9863,7 @@ void Golive_MIDI_MONITOR(void)
     AudioInterrupts();
 
     Lilla_state = MIDI_MONITOR;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Midi_Monitor_context], SR_monitored_pushbuttons_set[Midi_Monitor_context]);
+    Shifters_manager.Set_context(Midi_Monitor_context);
 
     display_wait = false;
     Display_Manager.Midi_monitor_page();
@@ -9409,7 +9872,7 @@ void Golive_MIDI_MONITOR(void)
 void Golive_SETUP(void)
 {
     Lilla_state = SETUP;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Setup_context], SR_monitored_pushbuttons_set[Setup_context]);
+    Shifters_manager.Set_context(Setup_context);
 
     SET_menu = 0;
     Display_Manager.SETUP_show_SETUP_page();
@@ -9480,35 +9943,35 @@ void LOOP_stop_and_reset_runnig_loop_data(void)
 void LOOP_select_menu_elements(void)
 {
     // voices that can be displayed
-    Menu_Loop[0] = true; // New
-    Menu_Loop[1] = true; // Save
-    Menu_Loop[2] = true; // Save as New
-    Menu_Loop[3] = true; // Delete
+    Menu_LOOP[0] = true; // New
+    Menu_LOOP[1] = true; // Save
+    Menu_LOOP[2] = true; // Save as New
+    Menu_LOOP[3] = true; // Delete
 
     if (LOOP_id >= 0 && LOOP_events[0] == 0) // loop vuoto
     {
-        Menu_Loop[0] = false; // New
-        Menu_Loop[1] = false; // Save
-        Menu_Loop[2] = false; // Save as New
+        Menu_LOOP[0] = false; // New
+        Menu_LOOP[1] = false; // Save
+        Menu_LOOP[2] = false; // Save as New
     }
 
     if (LOOP_id >= 0 && LOOP_original) // loop su SD e inalterato
     {
-        Menu_Loop[1] = false; // Save
-        Menu_Loop[2] = false; // Save as New
+        Menu_LOOP[1] = false; // Save
+        Menu_LOOP[2] = false; // Save as New
     }
 
     if (LOOP_id == -1) // nuovo loop
     {
-        Menu_Loop[0] = false; // New
-        Menu_Loop[1] = false; // Save
-        Menu_Loop[3] = false; // Delete
+        Menu_LOOP[0] = false; // New
+        Menu_LOOP[1] = false; // Save
+        // Menu_LOOP[3] = false; // Delete
 
         if (LOOP_events[0] == 0)  // nuovo loop vuoto
-            Menu_Loop[2] = false; // Save as New
+            Menu_LOOP[2] = false; // Save as New
     }
 
-    Loop_menu_max = Menu_Loop[0] + Menu_Loop[1] + Menu_Loop[2] + Menu_Loop[3] - 1;
+    LOOP_menu_max = Menu_LOOP[0] + Menu_LOOP[1] + Menu_LOOP[2] + Menu_LOOP[3] - 1;
 }
 
 void LOOP_restart_clock(void)
@@ -11157,17 +11620,16 @@ void Print_map_instrument_for_note(int midi_channel)
 void LS_refresh_LS_page(void)
 {
     Lilla_state = LIVE_SAMPLING;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Live_Sampling_context], SR_monitored_pushbuttons_set[Live_Sampling_context]);
+    Shifters_manager.Set_context(Live_Sampling_context);
 
     Display_LiveSampler.Page();
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
 
-    LS_define_model();
+    LS_update_menu_elements();
     Display_LiveSampler.Menu();
-    Display_LiveSampler.Menu_frame(LS_menu);
-    LS_menu_choice = element_Menu_LS[LS_menu];
+
     if (!LS_XY_lock)
     {
         LS_update_both_X_Y_samples();
@@ -11203,7 +11665,7 @@ bool LS_ask_if_exit_from_LS(void)
     return (action == 0 ? false : true);
 }
 
-void LS_define_model(void)
+void LS_update_menu_elements(void)
 {
     // voices that can be displayed
     Menu_LS[0] = true; // Open
@@ -11532,114 +11994,26 @@ void Switch_to_MIXER()
         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
     }
 
-    Golive_MIXER(Instrument_id);
+    Golive_MIXER();
 }
 
-void Golive_MIXER(int instrument_id)
+void Golive_MIXER(void)
 {
-    if (instrument_id < 0)
-    {
-        for (auto instrument_id_local = 0; instrument_id_local < INSTRUMENTS_MAX; ++instrument_id_local)
-        {
-            if (Patch[Patch_id].Instrument[instrument_id_local].used)
-            {
-                instrument_id = instrument_id_local;
-            }
-        }
-
-        if (instrument_id < 0)
-        {
-            Serial.println(F("Golive_MIXER - ERROR: no instrument_id used!"));
-            return;
-        }
-    }
 
     Lilla_state = MIXER;
-    Shifters_manager.Set_monitored_encoders_pushbuttons(SR_monitored_encoders_set[Mixer_context], SR_monitored_pushbuttons_set[Mixer_context]);
+    Shifters_manager.Set_context(Mixer_context);
 
-    MX_source = instrument_id;
-
-    Display_Manager.MX_page();
-    for (auto source = 0; source < 9; ++source)
+    Display_Mixer.MX_page();
+    for (auto source = 0; source < MX_sources; ++source)
     {
-        Display_Manager.MX_source_values(source);
-    }
-}
-
-bool P_Verify_if_Instrument_original(const int instrument_id)
-{
-    if (!Patch[Patch_id].Instrument[instrument_id].used && !Patch_cache_P.Instrument[instrument_id].used)
-    {
-        return true;
+        Display_Mixer.MX_source_values(source, (source == 0 ? true : false));
     }
 
-    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
-           S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
-}
+    Pointer_Mixer.Set_pointer_to_source(0);
 
-bool S_Verify_is_Sound_original(const int sound_id)
-{
-    return Sound[sound_id] == S_Sound_cache_P[sound_id];
-}
-
-void S_Copy_all_Sound_to_Sound_cache_P(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        S_Sound_cache_P[sound_id] = Sound[sound_id];
-    }
-}
-
-void S_Pull_all_Sound_from_Sound_cache_P(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        Sound[sound_id] = S_Sound_cache_P[sound_id];
-    }
-}
-
-uint8_t S_Get_sounds_free(void)
-{
-    auto result = 0;
-
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        if (!Sound[sound_id].used)
-        {
-            result++;
-        }
-    }
-    return result;
-}
-
-void S_Read_all_Sounds(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        Archive.Read_Sound(sound_id);
-    }
-}
-
-void S_Save_all_Sounds_changed(void)
-{
-    for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
-    {
-        // Sound which have been changed only for .used
-        if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
-        {
-            Archive.Save_Sound(sound_id);
-            Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
-            Serial.println(sound_id);
-        }
-
-        // Sound used which have been changed
-        else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
-        {
-            Archive.Save_Sound(sound_id);
-            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su EEPROM per per sound_id: ");
-            Serial.println(sound_id);
-        }
-    }
+    MX_local_pointer = Pointer_Mixer.Get_pointer();
+    Instrument_id = 0;
+    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 }
 
 // ***************************************************************************************************************
@@ -12012,6 +12386,12 @@ void S_Select_menu_elements(void)
         S_Menu[value_S_Drop] = false; // DELETE
     }
 
+    if (Lilla_state_0 == MIDI_LOOP)
+    {
+        S_Menu[value_S_Clone] = false;
+        S_Menu[value_S_Drop] = false;
+    }
+
     S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] - 1;
 }
 
@@ -12105,52 +12485,6 @@ bool Read_encoder_fast(int element)
     {
         return true;
     }
-}
-
-uint32_t Get_monitored_encoders(const int *list, const int &elements)
-{
-    uint32_t monitored_encoders = 0;
-    for (auto i = 0; i < elements; ++i)
-    {
-        bitWrite(monitored_encoders, *(list + i), 1);
-    }
-    return monitored_encoders;
-}
-
-uint32_t Get_monitored_encoders(std::initializer_list<int> list)
-{
-    uint32_t monitored_encoders = 0;
-    for (int idx : list)
-    {
-        if (idx < 32)
-        {
-            bitWrite(monitored_encoders, idx, 1);
-        }
-    }
-    return monitored_encoders;
-}
-
-uint64_t Get_monitored_pushbuttons(const int *list, const int &elements)
-{
-    uint64_t monitored_pushbuttons = 0;
-    for (auto i = 0; i < elements; ++i)
-    {
-        bitWrite(monitored_pushbuttons, list[i], 1);
-    }
-    return monitored_pushbuttons;
-}
-
-uint64_t Get_monitored_pushbuttons(std::initializer_list<int> list)
-{
-    uint64_t monitored_pushbuttons = 0;
-    for (int idx : list)
-    {
-        if (idx < 64)
-        {
-            monitored_pushbuttons |= (uint64_t(1) << idx); // bitWrite(monitored_pushbuttons, idx, 1);
-        }
-    }
-    return monitored_pushbuttons;
 }
 
 // **************************************************************************************************************
@@ -12301,8 +12635,6 @@ void Bootstrap_setup(void)
     LS_instrument = 0;
     LS_X_delta = 0;
     LS_X_sample = 0;
-    LS_menu = 0;
-    LS_mode = 0; // playing mode 0:A-->B   1:B-->A   2:loop A-->B   3:loop A-->B-->A   4:loop B-->A-->B   5:loop B-->A B-->A
     LS_window_width = LS_buffer_dim;
     LS_window_step = LS_window_width / 8;
     LS_XY_lock = true; // LS_X_sample blocked on FIFO; LS_X_delta is useless
@@ -12310,7 +12642,6 @@ void Bootstrap_setup(void)
     LS_Y_sample = LS_X_sample + LS_XY_delta;
     LS_X_step = LS_window_width / LS_COMB;
     LS_feedback = 0;
-
     LS_Setup_buffers(LS_stereo, true); // LS_Setup_buffers(bool stereo, bool first)
 
     // * LPF final filter Output Butterworth filters, 12 db/octave *

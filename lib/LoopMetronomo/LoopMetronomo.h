@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include "SharedLoop.h"
 #include "GraphicElements.h"
-#include "DisplayManager.h"
+#include "DisplayMidiLoop.h"
 #include <SPI.h>
 #include "config.h"
 
@@ -22,10 +22,10 @@ private:
     int metro_delta_ms[LOOP_metro_leds]; // delta_t in ms tra i passi del metronomo
 
     // riferimenti esterni
-    DisplayManager &Display;
+    DisplayMidiLoop &Display;
 
 public:
-    LoopMetronomo(DisplayManager &Display) : Display(Display) {}
+    LoopMetronomo(DisplayMidiLoop &Display) : Display(Display) {}
 
     // riferimento esterno
     Adafruit_ILI9341 *tft_ptr = nullptr;

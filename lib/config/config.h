@@ -37,3 +37,24 @@ static constexpr int GATE_OUT_pin = 22;
 
 // Configure GateIn and GateOut GPIO pins
 void Setup_GATE_pins(void);
+
+// UI contexts
+constexpr int LILLA_CONTEXTS = 13;
+enum LillaContext
+{
+    Start_context,
+    Common_context,
+    Performance_context,
+    Sound_edit_context,
+    Instrument_Vcf_context,
+    Mixer_context,
+    Delay_settings_context,
+    Live_Sampling_context,
+    Direct_Sampling_context,
+    Midi_Monitor_context,
+    Midi_Loop_context,
+    Setup_context,
+    Control_Change_context
+};
+
+static constexpr int TRACKS = 4; // MIDI Loop encoders and pushbuttons 

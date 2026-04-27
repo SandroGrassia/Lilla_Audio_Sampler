@@ -28,7 +28,7 @@ void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
 
     if (Lilla_state_0 == MIDI_LOOP)
     {
-        Display_Manager.Loop_show_midi_loop_title();
+        Display_MidiLoop.Show_MIDI_LOOP();
     }
     else
     {
@@ -49,7 +49,7 @@ void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
     tft.print("FILE");
     S_show_File_value(instrument_id);
 
-    Display_Manager.ALL_show_effects();
+    Display_Manager.Show_all_effects();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
@@ -368,11 +368,11 @@ void DisplaySound::S_show_players_Pitch_max_value(int instrument_id) // max pitc
 
 void DisplaySound::S_show_wave(int instrument_id)
 {
-    auto sound_id_local = Patch[Patch_id].Instrument[instrument_id].sound_id;
-    int yp, yn, y0;
-    int NC_A;
-    int16_t *X = Info.Sound_620_samples_array(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B);
-    float volume_float = Volume_float[Sound[sound_id_local].gain];
+    auto sound_id_local = Patch[Patch_id].Instrument[instrument_id].sound_id;                                                // Active sound routed to the selected instrument.
+    int yp, yn, y0;                                                                                                          // Upper sample, lower sample, and previous Y position on the canvas.
+    int NC_A;                                                                                                                // Width of the no-click curtain drawn at both waveform edges.
+    int16_t *X = Info.Sound_620_samples_array(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B); // Two 620-sample envelopes used for waveform rendering.
+    float volume_float = Volume_float[Sound[sound_id_local].gain];                                                           // Gain scaling applied to the displayed waveform amplitude.
 
     NC_A = ((WAVEBOARD_WIDTH * (Preset[instrument_id].Noclick < Noclick_max ? Preset[instrument_id].Noclick : Noclick_max)) / (Preset[instrument_id].B - Preset[instrument_id].A));
 
@@ -381,9 +381,9 @@ void DisplaySound::S_show_wave(int instrument_id)
         NC_A = 1;
     }
 
-    int NC_B = WAVEBOARD_WIDTH - NC_A;
-    int wave_pixel_0 = 0;
-    y0 = CANVAS_WAVE_0; // central position
+    int NC_B = WAVEBOARD_WIDTH - NC_A; // Start position of the right no-click curtain.
+    int wave_pixel_0 = 0;              // Previous x coordinate used to connect waveform segments.
+    y0 = CANVAS_WAVE_0;                // central position
 
     // tft.fillRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color);
     canvas.fillRect(0, 0, WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT, WAVE_BOARD_COLOR);
@@ -479,7 +479,7 @@ void DisplaySound::S_show_wave(int instrument_id)
     canvas.setTextColor((slicing_mode ? ILI9341_WHITE : ILI9341_YELLOW));
     canvas.setCursor(display_coordinate_x(24.5), Y_FOOTER_TEXT);
 
-    float time = (Preset[instrument_id].B - Preset[instrument_id].A + 1) / 44100.0f; // sec
+    float time = (Preset[instrument_id].B - Preset[instrument_id].A + 1) / 44100.0f; // Duration of the selected slice in seconds (pitch = 1).
 
     if (time > 1.0)
     {
@@ -523,4 +523,3 @@ void DisplaySound::S_show_wave(int instrument_id)
 
     tft.drawRGBBitmap(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.getBuffer(), canvas.width(), canvas.height());
 }
-

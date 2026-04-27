@@ -60,6 +60,7 @@ public:
     void Update_field_description(const int S_menu_max);
     void Restore_pointer_value(const S_field_description_struct field_description_in, const int S_menu_max); // must be called when S_menu_elements changes
     void Set_pointer_to_file(const int S_menu_max);
+    void Set_pointer_to_first_element(void);
     bool Move_pointer(const int value, const int S_menu_max);
     void Display_pointer(void);
     S_field_description_struct Get_field_description(void);
