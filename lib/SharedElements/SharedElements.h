@@ -77,6 +77,22 @@ int FLASHMEM Get_flash_size(void);       // definita in main.cpp
 int VFS_Get_packets_free(void);          // definita in main.cpp ma possibile trasferirla qui
 int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
 
+
+// PSRAM MANAGEMENT
+/*
+Dalla PSRAM totale si esclude spazio per i puntatori; lo spazio utile deve poter essere divisibile per  2 (L/R) poi per 256 (128 samples)
+PSRAM_16MB --> 16777216 byte; escludiamo spazio per i puntatori (4*AUDIO_BLOCK_SAMPLES) --> 16776704 byte pari a 190sec; dedichiamo 1724*256=441344 byte (circa 5sec) per ciascun canale del Delay, restano 15894016 byte per Live Sampling
+*/
+// LIVE SAMPLER
+static constexpr int LS_MONO_SAMPLES = 7946752;
+static constexpr uint32_t LS_MONO_BYTES = LS_MONO_SAMPLES << 1; // 0xf28400 - 15.893.504
+static constexpr int LS_STEREO_SAMPLES = 3973376; 
+static constexpr uint32_t LS_STEREO_BYTES = LS_STEREO_SAMPLES << 1; // 0x794200 - decimale 7.946.752
+// DELAY
+static constexpr int DELAY_FIFO_SAMPLES = 220672;
+static constexpr uint32_t DELAY_FIFO_BYTES = DELAY_FIFO_SAMPLES << 1; // 0x6bc00 - decimale 441.344
+
+
 // LILLA STATE
 extern uint8_t Lilla_state;
 extern uint8_t Lilla_state_0;
