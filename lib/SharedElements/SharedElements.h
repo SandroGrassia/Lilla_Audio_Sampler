@@ -80,9 +80,14 @@ int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
 
 // PSRAM MANAGEMENT
 /*
-Dalla PSRAM totale si esclude spazio per i puntatori; lo spazio utile deve poter essere divisibile per  2 (L/R) poi per 256 (128 samples)
-PSRAM_16MB --> 16777216 byte; escludiamo spazio per i puntatori (4*AUDIO_BLOCK_SAMPLES) --> 16776704 byte pari a 190sec; dedichiamo 1724*256=441344 byte (circa 5sec) per ciascun canale del Delay, restano 15894016 byte per Live Sampling
+PSRAM_16MB
+total space: 16.777.216 byte
+pointer space (in excess): 500 byte
+audio data space = total space - pointer space = 16.776.704 byte (190sec @44.1Ksps/16bit)
+delay space = 220672 Samples x 2 byte x 2 channels = 882.688 byte (about 5 sec per channel)
+applications data space = audio data space - delay space = 15.894.016 byte
 */
+
 // LIVE SAMPLER
 static constexpr int LS_MONO_SAMPLES = 7946752;
 static constexpr uint32_t LS_MONO_BYTES = LS_MONO_SAMPLES << 1; // 0xf28400 - 15.893.504
