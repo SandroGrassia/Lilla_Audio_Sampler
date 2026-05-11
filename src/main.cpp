@@ -4668,7 +4668,7 @@ void loop()
                     Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
 
                     LS_stereo = !LS_stereo;
-                    LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
+                    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
                     LS_window_width = LS_buffer_dim;
                     LS_window_step = LS_window_width / 8;
                     LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
@@ -11763,8 +11763,8 @@ void LS_Setup_buffers(bool stereo, bool first)
         }
 
         // Inizializza PSRAM
-        LS_buffer_L_ptr = PSRAM_Manager.New_samples_array(LS_STEREO_BYTES);
-        LS_buffer_R_ptr = PSRAM_Manager.New_samples_array(LS_STEREO_BYTES);
+        LS_buffer_L_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
+        LS_buffer_R_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
 
         // Aggiorna oggetti
         LiveSampler.LS_buffer_L_ptr = LS_buffer_L_ptr;
@@ -11795,7 +11795,7 @@ void LS_Setup_buffers(bool stereo, bool first)
         }
 
         // Inizializza PSRAM
-        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_MONO_BYTES);
+        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_MONO_BYTES);
 
         // Aggiorna oggetti
         LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
@@ -11817,14 +11817,14 @@ void LS_erase_FIFO_array(int16_t *Array, int stereo)
 
     if (stereo)
     {
-        for (auto i = 0; i < LS_STEREO_SAMPLES; ++i)
+        for (auto i = 0; i < LS_CACHE_STEREO_SAMPLES; ++i)
         {
             *(Array + i) = 0;
         }
     }
     else
     {
-        for (auto i = 0; i < LS_MONO_SAMPLES; ++i)
+        for (auto i = 0; i < LS_CACHE_MONO_SAMPLES; ++i)
         {
             *(Array + i) = 0;
         }
@@ -12496,7 +12496,7 @@ void Bootstrap_setup(void)
 
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB
-    flash_dimension_MB = Get_flash_size() / 1048576;
+    verified_flash_memory_MB = Get_flash_size() / 1048576;
 
     // Prints Flash chip file list, occupation and available space.
     Print_flash_file_list();
@@ -12568,8 +12568,8 @@ void Bootstrap_setup(void)
 
     // *****************      DELAY AND LFO    ********************
     // Delay arrays (FIFO)
-    DELAY_fifo_L = PSRAM_Manager.New_samples_array(DELAY_FIFO_BYTES);
-    DELAY_fifo_R = PSRAM_Manager.New_samples_array(DELAY_FIFO_BYTES);
+    DELAY_fifo_L = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
+    DELAY_fifo_R = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
 
     Serial.print("indirizzo DELAY_fifo_L: ");
     Serial.println((unsigned long)DELAY_fifo_L, HEX);
@@ -12626,7 +12626,7 @@ void Bootstrap_setup(void)
 
     // *******************   LIVE SAMPLING  **********************
     LS_stereo = false;
-    LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
+    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
 
     LiveSampler.Reset();
 

@@ -11,93 +11,6 @@
 #include <array>
 #include "config.h"
 
-// Main constants
-static constexpr int PLAYERS = 16;
-static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari
-static constexpr int BLOCK_MIN = 674;       // (at least AUDIO_BLOCK_SAMPLES * MAX_PITCH_FLASH) ; below this lenght, samples are copied from flash to RAM and tune is tracked with inner_tune
-static constexpr int NOCLICK_DIM = 300;     // max number of samples included in cross-fade time in NoClick array creation
-static constexpr int PATCHES_MAX = 24;      // max number of Patchs stored in EEPROM
-static constexpr int INSTRUMENTS_MAX = 8;   // mux number of Instruments per Patch
-static constexpr int SOUNDS_MAX = 85;       // max number of Sounds stored in EEPROM
-static constexpr int NOTE_NUMBERS = 128;
-
-// Polyphony and max pitch
-static constexpr double MIN_PITCH = 0.01;                     // minimum value for pitch
-static constexpr int POLYPHONY_FLASH[4] = {16, 12, 8, 4};     // [optimization]
-static constexpr float MAX_PITCH_FLASH[4] = {1.65, 3, 4, 10}; // [optimization]
-static constexpr float MAX_PITCH_WAVETABLE = 24.0;            // maximum value for pitch when playing from RAM
-static constexpr float MAX_PITCH_PSRAM = 12.0;                // maximum value for pitch when playing from PSRAM
-
-// SETUP
-extern int key_step; // 0: 1semitono - 1: 1/2semitono - 2: 1/4semitono - 3: 1/8semitono
-extern uint8_t optimization;
-extern int8_t first_octave;
-
-// FILES
-static constexpr int NAME_FILE_SIZE = 10;
-static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
-static constexpr int FIRST_RECORDING_FILE = 260;
-
-// Array dei nomi dei file .raw .rec (prodotti dal Sampler) e .liv (array usati da Live Sampling)
-static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
-    {
-        // raw files on Flash chip
-        "0.raw", "1.raw", "2.raw", "3.raw", "4.raw", "5.raw", "6.raw", "7.raw", "8.raw", "9.raw", "10.raw", "11.raw", "12.raw", "13.raw", "14.raw", "15.raw", "16.raw", "17.raw", "18.raw", "19.raw",
-        "20.raw", "21.raw", "22.raw", "23.raw", "24.raw", "25.raw", "26.raw", "27.raw", "28.raw", "29.raw", "30.raw", "31.raw", "32.raw", "33.raw", "34.raw", "35.raw", "36.raw", "37.raw", "38.raw", "39.raw",
-        "40.raw", "41.raw", "42.raw", "43.raw", "44.raw", "45.raw", "46.raw", "47.raw", "48.raw", "49.raw", "50.raw", "51.raw", "52.raw", "53.raw", "54.raw", "55.raw", "56.raw", "57.raw", "58.raw", "59.raw",
-        "60.raw", "61.raw", "62.raw", "63.raw", "64.raw", "65.raw", "66.raw", "67.raw", "68.raw", "69.raw", "70.raw", "71.raw", "72.raw", "73.raw", "74.raw", "75.raw", "76.raw", "77.raw", "78.raw", "79.raw",
-        "80.raw", "81.raw", "82.raw", "83.raw", "84.raw", "85.raw", "86.raw", "87.raw", "88.raw", "89.raw", "90.raw", "91.raw", "92.raw", "93.raw", "94.raw", "95.raw", "96.raw", "97.raw", "98.raw", "99.raw",
-        "100.raw", "101.raw", "102.raw", "103.raw", "104.raw", "105.raw", "106.raw", "107.raw", "108.raw", "109.raw", "110.raw", "111.raw", "112.raw", "113.raw", "114.raw", "115.raw", "116.raw", "117.raw", "118.raw", "119.raw",
-        "120.raw", "121.raw", "122.raw", "123.raw", "124.raw", "125.raw", "126.raw", "127.raw", "128.raw", "129.raw", "130.raw", "131.raw", "132.raw", "133.raw", "134.raw", "135.raw", "136.raw", "137.raw", "138.raw", "139.raw",
-        "140.raw", "141.raw", "142.raw", "143.raw", "144.raw", "145.raw", "146.raw", "147.raw", "148.raw", "149.raw", "150.raw", "151.raw", "152.raw", "153.raw", "154.raw", "155.raw", "156.raw", "157.raw", "158.raw", "159.raw",
-        "160.raw", "161.raw", "162.raw", "163.raw", "164.raw", "165.raw", "166.raw", "167.raw", "168.raw", "169.raw", "170.raw", "171.raw", "172.raw", "173.raw", "174.raw", "175.raw", "176.raw", "177.raw", "178.raw", "179.raw",
-        "180.raw", "181.raw", "182.raw", "183.raw", "184.raw", "185.raw", "186.raw", "187.raw", "188.raw", "189.raw", "190.raw", "191.raw", "192.raw", "193.raw", "194.raw", "195.raw", "196.raw", "197.raw", "198.raw", "199.raw",
-        "200.raw", "201.raw", "202.raw", "203.raw", "204.raw", "205.raw", "206.raw", "207.raw", "208.raw", "209.raw", "210.raw", "211.raw", "212.raw", "213.raw", "214.raw", "215.raw", "216.raw", "217.raw", "218.raw", "219.raw",
-        "220.raw", "221.raw", "222.raw", "223.raw", "224.raw", "225.raw", "226.raw", "227.raw", "228.raw", "229.raw", "230.raw", "231.raw", "232.raw", "233.raw", "234.raw", "235.raw", "236.raw", "237.raw", "238.raw", "239.raw",
-        "240.raw", "241.raw", "242.raw", "243.raw", "244.raw", "245.raw", "246.raw", "247.raw", "248.raw", "249.raw", "250.raw", "251.raw", "252.raw", "253.raw", "254.raw", "255.raw", "256.raw", "257.raw", "258.raw", "259.raw",
-
-        // Direct_Sampling (60 VFS-files on Flash chip)
-        // FIRST_RECORDING_FILE = 260
-        // 260 - 319 (2 files per each Recording)
-        "0.rec", "1.rec", "2.rec", "3.rec", "4.rec", "5.rec", "6.rec", "7.rec", "8.rec", "9.rec", "10.rec", "11.rec", "12.rec", "13.rec", "14.rec", "15.rec", "16.rec", "17.rec", "18.rec", "19.rec",
-        "20.rec", "21.rec", "22.rec", "23.rec", "24.rec", "25.rec", "26.rec", "27.rec", "28.rec", "29.rec", "30.rec", "31.rec", "32.rec", "33.rec", "34.rec", "35.rec", "36.rec", "37.rec", "38.rec", "39.rec",
-        "40.rec", "41.rec", "42.rec", "43.rec", "44.rec", "45.rec", "46.rec", "47.rec", "48.rec", "49.rec", "50.rec", "51.rec", "52.rec", "53.rec", "54.rec", "55.rec", "56.rec", "57.rec", "58.rec", "59.rec",
-
-        // Live_Sampling, arrays on PSRAM chip: int16_t* FIFO[FIFO_SAMPLES], LS_buffer_L_ptr[FIFO_LR_SAMPLES], LS_buffer_R_ptr[FIFO_LR_SAMPLES],
-        // FIRST_LIVE_SAMPLING_FILE = 320
-        // 320, 321, 322
-        "Mono.liv", "Left.liv", "Right.liv"};
-
-// RAW FILES COPY
-static constexpr int BAR_POS_Y = 225; // display_coordinate_y(15)
-
-// GESTIONE DELLA MEMORIA FLASH ESTERNA
-extern int flash_dimension_MB;
-int FLASHMEM Get_flash_size(void);       // definita in main.cpp
-int VFS_Get_packets_free(void);          // definita in main.cpp ma possibile trasferirla qui
-int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
-
-
-// PSRAM MANAGEMENT
-/*
-PSRAM_16MB
-total space: 16.777.216 byte
-pointer space (in excess): 500 byte
-audio data space = total space - pointer space = 16.776.704 byte (190sec @44.1Ksps/16bit)
-delay space = 220672 Samples x 2 byte x 2 channels = 882.688 byte (about 5 sec per channel)
-applications data space = audio data space - delay space = 15.894.016 byte
-*/
-
-// LIVE SAMPLER
-static constexpr int LS_MONO_SAMPLES = 7946752;
-static constexpr uint32_t LS_MONO_BYTES = LS_MONO_SAMPLES << 1; // 0xf28400 - 15.893.504
-static constexpr int LS_STEREO_SAMPLES = 3973376; 
-static constexpr uint32_t LS_STEREO_BYTES = LS_STEREO_SAMPLES << 1; // 0x794200 - decimale 7.946.752
-// DELAY
-static constexpr int DELAY_FIFO_SAMPLES = 220672;
-static constexpr uint32_t DELAY_FIFO_BYTES = DELAY_FIFO_SAMPLES << 1; // 0x6bc00 - decimale 441.344
-
-
 // LILLA STATE
 extern uint8_t Lilla_state;
 extern uint8_t Lilla_state_0;
@@ -115,6 +28,96 @@ enum LillaStates
     MIXER,
     MIDI_LOOP,
 };
+
+// SETUP
+extern int key_step; // 0: 1semitono - 1: 1/2semitono - 2: 1/4semitono - 3: 1/8semitono
+extern uint8_t optimization;
+extern int8_t first_octave;
+
+// MAIN CONSTANTS
+static constexpr int PLAYERS = 16;
+static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari
+static constexpr int BLOCK_MIN = 674;       // (at least AUDIO_BLOCK_SAMPLES * MAX_PITCH_FLASH) ; below this lenght, samples are copied from flash to RAM and tune is tracked with inner_tune
+static constexpr int NOCLICK_DIM = 300;     // max number of samples included in cross-fade time in NoClick array creation
+static constexpr int PATCHES_MAX = 24;      // max number of Patchs stored in EEPROM
+static constexpr int INSTRUMENTS_MAX = 8;   // mux number of Instruments per Patch
+static constexpr int SOUNDS_MAX = 85;       // max number of Sounds stored in EEPROM
+static constexpr int NOTE_NUMBERS = 128;
+
+// POLYPHONY AND MAX-PITCH
+static constexpr double MIN_PITCH = 0.01;                     // minimum value for pitch
+static constexpr int POLYPHONY_FLASH[4] = {16, 12, 8, 4};     // [optimization]
+static constexpr float MAX_PITCH_FLASH[4] = {1.65, 3, 4, 10}; // [optimization]
+static constexpr float MAX_PITCH_WAVETABLE = 24.0;            // maximum value for pitch when playing from RAM
+static constexpr float MAX_PITCH_PSRAM = 12.0;                // maximum value for pitch when playing from PSRAM
+
+// FILES
+static constexpr int NAME_FILE_SIZE = 10;
+static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
+static constexpr int FIRST_RECORDING_FILE = 260;
+
+// FILES NAMES
+// .raw (imported with SD)
+// .raw .rec (produced by Sampler)
+// .liv (used by Live Sampler)
+static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
+    {
+        // raw files on Flash chip
+        "0.raw", "1.raw", "2.raw", "3.raw", "4.raw", "5.raw", "6.raw", "7.raw", "8.raw", "9.raw", "10.raw", "11.raw", "12.raw", "13.raw", "14.raw", "15.raw", "16.raw", "17.raw", "18.raw", "19.raw",
+        "20.raw", "21.raw", "22.raw", "23.raw", "24.raw", "25.raw", "26.raw", "27.raw", "28.raw", "29.raw", "30.raw", "31.raw", "32.raw", "33.raw", "34.raw", "35.raw", "36.raw", "37.raw", "38.raw", "39.raw",
+        "40.raw", "41.raw", "42.raw", "43.raw", "44.raw", "45.raw", "46.raw", "47.raw", "48.raw", "49.raw", "50.raw", "51.raw", "52.raw", "53.raw", "54.raw", "55.raw", "56.raw", "57.raw", "58.raw", "59.raw",
+        "60.raw", "61.raw", "62.raw", "63.raw", "64.raw", "65.raw", "66.raw", "67.raw", "68.raw", "69.raw", "70.raw", "71.raw", "72.raw", "73.raw", "74.raw", "75.raw", "76.raw", "77.raw", "78.raw", "79.raw",
+        "80.raw", "81.raw", "82.raw", "83.raw", "84.raw", "85.raw", "86.raw", "87.raw", "88.raw", "89.raw", "90.raw", "91.raw", "92.raw", "93.raw", "94.raw", "95.raw", "96.raw", "97.raw", "98.raw", "99.raw",
+        "100.raw", "101.raw", "102.raw", "103.raw", "104.raw", "105.raw", "106.raw", "107.raw", "108.raw", "109.raw", "110.raw", "111.raw", "112.raw", "113.raw", "114.raw", "115.raw", "116.raw", "117.raw", "118.raw", "119.raw",
+        "120.raw", "121.raw", "122.raw", "123.raw", "124.raw", "125.raw", "126.raw", "127.raw", "128.raw", "129.raw", "130.raw", "131.raw", "132.raw", "133.raw", "134.raw", "135.raw", "136.raw", "137.raw", "138.raw", "139.raw",
+        "140.raw", "141.raw", "142.raw", "143.raw", "144.raw", "145.raw", "146.raw", "147.raw", "148.raw", "149.raw", "150.raw", "151.raw", "152.raw", "153.raw", "154.raw", "155.raw", "156.raw", "157.raw", "158.raw", "159.raw",
+        "160.raw", "161.raw", "162.raw", "163.raw", "164.raw", "165.raw", "166.raw", "167.raw", "168.raw", "169.raw", "170.raw", "171.raw", "172.raw", "173.raw", "174.raw", "175.raw", "176.raw", "177.raw", "178.raw", "179.raw",
+        "180.raw", "181.raw", "182.raw", "183.raw", "184.raw", "185.raw", "186.raw", "187.raw", "188.raw", "189.raw", "190.raw", "191.raw", "192.raw", "193.raw", "194.raw", "195.raw", "196.raw", "197.raw", "198.raw", "199.raw",
+        "200.raw", "201.raw", "202.raw", "203.raw", "204.raw", "205.raw", "206.raw", "207.raw", "208.raw", "209.raw", "210.raw", "211.raw", "212.raw", "213.raw", "214.raw", "215.raw", "216.raw", "217.raw", "218.raw", "219.raw",
+        "220.raw", "221.raw", "222.raw", "223.raw", "224.raw", "225.raw", "226.raw", "227.raw", "228.raw", "229.raw", "230.raw", "231.raw", "232.raw", "233.raw", "234.raw", "235.raw", "236.raw", "237.raw", "238.raw", "239.raw",
+        "240.raw", "241.raw", "242.raw", "243.raw", "244.raw", "245.raw", "246.raw", "247.raw", "248.raw", "249.raw", "250.raw", "251.raw", "252.raw", "253.raw", "254.raw", "255.raw", "256.raw", "257.raw", "258.raw", "259.raw",
+
+        // Files produced by Sampler (60 VFS-files) on Flash chip
+        // FIRST_RECORDING_FILE = 260
+        // 260 - 319 (2 files per each Recording)
+        "0.rec", "1.rec", "2.rec", "3.rec", "4.rec", "5.rec", "6.rec", "7.rec", "8.rec", "9.rec", "10.rec", "11.rec", "12.rec", "13.rec", "14.rec", "15.rec", "16.rec", "17.rec", "18.rec", "19.rec",
+        "20.rec", "21.rec", "22.rec", "23.rec", "24.rec", "25.rec", "26.rec", "27.rec", "28.rec", "29.rec", "30.rec", "31.rec", "32.rec", "33.rec", "34.rec", "35.rec", "36.rec", "37.rec", "38.rec", "39.rec",
+        "40.rec", "41.rec", "42.rec", "43.rec", "44.rec", "45.rec", "46.rec", "47.rec", "48.rec", "49.rec", "50.rec", "51.rec", "52.rec", "53.rec", "54.rec", "55.rec", "56.rec", "57.rec", "58.rec", "59.rec",
+
+        // Files used by Live Sampler are chache arrays on PSRAM chip: int16_t* FIFO[FIFO_SAMPLES], LS_buffer_L_ptr[FIFO_LR_SAMPLES], LS_buffer_R_ptr[FIFO_LR_SAMPLES],
+        // FIRST_LIVE_SAMPLING_FILE = 320
+        // 320, 321, 322
+        "Mono.liv", "Left.liv", "Right.liv"};
+
+
+// RAW FILES COPY
+static constexpr int BAR_POS_Y = 225; // display_coordinate_y(15)
+
+
+// FLASH MEMORY CHIP MANAGEMENT
+extern int verified_flash_memory_MB;
+int FLASHMEM Get_flash_size(void);       // definita in main.cpp
+int VFS_Get_packets_free(void);          // definita in main.cpp ma possibile trasferirla qui
+int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
+
+
+// PSRAM MANAGEMENT
+/*
+PSRAM_16MB
+total space: 16.777.216 byte
+pointer space (in excess): 500 byte
+audio data space = total space - pointer space = 16.776.704 byte (190sec @44.1Ksps/16bit)
+delay space = 220672 Samples x 2 byte x 2 channels = 882.688 byte (about 5 sec per channel)
+applications data space = audio data space - delay space = 15.894.016 byte
+*/
+// Live sampler cache
+static constexpr int LS_CACHE_MONO_SAMPLES = 7946752;
+static constexpr uint32_t LS_CACHE_MONO_BYTES = LS_CACHE_MONO_SAMPLES << 1; // 0xf28400 - 15.893.504
+static constexpr int LS_CACHE_STEREO_SAMPLES = 3973376; 
+static constexpr uint32_t LS_CACHE_STEREO_BYTES = LS_CACHE_STEREO_SAMPLES << 1; // 0x794200 - decimale 7.946.752
+// Delay cahce
+static constexpr int DELAY_CACHE_SAMPLES = 220672;
+static constexpr uint32_t DELAY_CACHE_BYTES = DELAY_CACHE_SAMPLES << 1; // 0x6bc00 - decimale 441.344
 
 // PATCH
 // Variabili runtime
@@ -235,7 +238,7 @@ extern uint8_t instrument_volume_changed; // [instrument_id]
 extern uint8_t P_choice_menu;
 extern bool Menu_P[5];
 
-// Tuning tone
+// TUNING
 extern int tuning_tone_volume;
 extern uint8_t tuning_tone_last_note;
 extern bool tuning_tone_flag;

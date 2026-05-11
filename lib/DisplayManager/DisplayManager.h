@@ -133,8 +133,6 @@ public:
     void Patch_volume_color(bool change_patch, bool change_vol);
     // menu
     void P_show_Performance_menu(void);
-    void P_show_frame_Performance_menu(int position, bool fresh);
-    void P_Delete_all_frame_performance_menu(void);
     void P_Confirm_patch_change_popup(void);
     void P_Confirm_patch_change_popup_frame(int value);
     void P_Confirm_frame(int X, int Y, int chars, bool print);
