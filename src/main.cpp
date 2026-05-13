@@ -417,8 +417,10 @@ bool downsampling_reset;
 // >>>>>>> PERFORMANCE
 // Menu
 int P_menu_max;
-int P_menu_max_old;
 void P_Select_menu_elements(void);
+
+// pointer
+P_field_description_struct P_field_description;
 
 // Patch
 Patch_struct Patch_cache_P; // used to save a Patch BEFORE entering in PERFORMANCE mode
@@ -426,8 +428,6 @@ uint8_t Patch_id_old;
 bool patch_original;
 bool patch_original_0;
 uint8_t patches_number; // number of patches_number in use (NOT deleted)
-
-// functions
 int8_t S_Get_Patch_id_free(void);
 void P_Delete_all_Patches_and_Sounds(void);
 void P_Read_all_Patches(void);
@@ -439,7 +439,7 @@ int P_Ask_if_change_Patch(void);
 bool P_Ask_if_delete_this_Patch(void);
 bool P_Verify_is_Patch_original(const int patch_id);
 
-// Instrument
+// >>>>>>>> INSTRUMENT EDIT
 uint8_t Instrument_id;
 
 // variables
@@ -458,17 +458,23 @@ void P_Reset_all_maps_Instrument_for_notes(void);
 void P_Reset_map_Instrument_for_notes(const int instrument_id);
 void P_Delete_one_map_Instrument_for_notes(const int instrument_id);
 
-// instrument VCF functions
+// >>>>>>>> INSTRUMENT VCF
 void Macro_VCF_filter_on_none(void);
 void Macro_VCF_modulation_none(void);
 
 // >>>>>>> SOUND_EDIT
 // menu
-int S_menu;
 int S_menu_max;
+void S_Select_menu_elements(void);
+
+// variables
 Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // used to save all Sound starting a new patch_id
+
 uint8_t Sound_id;
 bool S_sound_original = true;
+uint32_t S_trim_step; // samples per each step while trimming audio file
+int S_slicing_window;
+constexpr int MIN_SNIPPET = 100; // minimum dimension (number of samples) of the snippet played
 
 // pointer
 S_field_description_struct S_field_description;
@@ -484,33 +490,26 @@ uint8_t S_Get_sounds_free(void);
 void S_Read_all_Sounds(void);
 void S_Save_all_Sounds_changed(void);
 int8_t S_Get_sound_free(void);
-void S_Select_menu_elements(void);
 uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
 
-// wavetable functions
+// WAVETABLES
 void S_Get_all_Wavetable_pointer(void);
 void S_Fill_all_Wavetable(void);
 void S_Fill_Wavetable(int instrument_id);
 
-// noclick functions
+// NOCLICK
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);
 void S_Get_all_Noclick_pointer(void);
 void S_Fill_all_Noclick(void);
 void S_Fill_Noclick(uint8_t instrument_id);
 
-// slicing
-uint32_t S_trim_step; // samples per each step while trimming audio file
-int S_slicing_window;
-constexpr int MIN_SNIPPET = 100; // minimum dimension (number of samples) of the snippet played
-
-// functions
-void Calc_pitch_from_note(const int &key_step);
-
 // >>>>>>> SETTINGS
 int8_t SET_menu;
+void Calc_pitch_from_note(const int &key_step);
+int Line_in_gain;
 
 // functions
 bool SET_Copy_raw_files_from_SD_to_Flash(void);
@@ -558,7 +557,7 @@ elapsedMillis DS_recording_time;
 elapsedMillis DS_recording_time_update;
 int DS_recording_change;
 
-// packets
+// PACKETS
 int DS_packets_free;
 int DS_VFS_packets = 0; // Packets dedicated to Direct Sampling
 int DS_First_packet = 0;
@@ -697,7 +696,10 @@ void Factory_setup_Eeprom(void);
 // SOUND PUSHBUTTONS
 int PB_number;
 
-// Switch
+// SGTL5000 Audio_shield
+int headphones_volume_int = 40; // 0 --> 40
+
+// >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
 void P_Jump_to_Patch(uint8_t next_patch);
 void P_Rebuild_patch_old(void);
@@ -725,7 +727,7 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void);   // si ripristina Patch_id_o
 void Golive_SETUP(void);
 void Switch_from_MIDI_LOOP_to_SETUP(void); // si fermano i track
 
-// Print
+// >>>>>>>>>>> PRINT
 void Print_Patch(int patch_id);
 void Print_Instrument(int patch_id, int instrument_id);
 void Print_Sound(int sound_id);
@@ -734,13 +736,13 @@ void Print_keyboard_state(int midi_channel, int from_key, int to_key);
 void Print_map_instrument_for_note(int midi_channel);
 void DS_Print_Directory(File dir, int numSpaces);
 
-// Test
+// >>>>>>>>>>> TEST
 bool test_devices = false;
 
-// Protection
+// >>>>>>>>>>> PROTECTION
 bool exibition = false;
 
-// General purpose
+// >>>>>>>>>>> GENERAL PURPOSE
 bool changed;
 bool confirmation;
 int action;
@@ -750,13 +752,12 @@ int result;
 uint32_t big_result;
 elapsedMicros microtimer;
 
-// Startup
+// >>>>>>>>>>> STARTUP
 void Compile_tables(void);
 void Bootstrap_setup(void);
 
-int Line_in_gain;
 
-// ENCODER - PUSHBUTTONS
+// >>>>>>>>>>>  ENCODER - PUSHBUTTONS
 bool Read_pushbutton(int element);
 bool Read_pushbutton_fast(int element);
 int Read_encoder_simple(int element);
@@ -926,8 +927,7 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
 }
 
-// SGTL5000 Audio_shield
-int headphones_volume_int = 40; // 0 --> 40
+
 
 // *************************************************************
 // *************************************************************
@@ -1431,10 +1431,11 @@ void loop()
         if (result != 0)
         {
             Pointer_Performance.Move_pointer(result, P_menu_max);
+            P_field_description = Pointer_Performance.Get_field_description();
         }
 
         // Change values
-        switch (Pointer_Performance.Get_field_description().field_name)
+        switch (P_field_description.field_name)
         {
         case field_P_Menu:
         {
@@ -1442,9 +1443,9 @@ void loop()
             {
                 int8_t new_patch;
 
-                switch (P_choice_menu)
+                switch (P_element_menu[P_field_description.element])
                 {
-                case 0: // EXIT (drop Sound changes)
+                case value_P_Exit: // drop Sound changes
                     AudioNoInterrupts();
                     Patch[Patch_id] = Patch_cache_P;
                     S_Pull_all_Sound_from_Sound_cache_P();
@@ -1469,7 +1470,7 @@ void loop()
                     Print_Patch(Patch_id);
                     break;
 
-                case 1: // SAVE changes in THIS Patch
+                case value_P_Save: // Save this Patch
                     S_Save_all_Sounds_changed();
                     Archive.Save_Patch(Patch_id);
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
@@ -1482,7 +1483,7 @@ void loop()
                     Golive_with_PERFORMANCE(Patch_id);
                     break;
 
-                case 2: // CLONE (same SAVE changes in a NEW Patch)
+                case value_P_Clone: // and SAVE changes in the new Patch
                     AudioNoInterrupts();
                     Players_statistics.Reset_total_Players_per_instrument();
 
@@ -1542,7 +1543,7 @@ void loop()
                     Print_Patch(Patch_id);
                     break;
 
-                case 3: // SAVE changes in a NEW Patch
+                case value_P_SaveAsNew:
                     AudioNoInterrupts();
                     Players_statistics.Reset_total_Players_per_instrument();
                     // 0: hunt some "instruments" sound_id free
@@ -1606,7 +1607,7 @@ void loop()
                     Print_Patch(Patch_id);
                     break;
 
-                case 4: // DROP Patch and go back to PERFORMANCE "P_Get_first_Patch_id_existing()"
+                case value_P_DropPatch: // and go back to PERFORMANCE "P_Get_first_Patch_id_existing()"
                     // ask for confirmation
                     if (P_Ask_if_delete_this_Patch()) // yes, delete the patch
                     {

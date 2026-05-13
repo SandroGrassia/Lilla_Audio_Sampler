@@ -55,15 +55,6 @@ private:
     int Y_POPUP_OPT; // riga opzioni
 
     // PERFORMANCE
-    // Menu
-    static constexpr int P_menu_elements = 5;
-    static constexpr char P_menu_char[P_menu_elements][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DROP"}};
-    static constexpr uint8_t P_dimension_voice_menu[P_menu_elements] = {4, 4, 5, 11, 4};
-    int P_column_menu_element[P_menu_elements]; // argument is position
-    int P_row_menu_element[P_menu_elements];    // argument is position
-    uint8_t P_element_menu[P_menu_elements];    // argument is position
-    uint8_t P_position_Menu[P_menu_elements];   // argument is element
-
     static constexpr float P_column_PATCH = 30;
     static constexpr float P_column_Patch_id = 36;
     static constexpr float P_column_VOLUME = 41;
