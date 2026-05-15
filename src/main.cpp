@@ -420,7 +420,7 @@ int P_menu_max;
 void P_Select_menu_elements(void);
 
 // pointer
-P_field_description_struct P_field_description;
+P_field_description_struct P_pointer;
 
 // Patch
 Patch_struct Patch_cache_P; // used to save a Patch BEFORE entering in PERFORMANCE mode
@@ -1431,11 +1431,11 @@ void loop()
         if (result != 0)
         {
             Pointer_Performance.Move_pointer(result, P_menu_max);
-            P_field_description = Pointer_Performance.Get_field_description();
+            P_pointer = Pointer_Performance.Get_field_description();
         }
 
         // Change values
-        switch (P_field_description.field_name)
+        switch (P_pointer.field_name)
         {
         case field_P_Menu:
         {
@@ -1443,7 +1443,7 @@ void loop()
             {
                 int8_t new_patch;
 
-                switch (P_element_menu[P_field_description.element])
+                switch (P_element_menu[P_pointer.element])
                 {
                 case value_P_Exit: // drop Sound changes
                     AudioNoInterrupts();
@@ -1464,8 +1464,8 @@ void loop()
                     Display_Manager.P_show_Performance_menu(); // displays the menu and updates "Value_Max_encoder.performance_menu" used by encoder_menu
                     Display_Manager.P_show_all_instruments(Patch_id);
 
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_Patch(P_menu_max);
+                    Pointer_Performance.Set_pointer_to_Patch();
+                    P_pointer = Pointer_Performance.Get_field_description();
 
                     Print_Patch(Patch_id);
                     break;
@@ -1645,8 +1645,8 @@ void loop()
                         P_Select_menu_elements();
                         Display_Manager.P_show_PERFORMANCE_page(false, true);
 
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        Pointer_Performance.Set_pointer_to_Patch(P_menu_max);
+                        Pointer_Performance.Set_pointer_to_Patch();
+                        P_pointer = Pointer_Performance.Get_field_description();
                     }
                     break;
 
@@ -1746,21 +1746,22 @@ void loop()
             if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
                 Pointer_Performance.Move_pointer_from_Instrument_to_inside();
+                P_pointer = Pointer_Performance.Get_field_description();
             }
         }
         break;
 
         case field_P_Instrument_inside:
         {
-            const P_field_description_struct field_description = Pointer_Performance.Get_field_description();
-            const int instrument_id = static_cast<int>(field_description.instrument_id); // static_cast<int>(Pointer_Performance.Get_field_description().instrument_id);
-            const int element = field_description.element;
+            const int instrument_id = static_cast<int>(P_pointer.instrument_id); // static_cast<int>(Pointer_Performance.Get_field_description().instrument_id);
+            const int element = P_pointer.element;
             const int sound_id = Patch[Patch_id].Instrument[instrument_id].sound_id;
 
             // Exit from Instrument_inside area
             if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
                 Pointer_Performance.Move_pointer_from_inside_to_Instrument();
+                P_pointer = Pointer_Performance.Get_field_description();
             }
 
             switch (Pointer_Performance.Get_field_description().element)
@@ -1784,8 +1785,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 else if (result == -1)
@@ -1802,12 +1801,8 @@ void loop()
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     if (patch_original != patch_original_0)
                     {
-
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        P_field_description_struct field_description = {field_P_Instrument_inside, value_S_File};
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -1829,7 +1824,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 else if (result == -1)
@@ -1847,7 +1841,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -1890,7 +1883,6 @@ void loop()
                         {
                             P_Select_menu_elements();
                             Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                            Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                         }
                     }
                 }
@@ -1911,7 +1903,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -1945,7 +1936,6 @@ void loop()
                         {
                             P_Select_menu_elements();
                             Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                            Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                         }
                     }
                 }
@@ -1982,7 +1972,6 @@ void loop()
                         {
                             P_Select_menu_elements();
                             Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                            Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                         }
                     }
                 }
@@ -2004,7 +1993,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
 
@@ -2026,7 +2014,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
 
@@ -2048,7 +2035,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -2228,8 +2214,8 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     // pointer
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                    P_pointer = Pointer_Performance.Get_field_description();
                 }
                 break;
 
@@ -2260,8 +2246,8 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     // pointer
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                    P_pointer = Pointer_Performance.Get_field_description();
                 }
                 break;
 
@@ -2284,8 +2270,8 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     // pointer
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                    P_pointer = Pointer_Performance.Get_field_description();
                 }
                 break;
 
@@ -3389,8 +3375,8 @@ void loop()
                         Performance_led_set.Restore_all_LED();
 
                         // pointer
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                        Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                        P_pointer = Pointer_Performance.Get_field_description();
                     }
 
                     else if (Patch[Patch_id].Instrument[PB_number].used)
@@ -8074,8 +8060,8 @@ void Golive_with_PERFORMANCE(int patch_id)
     Performance_led_set.Request_all_LED_switch_off();
 
     // pointer
-    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-    Pointer_Performance.Set_pointer_to_Patch(P_menu_max);
+    Pointer_Performance.Set_pointer_to_Patch();
+    P_pointer = Pointer_Performance.Get_field_description();
 
     Print_Lilla_state();
     Print_Patch(patch_id);
