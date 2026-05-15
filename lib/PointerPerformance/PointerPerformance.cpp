@@ -67,24 +67,27 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
     switch (pointer.field_name)
     {
     case field_P_Menu:
-        if ((value == +1) && (pointer.element < P_menu_max))
+        if (value == +1)
         {
             changed = true;
-            ++pointer.element;
+
+            if (pointer.element < P_menu_max)
+            {
+                ++pointer.element;
+            }
+            else
+            {
+                pointer = {field_P_Patch, 0, 0, 0};
+            }
         }
-        else if ((value == +1) && (pointer.element == P_menu_max))
+        else if (value == -1)
         {
-            changed = true;
-            pointer = {field_P_Patch, 0, 0, 0};
-        }
-        else if ((value == -1) && (pointer.element > 0))
-        {
-            changed = true;
-            --pointer.element;
-        }
-        else if ((value == -1) && (pointer.element == 0))
-        {
-            if (Patch[Patch_id].instruments > 0) // redundant, but...
+            if (pointer.element > 0)
+            {
+                changed = true;
+                --pointer.element;
+            }
+            else if (Patch[Patch_id].instruments > 0) // redundant, but...
             {
                 changed = true;
                 pointer = {field_P_Instrument, 0, Patch[Patch_id].instruments - 1, instrument_on_position[Patch[Patch_id].instruments - 1]};
@@ -93,10 +96,13 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
         break;
 
     case field_P_Patch:
-        if ((value == +1) && (Patch[Patch_id].instruments > 0))
+        if (value == +1)
         {
-            changed = true;
-            pointer = {field_P_Instrument, 0, 0, instrument_on_position[0]};
+            if (Patch[Patch_id].instruments > 0)
+            {
+                changed = true;
+                pointer = {field_P_Instrument, 0, 0, instrument_on_position[0]};
+            }
         }
         else if (value == -1)
         {
