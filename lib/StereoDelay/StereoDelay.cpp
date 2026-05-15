@@ -136,7 +136,7 @@ void StereoDelay::update(void)
         LFO_ptr->Update();                                                  // 1: periodic (sinus)
         delay_modulation = delay_modulation_gain_value * LFO_ptr->block[0]; // read only the first value
         delay_by_modulation = delay_central_value + delay_modulation;
-        delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_FIFO_SAMPLES - AUDIO_BLOCK_SAMPLES);
+        delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
         delay_delta += delay_by_modulation - delay_value;
         if (delay_delta > (AUDIO_BLOCK_SAMPLES - 10))
@@ -153,7 +153,7 @@ void StereoDelay::update(void)
         {
             delay_modulation = delay_modulation_gain_value * in_block->data[0]; // read only the first value
             delay_by_modulation = delay_central_value + delay_modulation;
-            delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_FIFO_SAMPLES - AUDIO_BLOCK_SAMPLES);
+            delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
             delay_delta += delay_by_modulation - delay_value;
             if (delay_delta > (AUDIO_BLOCK_SAMPLES - 10))
@@ -203,19 +203,19 @@ void StereoDelay::update(void)
             }
             else
             {
-                cache = *(DELAY_fifo + DELAY_FIFO_SAMPLES - 1) + (*(DELAY_fifo + 0) - *(DELAY_fifo + DELAY_FIFO_SAMPLES - 1)) * (D_sample_read - (-1));
+                cache = *(DELAY_fifo + DELAY_CACHE_SAMPLES - 1) + (*(DELAY_fifo + 0) - *(DELAY_fifo + DELAY_CACHE_SAMPLES - 1)) * (D_sample_read - (-1));
                 out_block->data[sample] = Lilla_saturate16(cache);
             }
 
             D_sample_read += delay_pitch;
 
-            if (D_sample_read > (double)(DELAY_FIFO_SAMPLES - 1))
+            if (D_sample_read > (double)(DELAY_CACHE_SAMPLES - 1))
             {
-                D_sample_read -= (DELAY_FIFO_SAMPLES);
+                D_sample_read -= (DELAY_CACHE_SAMPLES);
                 // D_sample_read potrebbe essere NEGATIVO; look at this case:
-                // (-1)oooooooooooooooooooooooooo(0)-------------------------------------------------------------(DELAY_FIFO_SAMPLES - 1)ooooooo(D_sample_read)ooo(DELAY_FIFO_SAMPLES)
+                // (-1)oooooooooooooooooooooooooo(0)-------------------------------------------------------------(DELAY_CACHE_SAMPLES - 1)ooooooo(D_sample_read)ooo(DELAY_CACHE_SAMPLES)
                 // the new situation is:
-                // (-1)ooo(D_sample_read)oooooooo(0)-------------------------------------------------------------(DELAY_FIFO_SAMPLES - 1)ooooooooooooooooooooooooo(DELAY_FIFO_SAMPLES)
+                // (-1)ooo(D_sample_read)oooooooo(0)-------------------------------------------------------------(DELAY_CACHE_SAMPLES - 1)ooooooooooooooooooooooooo(DELAY_CACHE_SAMPLES)
             }
         }
         delay_value += delay_delta;
@@ -237,7 +237,7 @@ void StereoDelay::update(void)
             out_block->data[sample] = *(DELAY_fifo + sample_read);
             ++sample_read;
 
-            if (sample_read == DELAY_FIFO_SAMPLES)
+            if (sample_read == DELAY_CACHE_SAMPLES)
             {
                 sample_read = 0;
             }
@@ -262,7 +262,7 @@ void StereoDelay::update(void)
         }
 
         ++sample_write;
-        if (sample_write == DELAY_FIFO_SAMPLES)
+        if (sample_write == DELAY_CACHE_SAMPLES)
             sample_write = 0;
     }
 
@@ -281,25 +281,25 @@ void StereoDelay::update(void)
     */
 }
 
-// **  delay_Main_Array[DELAY_FIFO_SAMPLES]  **
+// **  delay_Main_Array[DELAY_CACHE_SAMPLES]  **
 //
 // Start
 // read_sample        write_sample
 // R------------------W----------------------------------------------------|
-// 0<-  delay_value ->                                           (DELAY_FIFO_SAMPLES - 1)
+// 0<-  delay_value ->                                           (DELAY_CACHE_SAMPLES - 1)
 //
 // Running
 //            read_sample       write_sample
 // rrrrrrrrrrrR-------wwwwwwwwwwW------------------------------------------|
-// 0          <-  delay_value ->                                 (DELAY_FIFO_SAMPLES - 1)
+// 0          <-  delay_value ->                                 (DELAY_CACHE_SAMPLES - 1)
 //
 // Running
 //                       read_sample       write_sample
 // rrrrrrrrrrrrrrrrrrrrrrRwwwwwwwwwwwwwwwwwW-------------------------------|
-// 0                     <-  delay_value ->                      (DELAY_FIFO_SAMPLES - 1)
+// 0                     <-  delay_value ->                      (DELAY_CACHE_SAMPLES - 1)
 
 void StereoDelay::Constrain_delay_value(int value)
 {
-    const int maximum = DELAY_FIFO_SAMPLES - AUDIO_BLOCK_SAMPLES;
+    const int maximum = DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES;
     value = constrain(value, 0, maximum);
 }

@@ -12,7 +12,7 @@ uint8_t optimization;
 int8_t first_octave;
 
 // GESTIONE DELLA MEMORIA FLASH ESTERNA
-int flash_dimension_MB;
+int verified_flash_memory_MB;
 
 // LILLA STATE
 uint8_t Lilla_state;

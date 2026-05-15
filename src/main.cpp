@@ -417,8 +417,10 @@ bool downsampling_reset;
 // >>>>>>> PERFORMANCE
 // Menu
 int P_menu_max;
-int P_menu_max_old;
 void P_Select_menu_elements(void);
+
+// pointer
+P_field_description_struct P_pointer;
 
 // Patch
 Patch_struct Patch_cache_P; // used to save a Patch BEFORE entering in PERFORMANCE mode
@@ -426,8 +428,6 @@ uint8_t Patch_id_old;
 bool patch_original;
 bool patch_original_0;
 uint8_t patches_number; // number of patches_number in use (NOT deleted)
-
-// functions
 int8_t S_Get_Patch_id_free(void);
 void P_Delete_all_Patches_and_Sounds(void);
 void P_Read_all_Patches(void);
@@ -439,7 +439,7 @@ int P_Ask_if_change_Patch(void);
 bool P_Ask_if_delete_this_Patch(void);
 bool P_Verify_is_Patch_original(const int patch_id);
 
-// Instrument
+// >>>>>>>> INSTRUMENT EDIT
 uint8_t Instrument_id;
 
 // variables
@@ -458,17 +458,23 @@ void P_Reset_all_maps_Instrument_for_notes(void);
 void P_Reset_map_Instrument_for_notes(const int instrument_id);
 void P_Delete_one_map_Instrument_for_notes(const int instrument_id);
 
-// instrument VCF functions
+// >>>>>>>> INSTRUMENT VCF
 void Macro_VCF_filter_on_none(void);
 void Macro_VCF_modulation_none(void);
 
 // >>>>>>> SOUND_EDIT
 // menu
-int S_menu;
 int S_menu_max;
+void S_Select_menu_elements(void);
+
+// variables
 Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // used to save all Sound starting a new patch_id
+
 uint8_t Sound_id;
 bool S_sound_original = true;
+uint32_t S_trim_step; // samples per each step while trimming audio file
+int S_slicing_window;
+constexpr int MIN_SNIPPET = 100; // minimum dimension (number of samples) of the snippet played
 
 // pointer
 S_field_description_struct S_field_description;
@@ -484,33 +490,26 @@ uint8_t S_Get_sounds_free(void);
 void S_Read_all_Sounds(void);
 void S_Save_all_Sounds_changed(void);
 int8_t S_Get_sound_free(void);
-void S_Select_menu_elements(void);
 uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
 
-// wavetable functions
+// WAVETABLES
 void S_Get_all_Wavetable_pointer(void);
 void S_Fill_all_Wavetable(void);
 void S_Fill_Wavetable(int instrument_id);
 
-// noclick functions
+// NOCLICK
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);
 void S_Get_all_Noclick_pointer(void);
 void S_Fill_all_Noclick(void);
 void S_Fill_Noclick(uint8_t instrument_id);
 
-// slicing
-uint32_t S_trim_step; // samples per each step while trimming audio file
-int S_slicing_window;
-constexpr int MIN_SNIPPET = 100; // minimum dimension (number of samples) of the snippet played
-
-// functions
-void Calc_pitch_from_note(const int &key_step);
-
 // >>>>>>> SETTINGS
 int8_t SET_menu;
+void Calc_pitch_from_note(const int &key_step);
+int Line_in_gain;
 
 // functions
 bool SET_Copy_raw_files_from_SD_to_Flash(void);
@@ -558,7 +557,7 @@ elapsedMillis DS_recording_time;
 elapsedMillis DS_recording_time_update;
 int DS_recording_change;
 
-// packets
+// PACKETS
 int DS_packets_free;
 int DS_VFS_packets = 0; // Packets dedicated to Direct Sampling
 int DS_First_packet = 0;
@@ -697,7 +696,10 @@ void Factory_setup_Eeprom(void);
 // SOUND PUSHBUTTONS
 int PB_number;
 
-// Switch
+// SGTL5000 Audio_shield
+int headphones_volume_int = 40; // 0 --> 40
+
+// >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
 void P_Jump_to_Patch(uint8_t next_patch);
 void P_Rebuild_patch_old(void);
@@ -725,7 +727,7 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void);   // si ripristina Patch_id_o
 void Golive_SETUP(void);
 void Switch_from_MIDI_LOOP_to_SETUP(void); // si fermano i track
 
-// Print
+// >>>>>>>>>>> PRINT
 void Print_Patch(int patch_id);
 void Print_Instrument(int patch_id, int instrument_id);
 void Print_Sound(int sound_id);
@@ -734,13 +736,13 @@ void Print_keyboard_state(int midi_channel, int from_key, int to_key);
 void Print_map_instrument_for_note(int midi_channel);
 void DS_Print_Directory(File dir, int numSpaces);
 
-// Test
+// >>>>>>>>>>> TEST
 bool test_devices = false;
 
-// Protection
+// >>>>>>>>>>> PROTECTION
 bool exibition = false;
 
-// General purpose
+// >>>>>>>>>>> GENERAL PURPOSE
 bool changed;
 bool confirmation;
 int action;
@@ -750,13 +752,12 @@ int result;
 uint32_t big_result;
 elapsedMicros microtimer;
 
-// Startup
+// >>>>>>>>>>> STARTUP
 void Compile_tables(void);
 void Bootstrap_setup(void);
 
-int Line_in_gain;
 
-// ENCODER - PUSHBUTTONS
+// >>>>>>>>>>>  ENCODER - PUSHBUTTONS
 bool Read_pushbutton(int element);
 bool Read_pushbutton_fast(int element);
 int Read_encoder_simple(int element);
@@ -926,8 +927,7 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
 }
 
-// SGTL5000 Audio_shield
-int headphones_volume_int = 40; // 0 --> 40
+
 
 // *************************************************************
 // *************************************************************
@@ -1431,10 +1431,11 @@ void loop()
         if (result != 0)
         {
             Pointer_Performance.Move_pointer(result, P_menu_max);
+            P_pointer = Pointer_Performance.Get_field_description();
         }
 
         // Change values
-        switch (Pointer_Performance.Get_field_description().field_name)
+        switch (P_pointer.field_name)
         {
         case field_P_Menu:
         {
@@ -1442,9 +1443,9 @@ void loop()
             {
                 int8_t new_patch;
 
-                switch (P_choice_menu)
+                switch (P_element_menu[P_pointer.element])
                 {
-                case 0: // EXIT (drop Sound changes)
+                case value_P_Exit: // drop Sound changes
                     AudioNoInterrupts();
                     Patch[Patch_id] = Patch_cache_P;
                     S_Pull_all_Sound_from_Sound_cache_P();
@@ -1463,13 +1464,13 @@ void loop()
                     Display_Manager.P_show_Performance_menu(); // displays the menu and updates "Value_Max_encoder.performance_menu" used by encoder_menu
                     Display_Manager.P_show_all_instruments(Patch_id);
 
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_Patch(P_menu_max);
+                    Pointer_Performance.Set_pointer_to_Patch();
+                    P_pointer = Pointer_Performance.Get_field_description();
 
                     Print_Patch(Patch_id);
                     break;
 
-                case 1: // SAVE changes in THIS Patch
+                case value_P_Save: // Save this Patch
                     S_Save_all_Sounds_changed();
                     Archive.Save_Patch(Patch_id);
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
@@ -1482,7 +1483,7 @@ void loop()
                     Golive_with_PERFORMANCE(Patch_id);
                     break;
 
-                case 2: // CLONE (same SAVE changes in a NEW Patch)
+                case value_P_Clone: // and SAVE changes in the new Patch
                     AudioNoInterrupts();
                     Players_statistics.Reset_total_Players_per_instrument();
 
@@ -1542,7 +1543,7 @@ void loop()
                     Print_Patch(Patch_id);
                     break;
 
-                case 3: // SAVE changes in a NEW Patch
+                case value_P_SaveAsNew:
                     AudioNoInterrupts();
                     Players_statistics.Reset_total_Players_per_instrument();
                     // 0: hunt some "instruments" sound_id free
@@ -1606,7 +1607,7 @@ void loop()
                     Print_Patch(Patch_id);
                     break;
 
-                case 4: // DROP Patch and go back to PERFORMANCE "P_Get_first_Patch_id_existing()"
+                case value_P_DropPatch: // and go back to PERFORMANCE "P_Get_first_Patch_id_existing()"
                     // ask for confirmation
                     if (P_Ask_if_delete_this_Patch()) // yes, delete the patch
                     {
@@ -1644,8 +1645,8 @@ void loop()
                         P_Select_menu_elements();
                         Display_Manager.P_show_PERFORMANCE_page(false, true);
 
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        Pointer_Performance.Set_pointer_to_Patch(P_menu_max);
+                        Pointer_Performance.Set_pointer_to_Patch();
+                        P_pointer = Pointer_Performance.Get_field_description();
                     }
                     break;
 
@@ -1745,21 +1746,22 @@ void loop()
             if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
                 Pointer_Performance.Move_pointer_from_Instrument_to_inside();
+                P_pointer = Pointer_Performance.Get_field_description();
             }
         }
         break;
 
         case field_P_Instrument_inside:
         {
-            const P_field_description_struct field_description = Pointer_Performance.Get_field_description();
-            const int instrument_id = static_cast<int>(field_description.instrument_id); // static_cast<int>(Pointer_Performance.Get_field_description().instrument_id);
-            const int element = field_description.element;
+            const int instrument_id = static_cast<int>(P_pointer.instrument_id); // static_cast<int>(Pointer_Performance.Get_field_description().instrument_id);
+            const int element = P_pointer.element;
             const int sound_id = Patch[Patch_id].Instrument[instrument_id].sound_id;
 
             // Exit from Instrument_inside area
             if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
                 Pointer_Performance.Move_pointer_from_inside_to_Instrument();
+                P_pointer = Pointer_Performance.Get_field_description();
             }
 
             switch (Pointer_Performance.Get_field_description().element)
@@ -1783,8 +1785,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 else if (result == -1)
@@ -1801,12 +1801,8 @@ void loop()
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     if (patch_original != patch_original_0)
                     {
-
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        P_field_description_struct field_description = {field_P_Instrument_inside, value_S_File};
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -1828,7 +1824,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 else if (result == -1)
@@ -1846,7 +1841,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -1889,7 +1883,6 @@ void loop()
                         {
                             P_Select_menu_elements();
                             Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                            Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                         }
                     }
                 }
@@ -1910,7 +1903,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -1944,7 +1936,6 @@ void loop()
                         {
                             P_Select_menu_elements();
                             Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                            Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                         }
                     }
                 }
@@ -1981,7 +1972,6 @@ void loop()
                         {
                             P_Select_menu_elements();
                             Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                            Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                         }
                     }
                 }
@@ -2003,7 +1993,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
 
@@ -2025,7 +2014,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
 
@@ -2047,7 +2035,6 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        Pointer_Performance.Restore_pointer_value(field_description, P_menu_max);
                     }
                 }
                 break;
@@ -2227,8 +2214,8 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     // pointer
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                    P_pointer = Pointer_Performance.Get_field_description();
                 }
                 break;
 
@@ -2259,8 +2246,8 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     // pointer
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                    P_pointer = Pointer_Performance.Get_field_description();
                 }
                 break;
 
@@ -2283,8 +2270,8 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     // pointer
-                    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                    P_pointer = Pointer_Performance.Get_field_description();
                 }
                 break;
 
@@ -3388,8 +3375,8 @@ void loop()
                         Performance_led_set.Restore_all_LED();
 
                         // pointer
-                        Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-                        Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id, P_menu_max);
+                        Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+                        P_pointer = Pointer_Performance.Get_field_description();
                     }
 
                     else if (Patch[Patch_id].Instrument[PB_number].used)
@@ -4668,7 +4655,7 @@ void loop()
                     Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
 
                     LS_stereo = !LS_stereo;
-                    LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
+                    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
                     LS_window_width = LS_buffer_dim;
                     LS_window_step = LS_window_width / 8;
                     LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
@@ -8073,8 +8060,8 @@ void Golive_with_PERFORMANCE(int patch_id)
     Performance_led_set.Request_all_LED_switch_off();
 
     // pointer
-    Pointer_Performance.Update_pointer_fields_description(P_menu_max);
-    Pointer_Performance.Set_pointer_to_Patch(P_menu_max);
+    Pointer_Performance.Set_pointer_to_Patch();
+    P_pointer = Pointer_Performance.Get_field_description();
 
     Print_Lilla_state();
     Print_Patch(patch_id);
@@ -11763,8 +11750,8 @@ void LS_Setup_buffers(bool stereo, bool first)
         }
 
         // Inizializza PSRAM
-        LS_buffer_L_ptr = PSRAM_Manager.New_samples_array(LS_STEREO_BYTES);
-        LS_buffer_R_ptr = PSRAM_Manager.New_samples_array(LS_STEREO_BYTES);
+        LS_buffer_L_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
+        LS_buffer_R_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
 
         // Aggiorna oggetti
         LiveSampler.LS_buffer_L_ptr = LS_buffer_L_ptr;
@@ -11795,7 +11782,7 @@ void LS_Setup_buffers(bool stereo, bool first)
         }
 
         // Inizializza PSRAM
-        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_MONO_BYTES);
+        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_MONO_BYTES);
 
         // Aggiorna oggetti
         LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
@@ -11817,14 +11804,14 @@ void LS_erase_FIFO_array(int16_t *Array, int stereo)
 
     if (stereo)
     {
-        for (auto i = 0; i < LS_STEREO_SAMPLES; ++i)
+        for (auto i = 0; i < LS_CACHE_STEREO_SAMPLES; ++i)
         {
             *(Array + i) = 0;
         }
     }
     else
     {
-        for (auto i = 0; i < LS_MONO_SAMPLES; ++i)
+        for (auto i = 0; i < LS_CACHE_MONO_SAMPLES; ++i)
         {
             *(Array + i) = 0;
         }
@@ -12496,7 +12483,7 @@ void Bootstrap_setup(void)
 
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB
-    flash_dimension_MB = Get_flash_size() / 1048576;
+    verified_flash_memory_MB = Get_flash_size() / 1048576;
 
     // Prints Flash chip file list, occupation and available space.
     Print_flash_file_list();
@@ -12568,8 +12555,8 @@ void Bootstrap_setup(void)
 
     // *****************      DELAY AND LFO    ********************
     // Delay arrays (FIFO)
-    DELAY_fifo_L = PSRAM_Manager.New_samples_array(DELAY_FIFO_BYTES);
-    DELAY_fifo_R = PSRAM_Manager.New_samples_array(DELAY_FIFO_BYTES);
+    DELAY_fifo_L = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
+    DELAY_fifo_R = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
 
     Serial.print("indirizzo DELAY_fifo_L: ");
     Serial.println((unsigned long)DELAY_fifo_L, HEX);
@@ -12626,7 +12613,7 @@ void Bootstrap_setup(void)
 
     // *******************   LIVE SAMPLING  **********************
     LS_stereo = false;
-    LS_buffer_dim = (LS_stereo ? LS_STEREO_SAMPLES : LS_MONO_SAMPLES);
+    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
 
     LiveSampler.Reset();
 

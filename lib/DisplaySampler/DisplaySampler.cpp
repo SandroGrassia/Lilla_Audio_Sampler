@@ -46,7 +46,7 @@ void DisplaySampler::DS_page(int recording)
     tft.setTextColor(TEXT_COLOR);
     tft.print("AUDIO MEMORY ");
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(flash_dimension_MB);
+    tft.print(verified_flash_memory_MB);
     Show_measure_unit("MB", 2);
     tft.setTextColor(ILI9341_WHITE);
     tft.print(" (");

@@ -367,7 +367,7 @@ void DisplayManager::Cover_text(float light)
     tft.setCursor(display_coordinate_x(13), display_coordinate_y(13) - 4);
     tft.print("AUDIO MEMORY ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
-    tft.print(flash_dimension_MB);
+    tft.print(verified_flash_memory_MB);
     tft.print("MB");
 
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
@@ -814,33 +814,6 @@ void DisplayManager::P_show_Performance_menu(void)
             tft.setCursor(display_coordinate_x(P_column_menu_element[position]), display_coordinate_y(P_row_menu_element[position]));
             tft.print(P_menu_char[element]);
             ++position;
-        }
-    }
-}
-
-FLASHMEM
-void DisplayManager::P_show_frame_Performance_menu(int position, bool fresh)
-{
-    if (!fresh)
-    {
-        Frame_by_col_row(P_column_menu_element[P_menu_frame_on_element_0], P_row_menu_element[P_menu_frame_on_element_0], P_dimension_voice_menu[P_element_menu[P_menu_frame_on_element_0]], false);
-    }
-
-    Frame_by_col_row(P_column_menu_element[position], P_row_menu_element[position], P_dimension_voice_menu[P_element_menu[position]], true);
-    P_choice_menu = P_element_menu[position];
-    P_menu_frame_on_element_0 = position;
-}
-
-void DisplayManager::P_Delete_all_frame_performance_menu(void)
-{
-    uint8_t position;
-
-    for (auto element = 0; element < 5; ++element)
-    {
-        if (Menu_P[element])
-        {
-            position = P_position_Menu[element];
-            Frame_by_col_row(P_column_menu_element[position], P_row_menu_element[position], P_dimension_voice_menu[element], false);
         }
     }
 }
@@ -1592,7 +1565,7 @@ void DisplayManager::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
     tft.println(F("- DIMENSION"));
     tft.setCursor(display_coordinate_x(12), display_coordinate_y(7));
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(flash_dimension_MB);
+    tft.print(verified_flash_memory_MB);
     Show_measure_unit("MB", 2);
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));

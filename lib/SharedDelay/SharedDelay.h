@@ -10,8 +10,7 @@
 #include "SharedElements.h"
 #include "config.h"
 
-static constexpr int DELAY_FIFO_SAMPLES = 220672;
-static constexpr uint32_t DELAY_FIFO_BYTES = DELAY_FIFO_SAMPLES << 1; // 0x6bc00 - decimale 441.344
+
 static constexpr float depth_array[40] = {
         0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0,
         2, 3, 4, 5, 6, 8, 10, 12, 14, 16,

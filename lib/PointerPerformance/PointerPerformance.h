@@ -43,31 +43,23 @@ int instrument_id;
 
 */
 
-
 class PointerPerformance
 {
 private:
     static constexpr int instrument_inside_elements = 8;
-    static constexpr int field_description_max_elements = INSTRUMENTS_MAX * (instrument_inside_elements + 1) + 12; // field = where is the pointer
-
-    int pointer;
-    int pointer_old;
-    int pointer_max;
-    P_field_description_struct field_description[field_description_max_elements];
-    void Print_pointer_and_field_desciption(const int pointer);
+    P_field_description_struct pointer;
+    void Print_pointer_and_field_desciption(void);
 
 public:
     PointerPerformance() {}
-
-    void Update_pointer_fields_description(const int P_menu_max);
-    void Restore_pointer_value(const P_field_description_struct field_description_in, const int P_menu_max); // must be called when P_menu_elements changes
-    void Set_pointer_to_last_instrument(const int instrument_id, const int P_menu_max);
-    void Set_pointer_to_Patch(const int P_menu_max);
-    void Set_pointer_to_first_menu_voice(void);
+    
+    void Move_pointer(const int value, const int P_menu_max);
+    P_field_description_struct Get_field_description(void);
+    void Set_pointer_to_Patch(void);
     void Move_pointer_from_inside_to_Instrument(void);
     void Move_pointer_from_Instrument_to_inside(void);
-    void Move_pointer(const int value, const int P_menu_max);
+    void Set_pointer_to_last_instrument(const int instrument_id);
+    void Set_pointer_to_first_menu_voice(void);
     void Display_pointer(void);
-    void Delete_pointer(void);
-    P_field_description_struct Get_field_description(void);
+    void Delete_pointer(void);    
 };

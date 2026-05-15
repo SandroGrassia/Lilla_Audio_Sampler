@@ -160,17 +160,17 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
     if (file_id == FIRST_LIVE_SAMPLING_FILE)
     {
         FIFO = LS_buffer_mono_ptr;
-        FIFO_dim = LS_MONO_SAMPLES; // samples
+        FIFO_dim = LS_CACHE_MONO_SAMPLES; // samples
     }
     else if (file_id == FIRST_LIVE_SAMPLING_FILE + 1)
     {
         FIFO = LS_buffer_L_ptr;
-        FIFO_dim = LS_STEREO_SAMPLES; // samples
+        FIFO_dim = LS_CACHE_STEREO_SAMPLES; // samples
     }
     else
     {
         FIFO = LS_buffer_R_ptr;
-        FIFO_dim = LS_STEREO_SAMPLES; // samples
+        FIFO_dim = LS_CACHE_STEREO_SAMPLES; // samples
     }
 
     /*

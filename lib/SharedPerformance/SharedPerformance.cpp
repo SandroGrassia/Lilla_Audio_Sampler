@@ -6,6 +6,10 @@
 
 #include "SharedPerformance.h"
 
+int P_column_menu_element[P_menu_elements];           // argument is position
+int P_row_menu_element[P_menu_elements];              // argument is position
+P_menu_elements_name P_element_menu[P_menu_elements]; // argument is position
+uint8_t P_position_Menu[P_menu_elements];             // argument is element
 int8_t instrument_on_position[INSTRUMENTS_MAX];
 
 void P_Update_line_of_all_instruments(void)
