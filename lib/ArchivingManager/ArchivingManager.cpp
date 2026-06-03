@@ -9,14 +9,14 @@
 bool ArchivingManager::Test_Fram(const uint8_t writevalue)
 {
     Serial.println("ArchivingManager::Test_Fram(void) - start");
-    
+
     // FRAM info
     FRAMchip.begin();
 
     int lap = 0;
     elapsedMillis time = 0;
 
-    uint8_t readvalue; 
+    uint8_t readvalue;
     for (uint16_t i = 0; i < 1000; ++i)
     {
         FRAMchip.writeByte(i, writevalue);
@@ -26,7 +26,7 @@ bool ArchivingManager::Test_Fram(const uint8_t writevalue)
         {
             Serial.print("Mistake at location: ");
             Serial.println(i);
-        }      
+        }
     }
 
     lap = time;

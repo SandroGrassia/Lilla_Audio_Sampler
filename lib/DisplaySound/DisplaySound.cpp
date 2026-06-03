@@ -7,7 +7,7 @@
 #include "DisplaySound.h"
 
 FLASHMEM
-void DisplaySound::S_show_pointer_frame(S_field_description_struct description, bool show)
+void DisplaySound::Show_pointer_frame(S_field_description_struct description, bool show)
 {
     switch (description.field_name)
     {
@@ -22,7 +22,7 @@ void DisplaySound::S_show_pointer_frame(S_field_description_struct description, 
 }
 
 FLASHMEM
-void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
+void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -47,79 +47,78 @@ void DisplaySound::S_show_SOUND_page(int patch_id, int instrument_id)
     tft.setCursor(display_coordinate_x(38), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FILE");
-    S_show_File_value(instrument_id);
+    Show_File_value(instrument_id);
 
     Display_Manager.Show_all_effects();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MIDI CHANNEL");
-    S_show_Midi_channel_value(instrument_id);
+    Show_Midi_channel_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(18), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("PITCH");
-    S_show_Pitch_value(instrument_id);
+    Show_Pitch_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(31), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("GAIN");
-    S_show_Gain_value(patch_id, instrument_id);
+    Show_Gain_value(patch_id, instrument_id);
 
-    tft.setCursor(display_coordinate_x(42), display_coordinate_y(4.9));
+    tft.setCursor(display_coordinate_x(41.5), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("PAN");
-    S_show_Pan_value(instrument_id);
+    Show_Pan_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("ATT");
-    S_show_Attack_value(instrument_id);
+    Show_Attack_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(18), display_coordinate_y(5.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("DEC");
-    S_show_Decay_value(instrument_id);
+    Show_Decay_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(31), display_coordinate_y(5.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("SUS");
-    S_show_Sustain_value(instrument_id);
+    Show_Sustain_value(instrument_id);
 
-    tft.setCursor(display_coordinate_x(42), display_coordinate_y(5.9));
+    tft.setCursor(display_coordinate_x(41.5), display_coordinate_y(5.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("REL");
-    S_show_Release_value(instrument_id);
+    Show_Release_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("PLAY MODE");
-    S_show_Play_mode_value(instrument_id);
+    Show_Play_mode_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(31), display_coordinate_y(6.9));
     tft.setTextColor(TEXT_COLOR);
     tft.print("NOCLICK");
-    S_show_Noclick_value(instrument_id, true);
+    Show_Noclick_value(instrument_id, true);
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(15));
     tft.setTextColor(TEXT_COLOR);
     tft.print("TRIM STEP");
-    S_show_Trim_step_value();
+    Show_Trim_step_value();
 
     tft.setCursor(display_coordinate_x(28), display_coordinate_y(15));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MAX PITCH/VOICES");
-    S_show_players_Pitch_max_value(instrument_id);
+    Show_players_Pitch_max_value(instrument_id);
 }
 
 FLASHMEM
-void DisplaySound::S_show_SOUND_menu(void)
+void DisplaySound::Show_SOUND_menu(void)
 {
     if (Lilla_state_0 != MIDI_LOOP)
     {
         auto position = 0;
 
-        // S_Select_menu_elements(); // DISTRIBUITO
         Delete_text_row(S_row_menu);
 
         for (auto element = 0; element < S_menu_elements; ++element) // menu element
@@ -148,18 +147,7 @@ void DisplaySound::S_show_SOUND_menu(void)
 }
 
 FLASHMEM
-void DisplaySound::S_show_menu_frame(int position)
-{
-    if (Lilla_state_0 != MIDI_LOOP)
-    {
-        S_Delete_all_menu_frame();
-        Frame_by_col_row(S_column_menu_element[position], 1, S_dimension_voice_menu[S_element_menu[position]], true);
-        S_menu_choice = S_element_menu[position];
-    }
-}
-
-FLASHMEM
-void DisplaySound::S_Delete_all_menu_frame(void)
+void DisplaySound::Delete_all_menu_frame(void)
 {
     int position;
 
@@ -174,9 +162,9 @@ void DisplaySound::S_Delete_all_menu_frame(void)
 }
 
 FLASHMEM
-void DisplaySound::S_show_Attack_value(int instrument_id)
+void DisplaySound::Show_Attack_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_Attack[0]), display_coordinate_y(S_column_row_Attack[1]), S_chars_Attack);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Attack][0]), display_coordinate_y(S_column_row_value_element[value_S_Attack][1]), S_chars_Attack);
     tft.setTextColor(ILI9341_YELLOW);
 
     switch (Preset[instrument_id].attack_type)
@@ -191,33 +179,32 @@ void DisplaySound::S_show_Attack_value(int instrument_id)
         break;
     }
 
-    // tft.setCursor(display_coordinate_x(8), display_coordinate_y(5.9));
     tft.print(Preset[instrument_id].attack, 2);
     Show_measure_unit("sec", 3);
 }
 
 FLASHMEM
-void DisplaySound::S_show_Decay_value(int instrument_id)
+void DisplaySound::Show_Decay_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_Decay[0]), display_coordinate_y(S_column_row_Decay[1]), S_chars_Decay);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Decay][0]), display_coordinate_y(S_column_row_value_element[value_S_Decay][1]), S_chars_Decay);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].decay, 2);
     Show_measure_unit("sec", 3);
 }
 
 FLASHMEM
-void DisplaySound::S_show_Sustain_value(int instrument_id)
+void DisplaySound::Show_Sustain_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_Sustain[0]), display_coordinate_y(S_column_row_Sustain[1]), S_chars_Sustain);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Sustain][0]), display_coordinate_y(S_column_row_value_element[value_S_Sustain][1]), S_chars_Sustain);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].sustain * 100, 0);
     tft.print("%");
 }
 
 FLASHMEM
-void DisplaySound::S_show_Release_value(int instrument_id)
+void DisplaySound::Show_Release_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(45.5), display_coordinate_y(5.9), 5);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Release][0]), display_coordinate_y(S_column_row_value_element[value_S_Release][1]), S_chars_Release);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].release, 1);
     Show_measure_unit("sec", 3);
@@ -229,40 +216,40 @@ inline int DisplaySound::Sound_Id(int patch_id, int instrument_id)
 }
 
 FLASHMEM
-void DisplaySound::S_show_File_value(int instrument_id)
+void DisplaySound::Show_File_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(43), display_coordinate_y(0), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor((file_midi_ch_flag ? ILI9341_YELLOW : ILI9341_WHITE));
     tft.print(name_file[Preset[instrument_id].file]);
 }
 
 FLASHMEM
-void DisplaySound::S_show_Midi_channel_value(int instrument_id)
+void DisplaySound::Show_Midi_channel_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(12.5), display_coordinate_y(4.9), 2);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Midi][0]), display_coordinate_y(S_column_row_value_element[value_S_Midi][1]), S_chars_Midi);
     tft.setTextColor((!file_midi_ch_flag ? ILI9341_YELLOW : ILI9341_WHITE));
     tft.print(Preset[instrument_id].midi_channel + 1);
 }
 FLASHMEM
-void DisplaySound::S_show_Pitch_value(int instrument_id)
+void DisplaySound::Show_Pitch_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(23.5), display_coordinate_y(4.9), 5);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Pitch][0]), display_coordinate_y(S_column_row_value_element[value_S_Pitch][1]), S_chars_Pitch);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].pitch, 3);
 }
 
 FLASHMEM
-void DisplaySound::S_show_Gain_value(int patch_id, int instrument_id)
+void DisplaySound::Show_Gain_value(int patch_id, int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(35.5), display_coordinate_y(4.9), 4);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Gain][0]), display_coordinate_y(S_column_row_value_element[value_S_Gain][1]), S_chars_Gain);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Sound[Sound_Id(patch_id, instrument_id)].gain / 20.0);
 }
 
 FLASHMEM
-void DisplaySound::S_show_Pan_value(int instrument_id)
+void DisplaySound::Show_Pan_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(45.5), display_coordinate_y(4.9), 4);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Pan][0]), display_coordinate_y(S_column_row_value_element[value_S_Pan][1]), S_chars_Pan);
     tft.setTextColor(ILI9341_YELLOW);
 
     if (Preset[instrument_id].pan < 0)
@@ -278,9 +265,9 @@ void DisplaySound::S_show_Pan_value(int instrument_id)
 }
 
 FLASHMEM
-void DisplaySound::S_show_Play_mode_value(int instrument_id)
+void DisplaySound::Show_Play_mode_value(int instrument_id)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(9.5), display_coordinate_y(6.9), 13);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_PlayMode][0]), display_coordinate_y(S_column_row_value_element[value_S_PlayMode][1]), S_chars_PlayMode);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(loop_mode[Preset[instrument_id].mode]);
     tft.setCursor(display_coordinate_x(14), display_coordinate_y(6.9));
@@ -288,16 +275,16 @@ void DisplaySound::S_show_Play_mode_value(int instrument_id)
 }
 
 FLASHMEM
-void DisplaySound::S_show_Noclick_value(int instrument_id, bool value)
+void DisplaySound::Show_Noclick_value(int instrument_id, bool value)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(38.5), display_coordinate_y(6.9), 4);
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Noclick][0]), display_coordinate_y(S_column_row_value_element[value_S_Noclick][1]), S_chars_NoClick);
     tft.setTextColor((value ? ILI9341_YELLOW : ILI9341_WHITE));
     tft.print(Preset[instrument_id].Noclick);
     Show_measure_unit("S", 1);
 }
 
 FLASHMEM
-void DisplaySound::S_show_Trim_step_value(void)
+void DisplaySound::Show_Trim_step_value(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(9.5), display_coordinate_y(15), 6);
     tft.setTextColor(ILI9341_YELLOW);
@@ -328,7 +315,7 @@ void DisplaySound::S_show_Trim_step_value(void)
 }
 
 FLASHMEM
-void DisplaySound::S_show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
+void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
 {
     Cancel_text_reset_cursor(display_coordinate_x(44.5), display_coordinate_y(15), 8);
     tft.setTextColor(ILI9341_WHITE);
@@ -366,7 +353,7 @@ void DisplaySound::S_show_players_Pitch_max_value(int instrument_id) // max pitc
         tft.print("16");
 }
 
-void DisplaySound::S_show_wave(int instrument_id)
+void DisplaySound::Show_wave(int instrument_id)
 {
     auto sound_id_local = Patch[Patch_id].Instrument[instrument_id].sound_id;                                                // Active sound routed to the selected instrument.
     int yp, yn, y0;                                                                                                          // Upper sample, lower sample, and previous Y position on the canvas.

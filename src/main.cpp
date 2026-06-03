@@ -2079,10 +2079,10 @@ void loop()
                 // Menu
                 S_sound_original = S_Verify_is_Sound_original(Sound_id);
                 S_Select_menu_elements();
-                Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
                 // Display page
-                Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
+                Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                 // Pointer
                 Pointer_Sound.Update_field_description(S_menu_max);
@@ -2094,7 +2094,7 @@ void loop()
                 Performance_led_set.Restore_all_LED();
 
                 // Wave
-                Display_Sound.S_show_wave(Instrument_id);
+                Display_Sound.Show_wave(Instrument_id);
 
                 // Report
                 Serial.print("Editing Sound: ");
@@ -2320,8 +2320,8 @@ void loop()
 
                         S_trim_step = S_Calc_trim_step(trim_speed);
 
-                        Display_Sound.S_show_File_value(Instrument_id);
-                        Display_Sound.S_show_wave(Instrument_id);
+                        Display_Sound.Show_File_value(Instrument_id);
+                        Display_Sound.Show_wave(Instrument_id);
 
                         auto sound_original_0 = S_sound_original;
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2333,7 +2333,7 @@ void loop()
                                 Pointer_Sound.Update_field_description(S_menu_max);
                                 Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                             }
-                            Display_Sound.S_show_SOUND_menu();
+                            Display_Sound.Show_SOUND_menu();
                         }
                     }
                 }
@@ -2370,7 +2370,7 @@ void loop()
                         Players_Manager.Update_Preset_midi_channel(Patch_id, Instrument_id);
                         AudioInterrupts();
 
-                        Display_Sound.S_show_Midi_channel_value(Instrument_id);
+                        Display_Sound.Show_Midi_channel_value(Instrument_id);
 
                         auto sound_original_0 = S_sound_original;
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2382,7 +2382,7 @@ void loop()
                                 Pointer_Sound.Update_field_description(S_menu_max);
                                 Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                             }
-                            Display_Sound.S_show_SOUND_menu();
+                            Display_Sound.Show_SOUND_menu();
                         }
                     }
                 }
@@ -2418,7 +2418,7 @@ void loop()
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
                         AudioInterrupts();
 
-                        Display_Sound.S_show_Pitch_value(Instrument_id);
+                        Display_Sound.Show_Pitch_value(Instrument_id);
 
                         auto sound_original_0 = S_sound_original;
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2430,7 +2430,7 @@ void loop()
                                 Pointer_Sound.Update_field_description(S_menu_max);
                                 Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                             }
-                            Display_Sound.S_show_SOUND_menu();
+                            Display_Sound.Show_SOUND_menu();
                         }
                     }
                 }
@@ -2446,7 +2446,7 @@ void loop()
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
                         AudioInterrupts();
 
-                        Display_Sound.S_show_Pitch_value(Instrument_id);
+                        Display_Sound.Show_Pitch_value(Instrument_id);
 
                         auto sound_original_0 = S_sound_original;
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2458,7 +2458,7 @@ void loop()
                                 Pointer_Sound.Update_field_description(S_menu_max);
                                 Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                             }
-                            Display_Sound.S_show_SOUND_menu();
+                            Display_Sound.Show_SOUND_menu();
                         }
                     }
                 }
@@ -2474,8 +2474,8 @@ void loop()
                     Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Gain_value(Patch_id, Instrument_id);
-                    Display_Sound.S_show_wave(Instrument_id);
+                    Display_Sound.Show_Gain_value(Patch_id, Instrument_id);
+                    Display_Sound.Show_wave(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2487,7 +2487,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
 
@@ -2506,7 +2506,7 @@ void loop()
                     {
                         S_Set_Sound_SOLO_OFF();
                     }
-                    Display_Sound.S_show_wave(Instrument_id);
+                    Display_Sound.Show_wave(Instrument_id);
                 }
             }
             break;
@@ -2520,7 +2520,7 @@ void loop()
                     Players_Manager.Multicast_pan(Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Pan_value(Instrument_id);
+                    Display_Sound.Show_Pan_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2532,7 +2532,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
 
@@ -2546,7 +2546,7 @@ void loop()
                     Players_Manager.Multicast_pan(Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Pan_value(Instrument_id);
+                    Display_Sound.Show_Pan_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2558,7 +2558,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
             }
@@ -2572,7 +2572,7 @@ void loop()
                     Players_Manager.Update_Preset_attack(Patch_id, Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Attack_value(Instrument_id);
+                    Display_Sound.Show_Attack_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2584,7 +2584,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
 
@@ -2596,7 +2596,7 @@ void loop()
                     Players_Manager.Update_Preset_attack_type(Patch_id, Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Attack_value(Instrument_id);
+                    Display_Sound.Show_Attack_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2608,7 +2608,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
             }
@@ -2622,7 +2622,7 @@ void loop()
                     Players_Manager.Update_Preset_decay(Patch_id, Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Decay_value(Instrument_id);
+                    Display_Sound.Show_Decay_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2634,7 +2634,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
             }
@@ -2648,7 +2648,7 @@ void loop()
                     Players_Manager.Update_Preset_sustain(Patch_id, Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Sustain_value(Instrument_id);
+                    Display_Sound.Show_Sustain_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2660,7 +2660,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
             }
@@ -2674,7 +2674,7 @@ void loop()
                     Players_Manager.Update_Preset_release(Patch_id, Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Release_value(Instrument_id);
+                    Display_Sound.Show_Release_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2686,7 +2686,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
             }
@@ -2704,7 +2704,7 @@ void loop()
                     Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                     AudioInterrupts();
 
-                    Display_Sound.S_show_Play_mode_value(Instrument_id);
+                    Display_Sound.Show_Play_mode_value(Instrument_id);
 
                     auto sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2716,7 +2716,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
 
                     Serial.println("Change MODE: ");
@@ -2777,8 +2777,8 @@ void loop()
 
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
 
-                    Display_Sound.S_show_Noclick_value(Instrument_id, true);
-                    Display_Sound.S_show_wave(Instrument_id);
+                    Display_Sound.Show_Noclick_value(Instrument_id, true);
+                    Display_Sound.Show_wave(Instrument_id);
 
                     int sound_original_0 = S_sound_original;
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2790,7 +2790,7 @@ void loop()
                             Pointer_Sound.Update_field_description(S_menu_max);
                             Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                         }
-                        Display_Sound.S_show_SOUND_menu();
+                        Display_Sound.Show_SOUND_menu();
                     }
                 }
             }
@@ -2804,7 +2804,7 @@ void loop()
         if (Read_encoder(2, trim_speed, 5, 0, 1))
         {
             S_trim_step = S_Calc_trim_step(trim_speed);
-            Display_Sound.S_show_Trim_step_value();
+            Display_Sound.Show_Trim_step_value();
         }
 
         // Change slicing mode: true:FIRST/LAST    false:FIRST/WINDOW
@@ -2815,7 +2815,7 @@ void loop()
             {
                 S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
             }
-            Display_Sound.S_show_wave(Instrument_id);
+            Display_Sound.Show_wave(Instrument_id);
         }
 
         // Set Default trim speed
@@ -2823,7 +2823,7 @@ void loop()
         {
             trim_speed = 5;
             S_trim_step = S_Calc_trim_step(trim_speed);
-            Display_Sound.S_show_Trim_step_value();
+            Display_Sound.Show_Trim_step_value();
         }
 
         // Change A
@@ -2896,8 +2896,8 @@ void loop()
                 Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 AudioInterrupts();
 
-                Display_Sound.S_show_players_Pitch_max_value(Instrument_id);
-                Display_Sound.S_show_wave(Instrument_id);
+                Display_Sound.Show_players_Pitch_max_value(Instrument_id);
+                Display_Sound.Show_wave(Instrument_id);
 
                 int sound_original_0 = S_sound_original;
                 S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2909,7 +2909,7 @@ void loop()
                         Pointer_Sound.Update_field_description(S_menu_max);
                         Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                     }
-                    Display_Sound.S_show_SOUND_menu();
+                    Display_Sound.Show_SOUND_menu();
                 }
             }
         }
@@ -2973,8 +2973,8 @@ void loop()
                     S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
                 }
 
-                Display_Sound.S_show_players_Pitch_max_value(Instrument_id);
-                Display_Sound.S_show_wave(Instrument_id);
+                Display_Sound.Show_players_Pitch_max_value(Instrument_id);
+                Display_Sound.Show_wave(Instrument_id);
 
                 int sound_original_0 = S_sound_original;
                 S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2986,7 +2986,7 @@ void loop()
                         Pointer_Sound.Update_field_description(S_menu_max);
                         Pointer_Sound.Restore_pointer_value(S_field_description, S_menu_max);
                     }
-                    Display_Sound.S_show_SOUND_menu();
+                    Display_Sound.Show_SOUND_menu();
                 }
             }
         }
@@ -3029,7 +3029,7 @@ void loop()
 
                     // S_menu = 0;
 
-                    Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
+                    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
                     if (Lilla_state_0 != MIDI_LOOP)
                     {
                         // restore all LED
@@ -3038,13 +3038,13 @@ void loop()
 
                     // to do: display LED for MIDI_LOOP
 
-                    Display_Sound.S_show_wave(Instrument_id);
+                    Display_Sound.Show_wave(Instrument_id);
 
                     if (Lilla_state_0 != MIDI_LOOP)
                     {
                         S_Select_menu_elements();
                     }
-                    Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                    Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
                     // Display_Manager.S_show_menu_frame(S_menu);
                 }
@@ -3406,15 +3406,15 @@ void loop()
 
                         // S_menu = 0;
 
-                        Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
+                        Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                         // restore LED
                         Performance_led_set.Restore_all_LED();
 
-                        Display_Sound.S_show_wave(Instrument_id);
+                        Display_Sound.Show_wave(Instrument_id);
 
                         S_Select_menu_elements();
-                        Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                        Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
                         // Display_Sound.S_show_menu_frame(S_menu);
                     }
@@ -3517,12 +3517,12 @@ void loop()
 
                         // S_menu = 0;
 
-                        Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
+                        Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                         // to do: display LED
 
-                        Display_Sound.S_show_wave(Instrument_id);
-                        Display_Sound.S_show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                        Display_Sound.Show_wave(Instrument_id);
+                        Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
                         // Display_Sound.S_show_menu_frame(S_menu);
                     }
@@ -7327,16 +7327,16 @@ void loop()
             S_trim_step = S_Calc_trim_step(trim_speed);
 
             // Display page
-            Display_Sound.S_show_SOUND_page(Patch_id, Instrument_id);
+            Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
             // Menu
             S_sound_original = S_Verify_is_Sound_original(Sound_id);
             S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
-            Display_Sound.S_show_SOUND_menu();
+            Display_Sound.Show_SOUND_menu();
 
             // Pointer
             Pointer_Sound.Update_field_description(S_menu_max);
-            Pointer_Sound.Set_pointer_to_first_element();
+            Pointer_Sound.Set_pointer_to_first_menu_element();
             S_field_description = Pointer_Sound.Get_field_description();
             Pointer_Sound.Display_pointer();
 
@@ -7344,7 +7344,7 @@ void loop()
             Performance_led_set.Restore_all_LED();
 
             // Wave
-            Display_Sound.S_show_wave(Instrument_id);
+            Display_Sound.Show_wave(Instrument_id);
 
             // Report
             Serial.print("Editing Sound: ");

@@ -88,19 +88,27 @@ void PointerSound::Restore_pointer_value(const S_field_description_struct field_
 FLASHMEM
 void PointerSound::Set_pointer_to_file(const int S_menu_max)
 {
+    pointer_new.field_name = field_S_Value;
+    pointer_new.menu_element = 0; // not significant
+    pointer_new.value_element = value_S_File;
+
     pointer = S_menu_max + 1;
-    Display_Sound.S_show_pointer_frame(field_description[pointer], true);
+    Display_Sound.Show_pointer_frame(pointer_new, true);
 
     Serial.println("PointerSound::Set_pointer_to_file(int S_menu_max) - pointer: ");
     Print_pointer_description();
 }
 
-void PointerSound::Set_pointer_to_first_element(void)
+void PointerSound::Set_pointer_to_first_menu_element(void)
 {
-    pointer = 0;
-    Display_Sound.S_show_pointer_frame(field_description[pointer], true);
+    pointer_new.field_name = field_S_Menu;
+    pointer_new.menu_element = 0;
+    pointer_new.value_element = value_S_File; // not significant
 
-    Serial.println("PointerSound::Set_pointer_to_first_element(void) - pointer: ");
+    pointer = 0;
+    Display_Sound.Show_pointer_frame(pointer_new, true);
+
+    Serial.println("PointerSound::Set_pointer_to_first_menu_element(void) - pointer: ");
     Print_pointer_description();
 }
 
@@ -110,7 +118,9 @@ bool PointerSound::Move_pointer(const int value, const int S_menu_max)
     bool changed = false;
     pointer_old = pointer;
 
-    switch (field_description[pointer].field_name)
+    Display_Sound.Show_pointer_frame(pointer_new, false);
+
+    switch (field_description[pointer].field_name) // old version
     {
     case field_S_Menu:
 
@@ -159,20 +169,85 @@ bool PointerSound::Move_pointer(const int value, const int S_menu_max)
         break;
     }
 
-    if (changed)
+    switch (pointer_new.field_name) // NEW version
     {
-        Display_Sound.S_show_pointer_frame(field_description[pointer_old], false);
-        Display_Sound.S_show_pointer_frame(field_description[pointer], true);
+    case field_S_Menu:
 
+        if (value == 1)
+        {
+            if (pointer_new.menu_element < S_menu_max)
+            {
+                ++pointer_new.menu_element;
+            }
+            else
+            {
+                pointer_new.field_name = field_S_Value;
+                pointer_new.menu_element = 0; // not significant
+                pointer_new.value_element = value_S_File;
+            }
+        }
+
+        else if (value == -1)
+        {
+            if (pointer_new.menu_element > 0)
+            {
+                --pointer_new.menu_element;
+            }
+            else
+            {
+                pointer_new.field_name = field_S_Value;
+                pointer_new.menu_element = 0; // not significant
+                pointer_new.value_element = value_S_Noclick;
+            }
+        }
+
+        break;
+
+    case field_S_Value:
+
+        if (value == 1)
+        {
+            if (pointer_new.value_element != value_S_Noclick)
+            {
+                pointer_new.value_element = static_cast<S_value_name>(static_cast<int>(pointer_new.value_element) + 1);
+            }
+            else
+            {
+                pointer_new.field_name = field_S_Menu;
+                pointer_new.menu_element = 0;
+                pointer_new.value_element = value_S_File; // not significant
+            }
+        }
+        else if (value == -1)
+        {
+            if(pointer_new.value_element != value_S_File)
+            {
+                pointer_new.value_element = static_cast<S_value_name>(static_cast<int>(pointer_new.value_element) - 1);
+            }
+            
+            else
+            {
+                pointer_new.field_name = field_S_Menu;
+                pointer_new.menu_element = S_menu_max;
+                pointer_new.value_element = value_S_File; // not significant
+            }
+        }
+        break;
+    }
+
+    if (changed)
+    {  
+        Display_Sound.Show_pointer_frame(pointer_new, true);
         Print_pointer_description();
     }
-    return changed;
+
+    return true;
 }
 
 FLASHMEM
 void PointerSound::Display_pointer(void)
 {
-    Display_Sound.S_show_pointer_frame(field_description[pointer], true);
+    Display_Sound.Show_pointer_frame(pointer_new, true);
 }
 
 FLASHMEM
