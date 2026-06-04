@@ -47,22 +47,15 @@ struct S_field_description_struct
 class PointerSound
 {
 private:
-    static constexpr int field_description_max_elements = S_value_names + S_menu_elements; // field = where the pointer stands
-    int pointer;
-    int pointer_old;
-    int pointer_max;
-    S_field_description_struct field_description[field_description_max_elements];
-    S_field_description_struct pointer_new;
+    S_field_description_struct pointer;
     void Print_pointer_description(void);
 
 public:
     PointerSound() {}
 
-    void Update_field_description(const int S_menu_max);
-    void Restore_pointer_value(const S_field_description_struct field_description_in, const int S_menu_max); // must be called when S_menu_elements changes
     void Set_pointer_to_file(const int S_menu_max);
     void Set_pointer_to_first_menu_element(void);
-    bool Move_pointer(const int value, const int S_menu_max);
+    void Move_pointer(const int value, const int S_menu_max);
     void Display_pointer(void);
-    S_field_description_struct Get_field_description(void);
+    S_field_description_struct Get_pointer(void);
 };

@@ -27,7 +27,7 @@ The firmware is written for a hardware platform built around:
 - Teensy Audio Adaptor Rev D
 - 64 MB SPI flash memory
 - 16 MB total QSPI PSRAM
-- 4 FRAM chips
+- 1-4 FRAM chips
 - ILI9341 SPI display
 - MCP23S17 shift-register based I/O expansion
 - MIDI input and output
@@ -35,38 +35,6 @@ The firmware is written for a hardware platform built around:
 - monitor output and phones output
 - gate input and output
 - micro SD storage
-
-## Wiring And Pinout
-
-The table below only lists connections that are explicitly defined or strongly implied by this codebase.
-
-| Function | Device / Bus | Pins or addresses confirmed in code | Notes |
-|---|---|---|---|
-| Display SPI clock | ILI9341 on custom SPI1 wiring | SCK = 27 | Defined in `lib/config/config.h` |
-| Display SPI data out | ILI9341 on custom SPI1 wiring | MOSI = 26 | Defined in `lib/config/config.h` |
-| Display command/data | ILI9341 | DC = 29 | Defined in `lib/config/config.h` |
-| Display reset | ILI9341 | RST = 30 | Defined in `lib/config/config.h` |
-| Display chip select | ILI9341 | CS = 38 | Used by the `Adafruit_ILI9341` instance |
-| Shared SPI1 bus MISO | MCP23S17 shift registers | MISO = 39 | The display constructor does not use MISO, but the shift registers do |
-| Shift-register chip select | 6 x MCP23S17 | CS = 37 | Shared chip-select line defined in `lib/config/config.h` |
-| Shift-register addresses | 6 x MCP23S17 | `0x20`, `0x21`, `0x22`, `0x23`, `0x24`, `0x25` | Declared in `lib/ShiftRegisters/ShiftRegisters.h` |
-| Shift-register pin mode | 6 x MCP23S17 | all 16 channels set to `INPUT_PULLUP` | Configured in `lib/ShiftRegisters/ShiftRegisters.cpp` |
-| Gate input | GPIO | pin 31 | Configured as `INPUT_PULLUP` |
-| Gate output | GPIO | pin 22 | Configured as `OUTPUT` |
-| MIDI interface | HardwareSerial `Serial1` | `Serial1` used for MIDI | The repo confirms the serial port, not an alternate remap |
-| FRAM / settings memory | I2C FRAM (`LillaFRAM_MB85RC_I2C`) | I2C bus documented as `SCL1 = 16`, `SDA1 = 17` | Bus notes are documented in `include/GlobalFRAM.h` |
-| FRAM device addresses | MB85RC family examples | `0x50` to `0x57` | Addressing scheme documented in `include/GlobalFRAM.h` |
-| SD card | Teensy 4.1 built-in SD slot | `BUILTIN_SDCARD` | Used throughout the project for import/export and archive operations |
-| External sample flash | SerialFlash storage | `SerialFlash.begin()` | The code confirms external flash usage, but not a custom CS pin in this repo |
-| Audio codec / audio board | SGTL5000 on Teensy Audio Adaptor Rev D | controlled through `AudioControlSGTL5000` | Uses the Teensy audio stack rather than custom GPIO definitions |
-
-### Pinout Notes
-
-- The custom user-interface SPI bus is defined in `lib/config/config.h` and is used for the display plus the MCP23S17 input-expander chain.
-- The code comments identify the current hardware as `PCB_2025_R2` with 6 SPI-connected shift registers.
-- Gate input is pulled up internally, so the external circuit should be compatible with `INPUT_PULLUP` behavior.
-- The README intentionally does not invent pin numbers for `Serial1`, I2S audio, or the external flash chip select where this repository does not define them directly.
-- For board bring-up or hardware replication, the code-based pinout above should be combined with the actual PCB schematic.
 
 ## Build Environment
 
@@ -86,16 +54,6 @@ Declared external library dependencies:
 - Adafruit ILI9341
 - Adafruit MCP23017 Arduino Library
 
-## Build And Upload
-
-From the project root:
-
-```bash
-pio run
-pio run -t upload
-```
-
-If you use VS Code with the PlatformIO extension, you can also build and upload from the PlatformIO sidebar.
 
 ## Repository Layout
 

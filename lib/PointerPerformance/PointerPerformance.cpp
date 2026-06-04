@@ -53,7 +53,7 @@ void PointerPerformance::Delete_pointer(void)
     Display_Manager.P_show_pointer_frame(pointer, false);
 }
 
-P_field_description_struct PointerPerformance::Get_field_description(void)
+P_field_description_struct PointerPerformance::Get_pointer(void)
 {
     return pointer;
 }
