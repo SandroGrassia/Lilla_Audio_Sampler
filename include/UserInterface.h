@@ -40,6 +40,7 @@ enum ShifterPort // (input/output) port id
     b7
 };
 
+/*
 static constexpr char *shifter0[16][2] =
 {
     {"a0", "PB_16"},
@@ -139,6 +140,7 @@ static constexpr char *shifter4[16][2] =
     {"b6", "PB_22"},
     {"b7", "PB_23"}
 };
+*/
 
 struct Encoder_physical_struct
 {
@@ -184,7 +186,6 @@ struct Pushbutton_physical_struct
     uint8_t shifter_id;
     ShifterPort shifter_channel;
 };
-
 
 // Physical location of each pushbutton in the shifter matrix.
 // The array index is the logical pushbutton ID.
@@ -272,6 +273,7 @@ struct EncoderPushbutton
 //
 // Use -1 when no encoder or pushbutton is assigned to that channel.
 // Channels used by other devices, such as LEDs, are also marked as {-1, -1}.
+
 static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTERS][SHIFTER_CHANNELS] = {
     /* ===================== SHIFTER 0 ===================== */
     {/* a0 */ {-1, 16}, // PB_16
@@ -365,43 +367,53 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
 };
 
 // UI devices
-constexpr int EN_PB_TuningTone = 7;
-constexpr int EN_PB_Resolution = 0;
-constexpr int EN_PB_Downsampling = 8;
-constexpr int EN_PB_Tempo = 5;
-constexpr int EN_PB_Loop = 6;
-constexpr int EN_PB_Track1 = 13;
-constexpr int EN_PB_Track2 = 14;
-constexpr int EN_PB_Track3 = 21;
-constexpr int EN_PB_Track4 = 22;
+constexpr int EN_PB_TuningTone = 0;
+constexpr int EN_PB_Resolution = 1;
+constexpr int EN_PB_Downsampling = 2;
+constexpr int EN_PB_Cutoff = 3;
+constexpr int EN_PB_Tempo = 4;
+constexpr int EN_PB_Loop = 5;
+
+constexpr int EN_PB_Track1 = 6;
+constexpr int EN_PB_Track2 = 7;
+constexpr int EN_PB_Track3 = 9;
+constexpr int EN_PB_Track4 = 10;
 constexpr int EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
-constexpr int EN_PB_Select = 25;
-constexpr int EN_PB_Value = 24;
-constexpr int EN_PB_PreListenVol = 18;
-constexpr int EN_PB_From = 1;
-constexpr int EN_PB_Step = 2;
-constexpr int EN_PB_To = 3;
-constexpr int EN_PB_LineOutVol = 17;
-constexpr int SEL_Mixer = 27;       // PB_Shift +
-constexpr int SEL_Delay = 28;       // PB_Shift +
-constexpr int SEL_Setup = 33;       // PB_Shift +
-constexpr int SEL_Test = 31;        // PB_Shift +
-constexpr int SEL_Sampler = 30;     // PB_Shift +
-constexpr int SEL_LiveSampler = 29; // PB_Shift +
-constexpr int SEL_Performance = 26; // PB_Shift +
-constexpr int SEL_MidiLoop = 32;    // PB_Shift +
-constexpr int PB_SwitchTo = 35;
-constexpr int PB_Shift = 35;
-constexpr int PB_Rec1 = 9;
-constexpr int PB_Rec2 = 10;
+
+constexpr int EN_PB_Select = 8;
+
+constexpr int EN_PB_PreListenVol = 16;
+constexpr int EN_PB_From = 12;
+constexpr int EN_PB_Step = 13;
+constexpr int EN_PB_To = 14;
+constexpr int EN_PB_Value = 11;
+constexpr int EN_PB_LineOutVol = 15;
+
+// SW0
+constexpr int SEL_Mixer = 28;
+constexpr int SEL_Delay = 29;
+constexpr int SEL_Setup = 30;
+constexpr int SEL_Test = 31; 
+
+// SW1
+constexpr int SEL_Sampler = 33;     // PB_Shift +
+constexpr int SEL_LiveSampler = 24; // PB_Shift +
+constexpr int SEL_Performance = 35; // PB_Shift +
+constexpr int SEL_MidiLoop = 36;    // PB_Shift +
+
+constexpr int PB_Tools = 12;
+
+constexpr int PB_Rec1 = 8;
+constexpr int PB_Rec2 = 9;
 constexpr int PB_Rec3 = 11;
-constexpr int PB_Rec4 = 12;
+constexpr int PB_Rec4 = 10;
 constexpr int PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
-constexpr int PB_S1 = 26;
-constexpr int PB_S2 = 27;
-constexpr int PB_S3 = 28;
-constexpr int PB_S4 = 29;
-constexpr int PB_S5 = 30;
-constexpr int PB_S6 = 31;
-constexpr int PB_S7 = 32;
-constexpr int PB_S8 = 33;
+
+constexpr int PB_S1 = 0;
+constexpr int PB_S2 = 1;
+constexpr int PB_S3 = 2;
+constexpr int PB_S4 = 3;
+constexpr int PB_S5 = 4;
+constexpr int PB_S6 = 5;
+constexpr int PB_S7 = 6;
+constexpr int PB_S8 = 7;
