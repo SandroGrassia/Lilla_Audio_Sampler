@@ -40,6 +40,7 @@ enum ShifterPort // (input/output) port id
     b7
 };
 
+// Shifters ports connections
 /*
 static constexpr char *shifter0[16][2] =
 {
@@ -250,11 +251,11 @@ struct UI_LEDs_physical_struct
 };
 
 static constexpr UI_LEDs_physical_struct UI_LEDs [UI_LEDS] = {
-{2, a1}, // LED_P8
-{2, b7}, // LED_P9
-{4, b4}, // LED_P10
-{4, a3}, // LED_P11
-{1, a5 }, // LED_P12
+{2, a1}, // LED_P8 (REC_1)
+{2, b7}, // LED_P9 (REC_2)
+{4, a3}, // LED_P11 (REC_3)
+{4, b4}, // LED_P10 (REC_4)
+{1, a5 }, // LED_P12 (TOOLS)
 };
 
 
@@ -273,7 +274,6 @@ struct EncoderPushbutton
 //
 // Use -1 when no encoder or pushbutton is assigned to that channel.
 // Channels used by other devices, such as LEDs, are also marked as {-1, -1}.
-
 static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTERS][SHIFTER_CHANNELS] = {
     /* ===================== SHIFTER 0 ===================== */
     {/* a0 */ {-1, 16}, // PB_16
@@ -366,7 +366,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* b7 */ {-1, 23}} // PB_23
 };
 
-// UI devices
+// Encoder names
 constexpr int EN_PB_TuningTone = 0;
 constexpr int EN_PB_Resolution = 1;
 constexpr int EN_PB_Downsampling = 2;
@@ -389,17 +389,18 @@ constexpr int EN_PB_To = 14;
 constexpr int EN_PB_Value = 11;
 constexpr int EN_PB_LineOutVol = 15;
 
+// Pushbutton names
 // SW0
-constexpr int SEL_Mixer = 28;
-constexpr int SEL_Delay = 29;
-constexpr int SEL_Setup = 30;
-constexpr int SEL_Test = 31; 
+constexpr int PB_Mixer = 28;
+constexpr int PB_Delay = 29;
+constexpr int PB_Setup = 30;
+constexpr int PB_Test = 31; 
 
 // SW1
-constexpr int SEL_Sampler = 33;     // PB_Shift +
-constexpr int SEL_LiveSampler = 24; // PB_Shift +
-constexpr int SEL_Performance = 35; // PB_Shift +
-constexpr int SEL_MidiLoop = 36;    // PB_Shift +
+constexpr int PB_Sampler = 33;     // PB_Shift +
+constexpr int PB_LiveSampler = 24; // PB_Shift +
+constexpr int PB_Performance = 35; // PB_Shift +
+constexpr int PB_MidiLoop = 36;    // PB_Shift +
 
 constexpr int PB_Tools = 12;
 
@@ -417,3 +418,10 @@ constexpr int PB_S5 = 4;
 constexpr int PB_S6 = 5;
 constexpr int PB_S7 = 6;
 constexpr int PB_S8 = 7;
+
+// LEDs name
+constexpr int LED_Rec_1 = 0;
+constexpr int LED_Rec_2 = 1;
+constexpr int LED_Rec_3 = 2;
+constexpr int LED_Rec_4 = 3;
+constexpr int LED_Tools = 4;
