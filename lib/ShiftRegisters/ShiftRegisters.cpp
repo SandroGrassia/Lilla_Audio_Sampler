@@ -38,13 +38,20 @@ void ShiftRegisters::Reset_monitored_channels(void)
 
 void ShiftRegisters::Setup_physical_channels(void)
 {
+    // Set all channels as INPUT with internal PULLUP (100kohm)
     for (auto i = 0; i < SHIFTERS; ++i)
     {
-        // (input) channels pullup (100kohm)
+        
         for (auto j = 0; j < 16; ++j)
         {
             Shifter[i].pinMode(j, INPUT_PULLUP);
         }
+    }
+
+    // Set UI_LEDS channels as OUTPUT
+    for (auto i = 0; i < UI_LEDS; ++i)
+    {
+     Shifter[UI_leds[i].shifter_id].pinMode(UI_leds[i].shifter_channel, OUTPUT);
     }
 }
 

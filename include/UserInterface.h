@@ -250,7 +250,7 @@ struct UI_LEDs_physical_struct
     ShifterPort shifter_channel;
 };
 
-static constexpr UI_LEDs_physical_struct UI_LEDs [UI_LEDS] = {
+static constexpr UI_LEDs_physical_struct UI_leds[UI_LEDS] = {
 {2, a1}, // LED_P8 (REC_1)
 {2, b7}, // LED_P9 (REC_2)
 {4, a3}, // LED_P11 (REC_3)
@@ -299,7 +299,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* a2 */ {-1, 35}, // PB_35
      /* a3 */ {-1, 36}, // PB_36
      /* a4 */ {-1, 32}, // PB_32
-     /* a5 */ {-1, -1}, // LED_P12
+     /* a5 */ {-1, -1}, // ***** LED_P12
      /* a6 */ {-1, 29}, // PB_29
      /* a7 */ {-1, 28}, // PB_28
      /* b0 */ {-1, 31}, // PB_31
@@ -313,7 +313,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
 
     /* ===================== SHIFTER 2 ===================== */
     {/* a0 */ {-1, 21}, // PB_21
-     /* a1 */ {-1, -1}, // LED_P8
+     /* a1 */ {-1, -1}, // ***** LED_P8
      /* a2 */ {-1, 24}, // PB_24
      /* a3 */ {-1, 5},  // PB_5
      /* a4 */ {7, -1},  // DT_7
@@ -327,7 +327,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* b4 */ {-1, 19}, // PB_19
      /* b5 */ {-1, 20}, // PB_20
      /* b6 */ {-1, 25}, // PB_25
-     /* b7 */ {-1, -1}}, // LED_P9
+     /* b7 */ {-1, -1}}, // ***** LED_P9
 
     /* ===================== SHIFTER 3 ===================== */
     {/* a0 */ {14, -1}, // CLK_14
@@ -351,7 +351,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
     {/* a0 */ {-1, 15}, // PB_15
      /* a1 */ {15, -1}, // CLK_15
      /* a2 */ {15, -1}, // DT_15
-     /* a3 */ {-1, -1}, // LED_P11
+     /* a3 */ {-1, -1}, // ***** LED_P11
      /* a4 */ {-1, 27}, // PB_27
      /* a5 */ {9, -1},  // DT_9
      /* a6 */ {9, -1},  // CLK_9
@@ -360,7 +360,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* b1 */ {10, -1}, // CLK_10
      /* b2 */ {-1, 10}, // PB_10
      /* b3 */ {-1, 26}, // PB_26
-     /* b4 */ {-1, -1}, // LED_P10
+     /* b4 */ {-1, -1}, // ***** LED_P10
      /* b5 */ {-1, -1},
      /* b6 */ {-1, 22}, // PB_22
      /* b7 */ {-1, 23}} // PB_23
