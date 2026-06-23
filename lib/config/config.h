@@ -39,22 +39,21 @@ static constexpr int GATE_OUT_pin = 22;
 void Setup_GATE_pins(void);
 
 // UI contexts
-constexpr int LILLA_CONTEXTS = 13;
-enum LillaContext
+constexpr int LILLA_CONTEXTS = 12;
+enum LillaContext : int
 {
-    Start_context,
-    Common_context,
-    Performance_context,
-    Sound_edit_context,
-    Instrument_Vcf_context,
-    Mixer_context,
-    Delay_settings_context,
-    Live_Sampling_context,
-    Direct_Sampling_context,
-    Midi_Monitor_context,
-    Midi_Loop_context,
-    Setup_context,
-    Control_Change_context
+    Start_context = 0,
+    Performance_context = 1,
+    Sound_edit_context = 2,
+    Instrument_Vcf_context = 3,
+    Mixer_context = 4,
+    Delay_settings_context = 5,
+    Live_Sampling_context = 6,
+    Direct_Sampling_context = 7,
+    Midi_Monitor_context = 8,
+    Midi_Loop_context = 9,
+    Setup_context = 10,
+    Control_Change_context = 11
 };
 
 static constexpr int TRACKS = 4; // MIDI Loop encoders and pushbuttons 
