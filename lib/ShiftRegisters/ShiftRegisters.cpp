@@ -184,29 +184,29 @@ void ShiftRegisters::Init_context_sets(void)
     context_encoders[Midi_Monitor_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol});
 
     context_pushbuttons[Midi_Monitor_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                      PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
+                                                                       PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
 
     context_encoders[Midi_Loop_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                EN_PB_Select, EN_PB_Value, //
-                                                                EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4});
+                                                              EN_PB_Select, EN_PB_Value,                                                                                  //
+                                                              EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4});
 
     context_pushbuttons[Midi_Loop_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                          EN_PB_Select, EN_PB_Value, //
-                                                                          EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4, //
-                                                                          PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4, //
-                                                                          PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
+                                                                    EN_PB_Select, EN_PB_Value,                                                                                  //
+                                                                    EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4,                            //
+                                                                    PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4,                                                                         //
+                                                                    PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
 
     context_encoders[Setup_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                EN_PB_Select, EN_PB_Value});
+                                                          EN_PB_Select, EN_PB_Value});
     context_pushbuttons[Setup_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                      EN_PB_Select, EN_PB_Value, //
-                                                                      PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
+                                                                EN_PB_Select, EN_PB_Value,                                                                                  //
+                                                                PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
 
     context_encoders[Control_Change_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                EN_PB_Select, EN_PB_Value});
+                                                                   EN_PB_Select, EN_PB_Value});
     context_pushbuttons[Control_Change_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, //
-                                                                      EN_PB_Select, EN_PB_Value, //
-                                                                      PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
+                                                                         EN_PB_Select, EN_PB_Value,                                                                                  //
+                                                                         PB_Tools, PB_Mixer, PB_Delay, PB_Setup, PB_Test, PB_Sampler, PB_LiveSampler, PB_Performance, PB_MidiLoop});
 }
 
 void ShiftRegisters::Set_context(LillaContext context)

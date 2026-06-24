@@ -174,7 +174,7 @@ static constexpr Encoder_physical_struct encoder_physical[ENCODERS] = {
     {3, a3, a4}, // Encoder 13 -> DT_13, CLK_13
     {3, a1, a0}, // Encoder 14 -> DT_14, CLK_14
     {4, a2, a1}, // Encoder 15 -> DT_15, CLK_15
-    {0, a1, a2} // Encoder 16 -> DT_16, CLK_16
+    {0, a1, a2}  // Encoder 16 -> DT_16, CLK_16
 };
 
 // Pushbuttons
@@ -247,11 +247,11 @@ struct UI_LEDs_physical_struct
 };
 
 static constexpr UI_LEDs_physical_struct UI_leds[UI_LEDS] = {
-    {2, a1}, // LED_P8 (REC_1)
-    {2, b7}, // LED_P9 (REC_2)
-    {4, a3}, // LED_P11 (REC_3)
-    {4, b4}, // LED_P10 (REC_4)
-    {1, a5}, // LED_P12 (TOOLS)
+    {2, a1}, // LED_P8 (LED_Rec_1)
+    {2, b7}, // LED_P9 (LED_Rec_2)
+    {4, a3}, // LED_P11 (LED_Rec_3)
+    {4, b4}, // LED_P10 (LED_Rec_4)
+    {1, a5}, // LED_P12 (LED_Tools)
 };
 
 struct EncoderPushbutton
@@ -294,7 +294,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* a2 */ {-1, 35}, // PB_35
      /* a3 */ {-1, 36}, // PB_36
      /* a4 */ {-1, 32}, // PB_32
-     /* a5 */ {-1, -1}, // ***** LED_P12
+     /* a5 */ {-1, -1}, // ***** LED_P12 (LED_Tools)
      /* a6 */ {-1, 29}, // PB_29
      /* a7 */ {-1, 28}, // PB_28
      /* b0 */ {-1, 31}, // PB_31
@@ -308,7 +308,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
 
     /* ===================== SHIFTER 2 ===================== */
     {/* a0 */ {-1, 21},  // PB_21
-     /* a1 */ {-1, -1},  // ***** LED_P8
+     /* a1 */ {-1, -1},  // ***** LED_P8 (LED_Rec_1)
      /* a2 */ {-1, 24},  // PB_24
      /* a3 */ {-1, 5},   // PB_5
      /* a4 */ {7, -1},   // DT_7
@@ -322,7 +322,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* b4 */ {-1, 19},  // PB_19
      /* b5 */ {-1, 20},  // PB_20
      /* b6 */ {-1, 25},  // PB_25
-     /* b7 */ {-1, -1}}, // ***** LED_P9
+     /* b7 */ {-1, -1}}, // ***** LED_P9 (LED_Rec_2)
 
     /* ===================== SHIFTER 3 ===================== */
     {/* a0 */ {14, -1}, // CLK_14
@@ -346,7 +346,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
     {/* a0 */ {-1, 15}, // PB_15
      /* a1 */ {15, -1}, // CLK_15
      /* a2 */ {15, -1}, // DT_15
-     /* a3 */ {-1, -1}, // ***** LED_P11
+     /* a3 */ {-1, -1}, // ***** LED_P11 (LED_Rec_3)
      /* a4 */ {-1, 27}, // PB_27
      /* a5 */ {9, -1},  // DT_9
      /* a6 */ {9, -1},  // CLK_9
@@ -355,7 +355,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
      /* b1 */ {10, -1}, // CLK_10
      /* b2 */ {-1, 10}, // PB_10
      /* b3 */ {-1, 26}, // PB_26
-     /* b4 */ {-1, -1}, // ***** LED_P10
+     /* b4 */ {-1, -1}, // ***** LED_P10 (LED_Rec_4)
      /* b5 */ {-1, -1},
      /* b6 */ {-1, 22}, // PB_22
      /* b7 */ {-1, 23}} // PB_23
@@ -388,7 +388,6 @@ enum EnPbNames : int
     PB_S6 = 21,
     PB_S7 = 22,
     PB_S8 = 23,
-    PB_LiveSampler = 24,
     PB_Rec1 = 24,
     PB_Rec2 = 25,
     PB_Rec4 = 26,
@@ -399,6 +398,7 @@ enum EnPbNames : int
     PB_Test = 31,
     PB_Tools = 32,
     PB_Sampler = 33,
+    PB_LiveSampler = 34,
     PB_Performance = 35,
     PB_MidiLoop = 36,
     PB_S1 = 37
