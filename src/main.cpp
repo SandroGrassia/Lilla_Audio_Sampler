@@ -964,7 +964,7 @@ void setup()
     SerialFlash.begin();
     delay(100);
 
-    // UserInterfaces
+    // Start Gate IN/OUT
     Setup_GATE_pins();
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
