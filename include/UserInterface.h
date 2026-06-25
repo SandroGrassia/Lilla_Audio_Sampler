@@ -395,17 +395,17 @@ enum EnPbSwNames : int
     PB_Rec4 = 26,
     PB_Rec3 = 27,
 
-    SW_TOOLS_Mixer = 28, // PB_Mixer = 28
-    SW_TOOLS_Delay = 29, // PB_Delay = 29
-    SW_TOOLS_Setup = 30, // PB_Setup = 30
-    SW_TOOLS_Test = 31, // PB_Test = 31
-
+    SW_TOOLS_Mixer = 28,
+    SW_TOOLS_Delay = 29,
+    SW_TOOLS_Setup = 30,
+    SW_TOOLS_Test = 31,
+ 
     PB_Tools = 32,
 
-    SW_MODE_Sampler = 33, // PB_Sampler = 33
-    SW_MODE_LiveSampler = 34, // PB_LiveSampler = 34
-    SW_MODE_Performance = 35, // PB_Performance = 35
-    SW_MODE_MidiLoop = 36, // PB_MidiLoop = 36
+    SW_MODE_Sampler = 33,
+    SW_MODE_LiveSampler = 34,
+    SW_MODE_Performance = 35,
+    SW_MODE_MidiLoop = 36,
 
     PB_S1 = 37
 };

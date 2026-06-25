@@ -6,47 +6,40 @@
 
 #include "Switch.h"
 
-void Switch::Transmit_position(const uint8_t &switch_id, const uint8_t &new_position)
+void Switch::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts)
 {
-    if (switch_id >= SWITCHES || new_position >= POSITIONS)
+    if (switch_id >= SWITCHES || contacts >= CONTACTS_VALUES)
     {
         return;
     }
 
-    if (position[switch_id] != new_position)
+    if (millis() > timer[switch_id])
     {
-        position[switch_id] = new_position;
-        output[switch_id] = true;
+        const auto next = matrix[output[switch_id]][contacts];
+
+        output[switch_id] = next.output;
+        if (next.restart_timer)
+        {
+            timer[switch_id] = millis() + PAUSE_SWITCH;
+        }
     }
 }
 
-uint8_t Switch::Get_position(const uint8_t &switch_id)
+uint8_t Switch::Get_output(const uint8_t &switch_id)
 {
     if (switch_id >= SWITCHES)
     {
         return DEFAULT_POSITION;
     }
 
-    return position[switch_id];
-}
-
-bool Switch::Get_output(const uint8_t &switch_id)
-{
-    if (switch_id >= SWITCHES)
-    {
-        return false;
-    }
-
-    auto value = output[switch_id];
-    output[switch_id] = false;
-    return value;
+    return output[switch_id];
 }
 
 void Switch::Reset(void)
 {
     for (auto i = 0; i < SWITCHES; ++i)
     {
-        position[i] = DEFAULT_POSITION;
-        output[i] = false;
+        output[i] = DEFAULT_POSITION;
+        timer[i] = 0;
     }
 }
