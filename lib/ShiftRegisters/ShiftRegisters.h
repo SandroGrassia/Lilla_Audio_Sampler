@@ -38,6 +38,7 @@ When Lilla_state changes, also the set of monitored encoders changes:
 #include "Encoders.h"
 #include "Pushbuttons.h"
 
+
 class ShiftRegisters
 {
 private:
@@ -58,7 +59,7 @@ private:
 
     uint16_t shifter_channel_value[STATES][SHIFTERS]; // Used for caching Shifter[shifter_id].readGPIOAB(); 0: old read; 1: last read; 2: filtered (old EXOR last)
     
-    // Lookup variable/table
+    // Variable used as lookup table
     uint32_t monitored_encoders;    // initial ENCODERS (17) bits, from 0 to 16, corresponds to an encoder (all other bits are ignored): 0b 00000000 0000000X XXXXXXXX XXXXXXXX  -  X=1: encoder monitored, X=0: encoder excluded
     uint64_t monitored_pushbuttons; // initial PUSHBUTTONS (38) bits, from 0 to 37, corresponds to a pushbutton (all other bits are ignored): 0b 00000000 00000000 00000000  00XXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX  - X=1: pushbutton monitored, X=0: pushbutton excluded
     uint8_t monitored_shifters;     // initial SHIFTERS (5) bits, from 0 to 4, corresponds to a shifter (all other bits are ignored): 0b 000XXXXX  -  X=1: shifter monitored, X=0: shifter excluded

@@ -24,6 +24,9 @@ private:
         bool output;
         bool restart_timer;
     };
+    
+    // Pushbutton debounce/state transition table. Rows are indexed by the current sampled position: 0 = pressed, 1 = released.
+    // Columns are the previous stable state; each cell returns the next state, the one-shot press output, and the debounce timer restart flag.
     static constexpr NextStateAndOutput matrix[2][2] =
         {
             //       down                up              pulsante
@@ -45,7 +48,7 @@ public:
         Reset();
     }
 
-    void Transmit_position(const uint8_t &pushbutton, const uint8_t &position); // 1: pressed, 0: released
+    void Transmit_position(const uint8_t &pushbutton, const uint8_t &position); // position -->  0: pressed, 1: released
     bool Get_state(const uint8_t &pushbutton);
     bool Get_output(const uint8_t &pushbutton);
     void Reset(void);

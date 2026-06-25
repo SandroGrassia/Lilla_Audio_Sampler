@@ -16,6 +16,8 @@ Userinterface.h version for LILLA PCB_2026_R1
 // Encoders, Pushbuttons, Shift Register chips
 static constexpr int ENCODERS = 17;
 static constexpr int PUSHBUTTONS = 38;
+static constexpr int SWITCH_TOOLS = 4;
+static constexpr int SWITCH_MODES = 4;
 static constexpr int UI_LEDS = 5;
 static constexpr int SHIFTERS = 5;          // number of shifter chips
 static constexpr int SHIFTER_CHANNELS = 16; // number of channels in a shifter
@@ -362,7 +364,7 @@ static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTER
 };
 
 // Encoders an pushbuttons (and switch positions) names
-enum EnPbNames : int
+enum EnPbSwNames : int
 {
     EN_PB_TuningTone = 0,
     EN_PB_Resolution = 1,
@@ -392,20 +394,26 @@ enum EnPbNames : int
     PB_Rec2 = 25,
     PB_Rec4 = 26,
     PB_Rec3 = 27,
-    PB_Mixer = 28,
-    PB_Delay = 29,
-    PB_Setup = 30,
-    PB_Test = 31,
+
+    SW_TOOLS_Mixer = 28, // PB_Mixer = 28
+    SW_TOOLS_Delay = 29, // PB_Delay = 29
+    SW_TOOLS_Setup = 30, // PB_Setup = 30
+    SW_TOOLS_Test = 31, // PB_Test = 31
+
     PB_Tools = 32,
-    PB_Sampler = 33,
-    PB_LiveSampler = 34,
-    PB_Performance = 35,
-    PB_MidiLoop = 36,
+
+    SW_MODE_Sampler = 33, // PB_Sampler = 33
+    SW_MODE_LiveSampler = 34, // PB_LiveSampler = 34
+    SW_MODE_Performance = 35, // PB_Performance = 35
+    SW_MODE_MidiLoop = 36, // PB_MidiLoop = 36
+
     PB_S1 = 37
 };
 
-constexpr EnPbNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
-constexpr EnPbNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
+constexpr EnPbSwNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
+constexpr EnPbSwNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
+constexpr EnPbSwNames SW_TOOLS[SWITCH_TOOLS] = {SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test};
+constexpr EnPbSwNames SW_MODES[SWITCH_MODES] = {SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop};
 
 // LEDs name
 enum LedNames : int
