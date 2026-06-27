@@ -65,7 +65,7 @@ void ShiftRegisters::Switch_all_leds(bool on)
 
 void ShiftRegisters::Switch_led(int led, bool on)
 {
-    Shifter[UI_leds[led].shifter_id].digitalWrite(UI_leds[led].shifter_channel, on);
+    Shifter[UI_leds[led].shifter_id].digitalWrite(UI_leds[led].shifter_channel, (on? LOW: HIGH));
 }
 
 void ShiftRegisters::Set_monitored_encoders(const uint32_t &data)

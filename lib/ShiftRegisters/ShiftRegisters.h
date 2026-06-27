@@ -86,7 +86,7 @@ public:
     {
         Start_SPI_for_shifters();
         Setup_physical_channels();
-        Switch_all_leds(false);
+        Switch_all_leds(true);
         Reset_shifters_channels();
         Init_context_sets();
     }
