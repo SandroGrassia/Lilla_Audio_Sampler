@@ -161,7 +161,6 @@
 #include "PsramManager.h"
 #include "LillaFRAM_MB85RC_I2C.h"
 
-// #include "GlobalDisplay.h"
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
 #include "DisplayManager.h"
@@ -1047,7 +1046,7 @@ void setup()
 
     // Setup Display (module)
     tft.begin();
-    tft.setRotation(3);
+    tft.setRotation(1);
     tft.setTextWrap(false);
     tft.fillScreen(ILI9341_BLACK);
     canvas.setTextWrap(false);
@@ -1110,8 +1109,7 @@ void setup()
     // indica quale encoder e' stato ruotato (+/-1) o pulsante e' stato premuto
     if (true) // (Read_pushbutton(0))
     {
-        // Display_Manager.Encoder_pushbutton_test_board();
-
+        Display_Manager.Encoder_pushbutton_test_board();
         while (true)
         {
             Shifters_manager.Update();
@@ -1121,7 +1119,7 @@ void setup()
                 auto R = Encoders_manager.Get_rotation(i);
                 if (R != 0)
                 {
-                    // Display_Manager.Encoder_pushbutton_test_result(1, i, R);
+                    Display_Manager.Encoder_pushbutton_test_result(1, i, R);
                     Serial.print("encoder ");
                     Serial.print(i);
                     Serial.print(" value ");
@@ -1134,7 +1132,7 @@ void setup()
                 auto R = Pushbuttons_manager.Get_output(i);
                 if (R == true)
                 {
-                    // Display_Manager.Encoder_pushbutton_test_result(2, i, 0);
+                    Display_Manager.Encoder_pushbutton_test_result(2, i, 0);
                     Serial.print("pushbutton ");
                     Serial.print(i);
                     Serial.println(" pressed");
