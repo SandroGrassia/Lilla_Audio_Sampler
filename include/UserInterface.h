@@ -16,8 +16,9 @@ Userinterface.h version for LILLA PCB_2026_R1
 // Encoders, Pushbuttons, Shift Register chips
 static constexpr int ENCODERS = 17;
 static constexpr int PUSHBUTTONS = 38;
-static constexpr int SWITCH_TOOLS = 4;
-static constexpr int SWITCH_MODES = 4;
+static constexpr uint8_t SWITCHES = 2;
+static constexpr int SWITCH_TOOLS_CONTACTS = 4;
+static constexpr int SWITCH_MODES_CONTACTS = 4;
 static constexpr int UI_LEDS = 5;
 static constexpr int SHIFTERS = 5;          // number of shifter chips
 static constexpr int SHIFTER_CHANNELS = 16; // number of channels in a shifter
@@ -241,6 +242,13 @@ static constexpr Pushbutton_physical_struct pushbutton_physical[PUSHBUTTONS] = {
     {2, b1}  // Pushbutton 37 -> PB_37
 };
 
+// Switch names
+enum SwitchNames : int
+{
+    SwitchTools = 0,
+    SwitchModes = 1
+}
+
 // Loop Rec LED
 struct UI_LEDs_physical_struct
 {
@@ -412,10 +420,10 @@ enum EnPbSwNames : int
 
 constexpr EnPbSwNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
 constexpr EnPbSwNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
-constexpr EnPbSwNames SW_TOOLS[SWITCH_TOOLS] = {SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test};
-constexpr EnPbSwNames SW_MODES[SWITCH_MODES] = {SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop};
+constexpr EnPbSwNames SW_TOOLS[SWITCH_TOOLS_CONTACTS] = {SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test};
+constexpr EnPbSwNames SW_MODES[SWITCH_MODES_CONTACTS] = {SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop};
 
-// LEDs name
+// LED names
 enum LedNames : int
 {
     LED_Rec_1 = 0,
@@ -424,3 +432,5 @@ enum LedNames : int
     LED_Rec_4 = 3,
     LED_Tools = 4
 };
+
+

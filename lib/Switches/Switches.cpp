@@ -4,13 +4,13 @@
  *
  */
 
-#include "Switch.h"
+#include "Switches.h"
 
-void Switch::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts)
+void Switches::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts)
 {
     if (switch_id >= SWITCHES)
     {
-        Serial.print(F("Switch::Transmit_contacts(): ERROR, invalid switch_id: "));
+        Serial.print(F("Switches::Transmit_contacts(): ERROR, invalid switch_id: "));
         Serial.println(switch_id);
         return;
     }
@@ -22,7 +22,7 @@ void Switch::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts
     
     if (contacts >= CONTACTS_VALUES)
     {
-        Serial.print(F("Switch::Transmit_contacts(): ERROR, invalid contacts: "));
+        Serial.print(F("Switches::Transmit_contacts(): ERROR, invalid contacts: "));
         Serial.println(contacts);
         return;
     }
@@ -54,11 +54,11 @@ void Switch::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts
     }
 }
 
-uint8_t Switch::Get_output(const uint8_t &switch_id)
+uint8_t Switches::Get_output(const uint8_t &switch_id)
 {
     if (switch_id >= SWITCHES)
     {
-        Serial.print(F("Switch::Get_output(): ERROR, invalid switch_id: "));
+        Serial.print(F("Switches::Get_output(): ERROR, invalid switch_id: "));
         Serial.println(switch_id);
         return DEFAULT_POSITION;
     }
@@ -66,7 +66,7 @@ uint8_t Switch::Get_output(const uint8_t &switch_id)
     return output[switch_id];
 }
 
-void Switch::Reset(void)
+void Switches::Reset(void)
 {
     for (auto i = 0; i < SWITCHES; ++i)
     {

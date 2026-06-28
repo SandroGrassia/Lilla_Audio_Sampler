@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 
-class Switch
+class Switches
 {
 private:
     static constexpr uint8_t CONTACTS_VALUES = 16;
@@ -20,12 +20,11 @@ private:
 
     static constexpr uint8_t DEFAULT_POSITION = 0;
     static constexpr int PAUSE_SWITCH = 50; // milliseconds
-    static constexpr uint8_t SWITCHES = 2;
     uint8_t output[SWITCHES]; // valid values: 0, 1, 2, 3
     uint32_t timer[SWITCHES];
 
 public:
-    Switch()
+    Switches()
     {
         Reset();
     }

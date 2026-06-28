@@ -21,7 +21,7 @@ At startup
 
 For each loop():
 - main.cpp calls Update()
-- Shifters_manager calls the monitored_shifters and reads the status of the DT/CLK and "PB" pins of the monitored_encoders and monitored_pushbuttons
+- Shifters_manager calls the monitored_shifters and reads the status of the DT/CLK and "PB" pins of the monitored_encoders and monitored_pushbuttons_switches
 - Shifters_manager send the filterd data to EncordersObj and Pushbuttons_manager
 - main.cpp calls  EncordersObj and Pushbuttons_manager ...
 
@@ -37,6 +37,7 @@ When Lilla_state changes, also the set of monitored encoders changes:
 #include "UserInterface.h"
 #include "Encoders.h"
 #include "Pushbuttons.h"
+#include "Switches.h"
 
 
 class ShiftRegisters
@@ -47,6 +48,7 @@ private:
     Adafruit_MCP23X17 Shifter[SHIFTERS]; // Physical shift registers
     Encoders &Encoders_manager;
     Pushbuttons &Pushbuttons_manager;
+    Switches &Switches_manager;
 
     static constexpr int STATES = 4;
     enum Type
@@ -61,32 +63,40 @@ private:
     
     // Variable used as lookup table
     uint32_t monitored_encoders;    // initial ENCODERS (17) bits, from 0 to 16, corresponds to an encoder (all other bits are ignored): 0b 00000000 0000000X XXXXXXXX XXXXXXXX  -  X=1: encoder monitored, X=0: encoder excluded
-    uint64_t monitored_pushbuttons; // initial PUSHBUTTONS (38) bits, from 0 to 37, corresponds to a pushbutton (all other bits are ignored): 0b 00000000 00000000 00000000  00XXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX  - X=1: pushbutton monitored, X=0: pushbutton excluded
+    uint64_t monitored_pushbuttons_switches; // initial PUSHBUTTONS (38) bits, from 0 to 37, corresponds to a pushbutton (all other bits are ignored): 0b 00000000 00000000 00000000  00XXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX  - X=1: pushbutton monitored, X=0: pushbutton excluded
     uint8_t monitored_shifters;     // initial SHIFTERS (5) bits, from 0 to 4, corresponds to a shifter (all other bits are ignored): 0b 000XXXXX  -  X=1: shifter monitored, X=0: shifter excluded
     uint16_t monitored_channels[SHIFTERS];
 
     uint32_t context_encoders[LILLA_CONTEXTS];
-    uint64_t context_pushbuttons[LILLA_CONTEXTS];
+    uint64_t context_pushbuttons_switches[LILLA_CONTEXTS];
 
     // Setup physical shifter
     void Start_SPI_for_shifters(void);
     void Setup_physical_channels(void);
 
-    void Reset_shifters_channels(void); // all input declared 1 (open)
+    // Initializes the previous-scan cache as all channels open/high, matching the MCP23S17 input pull-up idle state.
+    void Reset_shifters_channels(void);
+
+    // Clears the active shifter/channel monitoring masks before rebuilding them for the current UI context.
     void Reset_monitored_channels(void);
+
+    // Reads the full 16-bit GPIO state from one physical MCP23S17 shifter into the latest-scan cache.
     void Read_channels(const int &id);
+
+    // Detects which channels changed since the previous scan, keeps only the monitored ones, then promotes the last scan to the old state.
     void Filter_channels_changed_values(const int &id);
+
     void Set_monitored_encoders(const uint32_t &data);
-    void Set_monitored_pushbuttons(const uint64_t &data);
+    void Set_monitored_pushbuttons_switches(const uint64_t &data);
     void Set_monitored_encoders_pushbuttons(const uint32_t &enc, const uint64_t &pb);
     void Init_context_sets(void);
 
 public:
-    ShiftRegisters(Encoders &EncsObj, Pushbuttons &PbsObj) : Encoders_manager(EncsObj), Pushbuttons_manager(PbsObj)
+    ShiftRegisters(Encoders &EncsObj, Pushbuttons &PbsObj, Switches &SwcObj) : Encoders_manager(EncsObj), Pushbuttons_manager(PbsObj), Switches_manager(SwcObj)
     {
         Start_SPI_for_shifters();
         Setup_physical_channels();
-        Switch_all_leds(true);
+        Switch_all_leds(false);
         Reset_shifters_channels();
         Init_context_sets();
     }

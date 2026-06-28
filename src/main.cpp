@@ -116,6 +116,7 @@
 #include "ShiftRegisters.h"
 #include "Encoders.h"
 #include "Pushbuttons.h"
+#include "Switches.h"
 
 #include "SharedElements.h"
 #include "SharedPerformance.h"
@@ -380,8 +381,11 @@ Encoders Encoders_manager;
 // Pushbuttons
 Pushbuttons Pushbuttons_manager;
 
+// Switches
+Switches Switches_manager;
+
 // Shift register chips
-ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager);
+ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager, Switches_manager);
 
 // FRAM
 LillaFRAM_MB85RC_I2C FRAMchip;
