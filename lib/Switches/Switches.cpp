@@ -50,15 +50,16 @@ void Switches::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contac
     if (next_output != output[switch_id])
     {
         output[switch_id] = next_output;
+        changed[switch_id] = true;
         timer[switch_id] = millis() + PAUSE_SWITCH;
     }
 }
 
-uint8_t Switches::Get_output(const uint8_t &switch_id)
+uint8_t Switches::Get_value(const uint8_t &switch_id)
 {
     if (switch_id >= SWITCHES)
     {
-        Serial.print(F("Switches::Get_output(): ERROR, invalid switch_id: "));
+        Serial.print(F("Switches::Get_value(): ERROR, invalid switch_id: "));
         Serial.println(switch_id);
         return DEFAULT_POSITION;
     }
@@ -66,11 +67,26 @@ uint8_t Switches::Get_output(const uint8_t &switch_id)
     return output[switch_id];
 }
 
+bool Switches::Get_change(const uint8_t &switch_id)
+{
+    if (switch_id >= SWITCHES)
+    {
+        Serial.print(F("Switches::Get_change(): ERROR, invalid switch_id: "));
+        Serial.println(switch_id);
+        return false;
+    }
+
+    bool value = changed[switch_id];
+    changed[switch_id] = false;
+    return value;
+}
+
 void Switches::Reset(void)
 {
     for (auto i = 0; i < SWITCHES; ++i)
     {
         output[i] = DEFAULT_POSITION;
+        changed[i] = false;
         timer[i] = 0;
     }
 }

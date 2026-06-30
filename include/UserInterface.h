@@ -247,7 +247,21 @@ enum SwitchNames : int
 {
     SwitchTools = 0,
     SwitchModes = 1
-}
+};
+
+struct Switch_physical_struct
+{
+    uint8_t shifter_id;
+    ShifterPort A_pin_shifter_channel;
+    ShifterPort B_pin_shifter_channel;
+    ShifterPort C_pin_shifter_channel;
+    ShifterPort D_pin_shifter_channel;
+};
+
+static constexpr Switch_physical_struct switch_physical[SWITCHES] = {
+    {1, a7, a6, b1, b0}, // SwitchTools = 0,
+    {1, a0, a1, a2, a3}  // SwitchModes = 1
+};
 
 // Loop Rec LED
 struct UI_LEDs_physical_struct
@@ -264,10 +278,11 @@ static constexpr UI_LEDs_physical_struct UI_leds[UI_LEDS] = {
     {1, a5}, // LED_P12 (LED_Tools)
 };
 
-struct EncoderPushbutton
+struct EncoderPushbuttonSwitch
 {
     int encoder_id;
     int pushbutton_id;
+    int switch_id;
 };
 
 // Lookup table that maps each physical shifter channel to the UI control connected to it.
@@ -275,100 +290,100 @@ struct EncoderPushbutton
 // inside that shifter (a0...a7, b0...b7).
 //
 // Each entry contains:
-//   {encoder_id, pushbutton_id}
+//   {encoder_id, pushbutton_id, switch_id}
 //
 // Use -1 when no encoder or pushbutton is assigned to that channel.
-// Channels used by other devices, such as LEDs, are also marked as {-1, -1}.
-static constexpr EncoderPushbutton Shifter_channel_to_encoder_pushbutton[SHIFTERS][SHIFTER_CHANNELS] = {
+// Channels used by other devices, such as LEDs, are also marked as {-1, -1, -1}.
+static constexpr EncoderPushbuttonSwitch Shifter_channel_to_encoder_pushbutton_switch[SHIFTERS][SHIFTER_CHANNELS] = {
     /* ===================== SHIFTER 0 ===================== */
-    {/* a0 */ {-1, 16}, // PB_16
-     /* a1 */ {16, -1}, // DT_16
-     /* a2 */ {16, -1}, // CLK_16
-     /* a3 */ {0, -1},  // DT_0
-     /* a4 */ {0, -1},  // CLK_0
-     /* a5 */ {-1, 0},  // PB_0
-     /* a6 */ {1, -1},  // DT_1
-     /* a7 */ {1, -1},  // CLK_1
-     /* b0 */ {2, -1},  // CLK_2
-     /* b1 */ {2, -1},  // DT_2
-     /* b2 */ {-1, 1},  // PB_1
-     /* b3 */ {-1, 2},  // PB_2
-     /* b4 */ {3, -1},  // CLK_3
-     /* b5 */ {3, -1},  // DT_3
-     /* b6 */ {-1, 3},  // PB_3
-     /* b7 */ {-1, -1}},
+    {/* a0 */ {-1, 16, -1}, // PB_16
+     /* a1 */ {16, -1, -1}, // DT_16
+     /* a2 */ {16, -1, -1}, // CLK_16
+     /* a3 */ {0, -1, -1},  // DT_0
+     /* a4 */ {0, -1, -1},  // CLK_0
+     /* a5 */ {-1, 0, -1},  // PB_0
+     /* a6 */ {1, -1, -1},  // DT_1
+     /* a7 */ {1, -1, -1},  // CLK_1
+     /* b0 */ {2, -1, -1},  // CLK_2
+     /* b1 */ {2, -1, -1},  // DT_2
+     /* b2 */ {-1, 1, -1},  // PB_1
+     /* b3 */ {-1, 2, -1},  // PB_2
+     /* b4 */ {3, -1, -1},  // CLK_3
+     /* b5 */ {3, -1, -1},  // DT_3
+     /* b6 */ {-1, 3, -1},  // PB_3
+     /* b7 */ {-1, -1, -1}},
 
     /* ===================== SHIFTER 1 ===================== */
-    {/* a0 */ {-1, 33}, // PB_33
-     /* a1 */ {-1, 34}, // PB_34
-     /* a2 */ {-1, 35}, // PB_35
-     /* a3 */ {-1, 36}, // PB_36
-     /* a4 */ {-1, 32}, // PB_32
-     /* a5 */ {-1, -1}, // ***** LED_P12 (LED_Tools)
-     /* a6 */ {-1, 29}, // PB_29
-     /* a7 */ {-1, 28}, // PB_28
-     /* b0 */ {-1, 31}, // PB_31
-     /* b1 */ {-1, 30}, // PB_30
-     /* b2 */ {4, -1},  // CLK_4
-     /* b3 */ {4, -1},  // DT_4
-     /* b4 */ {-1, 4},  // PB_4
-     /* b5 */ {6, -1},  // DT_6
-     /* b6 */ {6, -1},  // CLK_6
-     /* b7 */ {-1, 6}}, // PB_6
+    {/* a0 */ {-1, -1, 1}, // SW_1_A (SW_MODES) ex PB_33
+     /* a1 */ {-1, -1, 1}, // SW_1_B (SW_MODES) ex PB_34
+     /* a2 */ {-1, -1, 1}, // SW_1_C (SW_MODES) ex PB_35
+     /* a3 */ {-1, -1, 1}, // SW_1_D (SW_MODES) ex PB_36
+     /* a4 */ {-1, 32, -1}, // PB_32
+     /* a5 */ {-1, -1, -1}, // ***** LED_P12 (LED_Tools)
+     /* a6 */ {-1, -1, 0}, // SW_0_B (SW_TOOLS) ex PB_29
+     /* a7 */ {-1, -1, 0}, // SW_0_A (SW_TOOLS) ex PB_28
+     /* b0 */ {-1, -1, 0}, // SW_0_D (SW_TOOLS) ex PB_31
+     /* b1 */ {-1, -1, 0}, // SW_0_C (SW_TOOLS) ex PB_30
+     /* b2 */ {4, -1, -1},  // CLK_4
+     /* b3 */ {4, -1, -1},  // DT_4
+     /* b4 */ {-1, 4, -1},  // PB_4
+     /* b5 */ {6, -1, -1},  // DT_6
+     /* b6 */ {6, -1, -1},  // CLK_6
+     /* b7 */ {-1, 6, -1}}, // PB_6
 
     /* ===================== SHIFTER 2 ===================== */
-    {/* a0 */ {-1, 21},  // PB_21
-     /* a1 */ {-1, -1},  // ***** LED_P8 (LED_Rec_1)
-     /* a2 */ {-1, 24},  // PB_24
-     /* a3 */ {-1, 5},   // PB_5
-     /* a4 */ {7, -1},   // DT_7
-     /* a5 */ {7, -1},   // CLK_7
-     /* a6 */ {5, -1},   // DT_5
-     /* a7 */ {5, -1},   // CLK_5
-     /* b0 */ {-1, 7},   // PB_7
-     /* b1 */ {-1, 37},  // PB_37
-     /* b2 */ {-1, 17},  // PB_17
-     /* b3 */ {-1, 18},  // PB_18
-     /* b4 */ {-1, 19},  // PB_19
-     /* b5 */ {-1, 20},  // PB_20
-     /* b6 */ {-1, 25},  // PB_25
-     /* b7 */ {-1, -1}}, // ***** LED_P9 (LED_Rec_2)
+    {/* a0 */ {-1, 21, -1},  // PB_21
+     /* a1 */ {-1, -1, -1},  // ***** LED_P8 (LED_Rec_1)
+     /* a2 */ {-1, 24, -1},  // PB_24
+     /* a3 */ {-1, 5, -1},   // PB_5
+     /* a4 */ {7, -1, -1},   // DT_7
+     /* a5 */ {7, -1, -1},   // CLK_7
+     /* a6 */ {5, -1, -1},   // DT_5
+     /* a7 */ {5, -1, -1},   // CLK_5
+     /* b0 */ {-1, 7, -1},   // PB_7
+     /* b1 */ {-1, 37, -1},  // PB_37
+     /* b2 */ {-1, 17, -1},  // PB_17
+     /* b3 */ {-1, 18, -1},  // PB_18
+     /* b4 */ {-1, 19, -1},  // PB_19
+     /* b5 */ {-1, 20, -1},  // PB_20
+     /* b6 */ {-1, 25, -1},  // PB_25
+     /* b7 */ {-1, -1, -1}}, // ***** LED_P9 (LED_Rec_2)
 
     /* ===================== SHIFTER 3 ===================== */
-    {/* a0 */ {14, -1}, // CLK_14
-     /* a1 */ {14, -1}, // DT_14
-     /* a2 */ {-1, 13}, // PB_13
-     /* a3 */ {13, -1}, // DT_13
-     /* a4 */ {13, -1}, // CLK_13
-     /* a5 */ {-1, 12}, // PB_12
-     /* a6 */ {12, -1}, // DT_12
-     /* a7 */ {12, -1}, // CLK_12
-     /* b0 */ {-1, 8},  // PB_8
-     /* b1 */ {8, -1},  // CLK_8
-     /* b2 */ {8, -1},  // DT_8
-     /* b3 */ {-1, 11}, // PB_11
-     /* b4 */ {11, -1}, // CLK_11
-     /* b5 */ {11, -1}, // DT_11
-     /* b6 */ {-1, 14}, // PB_14
-     /* b7 */ {-1, -1}},
+    {/* a0 */ {14, -1, -1}, // CLK_14
+     /* a1 */ {14, -1, -1}, // DT_14
+     /* a2 */ {-1, 13, -1}, // PB_13
+     /* a3 */ {13, -1, -1}, // DT_13
+     /* a4 */ {13, -1, -1}, // CLK_13
+     /* a5 */ {-1, 12, -1}, // PB_12
+     /* a6 */ {12, -1, -1}, // DT_12
+     /* a7 */ {12, -1, -1}, // CLK_12
+     /* b0 */ {-1, 8, -1},  // PB_8
+     /* b1 */ {8, -1, -1},  // CLK_8
+     /* b2 */ {8, -1, -1},  // DT_8
+     /* b3 */ {-1, 11, -1}, // PB_11
+     /* b4 */ {11, -1, -1}, // CLK_11
+     /* b5 */ {11, -1, -1}, // DT_11
+     /* b6 */ {-1, 14, -1}, // PB_14
+     /* b7 */ {-1, -1, -1}},
 
     /* ===================== SHIFTER 4 ===================== */
-    {/* a0 */ {-1, 15}, // PB_15
-     /* a1 */ {15, -1}, // CLK_15
-     /* a2 */ {15, -1}, // DT_15
-     /* a3 */ {-1, -1}, // ***** LED_P11 (LED_Rec_3)
-     /* a4 */ {-1, 27}, // PB_27
-     /* a5 */ {9, -1},  // DT_9
-     /* a6 */ {9, -1},  // CLK_9
-     /* a7 */ {-1, 9},  // PB_9
-     /* b0 */ {10, -1}, // DT_10
-     /* b1 */ {10, -1}, // CLK_10
-     /* b2 */ {-1, 10}, // PB_10
-     /* b3 */ {-1, 26}, // PB_26
-     /* b4 */ {-1, -1}, // ***** LED_P10 (LED_Rec_4)
-     /* b5 */ {-1, -1},
-     /* b6 */ {-1, 22}, // PB_22
-     /* b7 */ {-1, 23}} // PB_23
+    {/* a0 */ {-1, 15, -1}, // PB_15
+     /* a1 */ {15, -1, -1}, // CLK_15
+     /* a2 */ {15, -1, -1}, // DT_15
+     /* a3 */ {-1, -1, -1}, // ***** LED_P11 (LED_Rec_3)
+     /* a4 */ {-1, 27, -1}, // PB_27
+     /* a5 */ {9, -1, -1},  // DT_9
+     /* a6 */ {9, -1, -1},  // CLK_9
+     /* a7 */ {-1, 9, -1},  // PB_9
+     /* b0 */ {10, -1, -1}, // DT_10
+     /* b1 */ {10, -1, -1}, // CLK_10
+     /* b2 */ {-1, 10, -1}, // PB_10
+     /* b3 */ {-1, 26, -1}, // PB_26
+     /* b4 */ {-1, -1, -1}, // ***** LED_P10 (LED_Rec_4)
+     /* b5 */ {-1, -1, -1},
+     /* b6 */ {-1, 22, -1}, // PB_22
+     /* b7 */ {-1, 23, -1}} // PB_23
 };
 
 // Encoders an pushbuttons (and switch positions) names
@@ -407,7 +422,7 @@ enum EnPbSwNames : int
     SW_TOOLS_Delay = 29,
     SW_TOOLS_Setup = 30,
     SW_TOOLS_Test = 31,
- 
+
     PB_Tools = 32,
 
     SW_MODE_Sampler = 33,
@@ -432,5 +447,3 @@ enum LedNames : int
     LED_Rec_4 = 3,
     LED_Tools = 4
 };
-
-

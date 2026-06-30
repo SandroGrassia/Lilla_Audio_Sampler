@@ -62,13 +62,16 @@ private:
     uint16_t shifter_channel_value[STATES][SHIFTERS]; // Used for caching Shifter[shifter_id].readGPIOAB(); 0: old read; 1: last read; 2: filtered (old EXOR last)
     
     // Variable used as lookup table
-    uint32_t monitored_encoders;    // initial ENCODERS (17) bits, from 0 to 16, corresponds to an encoder (all other bits are ignored): 0b 00000000 0000000X XXXXXXXX XXXXXXXX  -  X=1: encoder monitored, X=0: encoder excluded
-    uint64_t monitored_pushbuttons_switches; // initial PUSHBUTTONS (38) bits, from 0 to 37, corresponds to a pushbutton (all other bits are ignored): 0b 00000000 00000000 00000000  00XXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX  - X=1: pushbutton monitored, X=0: pushbutton excluded
+    uint32_t monitored_encoders;    // initial ENCODERS (17) bits, from 0 to 16, correspond to encoders (all other bits are ignored): 0b 00000000 0000000X XXXXXXXX XXXXXXXX  -  X=1: encoder monitored, X=0: encoder excluded
+    uint64_t monitored_pushbuttons; // initial PUSHBUTTONS (38) bits, from 0 to 37, correspond to pushbuttons (all other bits are ignored): 0b 00000000 00000000 00000000  00XXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX  - X=1: pushbutton monitored, X=0: pushbutton excluded
+    uint8_t monitored_switches; // initial SWITCHES (2) bits, from 0 to 1, correspond to switches (all other bits are ignored): 0b 000000XX  - X=1: switch monitored, X=0: switch excluded
+
     uint8_t monitored_shifters;     // initial SHIFTERS (5) bits, from 0 to 4, corresponds to a shifter (all other bits are ignored): 0b 000XXXXX  -  X=1: shifter monitored, X=0: shifter excluded
     uint16_t monitored_channels[SHIFTERS];
 
     uint32_t context_encoders[LILLA_CONTEXTS];
-    uint64_t context_pushbuttons_switches[LILLA_CONTEXTS];
+    uint64_t context_pushbuttons[LILLA_CONTEXTS];
+    uint8_t context_switches[LILLA_CONTEXTS];
 
     // Setup physical shifter
     void Start_SPI_for_shifters(void);
@@ -87,8 +90,9 @@ private:
     void Filter_channels_changed_values(const int &id);
 
     void Set_monitored_encoders(const uint32_t &data);
-    void Set_monitored_pushbuttons_switches(const uint64_t &data);
-    void Set_monitored_encoders_pushbuttons(const uint32_t &enc, const uint64_t &pb);
+    void Set_monitored_pushbuttons(const uint64_t &data);
+    void Set_monitored_switches(const uint8_t &data);
+    void Set_monitored_encoders_pushbuttons_switches(const uint32_t &enc, const uint64_t &pb, const uint8_t &sw);
     void Init_context_sets(void);
 
 public:

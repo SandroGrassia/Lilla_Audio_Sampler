@@ -1124,22 +1124,36 @@ void setup()
                 if (R != 0)
                 {
                     Display_Manager.Encoder_pushbutton_test_result(1, i, R);
-                    Serial.print("encoder ");
+                    Serial.print("encoder: ");
                     Serial.print(i);
-                    Serial.print(" value ");
+                    Serial.print(" value: ");
                     Serial.println(R);
                 }
             }
 
             for (auto i = 0; i < PUSHBUTTONS; ++i)
             {
-                auto R = Pushbuttons_manager.Get_output(i);
+                auto R = Pushbuttons_manager.Get_change(i);
                 if (R == true)
                 {
                     Display_Manager.Encoder_pushbutton_test_result(2, i, 0);
                     Serial.print("pushbutton ");
                     Serial.print(i);
                     Serial.println(" pressed");
+                }
+            }
+
+            for (auto i = 0; i < SWITCHES; ++i)
+            {
+                auto R = Switches_manager.Get_change(i);
+                if (R == true)
+                {
+                    auto value = Switches_manager.Get_value(i);
+                    Display_Manager.Encoder_pushbutton_test_result(3, i, value);
+                    Serial.print("switch: ");
+                    Serial.print(i);
+                    Serial.print(" value: ");
+                    Serial.println(value);
                 }
             }
         }
@@ -12410,7 +12424,7 @@ void Macro_VCF_modulation_none(void)
 
 bool Read_pushbutton(int element)
 {
-    return (Pushbuttons_manager.Get_output(element));
+    return (Pushbuttons_manager.Get_change(element));
 }
 bool Read_pushbutton_fast(int element)
 {

@@ -1216,7 +1216,7 @@ void DisplayManager::Encoder_pushbutton_test_board(void)
 
     tft.setTextColor(ILI9341_RED);
     tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + 4);
-    tft.print(F("ENCODERS AND PUSHBUTTONS TEST"));
+    tft.print(F("PHYSICAL CONTROLS TEST"));
 }
 
 void DisplayManager::Encoder_pushbutton_test_result(const int device, const int element, const int value)
@@ -1254,6 +1254,13 @@ void DisplayManager::Encoder_pushbutton_test_result(const int device, const int 
             tft.print("pushbutton ");
             tft.print(memo[i].element);
             tft.print(" pressed");
+        }
+        if (memo[i].device == 3)
+        {
+            tft.print("switch ");
+            tft.print(memo[i].element);
+            tft.print(" value ");
+            tft.print(memo[i].value);
         }
     }
 }

@@ -65,6 +65,12 @@ void ShiftRegisters::Switch_all_leds(bool on)
 
 void ShiftRegisters::Switch_led(int led, bool on)
 {
+    if (led < 0 || led >= UI_LEDS)
+    {
+        Serial.println(F("Switch_led(int led, bool on) ERROR! Invalid led."));
+        return;
+    }
+
     Shifter[UI_leds[led].shifter_id].digitalWrite(UI_leds[led].shifter_channel, (on ? LOW : HIGH));
 }
 
@@ -72,7 +78,7 @@ void ShiftRegisters::Set_monitored_encoders(const uint32_t &data)
 {
     monitored_encoders = data;
 
-    Serial.print("monitored_encoders, BIN: ");
+    Serial.print(F("monitored_encoders, BIN: "));
     Serial.println(monitored_encoders, BIN);
 
     for (auto i = 0; i < ENCODERS; ++i)
@@ -87,16 +93,37 @@ void ShiftRegisters::Set_monitored_encoders(const uint32_t &data)
     }
 }
 
-void ShiftRegisters::Set_monitored_pushbuttons_switches(const uint64_t &data)
+void ShiftRegisters::Set_monitored_switches(const uint8_t &data)
 {
-    monitored_pushbuttons_switches = data;
+    monitored_switches = data;
 
-    Serial.print("monitored_pushbuttons_switches, BIN: ");
-    Serial.println(monitored_pushbuttons_switches, BIN);
+    Serial.print(F("monitored_switches, BIN: "));
+    Serial.println(monitored_switches, BIN);
+
+    for (auto i = 0; i < SWITCHES; ++i)
+    {
+        if (bitRead(monitored_switches, i))
+        {
+            const auto shifter_id = switch_physical[i].shifter_id;
+            bitWrite(monitored_shifters, shifter_id, 1);
+            bitWrite(monitored_channels[shifter_id], switch_physical[i].A_pin_shifter_channel, 1);
+            bitWrite(monitored_channels[shifter_id], switch_physical[i].B_pin_shifter_channel, 1);
+            bitWrite(monitored_channels[shifter_id], switch_physical[i].C_pin_shifter_channel, 1);
+            bitWrite(monitored_channels[shifter_id], switch_physical[i].D_pin_shifter_channel, 1);
+        }
+    }
+}
+
+void ShiftRegisters::Set_monitored_pushbuttons(const uint64_t &data)
+{
+    monitored_pushbuttons = data;
+
+    Serial.print(F("monitored_pushbuttons, BIN: "));
+    Serial.println(monitored_pushbuttons, BIN);
 
     for (auto i = 0; i < PUSHBUTTONS; ++i)
     {
-        if (bitRead(monitored_pushbuttons_switches, i))
+        if (bitRead(monitored_pushbuttons, i))
         {
             const auto shifter_id = pushbutton_physical[i].shifter_id;
             bitWrite(monitored_shifters, shifter_id, 1);
@@ -110,7 +137,7 @@ static uint32_t Make_encoders_mask(std::initializer_list<int> list)
     uint32_t mask = 0;
     for (int idx : list)
     {
-        if (idx < 32)
+        if (idx < ENCODERS)
         {
             bitWrite(mask, idx, 1);
         }
@@ -123,7 +150,7 @@ static uint64_t Make_pushbuttons_mask(std::initializer_list<int> list)
     uint64_t mask = 0;
     for (int idx : list)
     {
-        if (idx < 64)
+        if (idx < PUSHBUTTONS)
         {
             mask |= (uint64_t(1) << idx);
         }
@@ -131,104 +158,120 @@ static uint64_t Make_pushbuttons_mask(std::initializer_list<int> list)
     return mask;
 }
 
+static uint8_t Make_switches_mask(std::initializer_list<int> list)
+{
+    uint8_t mask = 0;
+    for (int idx : list)
+    {
+        if (idx < SWITCHES)
+        {
+            mask |= (uint8_t(1) << idx);
+        }
+    }
+    return mask;
+}
+
 void ShiftRegisters::Init_context_sets(void)
 {
+    const auto all_switches = Make_switches_mask({SwitchTools, SwitchModes});
+
     context_encoders[Start_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
                                                           EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol});
 
-    context_pushbuttons_switches[Start_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
-                                                                         EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                         PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Rec1, PB_Rec2, PB_Rec4, PB_Rec3, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, PB_Tools,
-                                                                         SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop, PB_S1});
+    context_pushbuttons[Start_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
+                                                                EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Rec1, PB_Rec2, PB_Rec4, PB_Rec3, PB_Tools, PB_S1});
+    context_switches[Start_context] = all_switches;
 
     context_encoders[Performance_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                 EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_To});
 
-    context_pushbuttons_switches[Performance_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                               EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_To, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                               PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Performance_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                      EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_To, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Performance_context] = all_switches;
 
     context_encoders[Sound_edit_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To});
 
-    context_pushbuttons_switches[Sound_edit_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                              EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                              PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Sound_edit_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                     EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Sound_edit_context] = all_switches;
 
     context_encoders[Instrument_Vcf_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                    EN_PB_Select, EN_PB_Value});
 
-    context_pushbuttons_switches[Instrument_Vcf_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                                  EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                                  PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Instrument_Vcf_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                         EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Instrument_Vcf_context] = all_switches;
 
     context_encoders[Mixer_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                           EN_PB_Select, EN_PB_Value});
-    context_pushbuttons_switches[Mixer_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                         EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                         PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Mixer_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Mixer_context] = all_switches;
 
     context_encoders[Delay_settings_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                    EN_PB_Select, EN_PB_Value});
-    context_pushbuttons_switches[Delay_settings_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                                  EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                                  PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Delay_settings_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                         EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Delay_settings_context] = all_switches;
 
     context_encoders[Live_Sampling_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                   EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To});
-    context_pushbuttons_switches[Live_Sampling_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                                 EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                                 PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Live_Sampling_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                        EN_PB_Select, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Live_Sampling_context] = all_switches;
 
     context_encoders[Direct_Sampling_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                     EN_PB_Select, EN_PB_Value});
-    context_pushbuttons_switches[Direct_Sampling_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                                   EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8,
-                                                                                   PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Direct_Sampling_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                          EN_PB_Select, EN_PB_Value, PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Tools});
+    context_switches[Direct_Sampling_context] = all_switches;
 
     context_encoders[Midi_Monitor_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol});
-
-    context_pushbuttons_switches[Midi_Monitor_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                                PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Midi_Monitor_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, PB_Tools});
+    context_switches[Midi_Monitor_context] = all_switches;
 
     context_encoders[Midi_Loop_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                              EN_PB_Select, EN_PB_Value,
-                                                              EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4});
-
-    context_pushbuttons_switches[Midi_Loop_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                             EN_PB_Select, EN_PB_Value,
-                                                                             EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4,
-                                                                             PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4,
-                                                                             PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+                                                              EN_PB_Select, EN_PB_Value, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4});
+    context_pushbuttons[Midi_Loop_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                                    EN_PB_Select, EN_PB_Value, PB_Tools, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4,
+                                                                    PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4});
+    context_switches[Midi_Loop_context] = all_switches;
 
     context_encoders[Setup_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                           EN_PB_Select, EN_PB_Value});
-    context_pushbuttons_switches[Setup_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                         EN_PB_Select, EN_PB_Value,
-                                                                         PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Setup_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, EN_PB_Select, EN_PB_Value, PB_Tools});
+    context_switches[Setup_context] = all_switches;
 
     context_encoders[Control_Change_context] = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
                                                                    EN_PB_Select, EN_PB_Value});
-    context_pushbuttons_switches[Control_Change_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                                                  EN_PB_Select, EN_PB_Value,
-                                                                                  PB_Tools, SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test, SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop});
+    context_pushbuttons[Control_Change_context] = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_LineOutVol, EN_PB_PreListenVol, EN_PB_Select, EN_PB_Value, PB_Tools});
+    context_switches[Control_Change_context] = all_switches;
 }
 
 void ShiftRegisters::Set_context(LillaContext context)
 {
-    Set_monitored_encoders_pushbuttons(context_encoders[context], context_pushbuttons_switches[context]);
+    if (context < 0 || context >= LILLA_CONTEXTS)
+    {
+        Serial.println(F("Set_context(LillaContext context) ERROR! Invalid context."));
+        return;
+    }
+
+    Set_monitored_encoders_pushbuttons_switches(context_encoders[context], context_pushbuttons[context], context_switches[context]);
 }
 
-void ShiftRegisters::Set_monitored_encoders_pushbuttons(const uint32_t &enc, const uint64_t &pb)
+void ShiftRegisters::Set_monitored_encoders_pushbuttons_switches(const uint32_t &enc, const uint64_t &pb, const uint8_t &sw)
 {
     Reset_monitored_channels();
     Set_monitored_encoders(enc);
-    Set_monitored_pushbuttons_switches(pb);
+    Set_monitored_pushbuttons(pb);
+    Set_monitored_switches(sw);
 
     if (true)
     {
-        Serial.println("Monitored shift register chips channeles");
-        Serial.println("b7  b6  b5  b4  b3  b2  b1  b0  a7  a6  a5  a4  a3  a2  a1  a0");
+        Serial.println(F("Monitored shift register chips channeles"));
+        Serial.println(F("b7  b6  b5  b4  b3  b2  b1  b0  a7  a6  a5  a4  a3  a2  a1  a0"));
         for (auto i = 0; i < SHIFTERS; ++i)
         {
             for (auto j = (SHIFTER_CHANNELS - 1); j >= 0; --j)
@@ -286,17 +329,15 @@ void ShiftRegisters::Update(void)
             {
                 if (bitRead(shifter_channel_value[Filtered][shifter_id], channel))
                 {
-                    const auto encoder = Shifter_channel_to_encoder_pushbutton[shifter_id][channel].encoder_id;
+                    const auto encoder_id = Shifter_channel_to_encoder_pushbutton_switch[shifter_id][channel].encoder_id;
+                    const auto pushbutton_id = Shifter_channel_to_encoder_pushbutton_switch[shifter_id][channel].pushbutton_id;
+                    const auto switch_id = Shifter_channel_to_encoder_pushbutton_switch[shifter_id][channel].switch_id;
 
-                    // Serial.print("encoder: ");
-                    // Serial.println(encoder);
-
-                    const auto pushbutton = Shifter_channel_to_encoder_pushbutton[shifter_id][channel].pushbutton_id;
-                    if (encoder > -1)
+                    if (encoder_id > -1)
                     {
-                        const int DT_channel = encoder_physical[encoder].DT_shifter_channel;
-                        const int CLK_channel = encoder_physical[encoder].CLK_shifter_channel;
-                        Encoders_manager.Transmit_DT_CLK(encoder, bitRead(shifter_channel_value[Last][shifter_id], DT_channel), bitRead(shifter_channel_value[Last][shifter_id], CLK_channel));
+                        const int DT_channel = encoder_physical[encoder_id].DT_shifter_channel;
+                        const int CLK_channel = encoder_physical[encoder_id].CLK_shifter_channel;
+                        Encoders_manager.Transmit_DT_CLK(encoder_id, bitRead(shifter_channel_value[Last][shifter_id], DT_channel), bitRead(shifter_channel_value[Last][shifter_id], CLK_channel));
 
                         // Both encoder channels are handled together; clear them to avoid a second transmission when the loop reaches the other changed channel.
                         bitWrite(shifter_channel_value[Filtered][shifter_id], DT_channel, 0);
@@ -314,56 +355,29 @@ void ShiftRegisters::Update(void)
                         Serial.println(bitRead(shifter_channel_value[Last][shifter_id], CLK_channel));
                         */
                     }
-                    else if (pushbutton > -1)
+                    else if (pushbutton_id > -1)
                     {
-                        switch (pushbutton)
-                        {
-                        case SW_TOOLS_Mixer:
-                        case SW_TOOLS_Delay:
-                        case SW_TOOLS_Setup:
-                        case SW_TOOLS_Test:
-                        {
-                            uint8_t value =
-                                bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_TOOLS[0]].shifter_channel) |
-                                (bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_TOOLS[1]].shifter_channel) << 1) |
-                                (bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_TOOLS[2]].shifter_channel) << 2) |
-                                (bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_TOOLS[3]].shifter_channel) << 3);
+                        Pushbuttons_manager.Transmit_position(pushbutton_id, bitRead(shifter_channel_value[Last][shifter_id], channel));
+                    }
 
-                            Switches_manager.Transmit_contacts(SwitchTools, value);
+                    else if (switch_id > -1)
+                    {
+                        const int A_channel = switch_physical[switch_id].A_pin_shifter_channel;
+                        const int B_channel = switch_physical[switch_id].B_pin_shifter_channel;
+                        const int C_channel = switch_physical[switch_id].C_pin_shifter_channel;
+                        const int D_channel = switch_physical[switch_id].D_pin_shifter_channel;
 
-                            // All Tools switch contacts were handled together; clear them to avoid reprocessing another changed contact in this scan.
-                            for (auto i = 0; i < SWITCH_TOOLS_CONTACTS; ++i)
-                            {
-                                bitWrite(shifter_channel_value[Filtered][shifter_id], pushbutton_physical[SW_TOOLS[i]].shifter_channel, 0);
-                            }
-                        }
-                        break;
+                        auto value = bitRead(shifter_channel_value[Last][shifter_id], A_channel) |
+                                     (bitRead(shifter_channel_value[Last][shifter_id], B_channel) << 1) |
+                                     (bitRead(shifter_channel_value[Last][shifter_id], C_channel) << 2) |
+                                     (bitRead(shifter_channel_value[Last][shifter_id], D_channel) << 3);
 
-                        case SW_MODE_Sampler:
-                        case SW_MODE_LiveSampler:
-                        case SW_MODE_Performance:
-                        case SW_MODE_MidiLoop:
-                        {
-                            uint8_t value =
-                                bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_MODES[0]].shifter_channel) |
-                                (bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_MODES[1]].shifter_channel) << 1) |
-                                (bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_MODES[2]].shifter_channel) << 2) |
-                                (bitRead(shifter_channel_value[Last][shifter_id], pushbutton_physical[SW_MODES[3]].shifter_channel) << 3);
+                        bitWrite(shifter_channel_value[Filtered][shifter_id], A_channel, 0);
+                        bitWrite(shifter_channel_value[Filtered][shifter_id], B_channel, 0);
+                        bitWrite(shifter_channel_value[Filtered][shifter_id], C_channel, 0);
+                        bitWrite(shifter_channel_value[Filtered][shifter_id], D_channel, 0);
 
-                            Switches_manager.Transmit_contacts(SwitchModes, value);
-
-                            // All Modes switch contacts were handled together; clear them to avoid reprocessing another changed contact in this scan.
-                            for (auto i = 0; i < SWITCH_MODES_CONTACTS; ++i)
-                            {
-                                bitWrite(shifter_channel_value[Filtered][shifter_id], pushbutton_physical[SW_MODES[i]].shifter_channel, 0);
-                            }
-                        }
-                        break;
-
-                        default:
-                            Pushbuttons_manager.Transmit_position(pushbutton, bitRead(shifter_channel_value[Last][shifter_id], channel));
-                            break;
-                        }
+                        Switches_manager.Transmit_contacts(switch_id, value);
                     }
                 }
             }

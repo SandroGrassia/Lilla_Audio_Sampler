@@ -7,12 +7,14 @@
 #pragma once
 
 #include <Arduino.h>
+#include "config.h"
+#include "UserInterface.h"
 
 class Switches
 {
 private:
     static constexpr uint8_t CONTACTS_VALUES = 16;
-    // Trusted values for transition are:
+    // Trusted values for transition are ONLY:
     // 1110 (14)
     // 1101 (13)
     // 1011 (11)
@@ -21,6 +23,7 @@ private:
     static constexpr uint8_t DEFAULT_POSITION = 0;
     static constexpr int PAUSE_SWITCH = 50; // milliseconds
     uint8_t output[SWITCHES]; // valid values: 0, 1, 2, 3
+    bool changed[SWITCHES];
     uint32_t timer[SWITCHES];
 
 public:
@@ -29,7 +32,8 @@ public:
         Reset();
     }
 
-    void Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts); // contacts: 0 -> 15
-    uint8_t Get_output(const uint8_t &switch_id);
+    void Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts); // contacts range: 0b 0000 -> 0b 1111
+    bool Get_change(const uint8_t &switch_id);
+    uint8_t Get_value(const uint8_t &switch_id);
     void Reset(void);
 };

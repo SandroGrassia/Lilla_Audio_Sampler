@@ -17,10 +17,10 @@ void Pushbuttons::Transmit_position(const uint8_t &pushbutton, const uint8_t &po
     
     if (millis() > timer[pushbutton])
     {
-        output[pushbutton] = matrix[position][state[pushbutton]].output;
+        changed[pushbutton] = matrix[position][state[pushbutton]].changed;
 
-        // Serial.print("output[pushbutton]: ");
-        // Serial.println(output[pushbutton]);
+        // Serial.print("changed[pushbutton]: ");
+        // Serial.println(changed[pushbutton]);
 
         if (matrix[position][state[pushbutton]].restart_timer)
         {
@@ -35,10 +35,10 @@ bool Pushbuttons::Get_state(const uint8_t &pushbutton)
     return (state[pushbutton] == 0? true: false); // 0: down, 1: up
 }
 
-bool Pushbuttons::Get_output(const uint8_t &pushbutton)
+bool Pushbuttons::Get_change(const uint8_t &pushbutton)
 {
-    auto value = output[pushbutton];
-    output[pushbutton] = false;
+    auto value = changed[pushbutton];
+    changed[pushbutton] = false;
     return value; // true: just pressed down; false: unchanged
 }
 
@@ -47,7 +47,7 @@ void Pushbuttons::Reset(void)
     for(auto i = 0; i < PUSHBUTTONS; ++i)
     {
         state[i] = up,
-        output[i] = false;
+        changed[i] = false;
         timer[i] = 0;
     }
 }
