@@ -17,8 +17,6 @@ Userinterface.h version for LILLA PCB_2026_R1
 static constexpr int ENCODERS = 17;
 static constexpr int PUSHBUTTONS = 38;
 static constexpr uint8_t SWITCHES = 2;
-static constexpr int SWITCH_TOOLS_CONTACTS = 4;
-static constexpr int SWITCH_MODES_CONTACTS = 4;
 static constexpr int UI_LEDS = 5;
 static constexpr int SHIFTERS = 5;          // number of shifter chips
 static constexpr int SHIFTER_CHANNELS = 16; // number of channels in a shifter
@@ -67,16 +65,16 @@ static constexpr char *shifter0[16][2] =
 
 static constexpr char *shifter1[16][2] =
 {
-    {"a0", "PB_33"},
-    {"a1", "PB_34"},
-    {"a2", "PB_35"},
-    {"a3", "PB_36"},
+    {"a0", "SW_1_A"},
+    {"a1", "SW_1_B"},
+    {"a2", "SW_1_C"},
+    {"a3", "SW_1_D"},
     {"a4", "PB_32"},
     {"a5", "LED_P12"},
-    {"a6", "PB_29"},
-    {"a7", "PB_28"},
-    {"b0", "PB_31"},
-    {"b1", "PB_30"},
+    {"a6", "SW_0_B"},
+    {"a7", "SW_0_A"},
+    {"b0", "SW_0_D"},
+    {"b1", "SW_0_C"},
     {"b2", "CLK_4"},
     {"b3", "DT_4"},
     {"b4", "PB_4"},
@@ -153,11 +151,8 @@ struct Encoder_physical_struct
     ShifterPort CLK_shifter_channel;
 };
 
-// Physical location of each rotary encoder in the shifter matrix.
-// The array index is the logical encoder ID.
-// Each entry contains the shifter chip ID and the two channels connected to
-// the encoder quadrature signals.
-//
+// Physical location of each rotary encoder in the shifter matrix. The array index is the logical encoder ID.
+// Each entry contains the shifter chip ID and the two channels connected to the encoder quadrature signals.
 // Format:
 //   {shifter_id, DT_shifter_channel, CLK_shifter_channel}
 static constexpr Encoder_physical_struct encoder_physical[ENCODERS] = {
@@ -187,10 +182,8 @@ struct Pushbutton_physical_struct
     ShifterPort shifter_channel;
 };
 
-// Physical location of each pushbutton in the shifter matrix.
-// The array index is the logical pushbutton ID.
+// Physical location of each pushbutton in the shifter matrix. The array index is the logical pushbutton ID.
 // Each entry contains the shifter chip ID and the channel where that pushbutton is connected.
-//
 // Format:
 //   {shifter_id, shifter_channel}
 static constexpr Pushbutton_physical_struct pushbutton_physical[PUSHBUTTONS] = {
@@ -258,6 +251,8 @@ struct Switch_physical_struct
     ShifterPort D_pin_shifter_channel;
 };
 
+// Physical location of each multi-position switch in the shifter matrix. The array index is the logical switch ID; each entry maps contacts A-D
+// to channels on the same MCP23S17 shifter.
 static constexpr Switch_physical_struct switch_physical[SWITCHES] = {
     {1, a7, a6, b1, b0}, // SwitchTools = 0,
     {1, a0, a1, a2, a3}  // SwitchModes = 1
@@ -270,6 +265,18 @@ struct UI_LEDs_physical_struct
     ShifterPort shifter_channel;
 };
 
+// LED names
+enum LedNames : int
+{
+    LED_Rec_1 = 0,
+    LED_Rec_2 = 1,
+    LED_Rec_3 = 2,
+    LED_Rec_4 = 3,
+    LED_Tools = 4
+};
+
+// Physical location of each UI LED in the shifter matrix.
+// The array index is the logical LED ID; each entry maps that LED to one MCP23S17 output channel.
 static constexpr UI_LEDs_physical_struct UI_leds[UI_LEDS] = {
     {2, a1}, // LED_P8 (LED_Rec_1)
     {2, b7}, // LED_P9 (LED_Rec_2)
@@ -417,33 +424,11 @@ enum EnPbSwNames : int
     PB_Rec2 = 25,
     PB_Rec4 = 26,
     PB_Rec3 = 27,
-
-    SW_TOOLS_Mixer = 28,
-    SW_TOOLS_Delay = 29,
-    SW_TOOLS_Setup = 30,
-    SW_TOOLS_Test = 31,
-
     PB_Tools = 32,
-
-    SW_MODE_Sampler = 33,
-    SW_MODE_LiveSampler = 34,
-    SW_MODE_Performance = 35,
-    SW_MODE_MidiLoop = 36,
-
     PB_S1 = 37
 };
 
 constexpr EnPbSwNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
 constexpr EnPbSwNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
-constexpr EnPbSwNames SW_TOOLS[SWITCH_TOOLS_CONTACTS] = {SW_TOOLS_Mixer, SW_TOOLS_Delay, SW_TOOLS_Setup, SW_TOOLS_Test};
-constexpr EnPbSwNames SW_MODES[SWITCH_MODES_CONTACTS] = {SW_MODE_Sampler, SW_MODE_LiveSampler, SW_MODE_Performance, SW_MODE_MidiLoop};
 
-// LED names
-enum LedNames : int
-{
-    LED_Rec_1 = 0,
-    LED_Rec_2 = 1,
-    LED_Rec_3 = 2,
-    LED_Rec_4 = 3,
-    LED_Tools = 4
-};
+
