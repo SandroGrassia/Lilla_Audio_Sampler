@@ -285,112 +285,110 @@ static constexpr UI_LEDs_physical_struct UI_leds[UI_LEDS] = {
     {1, a5}, // LED_P12 (LED_Tools)
 };
 
-struct EncoderPushbuttonSwitch
+enum DeviceType : uint8_t
 {
-    int encoder_id;
-    int pushbutton_id;
-    int switch_id;
+    NoDevice = 0,
+    Encoder = 1,
+    Pushbutton = 2,
+    Switch = 3
 };
 
-// Lookup table that maps each physical shifter channel to the UI control connected to it.
-// The first index selects the shifter chip, and the second index selects the channel
-// inside that shifter (a0...a7, b0...b7).
-//
-// Each entry contains:
-//   {encoder_id, pushbutton_id, switch_id}
-//
-// Use -1 when no encoder or pushbutton is assigned to that channel.
-// Channels used by other devices, such as LEDs, are also marked as {-1, -1, -1}.
-static constexpr EncoderPushbuttonSwitch Shifter_channel_to_encoder_pushbutton_switch[SHIFTERS][SHIFTER_CHANNELS] = {
+struct Shifter_channel_to_device_struct
+{
+    DeviceType device_type;
+    int8_t device_id;
+};
+
+static constexpr Shifter_channel_to_device_struct Shifter_channel_to_device[SHIFTERS][SHIFTER_CHANNELS] = {
     /* ===================== SHIFTER 0 ===================== */
-    {/* a0 */ {-1, 16, -1}, // PB_16
-     /* a1 */ {16, -1, -1}, // DT_16
-     /* a2 */ {16, -1, -1}, // CLK_16
-     /* a3 */ {0, -1, -1},  // DT_0
-     /* a4 */ {0, -1, -1},  // CLK_0
-     /* a5 */ {-1, 0, -1},  // PB_0
-     /* a6 */ {1, -1, -1},  // DT_1
-     /* a7 */ {1, -1, -1},  // CLK_1
-     /* b0 */ {2, -1, -1},  // CLK_2
-     /* b1 */ {2, -1, -1},  // DT_2
-     /* b2 */ {-1, 1, -1},  // PB_1
-     /* b3 */ {-1, 2, -1},  // PB_2
-     /* b4 */ {3, -1, -1},  // CLK_3
-     /* b5 */ {3, -1, -1},  // DT_3
-     /* b6 */ {-1, 3, -1},  // PB_3
-     /* b7 */ {-1, -1, -1}},
+    {/* a0 */ {Pushbutton, 16}, // PB_16
+     /* a1 */ {Encoder, 16},    // DT_16
+     /* a2 */ {Encoder, 16},    // CLK_16
+     /* a3 */ {Encoder, 0},     // DT_0
+     /* a4 */ {Encoder, 0},     // CLK_0
+     /* a5 */ {Pushbutton, 0},  // PB_0
+     /* a6 */ {Encoder, 1},     // DT_1
+     /* a7 */ {Encoder, 1},     // CLK_1
+     /* b0 */ {Encoder, 2},     // CLK_2
+     /* b1 */ {Encoder, 2},     // DT_2
+     /* b2 */ {Pushbutton, 1},  // PB_1
+     /* b3 */ {Pushbutton, 2},  // PB_2
+     /* b4 */ {Encoder, 3},     // CLK_3
+     /* b5 */ {Encoder, 3},     // DT_3
+     /* b6 */ {Pushbutton, 3},  // PB_3
+     /* b7 */ {NoDevice, -1}},
 
     /* ===================== SHIFTER 1 ===================== */
-    {/* a0 */ {-1, -1, 1}, // SW_1_A (SW_MODES) ex PB_33
-     /* a1 */ {-1, -1, 1}, // SW_1_B (SW_MODES) ex PB_34
-     /* a2 */ {-1, -1, 1}, // SW_1_C (SW_MODES) ex PB_35
-     /* a3 */ {-1, -1, 1}, // SW_1_D (SW_MODES) ex PB_36
-     /* a4 */ {-1, 32, -1}, // PB_32
-     /* a5 */ {-1, -1, -1}, // ***** LED_P12 (LED_Tools)
-     /* a6 */ {-1, -1, 0}, // SW_0_B (SW_TOOLS) ex PB_29
-     /* a7 */ {-1, -1, 0}, // SW_0_A (SW_TOOLS) ex PB_28
-     /* b0 */ {-1, -1, 0}, // SW_0_D (SW_TOOLS) ex PB_31
-     /* b1 */ {-1, -1, 0}, // SW_0_C (SW_TOOLS) ex PB_30
-     /* b2 */ {4, -1, -1},  // CLK_4
-     /* b3 */ {4, -1, -1},  // DT_4
-     /* b4 */ {-1, 4, -1},  // PB_4
-     /* b5 */ {6, -1, -1},  // DT_6
-     /* b6 */ {6, -1, -1},  // CLK_6
-     /* b7 */ {-1, 6, -1}}, // PB_6
+    {/* a0 */ {Switch, 1},       // SW_1_A (SW_MODES)
+     /* a1 */ {Switch, 1},       // SW_1_B (SW_MODES)
+     /* a2 */ {Switch, 1},       // SW_1_C (SW_MODES)
+     /* a3 */ {Switch, 1},       // SW_1_D (SW_MODES)
+     /* a4 */ {Pushbutton, 32},  // PB_32
+     /* a5 */ {NoDevice, -1},    // LED_P12 (LED_Tools)
+     /* a6 */ {Switch, 0},       // SW_0_B (SW_TOOLS)
+     /* a7 */ {Switch, 0},       // SW_0_A (SW_TOOLS)
+     /* b0 */ {Switch, 0},       // SW_0_D (SW_TOOLS)
+     /* b1 */ {Switch, 0},       // SW_0_C (SW_TOOLS)
+     /* b2 */ {Encoder, 4},      // CLK_4
+     /* b3 */ {Encoder, 4},      // DT_4
+     /* b4 */ {Pushbutton, 4},   // PB_4
+     /* b5 */ {Encoder, 6},      // DT_6
+     /* b6 */ {Encoder, 6},      // CLK_6
+     /* b7 */ {Pushbutton, 6}},  // PB_6
 
     /* ===================== SHIFTER 2 ===================== */
-    {/* a0 */ {-1, 21, -1},  // PB_21
-     /* a1 */ {-1, -1, -1},  // ***** LED_P8 (LED_Rec_1)
-     /* a2 */ {-1, 24, -1},  // PB_24
-     /* a3 */ {-1, 5, -1},   // PB_5
-     /* a4 */ {7, -1, -1},   // DT_7
-     /* a5 */ {7, -1, -1},   // CLK_7
-     /* a6 */ {5, -1, -1},   // DT_5
-     /* a7 */ {5, -1, -1},   // CLK_5
-     /* b0 */ {-1, 7, -1},   // PB_7
-     /* b1 */ {-1, 37, -1},  // PB_37
-     /* b2 */ {-1, 17, -1},  // PB_17
-     /* b3 */ {-1, 18, -1},  // PB_18
-     /* b4 */ {-1, 19, -1},  // PB_19
-     /* b5 */ {-1, 20, -1},  // PB_20
-     /* b6 */ {-1, 25, -1},  // PB_25
-     /* b7 */ {-1, -1, -1}}, // ***** LED_P9 (LED_Rec_2)
+    {/* a0 */ {Pushbutton, 21},  // PB_21
+     /* a1 */ {NoDevice, -1},    // LED_P8 (LED_Rec_1)
+     /* a2 */ {Pushbutton, 24},  // PB_24
+     /* a3 */ {Pushbutton, 5},   // PB_5
+     /* a4 */ {Encoder, 7},      // DT_7
+     /* a5 */ {Encoder, 7},      // CLK_7
+     /* a6 */ {Encoder, 5},      // DT_5
+     /* a7 */ {Encoder, 5},      // CLK_5
+     /* b0 */ {Pushbutton, 7},   // PB_7
+     /* b1 */ {Pushbutton, 37},  // PB_37
+     /* b2 */ {Pushbutton, 17},  // PB_17
+     /* b3 */ {Pushbutton, 18},  // PB_18
+     /* b4 */ {Pushbutton, 19},  // PB_19
+     /* b5 */ {Pushbutton, 20},  // PB_20
+     /* b6 */ {Pushbutton, 25},  // PB_25
+     /* b7 */ {NoDevice, -1}},   // LED_P9 (LED_Rec_2)
 
     /* ===================== SHIFTER 3 ===================== */
-    {/* a0 */ {14, -1, -1}, // CLK_14
-     /* a1 */ {14, -1, -1}, // DT_14
-     /* a2 */ {-1, 13, -1}, // PB_13
-     /* a3 */ {13, -1, -1}, // DT_13
-     /* a4 */ {13, -1, -1}, // CLK_13
-     /* a5 */ {-1, 12, -1}, // PB_12
-     /* a6 */ {12, -1, -1}, // DT_12
-     /* a7 */ {12, -1, -1}, // CLK_12
-     /* b0 */ {-1, 8, -1},  // PB_8
-     /* b1 */ {8, -1, -1},  // CLK_8
-     /* b2 */ {8, -1, -1},  // DT_8
-     /* b3 */ {-1, 11, -1}, // PB_11
-     /* b4 */ {11, -1, -1}, // CLK_11
-     /* b5 */ {11, -1, -1}, // DT_11
-     /* b6 */ {-1, 14, -1}, // PB_14
-     /* b7 */ {-1, -1, -1}},
+    {/* a0 */ {Encoder, 14},     // CLK_14
+     /* a1 */ {Encoder, 14},     // DT_14
+     /* a2 */ {Pushbutton, 13},  // PB_13
+     /* a3 */ {Encoder, 13},     // DT_13
+     /* a4 */ {Encoder, 13},     // CLK_13
+     /* a5 */ {Pushbutton, 12},  // PB_12
+     /* a6 */ {Encoder, 12},     // DT_12
+     /* a7 */ {Encoder, 12},     // CLK_12
+     /* b0 */ {Pushbutton, 8},   // PB_8
+     /* b1 */ {Encoder, 8},      // CLK_8
+     /* b2 */ {Encoder, 8},      // DT_8
+     /* b3 */ {Pushbutton, 11},  // PB_11
+     /* b4 */ {Encoder, 11},     // CLK_11
+     /* b5 */ {Encoder, 11},     // DT_11
+     /* b6 */ {Pushbutton, 14},  // PB_14
+     /* b7 */ {NoDevice, -1}},
 
     /* ===================== SHIFTER 4 ===================== */
-    {/* a0 */ {-1, 15, -1}, // PB_15
-     /* a1 */ {15, -1, -1}, // CLK_15
-     /* a2 */ {15, -1, -1}, // DT_15
-     /* a3 */ {-1, -1, -1}, // ***** LED_P11 (LED_Rec_3)
-     /* a4 */ {-1, 27, -1}, // PB_27
-     /* a5 */ {9, -1, -1},  // DT_9
-     /* a6 */ {9, -1, -1},  // CLK_9
-     /* a7 */ {-1, 9, -1},  // PB_9
-     /* b0 */ {10, -1, -1}, // DT_10
-     /* b1 */ {10, -1, -1}, // CLK_10
-     /* b2 */ {-1, 10, -1}, // PB_10
-     /* b3 */ {-1, 26, -1}, // PB_26
-     /* b4 */ {-1, -1, -1}, // ***** LED_P10 (LED_Rec_4)
-     /* b5 */ {-1, -1, -1},
-     /* b6 */ {-1, 22, -1}, // PB_22
-     /* b7 */ {-1, 23, -1}} // PB_23
+    {/* a0 */ {Pushbutton, 15},  // PB_15
+     /* a1 */ {Encoder, 15},     // CLK_15
+     /* a2 */ {Encoder, 15},     // DT_15
+     /* a3 */ {NoDevice, -1},    // LED_P11 (LED_Rec_3)
+     /* a4 */ {Pushbutton, 27},  // PB_27
+     /* a5 */ {Encoder, 9},      // DT_9
+     /* a6 */ {Encoder, 9},      // CLK_9
+     /* a7 */ {Pushbutton, 9},   // PB_9
+     /* b0 */ {Encoder, 10},     // DT_10
+     /* b1 */ {Encoder, 10},     // CLK_10
+     /* b2 */ {Pushbutton, 10},  // PB_10
+     /* b3 */ {Pushbutton, 26},  // PB_26
+     /* b4 */ {NoDevice, -1},    // LED_P10 (LED_Rec_4)
+     /* b5 */ {NoDevice, -1},
+     /* b6 */ {Pushbutton, 22},  // PB_22
+     /* b7 */ {Pushbutton, 23}}  // PB_23
 };
 
 // Encoders an pushbuttons (and switch positions) names

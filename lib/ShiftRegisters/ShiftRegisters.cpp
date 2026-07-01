@@ -164,11 +164,11 @@ static uint8_t Make_switches_mask(std::initializer_list<int> list)
 void ShiftRegisters::Init_controller_masks(void)
 {
     monitored_encoders = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
-                                        EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol});
+                                             EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol});
 
     monitored_pushbuttons = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
-                                             EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                             PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Rec1, PB_Rec2, PB_Rec4, PB_Rec3, PB_Tools, PB_S1});
+                                                   EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol,
+                                                   PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Rec1, PB_Rec2, PB_Rec4, PB_Rec3, PB_Tools, PB_S1});
     monitored_switches = Make_switches_mask({SwitchTools, SwitchModes});
 }
 
@@ -210,7 +210,7 @@ void ShiftRegisters::Filter_channels_changed_values(const int &shifter_id)
     // XOR marks each channel whose current state differs from the previous scan.
     shifter_channel_value[Changed][shifter_id] = shifter_channel_value[Last][shifter_id] ^ shifter_channel_value[Old][shifter_id];
 
-    // Keep only changed channels that belong to monitored encoders and pushbuttons.
+    // Keep only changed channels that belong to monitored devices.
     shifter_channel_value[Filtered][shifter_id] = shifter_channel_value[Changed][shifter_id] & monitored_channels[shifter_id];
 
     shifter_channel_value[Old][shifter_id] = shifter_channel_value[Last][shifter_id];
@@ -242,43 +242,34 @@ void ShiftRegisters::Update(void)
         {
             if (bitRead(shifter_channel_value[Filtered][shifter_id], channel))
             {
-                const auto encoder_id = Shifter_channel_to_encoder_pushbutton_switch[shifter_id][channel].encoder_id;
-                const auto pushbutton_id = Shifter_channel_to_encoder_pushbutton_switch[shifter_id][channel].pushbutton_id;
-                const auto switch_id = Shifter_channel_to_encoder_pushbutton_switch[shifter_id][channel].switch_id;
+                const auto &device = Shifter_channel_to_device[shifter_id][channel];
 
-                if (encoder_id > -1)
+                switch (device.device_type)
                 {
-                    const int DT_channel = encoder_physical[encoder_id].DT_shifter_channel;
-                    const int CLK_channel = encoder_physical[encoder_id].CLK_shifter_channel;
-                    Encoders_manager.Transmit_DT_CLK(encoder_id, bitRead(shifter_channel_value[Last][shifter_id], DT_channel), bitRead(shifter_channel_value[Last][shifter_id], CLK_channel));
+                case Encoder:
+                {
+                    const int DT_channel = encoder_physical[device.device_id].DT_shifter_channel;
+                    const int CLK_channel = encoder_physical[device.device_id].CLK_shifter_channel;
+                    Encoders_manager.Transmit_DT_CLK(device.device_id, bitRead(shifter_channel_value[Last][shifter_id], DT_channel), bitRead(shifter_channel_value[Last][shifter_id], CLK_channel));
 
                     // Both encoder channels are handled together; clear them to avoid a second transmission when the loop reaches the other changed channel.
                     bitWrite(shifter_channel_value[Filtered][shifter_id], DT_channel, 0);
                     bitWrite(shifter_channel_value[Filtered][shifter_id], CLK_channel, 0);
-
-                    /*
-                    Serial.print("DT_channel/CLK_channel: ");
-                    Serial.print(DT_channel);
-                    Serial.print(" / ");
-                    Serial.println(CLK_channel);
-
-                    Serial.print("DT/CLK: ");
-                    Serial.print(bitRead(shifter_channel_value[Last][shifter_id], DT_channel));
-                    Serial.print(" / ");
-                    Serial.println(bitRead(shifter_channel_value[Last][shifter_id], CLK_channel));
-                    */
                 }
-                else if (pushbutton_id > -1)
-                {
-                    Pushbuttons_manager.Transmit_position(pushbutton_id, bitRead(shifter_channel_value[Last][shifter_id], channel));
-                }
+                break;
 
-                else if (switch_id > -1)
+                case Pushbutton:
                 {
-                    const int A_channel = switch_physical[switch_id].A_pin_shifter_channel;
-                    const int B_channel = switch_physical[switch_id].B_pin_shifter_channel;
-                    const int C_channel = switch_physical[switch_id].C_pin_shifter_channel;
-                    const int D_channel = switch_physical[switch_id].D_pin_shifter_channel;
+                    Pushbuttons_manager.Transmit_position(device.device_id, bitRead(shifter_channel_value[Last][shifter_id], channel));
+                }
+                break;
+
+                case Switch:
+                {
+                    const int A_channel = switch_physical[device.device_id].A_pin_shifter_channel;
+                    const int B_channel = switch_physical[device.device_id].B_pin_shifter_channel;
+                    const int C_channel = switch_physical[device.device_id].C_pin_shifter_channel;
+                    const int D_channel = switch_physical[device.device_id].D_pin_shifter_channel;
 
                     auto value = bitRead(shifter_channel_value[Last][shifter_id], A_channel) |
                                  (bitRead(shifter_channel_value[Last][shifter_id], B_channel) << 1) |
@@ -290,7 +281,15 @@ void ShiftRegisters::Update(void)
                     bitWrite(shifter_channel_value[Filtered][shifter_id], C_channel, 0);
                     bitWrite(shifter_channel_value[Filtered][shifter_id], D_channel, 0);
 
-                    Switches_manager.Transmit_contacts(switch_id, value);
+                    Switches_manager.Transmit_contacts(device.device_id, value);
+                }
+                break;
+
+                case NoDevice:
+                break;
+
+                default:
+                    break;
                 }
             }
         }
