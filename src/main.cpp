@@ -1092,7 +1092,7 @@ void setup()
     // *******************   SHIFTERS DATA   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    Shifters_manager.Set_context(Start_context);
+    Shifters_manager.Monitor_all_controllers();
     Shifters_manager.Update();
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1628,7 +1628,6 @@ void loop()
                     if (P_Ask_if_delete_this_Patch()) // yes, delete the patch
                     {
                         Lilla_state = PERFORMANCE;
-                        // Shifters_manager.Set_context(Performance_context);
 
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players();
@@ -2083,7 +2082,6 @@ void loop()
             {
                 Lilla_state_0 = PERFORMANCE;
                 Lilla_state = SOUND_EDIT;
-                Shifters_manager.Set_context(Sound_edit_context);
 
                 Instrument_id = PB_number;
                 Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -2134,7 +2132,6 @@ void loop()
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -2219,7 +2216,6 @@ void loop()
                     S_Set_Sound_SOLO_OFF();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2251,7 +2247,6 @@ void loop()
                     S_Set_Sound_SOLO_OFF();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2275,7 +2270,6 @@ void loop()
                     AudioInterrupts();
 
                     Lilla_state = PERFORMANCE;
-                    Shifters_manager.Set_context(Performance_context);
 
                     patch_original = P_Verify_is_Patch_original(Patch_id);
                     P_Select_menu_elements();
@@ -2985,7 +2979,6 @@ void loop()
                 if (PB_number == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -3058,7 +3051,6 @@ void loop()
             {
                 S_Set_Sound_SOLO_OFF();
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -3351,7 +3343,6 @@ void loop()
                         S_Set_Sound_SOLO_OFF();
 
                         Lilla_state = PERFORMANCE;
-                        Shifters_manager.Set_context(Performance_context);
 
                         patch_original = P_Verify_is_Patch_original(Patch_id);
                         P_Select_menu_elements();
@@ -3376,7 +3367,6 @@ void loop()
                         AudioInterrupts();
 
                         Lilla_state = SOUND_EDIT;
-                        Shifters_manager.Set_context(Sound_edit_context);
 
                         Instrument_id = PB_number;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -3489,7 +3479,6 @@ void loop()
                         AudioInterrupts();
 
                         Lilla_state = SOUND_EDIT;
-                        Shifters_manager.Set_context(Sound_edit_context);
 
                         Instrument_id = PB_number;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -3555,7 +3544,6 @@ void loop()
                     }
                 }
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -3946,7 +3934,6 @@ void loop()
                 else
                 {
                     Lilla_state = DELAY_SETTINGS;
-                    Shifters_manager.Set_context(Delay_settings_context);
 
                     Display_Delay.D_show_page();
                     Pointer_Delay.Set_pointer_to_Feedback();
@@ -5071,7 +5058,6 @@ void loop()
                     Sound_id = SOUNDS_MAX;
                     Lilla_state_0 = LIVE_SAMPLING;
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -5107,7 +5093,6 @@ void loop()
                     Sound_id = SOUNDS_MAX + 1;
                     Lilla_state_0 = LIVE_SAMPLING;
                     Lilla_state = INSTRUMENT_VCF;
-                    Shifters_manager.Set_context(Instrument_Vcf_context);
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -5125,7 +5110,6 @@ void loop()
                 Sound_id = SOUNDS_MAX;
                 Lilla_state_0 = LIVE_SAMPLING;
                 Lilla_state = INSTRUMENT_VCF;
-                Shifters_manager.Set_context(Instrument_Vcf_context);
 
                 Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
@@ -6336,7 +6320,6 @@ void loop()
             else if (Read_pushbutton(28))
             {
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -7266,7 +7249,6 @@ void loop()
             {
                 Lilla_state_0 = MIDI_LOOP;
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -7303,7 +7285,6 @@ void loop()
         {
             Lilla_state_0 = MIDI_LOOP;
             Lilla_state = SOUND_EDIT;
-            Shifters_manager.Set_context(Sound_edit_context);
 
             Instrument_id = PB_number;
             Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
@@ -7401,7 +7382,6 @@ void loop()
             {
             case 3: // switch to CC Settings
                 Lilla_state = CC_SETTINGS;
-                Shifters_manager.Set_context(Control_Change_context);
 
                 display_wait = false;
 
@@ -7613,8 +7593,8 @@ void loop()
                 {
                     Archive.Save_first_octave(first_octave);
                 }
+
                 Lilla_state = DELAY_SETTINGS;
-                Shifters_manager.Set_context(Delay_settings_context);
 
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
@@ -8035,7 +8015,6 @@ bool P_Verify_if_Instrument_original(const int instrument_id)
 void Golive_with_PERFORMANCE(int patch_id)
 {
     Lilla_state = PERFORMANCE;
-    Shifters_manager.Set_context(Performance_context);
 
     patch_original = P_Verify_is_Patch_original(patch_id);
     P_Select_menu_elements();
@@ -8622,7 +8601,6 @@ void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
 void Golive_DIRECT_SAMPLING(void)
 {
     Lilla_state = DIRECT_SAMPLING;
-    Shifters_manager.Set_context(Direct_Sampling_context);
 
     DS_state = DS_waiting_state;
 
@@ -8655,7 +8633,6 @@ void Golive_DIRECT_SAMPLING(void)
 void DS_refresh_DS_page(void)
 {
     Lilla_state = DIRECT_SAMPLING;
-    Shifters_manager.Set_context(Direct_Sampling_context);
 
     Display_Sampler.DS_page(recording);
     Display_Sampler.DS_line_out(false);
@@ -9342,7 +9319,6 @@ void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void)
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
-    Shifters_manager.Set_context(Midi_Loop_context);
 
     LOOP_select_menu_elements();
     Display_MidiLoop.Show_Loop_page();
@@ -9515,7 +9491,6 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
 void Golive_with_LIVE_SAMPLING(void)
 {
     Lilla_state = LIVE_SAMPLING;
-    Shifters_manager.Set_context(Live_Sampling_context);
 
     Display_LiveSampler.Page();
 
@@ -9821,7 +9796,6 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
         Delay_values.instrument_route[1] = true;
     }
     Lilla_state = DELAY_SETTINGS;
-    Shifters_manager.Set_context(Delay_settings_context);
 
     Display_Delay.D_show_page();
     Pointer_Delay.Set_pointer_to_Feedback();
@@ -9835,7 +9809,6 @@ void Golive_MIDI_MONITOR(void)
     AudioInterrupts();
 
     Lilla_state = MIDI_MONITOR;
-    Shifters_manager.Set_context(Midi_Monitor_context);
 
     display_wait = false;
     Display_Manager.Midi_monitor_page();
@@ -9844,7 +9817,6 @@ void Golive_MIDI_MONITOR(void)
 void Golive_SETUP(void)
 {
     Lilla_state = SETUP;
-    Shifters_manager.Set_context(Setup_context);
 
     SET_menu = 0;
     Display_Manager.SETUP_show_SETUP_page();
@@ -11592,7 +11564,6 @@ void Print_map_instrument_for_note(int midi_channel)
 void LS_refresh_LS_page(void)
 {
     Lilla_state = LIVE_SAMPLING;
-    Shifters_manager.Set_context(Live_Sampling_context);
 
     Display_LiveSampler.Page();
 
@@ -11971,9 +11942,7 @@ void Switch_to_MIXER()
 
 void Golive_MIXER(void)
 {
-
     Lilla_state = MIXER;
-    Shifters_manager.Set_context(Mixer_context);
 
     Display_Mixer.MX_page();
     for (auto source = 0; source < MX_sources; ++source)
