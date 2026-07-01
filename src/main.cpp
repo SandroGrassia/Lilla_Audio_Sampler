@@ -1099,8 +1099,8 @@ void setup()
     //   ***************    FUNZIONI SPECIALI   *****************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    // Prima partenza LILLA
-    if (Read_pushbutton(7)) // TUNING TONE
+    // Very first startup
+    if (Read_pushbutton(EN_PB_PreListenVol))
     {
         // Attenzione richiede 2/3 minuti per la cancellazione dei Packet!
         // Se la procedura si interrompe la EEPROM resta azzarata e Patch[0] o Sound[0] NON saranno configurati correttamente!!
@@ -1109,9 +1109,8 @@ void setup()
         Factory_setup_Eeprom();
     }
 
-    // Test encoder e pulsanti
-    // indica quale encoder e' stato ruotato (+/-1) o pulsante e' stato premuto
-    if (true) // (Read_pushbutton(0))
+    // UI devices test mode; results are showed on display and sent via Serial.print
+    if (Read_pushbutton(EN_PB_TuningTone))
     {
         Display_Manager.Encoder_pushbutton_test_board();
         while (true)
@@ -1159,9 +1158,8 @@ void setup()
         }
     }
 
-    // Protected mode
-    // impedisce il salvataggio di nuove Patch
-    if (Read_pushbutton(8)) // DOWNSAMPLING
+    // Protected mode: prevent from writing Patches and Sounds
+    if (Read_pushbutton(EN_PB_Resolution)) // DOWNSAMPLING
     {
         exibition = true;
     }
