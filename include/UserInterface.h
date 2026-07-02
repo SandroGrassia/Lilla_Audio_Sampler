@@ -41,109 +41,6 @@ enum ShifterPort // (input/output) port id
     b7
 };
 
-// Shifters ports connections
-/*
-static constexpr char *shifter0[16][2] =
-{
-    {"a0", "PB_16"},
-    {"a1", "DT_16"},
-    {"a2", "CLK_16"},
-    {"a3", "DT_0"},
-    {"a4", "CLK_0"},
-    {"a5", "PB_0"},
-    {"a6", "DT_1"},
-    {"a7", "CLK_1"},
-    {"b0", "CLK_2"},
-    {"b1", "DT_2"},
-    {"b2", "PB_1"},
-    {"b3", "PB_2"},
-    {"b4", "CLK_3"},
-    {"b5", "DT_3"},
-    {"b6", "PB_3"},
-    {"b7", ""}
-};
-
-static constexpr char *shifter1[16][2] =
-{
-    {"a0", "SW_1_A"},
-    {"a1", "SW_1_B"},
-    {"a2", "SW_1_C"},
-    {"a3", "SW_1_D"},
-    {"a4", "PB_32"},
-    {"a5", "LED_P12"},
-    {"a6", "SW_0_B"},
-    {"a7", "SW_0_A"},
-    {"b0", "SW_0_D"},
-    {"b1", "SW_0_C"},
-    {"b2", "CLK_4"},
-    {"b3", "DT_4"},
-    {"b4", "PB_4"},
-    {"b5", "DT_6"},
-    {"b6", "CLK_6"},
-    {"b7", "PB_6"}
-};
-
-static constexpr char *shifter2[16][2] =
-{
-    {"a0", "PB_21"},
-    {"a1", "LED_P8"},
-    {"a2", "PB_24"},
-    {"a3", "PB_5"},
-    {"a4", "DT_7"},
-    {"a5", "CLK_7"},
-    {"a6", "DT_5"},
-    {"a7", "CLK_5"},
-    {"b0", "PB_7"},
-    {"b1", "PB_37"},
-    {"b2", "PB_17"},
-    {"b3", "PB_18"},
-    {"b4", "PB_19"},
-    {"b5", "PB_20"},
-    {"b6", "PB_25"},
-    {"b7", "LED_P9"}
-};
-
-static constexpr char *shifter3[16][2] =
-{
-    {"a0", "CLK_14"},
-    {"a1", "DT_14"},
-    {"a2", "PB_13"},
-    {"a3", "DT_13"},
-    {"a4", "CLK_13"},
-    {"a5", "PB_12"},
-    {"a6", "DT_12"},
-    {"a7", "CLK_12"},
-    {"b0", "PB_8"},
-    {"b1", "CLK_8"},
-    {"b2", "DT_8"},
-    {"b3", "PB_11"},
-    {"b4", "CLK_11"},
-    {"b5", "DT_11"},
-    {"b6", "PB_14"},
-    {"b7", ""}
-};
-
-static constexpr char *shifter4[16][2] =
-{
-    {"a0", "PB_15"},
-    {"a1", "CLK_15"},
-    {"a2", "DT_15"},
-    {"a3", "LED_P11"},
-    {"a4", "PB_27"},
-    {"a5", "DT_9"},
-    {"a6", "CLK_9"},
-    {"a7", "PB_9"},
-    {"b0", "DT_10"},
-    {"b1", "CLK_10"},
-    {"b2", "PB_10"},
-    {"b3", "PB_26"},
-    {"b4", "LED_P10"},
-    {"b5", ""},
-    {"b6", "PB_22"},
-    {"b7", "PB_23"}
-};
-*/
-
 struct Encoder_physical_struct
 {
     uint8_t shifter_id;
@@ -240,6 +137,22 @@ enum SwitchNames : int
 {
     SwitchTools = 0,
     SwitchModes = 1
+};
+
+enum SwitchToolsPositions : int
+{
+    SwToolsMixer = 0,
+    SwToolsDelay = 1,
+    SwToolsSetup = 2,
+    SwToolsTest = 3
+};
+
+enum SwitchModesPositions : int
+{
+    SwModesSampler = 0,
+    SwModesLiveSampler = 1,
+    SwModesPerformance = 2,
+    SwModesMidiLoop = 3
 };
 
 struct Switch_physical_struct
@@ -392,7 +305,7 @@ static constexpr Shifter_channel_to_device_struct Shifter_channel_to_device[SHIF
 };
 
 // Encoders an pushbuttons (and switch positions) names
-enum EnPbSwNames : int
+enum EnPbNames : int
 {
     EN_PB_TuningTone = 0,
     EN_PB_Resolution = 1,
@@ -426,7 +339,7 @@ enum EnPbSwNames : int
     PB_S1 = 37
 };
 
-constexpr EnPbSwNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
-constexpr EnPbSwNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
-
+constexpr EnPbNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
+constexpr EnPbNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
+constexpr EnPbNames PB_Sound[INSTRUMENTS_MAX] = {PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8};
 

@@ -56,13 +56,13 @@ void ShiftRegisters::Setup_physical_channels(void)
 
 void ShiftRegisters::Switch_all_leds(bool on)
 {
-    for (auto led = 0; led < UI_LEDS; ++led)
+    for (int led = LED_Rec_1; led <= LED_Tools; ++led)
     {
-        Switch_led(led, on);
+        Switch_led(static_cast<LedNames>(led), on);
     }
 }
 
-void ShiftRegisters::Switch_led(int led, bool on)
+void ShiftRegisters::Switch_led(LedNames led, bool on)
 {
     if (led < 0 || led >= UI_LEDS)
     {

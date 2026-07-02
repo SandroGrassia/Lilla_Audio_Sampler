@@ -50,3 +50,13 @@ static inline int16_t Lilla_saturate16(const int32_t &val)
     out = (int16_t)(tmp);
     return out;
 }
+
+static inline void Lilla_PrintErrorLocation(const __FlashStringHelper *message, const char *file, int line)
+{
+    Serial.print(message);
+    Serial.print(file);
+    Serial.print(F(":"));
+    Serial.println(line);
+}
+
+#define LILLA_PRINT_ERROR_LOCATION(message) Lilla_PrintErrorLocation((message), __FILE__, __LINE__)

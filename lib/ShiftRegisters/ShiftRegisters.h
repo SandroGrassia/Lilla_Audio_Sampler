@@ -102,5 +102,5 @@ public:
     void Monitor_all_controllers(void);
     void Update(void);
     void Switch_all_leds(bool on);
-    void Switch_led(int led, bool on);
+    void Switch_led(LedNames led, bool on);
 };

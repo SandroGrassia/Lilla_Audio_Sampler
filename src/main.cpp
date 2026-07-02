@@ -10,10 +10,9 @@
 // **********************************************************
 // **************       VERSIONE LILLA         **************
 // **********************************************************
-/* 
+/*
+    PCB: LILLA_2026_R2 - 2 PCBs
 
-    PCB: LILLA_2026_R2 - 2 boards
-    
     Hardware
     - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes); clock 600MHz
     - Audio Adaptor Rev.D
@@ -112,6 +111,7 @@
 #include "MidiOut.h"
 
 #include "config.h"
+#include "Functions.h"
 #include "UserInterface.h"
 #include "ShiftRegisters.h"
 #include "Encoders.h"
@@ -420,6 +420,9 @@ int downsampling_cache;
 bool resolution_reset;
 bool downsampling_reset;
 
+// Tools or Modes
+bool TOOLS_pushbutton;
+
 // >>>>>>> PERFORMANCE
 // Menu
 int P_menu_max;
@@ -457,6 +460,7 @@ uint8_t patch_change;
 // functions
 void Update_instruments_leds(void);
 void P_Update_line_of_all_instruments(void); // posizione di tutti gli Instrument sul display
+void P_Return_to_PERFORMANCE_from_SOUND_EDIT(void);
 bool P_Verify_if_Instrument_original(const int instrument_id);
 void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, const int element);
 void P_Update_all_maps_Instrument_for_notes(void); // aggiorna la mappatura tra tutte le coppie midi_channel/note_number e relativi Instrument
@@ -703,7 +707,7 @@ void Factory_setup_Eeprom(void);
 int PB_number;
 
 // SGTL5000 Audio_shield
-int headphones_volume_int = 40; // 0 --> 40
+int headphones_volume_int = 20; // 0 --> 40
 
 // >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
@@ -757,6 +761,17 @@ int col;
 int result;
 uint32_t big_result;
 elapsedMicros microtimer;
+
+static inline void P_UpdatePatchOriginalAndMenu(void)
+{
+    patch_original_0 = patch_original;
+    patch_original = P_Verify_is_Patch_original(Patch_id);
+    if (patch_original != patch_original_0)
+    {
+        P_Select_menu_elements();
+        Display_Manager.P_show_Performance_menu();
+    }
+}
 
 // >>>>>>>>>>> STARTUP
 void Compile_tables(void);
@@ -1202,15 +1217,8 @@ void loop()
     // Update shift registers
     Shifters_manager.Update();
 
-    // PB_number is used to select one from the 8 pushbuttons
-    ++PB_number;
-    if (PB_number == INSTRUMENTS_MAX)
-    {
-        PB_number = 0;
-    }
-
-    // PANIC
-    if (Read_pushbutton(17)) // LINE OUT VOLUME
+    // Panic
+    if (Read_pushbutton(EN_PB_LineOutVol)) // LINE OUT VOLUME
     {
         Delay_data.loop_gain = 0;
         Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
@@ -1239,21 +1247,14 @@ void loop()
         }
     }
 
-    // da sviluppare nel Setup
-    /*
-
-
-
-    if (Read_encoder(0, headphones_volume_int, 40, 0, 1))
+    // Pre-listen volume
+    if (Read_encoder(EN_PB_PreListenVol, headphones_volume_int, 40, 0, 1))
     {
-        Audio_shield.volume(headphones_volume_int/(float)40.0);
+        Audio_shield.volume(headphones_volume_int / (float)40.0);
     }
 
-
-    */
-
     // Resolution
-    if (Read_encoder_inverse(0, resolution, RES_MAX, 0, 1))
+    if (Read_encoder_inverse(EN_PB_Resolution, resolution, RES_MAX, 0, 1))
     {
         resolution_reset = false;
 
@@ -1268,7 +1269,7 @@ void loop()
     }
 
     // Downsampling
-    if (Read_encoder_inverse(8, downsampling, 60, 1, 1))
+    if (Read_encoder_inverse(EN_PB_Downsampling, downsampling, 60, 1, 1))
     {
         downsampling_reset = false;
 
@@ -1294,7 +1295,7 @@ void loop()
     // *****************************************************************************************************************
 
     // Resolution (on/off) pushbutton
-    if (Read_pushbutton(0))
+    if (Read_pushbutton(EN_PB_Resolution))
     {
         if (!resolution_reset)
         {
@@ -1320,7 +1321,7 @@ void loop()
     }
 
     // Downsampling (on/off) pushbutton
-    if (Read_pushbutton(8))
+    if (Read_pushbutton(EN_PB_Downsampling))
     {
         if (!downsampling_reset)
         {
@@ -1346,7 +1347,7 @@ void loop()
     }
 
     // Pushbutton tuning tone
-    if (Read_pushbutton(7)) // switch ON/OFF the Tuning Tone
+    if (Read_pushbutton(EN_PB_TuningTone)) // switch ON/OFF the Tuning Tone
     {
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -1360,7 +1361,7 @@ void loop()
     }
 
     // Tuning tone volume
-    if (tuning_tone_flag && Read_encoder(7, tuning_tone_volume, 40, 0, 1))
+    if (tuning_tone_flag && Read_encoder(EN_PB_TuningTone, tuning_tone_volume, 40, 0, 1))
     {
         if (Lilla_state == PERFORMANCE)
         {
@@ -1369,7 +1370,7 @@ void loop()
     }
 
     // Low-pass cutoff frequency
-    if (Read_encoder(16, lowpass_target, LPF_MAX, 0, 1))
+    if (Read_encoder(EN_PB_Cutoff, lowpass_target, LPF_MAX, 0, 1))
     {
         lowpass_flag = true;
         lowpass_direction = lowpass_target > lowpass;
@@ -1388,7 +1389,7 @@ void loop()
     }
 
     // Pushbutton Low-pass flat
-    if (Read_pushbutton(16))
+    if (Read_pushbutton(EN_PB_Cutoff))
     {
         Archive.Print_EEPROM_content();
         if (lowpass_target < LPF_MAX)
@@ -1405,7 +1406,7 @@ void loop()
     }
 
     // Print AudioProcessorUsage
-    if (Read_pushbutton(18)) // PRE LISTEN VOLUME
+    if (Read_pushbutton(EN_PB_PreListenVol))
     {
         Serial.print("AudioProcessorUsage(): ");
         Serial.println(AudioProcessorUsage());
@@ -1560,8 +1561,8 @@ void loop()
                 case value_P_SaveAsNew:
                     AudioNoInterrupts();
                     Players_statistics.Reset_total_Players_per_instrument();
-                    // 0: hunt some "instruments" sound_id free
 
+                    // 0: hunt some "instruments" sound_id free
                     // 1: copy all Instrument in the new patch_id, with same sound_id
                     new_patch = S_Get_Patch_id_free();
                     if (new_patch >= 0)
@@ -1574,10 +1575,13 @@ void loop()
                                 Sound_NEW[instrument_id] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
                             }
                         }
-                        S_Pull_all_Sound_from_Sound_cache_P(); // 3: restore all original Sound
-                        Patch[new_patch] = Patch[Patch_id];
-                        Patch[Patch_id] = Patch_cache_P; // 4: ora patch_id è ripristinata, anche i relativi Sound sono stati ripristinati
 
+                        // 3: restore all original Sound
+                        S_Pull_all_Sound_from_Sound_cache_P();
+                        Patch[new_patch] = Patch[Patch_id];
+                        Patch[Patch_id] = Patch_cache_P;
+
+                        // 4: ora patch_id è ripristinata, anche i relativi Sound sono stati ripristinati
                         // 5: Create a new Sound for each Instrument in new_patch
                         for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
                         {
@@ -1621,9 +1625,11 @@ void loop()
                     Print_Patch(Patch_id);
                     break;
 
-                case value_P_DropPatch: // and go back to PERFORMANCE "P_Get_first_Patch_id_existing()"
-                    // ask for confirmation
-                    if (P_Ask_if_delete_this_Patch()) // yes, delete the patch
+                case value_P_DropPatch:
+                    // Drop patch and go back to PERFORMANCE "P_Get_first_Patch_id_existing()"
+
+                    // YES, drop
+                    if (P_Ask_if_delete_this_Patch())
                     {
                         Lilla_state = PERFORMANCE;
 
@@ -1653,7 +1659,9 @@ void loop()
 
                         P_Jump_to_Patch(P_Get_first_Patch_id_existing());
                     }
-                    else // no, don't delete the patch
+
+                    // NO, don't drop the patch
+                    else
                     {
                         P_Select_menu_elements();
                         Display_Manager.P_show_PERFORMANCE_page(false, true);
@@ -1664,7 +1672,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 1913");
+                    LILLA_PRINT_ERROR_LOCATION(F("ERROR: switch MISSING! "));
                     break;
                 }
             }
@@ -1714,8 +1722,7 @@ void loop()
 
                             P_Jump_to_Patch(patch_change);
 
-                            // Patch Delay: look for delay_<patch_id> in SD
-                            if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id))
+                            if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id)) // Patch Delay: look for delay_<patch_id> in SD
                             {
                                 Serial.println(F("Smooth changing of delay values COULD start..."));
 
@@ -1726,6 +1733,7 @@ void loop()
                                 Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
                                 AudioInterrupts();
                             }
+
                             Patch_id_old = Patch_id;
                         }
                     }
@@ -1746,6 +1754,7 @@ void loop()
                             Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
                             AudioInterrupts();
                         }
+
                         Patch_id_old = Patch_id;
                     }
                 }
@@ -1780,6 +1789,7 @@ void loop()
             switch (Pointer_Performance.Get_pointer().element)
             {
             case value_P_Lock: // Lock
+            {
                 result = Read_encoder_simple(EN_PB_Value);
 
                 if (result == 1)
@@ -1790,16 +1800,10 @@ void loop()
                     Players_Manager.Multicast_reset_pitch_bend_effects(instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
+
                 else if (result == -1)
                 {
                     AudioNoInterrupts();
@@ -1808,19 +1812,14 @@ void loop()
                     Players_Manager.Broadcast_restore_pitch_bend_and_effects(instrument_id, pitch_bend_value[Get_midi_channel(Patch_id, instrument_id)]);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
-                break;
+            }
+            break;
 
             case value_P_Precedence: // Precedence
+            {
                 result = Read_encoder_simple(EN_PB_Value);
                 if (result == 1)
                 {
@@ -1829,15 +1828,8 @@ void loop()
                     Players_Manager.Update_Preset_precedence(Patch_id, instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
                 else if (result == -1)
                 {
@@ -1846,19 +1838,14 @@ void loop()
                     Players_Manager.Update_Preset_precedence(Patch_id, instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
-                break;
+            }
+            break;
 
             case value_P_Midi: // Midi (channel)
+            {
                 result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0)
                 {
@@ -1888,18 +1875,12 @@ void loop()
                         Players_Manager.Update_Preset_midi_channel(Patch_id, instrument_id);
                         AudioInterrupts();
 
-                        // P_Macro_Instrument_editing(instrument_id);
                         P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                        patch_original_0 = patch_original;
-                        patch_original = P_Verify_is_Patch_original(Patch_id);
-                        if (patch_original != patch_original_0)
-                        {
-                            P_Select_menu_elements();
-                            Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        }
+                        P_UpdatePatchOriginalAndMenu();
                     }
                 }
-                break;
+            }
+            break;
 
             case value_P_RootKey: // Root key
                 if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[instrument_id].root_key, 127, 0, 1))
@@ -1908,19 +1889,13 @@ void loop()
                     Players_Manager.Multicast_change_players_notes(Patch_id, instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
                 break;
 
             case value_P_FromKey: // From Key
+            {
                 result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0)
                 {
@@ -1941,18 +1916,12 @@ void loop()
                         Players_Manager.Change_from_key(Patch_id, instrument_id, from_key_change);
                         AudioInterrupts();
 
-                        // P_Macro_Instrument_editing(instrument_id);
                         P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                        patch_original_0 = patch_original;
-                        patch_original = P_Verify_is_Patch_original(Patch_id);
-                        if (patch_original != patch_original_0)
-                        {
-                            P_Select_menu_elements();
-                            Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        }
+                        P_UpdatePatchOriginalAndMenu();
                     }
                 }
-                break;
+            }
+            break;
 
             case value_P_ToKey: // To key
                 result = Read_encoder_simple(EN_PB_Value);
@@ -1977,15 +1946,8 @@ void loop()
                         Players_Manager.Change_to_key(Patch_id, instrument_id, to_key_change);
                         AudioInterrupts();
 
-                        // P_Macro_Instrument_editing(instrument_id);
                         P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                        patch_original_0 = patch_original;
-                        patch_original = P_Verify_is_Patch_original(Patch_id);
-                        if (patch_original != patch_original_0)
-                        {
-                            P_Select_menu_elements();
-                            Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                        }
+                        P_UpdatePatchOriginalAndMenu();
                     }
                 }
                 break;
@@ -1998,15 +1960,8 @@ void loop()
                     Players_Manager.Multicast_pan(instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
 
                 // Set PAN to center
@@ -2019,15 +1974,8 @@ void loop()
                     Players_Manager.Multicast_pan(instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
 
                 break;
@@ -2040,15 +1988,8 @@ void loop()
                     Players_Manager.Multicast_volume_for_instrument_edit(instrument_id);
                     AudioInterrupts();
 
-                    // P_Macro_Instrument_editing(instrument_id);
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    patch_original_0 = patch_original;
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    if (patch_original != patch_original_0)
-                    {
-                        P_Select_menu_elements();
-                        Display_Manager.P_show_Performance_menu(); // display the menu and update "P_menu_max"
-                    }
+                    P_UpdatePatchOriginalAndMenu();
                 }
                 break;
             }
@@ -2073,59 +2014,67 @@ void loop()
             display_instrument_volume_flag = false;
         }
 
-        // Pushbuttons
-        if (!Read_pushbutton_fast(35))
+        // Switch to SOUND_EDIT
+        for (Instrument_id = 0; Instrument_id < INSTRUMENTS_MAX; ++Instrument_id)
         {
-            if (Read_pushbutton(PB_number + 26) && Patch[Patch_id].Instrument[PB_number].used)
+            if (Read_pushbutton(PB_Sound[Instrument_id]))
             {
-                Lilla_state_0 = PERFORMANCE;
-                Lilla_state = SOUND_EDIT;
+                if (Patch[Patch_id].Instrument[PB_number].used)
+                {
+                    Lilla_state_0 = PERFORMANCE;
+                    Lilla_state = SOUND_EDIT;
 
-                Instrument_id = PB_number;
-                Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Instrument_id = PB_number;
+                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
-                samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
-                Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
-                S_trim_step = S_Calc_trim_step(trim_speed);
+                    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                    S_trim_step = S_Calc_trim_step(trim_speed);
 
-                // Display page
-                Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+                    // Display page
+                    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
-                // Menu
-                S_sound_original = S_Verify_is_Sound_original(Sound_id);
-                S_Select_menu_elements();
-                Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                    // Menu
+                    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+                    S_Select_menu_elements();
+                    Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                // Pointer
-                Pointer_Sound.Set_pointer_to_file(S_menu_max);
-                S_pointer = Pointer_Sound.Get_pointer();
-                Pointer_Sound.Display_pointer();
+                    // Pointer
+                    Pointer_Sound.Set_pointer_to_file(S_menu_max);
+                    S_pointer = Pointer_Sound.Get_pointer();
+                    Pointer_Sound.Display_pointer();
 
-                // Restore LEDs
-                Performance_led_set.Restore_all_LED();
+                    // Restore LEDs
+                    Performance_led_set.Restore_all_LED();
 
-                // Wave
-                Display_Sound.Show_wave(Instrument_id);
+                    // Wave
+                    Display_Sound.Show_wave(Instrument_id);
 
-                // Report
-                Serial.print("Editing Sound: ");
-                Serial.println(Instrument_id);
-                Print_Sound(Sound_id);
+                    // Report
+                    Serial.print("Editing Sound: ");
+                    Serial.println(Instrument_id);
+                    Print_Sound(Sound_id);
+                }
             }
         }
 
-        else
-        {
-            // Switch to MIXER
-            if (Read_pushbutton(27))
+        // Switch verso un TOOL
+        if (Read_pushbutton(PB_Tools))
+        { 
+            TOOLS_pushbutton = true;
+            Shifters_manager.Switch_led(LED_Tools, true);
+
+            switch (Switches_manager.Get_value(SwitchTools))
+            {
+            case SwToolsMixer:
             {
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
                 Switch_to_MIXER();
             }
+            break;
 
-            // Switch to DELAY
-            else if (Read_pushbutton(28))
+            case SwToolsDelay:
             {
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
@@ -2135,41 +2084,55 @@ void loop()
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
+            break;
 
-            // Switch to LIVE_SAMPLING
-            else if (Read_pushbutton(29))
+            case SwToolsSetup:
             {
+                Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
-                Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                Golive_SETUP();
             }
+            break;
 
-            // Switch to DIRECT_SAMPLING
-            else if (Read_pushbutton(30))
-            {
-                Patch_id_old = Patch_id;
-                Switch_to_DIRECT_SAMPLING();
-            }
-
-            // Switch to MIDI_MONITOR
-            else if (Read_pushbutton(31))
+            case SwToolsTest:
             {
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
                 Golive_MIDI_MONITOR();
             }
+            break;
+            }
+        }
 
-            // Switch to MIDI_LOOP
-            else if (Read_pushbutton(32))
+        if (Switches_manager.Get_change(SwitchModes))
+        {
+            switch (Switches_manager.Get_value(SwitchModes))
+            {
+            case SwModesSampler:
+            {
+                Patch_id_old = Patch_id;
+                Switch_to_DIRECT_SAMPLING();
+            }
+            break;
+
+            case SwModesLiveSampler:
+            {
+                Patch_id_old = Patch_id;
+                Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+            }
+            break;
+
+            case SwModesPerformance:
+                {
+                    LILLA_PRINT_ERROR_LOCATION(F("Invalid case"));
+                }
+                break;
+
+            case SwModesMidiLoop:
             {
                 Switch_from_PERFORMANCE_to_MIDI_LOOP();
             }
-
-            // Switch to SETUP
-            else if (Read_pushbutton(33))
-            {
-                Lilla_state_0 = PERFORMANCE;
-                Patch_id_old = Patch_id;
-                Golive_SETUP();
+            break;
             }
         }
     }
@@ -2211,20 +2174,7 @@ void loop()
                 {
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
-                    S_Set_Sound_SOLO_OFF();
-
-                    Lilla_state = PERFORMANCE;
-
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    P_Select_menu_elements();
-                    P_Update_line_of_all_instruments();
-
-                    Display_Manager.P_show_PERFORMANCE_page(true, true);
-                    Performance_led_set.Restore_all_LED();
-
-                    // pointer
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
-                    P_pointer = Pointer_Performance.Get_pointer();
+                    P_Return_to_PERFORMANCE_from_SOUND_EDIT();
                 }
                 break;
 
@@ -2242,20 +2192,7 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    S_Set_Sound_SOLO_OFF();
-
-                    Lilla_state = PERFORMANCE;
-
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    P_Select_menu_elements();
-                    P_Update_line_of_all_instruments();
-
-                    Display_Manager.P_show_PERFORMANCE_page(true, true);
-                    Performance_led_set.Restore_all_LED();
-
-                    // pointer
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
-                    P_pointer = Pointer_Performance.Get_pointer();
+                    P_Return_to_PERFORMANCE_from_SOUND_EDIT();
                 }
                 break;
 
@@ -2267,18 +2204,7 @@ void loop()
                     S_Drop_Instrument(Instrument_id); // instruments is decremented by 1
                     AudioInterrupts();
 
-                    Lilla_state = PERFORMANCE;
-
-                    patch_original = P_Verify_is_Patch_original(Patch_id);
-                    P_Select_menu_elements();
-                    P_Update_line_of_all_instruments();
-
-                    Display_Manager.P_show_PERFORMANCE_page(true, true);
-                    Performance_led_set.Restore_all_LED();
-
-                    // pointer
-                    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
-                    P_pointer = Pointer_Performance.Get_pointer();
+                    P_Return_to_PERFORMANCE_from_SOUND_EDIT();
                 }
                 break;
 
@@ -3338,20 +3264,7 @@ void loop()
                 {
                     if (PB_number == Instrument_id)
                     {
-                        S_Set_Sound_SOLO_OFF();
-
-                        Lilla_state = PERFORMANCE;
-
-                        patch_original = P_Verify_is_Patch_original(Patch_id);
-                        P_Select_menu_elements();
-                        P_Update_line_of_all_instruments();
-
-                        Display_Manager.P_show_PERFORMANCE_page(true, true);
-                        Performance_led_set.Restore_all_LED();
-
-                        // pointer
-                        Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
-                        P_pointer = Pointer_Performance.Get_pointer();
+                        P_Return_to_PERFORMANCE_from_SOUND_EDIT();
                     }
 
                     else if (Patch[Patch_id].Instrument[PB_number].used)
@@ -3796,7 +3709,7 @@ void loop()
                             break;
 
                         default:
-                            Serial.println("Switch MISSING! 3303");
+                            LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                             break;
                         }
                     }
@@ -3863,7 +3776,7 @@ void loop()
                             break;
 
                         default:
-                            Serial.println("Switch MISSING! 3354");
+                            LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                             break;
                         }
                     }
@@ -3910,7 +3823,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 3381");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -3957,7 +3870,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 3425");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -3980,7 +3893,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 3448");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4013,7 +3926,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 5435");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4324,7 +4237,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 3673");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4374,7 +4287,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 3722");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4417,7 +4330,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 3764");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -6120,7 +6033,7 @@ void loop()
                 break;
 
                 default:
-                    Serial.println("Switch MISSING! 5239");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 } // END switch(choice_DS_menu)
             }
@@ -6272,7 +6185,7 @@ void loop()
                 Display_Manager.Midi_monitor_data(MM_midi_channel, 7, -1, -1, -1, -1);
                 break;
             default:
-                Serial.println("Switch MISSING! 5350");
+                LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                 break;
             }
             display_wait = false;
@@ -6303,7 +6216,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 5341");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -6346,7 +6259,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 5381");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 };
             }
@@ -6373,7 +6286,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 5408");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -6400,7 +6313,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 5435");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -7537,7 +7450,7 @@ void loop()
                 break;
 
             default:
-                Serial.println("Switch MISSING! 6255");
+                LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                 break;
             }
         }
@@ -7567,7 +7480,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 6283");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7624,7 +7537,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 6330");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7653,7 +7566,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 6357");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7697,7 +7610,7 @@ void loop()
                     break;
 
                 default:
-                    Serial.println("Switch MISSING! 6398");
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -8027,6 +7940,23 @@ void Golive_with_PERFORMANCE(int patch_id)
 
     Print_Lilla_state();
     Print_Patch(patch_id);
+}
+
+void P_Return_to_PERFORMANCE_from_SOUND_EDIT(void)
+{
+    S_Set_Sound_SOLO_OFF();
+
+    Lilla_state = PERFORMANCE;
+
+    patch_original = P_Verify_is_Patch_original(Patch_id);
+    P_Select_menu_elements();
+    P_Update_line_of_all_instruments();
+
+    Display_Manager.P_show_PERFORMANCE_page(true, true);
+    Performance_led_set.Restore_all_LED();
+
+    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
+    P_pointer = Pointer_Performance.Get_pointer();
 }
 
 void P_Rebuild_patch_old(void)
@@ -9443,7 +9373,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         break;
 
     default:
-        Serial.println("Switch MISSING! 6869");
+        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
         break;
     }
 }
@@ -9618,7 +9548,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         break;
 
     default:
-        Serial.println("Switch MISSING! 7028");
+        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
         break;
     }
 }
@@ -9762,7 +9692,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         break;
 
     default:
-        Serial.println("Switch MISSING! 7165");
+        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
         break;
     }
 }
@@ -11503,7 +11433,7 @@ void Print_Lilla_state(void)
         Serial.println("MIDI Loop");
         break;
     default:
-        Serial.println("Switch MISSING! 9045");
+        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
         break;
     }
 }
@@ -12610,7 +12540,7 @@ void Bootstrap_setup(void)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
-    // Display_Manager.Lilla_cover_slow();
+    Display_Manager.Lilla_cover_slow();
     // Display_Manager.Lilla_cover_saturate();
 
     // ****************    START with PERFORMANCE     ************
