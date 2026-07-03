@@ -30,7 +30,7 @@ void Pushbuttons::Transmit_position(const uint8_t &pushbutton, const uint8_t &po
     }
 }
 
-bool Pushbuttons::Get_state(const uint8_t &pushbutton)
+bool Pushbuttons::Get_value(const uint8_t &pushbutton)
 {
     return (state[pushbutton] == 0? true: false); // 0: down, 1: up
 }

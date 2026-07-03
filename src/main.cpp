@@ -2019,22 +2019,18 @@ void loop()
         {
             if (Read_pushbutton(PB_Sound[Instrument_id]))
             {
-                if (Patch[Patch_id].Instrument[PB_number].used)
+                if (Patch[Patch_id].Instrument[Instrument_id].used)
                 {
                     Lilla_state_0 = PERFORMANCE;
                     Lilla_state = SOUND_EDIT;
 
-                    Instrument_id = PB_number;
                     Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
-                    // Display page
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
-
-                    // Menu
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
                     S_Select_menu_elements();
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
@@ -2060,7 +2056,7 @@ void loop()
 
         // Switch verso un TOOL
         if (Read_pushbutton(PB_Tools))
-        { 
+        {
             TOOLS_pushbutton = true;
             Shifters_manager.Switch_led(LED_Tools, true);
 
@@ -2123,10 +2119,10 @@ void loop()
             break;
 
             case SwModesPerformance:
-                {
-                    LILLA_PRINT_ERROR_LOCATION(F("Invalid case"));
-                }
-                break;
+            {
+                LILLA_PRINT_ERROR_LOCATION(F("Invalid case"));
+            }
+            break;
 
             case SwModesMidiLoop:
             {
@@ -2895,12 +2891,12 @@ void loop()
             }
         }
 
-        // Pushbuttons
-        if (!Read_pushbutton_fast(35))
+        // Switch Sound or INSTRUMENT_EDIT
+        for (auto i = 0; i < INSTRUMENTS_MAX; ++i)
         {
-            if (Read_pushbutton(PB_number + 26))
+            if (Read_pushbutton(PB_Sound[i]))
             {
-                if (PB_number == Instrument_id)
+                if (i == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
 
@@ -2912,7 +2908,7 @@ void loop()
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
                 }
-                else if (Patch[Patch_id].Instrument[PB_number].used)
+                else if (Patch[Patch_id].Instrument[i].used)
                 {
                     AudioNoInterrupts();
                     if (solo_flag)
@@ -2922,56 +2918,60 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    Instrument_id = PB_number;
+                    Instrument_id = i;
                     Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-                    Print_Sound(Sound_id);
+
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                     S_trim_step = S_Calc_trim_step(trim_speed);
-                    S_sound_original = S_Verify_is_Sound_original(Sound_id);
-
-                    // S_menu = 0;
 
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
-                    if (Lilla_state_0 != MIDI_LOOP)
-                    {
-                        // restore all LED
-                        Performance_led_set.Restore_all_LED();
-                    }
-
-                    // to do: display LED for MIDI_LOOP
-
-                    Display_Sound.Show_wave(Instrument_id);
-
+                    S_sound_original = S_Verify_is_Sound_original(Sound_id);
                     if (Lilla_state_0 != MIDI_LOOP)
                     {
                         S_Select_menu_elements();
                     }
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                    // Display_Manager.S_show_menu_frame(S_menu);
+                    // Pointer
+                    // to do
+
+                    // Restore LEDs
+                    if (Lilla_state_0 != MIDI_LOOP)
+                    {
+                        Performance_led_set.Restore_all_LED();
+                    }
+                    else
+                    {
+                        // to do
+                    }
+
+                    Display_Sound.Show_wave(Instrument_id);
+
+                    // Report
+                    Serial.print("Editing Sound: ");
+                    Serial.println(Instrument_id);
+                    Print_Sound(Sound_id);
                 }
             }
         }
 
-        else
+        // Switch verso un TOOL
+        if (Read_pushbutton(PB_Tools))
         {
-            // Ritorna a PERFORMANCE
-            if (Read_pushbutton(26))
-            {
-                S_Set_Sound_SOLO_OFF();
-                Golive_with_PERFORMANCE(Patch_id);
-            }
+            TOOLS_pushbutton = true;
+            Shifters_manager.Switch_led(LED_Tools, true);
 
-            // Switch to MIXER
-            else if (Read_pushbutton(27))
+            switch (Switches_manager.Get_value(SwitchTools))
+            {
+            case SwToolsMixer:
             {
                 S_Set_Sound_SOLO_OFF();
                 Switch_to_MIXER();
             }
+            break;
 
-            // Switch to DELAY
-            else if (Read_pushbutton(28))
+            case SwToolsDelay:
             {
                 S_Set_Sound_SOLO_OFF();
                 Lilla_state = DELAY_SETTINGS;
@@ -2980,30 +2980,51 @@ void loop()
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
             }
+            break;
 
-            // Switch to LIVE_SAMPLING
-            else if (Read_pushbutton(29))
+            case SwToolsSetup:
             {
                 S_Set_Sound_SOLO_OFF();
-                Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                Golive_SETUP();
             }
+            break;
 
-            // Switch to DIRECT_SAMPLING
-            else if (Read_pushbutton(30))
-            {
-                S_Set_Sound_SOLO_OFF();
-                Switch_to_DIRECT_SAMPLING();
-            }
-
-            // Switch to MIDI_MONITOR
-            else if (Read_pushbutton(31))
+            case SwToolsTest:
             {
                 S_Set_Sound_SOLO_OFF();
                 Golive_MIDI_MONITOR();
             }
+            break;
+            }
+        }
 
-            // Switch to MIDI_LOOP
-            else if (Read_pushbutton(32))
+        // Switch Mode
+        if (Switches_manager.Get_change(SwitchModes))
+        {
+            switch (Switches_manager.Get_value(SwitchModes))
+            {
+            case SwModesSampler:
+            {
+                S_Set_Sound_SOLO_OFF();
+                Switch_to_DIRECT_SAMPLING();
+            }
+            break;
+
+            case SwModesLiveSampler:
+            {
+                S_Set_Sound_SOLO_OFF();
+                Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+            }
+            break;
+
+            case SwModesPerformance:
+            {
+                S_Set_Sound_SOLO_OFF();
+                Golive_with_PERFORMANCE(Patch_id);
+            }
+            break;
+
+            case SwModesMidiLoop:
             {
                 S_Set_Sound_SOLO_OFF();
                 if (Lilla_state_0 == MIDI_LOOP)
@@ -3011,12 +3032,7 @@ void loop()
                 else
                     Switch_from_PERFORMANCE_to_MIDI_LOOP();
             }
-
-            // Switch to SETUP
-            else if (Read_pushbutton(33))
-            {
-                S_Set_Sound_SOLO_OFF();
-                Golive_SETUP();
+            break;
             }
         }
     }
@@ -3255,19 +3271,19 @@ void loop()
             break;
         }
 
-        // pushbuttons
-        if (!Read_pushbutton_fast(35))
+        // Switch Sound or INSTRUMENT_EDIT
+        if (Lilla_state_0 == PERFORMANCE)
         {
-            if (Lilla_state_0 == PERFORMANCE)
+            for (auto i = 0; i < INSTRUMENTS_MAX; ++i)
             {
-                if (Read_pushbutton(PB_number + 26))
+                if (Read_pushbutton(PB_Sound[i]))
                 {
-                    if (PB_number == Instrument_id)
+                    if (i == Instrument_id)
                     {
                         P_Return_to_PERFORMANCE_from_SOUND_EDIT();
                     }
 
-                    else if (Patch[Patch_id].Instrument[PB_number].used)
+                    else if (Patch[Patch_id].Instrument[i].used)
                     {
                         AudioNoInterrupts();
                         if (solo_flag)
@@ -3279,7 +3295,7 @@ void loop()
 
                         Lilla_state = SOUND_EDIT;
 
-                        Instrument_id = PB_number;
+                        Instrument_id = i;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
                         Serial.print("Editing Sound: ");
@@ -3302,116 +3318,116 @@ void loop()
 
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                    }
+                }
+            }
+        }
 
-                        // Display_Sound.S_show_menu_frame(S_menu);
+        else if (Lilla_state_0 == LIVE_SAMPLING)
+        {
+            if (LS_stereo)
+            {
+                // VCF left channel
+                if (Read_pushbutton(PB_S1))
+                {
+                    if (Instrument_id == 0)
+                    {
+                        LS_instrument = 0;        // Left
+                        LS_sound_id = SOUNDS_MAX; // Left
+                        Golive_with_LIVE_SAMPLING();
+                    }
+                    else
+                    {
+                        Instrument_id = 0;
+                        Sound_id = SOUNDS_MAX;
+
+                        Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                        // restore LED
+                        Performance_led_set.Restore_all_LED();
+                    }
+                }
+
+                // VCF right channel
+                if (Read_pushbutton(PB_S2))
+                {
+                    if (Instrument_id == 1)
+                    {
+                        LS_instrument = 1;            // Right
+                        LS_sound_id = SOUNDS_MAX + 1; // Right
+                        Golive_with_LIVE_SAMPLING();
+                    }
+                    else
+                    {
+                        Instrument_id = 1;
+                        Sound_id = SOUNDS_MAX + 1;
+                        Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                        // restore LED
+                        Performance_led_set.Restore_all_LED();
                     }
                 }
             }
 
-            else if (Lilla_state_0 == LIVE_SAMPLING)
+            else
             {
-                if (LS_stereo)
+                // VCF left channel
+                if (Read_pushbutton(PB_S1))
                 {
-                    // VCF left channel
-                    if (Read_pushbutton(26))
-                    {
-                        if (Instrument_id == 0)
-                        {
-                            LS_instrument = 0;        // Left
-                            LS_sound_id = SOUNDS_MAX; // Left
-                            Golive_with_LIVE_SAMPLING();
-                        }
-                        else
-                        {
-                            Instrument_id = 0;
-                            Sound_id = SOUNDS_MAX;
-
-                            Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
-                            // restore LED
-                            Performance_led_set.Restore_all_LED();
-                        }
-                    }
-                    // VCF right channel
-                    if (Read_pushbutton(27))
-                    {
-                        if (Instrument_id == 1)
-                        {
-                            LS_instrument = 1;            // Right
-                            LS_sound_id = SOUNDS_MAX + 1; // Right
-                            Golive_with_LIVE_SAMPLING();
-                        }
-                        else
-                        {
-                            Instrument_id = 1;
-                            Sound_id = SOUNDS_MAX + 1;
-                            Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
-                            // restore LED
-                            Performance_led_set.Restore_all_LED();
-                        }
-                    }
+                    Golive_with_LIVE_SAMPLING();
                 }
-                else
-                {
-                    // VCF left channel
-                    if (Read_pushbutton(26))
-                    {
-                        Golive_with_LIVE_SAMPLING();
-                    }
 
-                    // VCF right channel
-                    else if (Read_pushbutton(27))
-                    {
-                        Golive_with_LIVE_SAMPLING();
-                    }
+                // VCF right channel
+                else if (Read_pushbutton(PB_S2))
+                {
+                    Golive_with_LIVE_SAMPLING();
                 }
             }
+        }
 
-            else if (Lilla_state_0 == MIDI_LOOP)
+        else if (Lilla_state_0 == MIDI_LOOP)
+        {
+            if (Read_pushbutton(PB_number + 26))
             {
-                if (Read_pushbutton(PB_number + 26))
+                if (PB_number == Instrument_id)
                 {
-                    if (PB_number == Instrument_id)
+                    S_Set_Sound_SOLO_OFF();
+
+                    // Ritorna a MIDI_LOOP
+                    Golive_with_MIDI_LOOP(false);
+                }
+                else if (Patch[Patch_id].Instrument[PB_number].used)
+                {
+                    AudioNoInterrupts();
+                    if (solo_flag)
                     {
-                        S_Set_Sound_SOLO_OFF();
-
-                        // Ritorna a MIDI_LOOP
-                        Golive_with_MIDI_LOOP(false);
+                        solo_flag = false;
+                        P_Update_all_maps_Instrument_for_notes();
                     }
-                    else if (Patch[Patch_id].Instrument[PB_number].used)
-                    {
-                        AudioNoInterrupts();
-                        if (solo_flag)
-                        {
-                            solo_flag = false;
-                            P_Update_all_maps_Instrument_for_notes();
-                        }
-                        AudioInterrupts();
+                    AudioInterrupts();
 
-                        Lilla_state = SOUND_EDIT;
+                    Lilla_state = SOUND_EDIT;
 
-                        Instrument_id = PB_number;
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Instrument_id = PB_number;
+                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
-                        Print_Sound(Sound_id);
+                    Print_Sound(Sound_id);
 
-                        samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
-                        Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
-                        S_trim_step = S_Calc_trim_step(trim_speed);
-                        S_sound_original = S_Verify_is_Sound_original(Sound_id);
+                    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                    S_trim_step = S_Calc_trim_step(trim_speed);
+                    S_sound_original = S_Verify_is_Sound_original(Sound_id);
 
-                        // S_menu = 0;
+                    // S_menu = 0;
 
-                        Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+                    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
-                        // to do: display LED
+                    // to do: display LED
 
-                        Display_Sound.Show_wave(Instrument_id);
-                        Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                    Display_Sound.Show_wave(Instrument_id);
+                    Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                        // Display_Sound.S_show_menu_frame(S_menu);
-                    }
+                    // Display_Sound.S_show_menu_frame(S_menu);
                 }
             }
         }
@@ -12325,7 +12341,7 @@ bool Read_pushbutton(int element)
 }
 bool Read_pushbutton_fast(int element)
 {
-    return (Pushbuttons_manager.Get_state(element));
+    return (Pushbuttons_manager.Get_value(element));
 }
 int Read_encoder_simple(int element)
 {

@@ -22,11 +22,6 @@ void Encoders::Transmit_DT_CLK(const uint8_t& encoder, const uint8_t& DT, const 
     state[encoder] = matrix[read][state[encoder]].next_state;
 }
 
-int Encoders::Get_state(const uint8_t& encoder)
-{
-    return state[encoder] ;
-}
-
 int Encoders::Get_rotation(const uint8_t& encoder)
 {
     auto value = rotation[encoder];

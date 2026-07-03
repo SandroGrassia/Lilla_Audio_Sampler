@@ -14,12 +14,10 @@ void Switches::Transmit_contacts(const uint8_t &switch_id, const uint8_t &contac
         Serial.println(switch_id);
         return;
     }
-
     if (millis() <= timer[switch_id])
     {
         return;
     }
-    
     if (contacts >= CONTACTS_VALUES)
     {
         Serial.print(F("Switches::Transmit_contacts(): ERROR, invalid contacts: "));
@@ -63,7 +61,6 @@ uint8_t Switches::Get_value(const uint8_t &switch_id)
         Serial.println(switch_id);
         return DEFAULT_POSITION;
     }
-
     return output[switch_id];
 }
 

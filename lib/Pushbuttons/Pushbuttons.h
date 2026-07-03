@@ -41,6 +41,7 @@ private:
     State state[PUSHBUTTONS]; // 0: pushbutton is actually pressed  1: pushbutton is actually released
     bool changed[PUSHBUTTONS]; // output goes to true at the first pressed event, than returns to false
     uint32_t timer[PUSHBUTTONS];
+    void Reset(void);
 
 public:
     Pushbuttons()
@@ -49,7 +50,6 @@ public:
     }
 
     void Transmit_position(const uint8_t &pushbutton, const uint8_t &position); // position -->  0: pressed, 1: released
-    bool Get_state(const uint8_t &pushbutton);
-    bool Get_change(const uint8_t &pushbutton);
-    void Reset(void);
+    bool Get_value(const uint8_t &pushbutton); // returns true if the pushbutton is pressed, false if released
+    bool Get_change(const uint8_t &pushbutton); // returns true if value has changed from last Get_change() call
 };

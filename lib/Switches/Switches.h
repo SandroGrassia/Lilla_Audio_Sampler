@@ -25,6 +25,7 @@ private:
     uint8_t output[SWITCHES]; // valid values: 0, 1, 2, 3
     bool changed[SWITCHES];
     uint32_t timer[SWITCHES];
+    void Reset(void);
 
 public:
     Switches()
@@ -33,7 +34,6 @@ public:
     }
 
     void Transmit_contacts(const uint8_t &switch_id, const uint8_t &contacts); // contacts range: 0b 0000 -> 0b 1111
-    bool Get_change(const uint8_t &switch_id);
-    uint8_t Get_value(const uint8_t &switch_id);
-    void Reset(void);
+    bool Get_change(const uint8_t &switch_id); // returns true if value has changed from last Get_change() call
+    uint8_t Get_value(const uint8_t &switch_id); // returns the current stable switch position: 0, 1, 2, or 3
 };
