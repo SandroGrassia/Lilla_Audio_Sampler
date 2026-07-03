@@ -2100,6 +2100,7 @@ void loop()
             }
         }
 
+        // Switch Mode
         if (Switches_manager.Get_change(SwitchModes))
         {
             switch (Switches_manager.Get_value(SwitchModes))
@@ -3536,14 +3537,14 @@ void loop()
         // Read menu_pushbutton and exit
         if (Lilla_state_0 == PERFORMANCE)
         {
-            if (Read_pushbutton(25))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 Golive_with_PERFORMANCE(Patch_id);
             }
         }
         else if (Lilla_state_0 == LIVE_SAMPLING)
         {
-            if (Read_pushbutton(25))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 Golive_with_LIVE_SAMPLING();
             }
@@ -7262,7 +7263,7 @@ void loop()
     if (Lilla_state == SETUP)
     {
         // Change Patch VOLUME
-        if (Read_encoder(15, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
@@ -7271,27 +7272,21 @@ void loop()
         }
 
         // Set Key Step
-
-        if (SET_menu == 0 && Read_encoder_inverse(24, key_step, 3, 0, 1))
-
+        if (SET_menu == 0 && Read_encoder_inverse(EN_PB_Value, key_step, 3, 0, 1))
         {
             Display_Manager.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
         }
 
         // Set Prima ottava
-
-        if (SET_menu == 1 && Read_encoder(24, first_octave, 0, -2, 1))
-
+        if (SET_menu == 1 && Read_encoder(EN_PB_Value, first_octave, 0, -2, 1))
         {
             Display_Manager.SETUP_show_First_octave_value();
         }
 
         // SETUP_Optimization
         optimization_cache = optimization;
-
-        if (SET_menu == 2 && Read_encoder_inverse(24, optimization_cache, 3, 0, 1))
-
+        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, optimization_cache, 3, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Stop_all_players();
@@ -7303,15 +7298,13 @@ void loop()
         }
 
         // Change menu item  -  uint8_t SET_menu;
-
-        if (Read_encoder(25, SET_menu, 7, 0, 1))
-
+        if (Read_encoder(EN_PB_Select, SET_menu, 7, 0, 1))
         {
             Display_Manager.SETUP_show_frame(SET_menu);
         }
 
         // Choose menu item
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             switch (SET_menu)
             {
@@ -7479,39 +7472,12 @@ void loop()
             }
         }
 
-        while (Read_pushbutton_fast(35))
+        // Switch verso un TOOL
+        if (Switches_manager.Get_change(SwitchTools))
         {
-            Shifters_manager.Update();
-
-            // Switch to PERFORMANCE
-            if (Read_pushbutton(26))
+            switch (Switches_manager.Get_value(SwitchTools))
             {
-                if (first_octave != first_octave_cache)
-                    Archive.Save_first_octave(first_octave);
-
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Golive_with_PERFORMANCE(Patch_id);
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
-                    break;
-                }
-                break;
-            }
-
-            // Switch to MIXER
-            else if (Read_pushbutton(27))
+            case SwToolsMixer:
             {
                 if (first_octave != first_octave_cache)
                 {
@@ -7520,9 +7486,9 @@ void loop()
                 Switch_to_MIXER();
                 break;
             }
+            break;
 
-            // Switch to DELAY
-            else if (Read_pushbutton(28))
+            case SwToolsDelay:
             {
                 if (first_octave != first_octave_cache)
                 {
@@ -7536,9 +7502,63 @@ void loop()
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
                 break;
             }
+            break;
 
-            // Switch to LIVE_SAMPLING
-            else if (Read_pushbutton(29))
+            case SwToolsSetup:
+                break;
+
+            case SwToolsTest:
+            {
+                if (first_octave != first_octave_cache)
+                {
+                    Archive.Save_first_octave(first_octave);
+                }
+
+                Golive_MIDI_MONITOR();
+                break;
+            }
+            break;
+            }
+        }
+
+        // Switch Mode
+        if (Read_pushbutton(PB_Tools))
+        {
+            TOOLS_pushbutton = false;
+            Shifters_manager.Switch_led(LED_Tools, false);
+
+            switch (Switches_manager.Get_value(SwitchModes))
+            {
+            case SwModesSampler:
+            {
+                if (first_octave != first_octave_cache)
+                {
+                    Archive.Save_first_octave(first_octave);
+                }
+
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Switch_to_DIRECT_SAMPLING();
+                    break;
+
+                case DIRECT_SAMPLING:
+                    DS_refresh_DS_page();
+                    break;
+
+                case LIVE_SAMPLING:
+                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
+                    break;
+
+                default:
+                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    break;
+                }
+                break;
+            }
+            break;
+
+            case SwModesLiveSampler:
             {
                 if (first_octave != first_octave_cache)
                 {
@@ -7566,9 +7586,9 @@ void loop()
                 }
                 break;
             }
+            break;
 
-            // Switch to DIRECT_SAMPLING
-            else if (Read_pushbutton(30))
+            case SwModesPerformance:
             {
                 if (first_octave != first_octave_cache)
                 {
@@ -7578,15 +7598,15 @@ void loop()
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
-                    Switch_to_DIRECT_SAMPLING();
+                    Golive_with_PERFORMANCE(Patch_id);
                     break;
 
                 case DIRECT_SAMPLING:
-                    DS_refresh_DS_page();
+                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
                     break;
 
                 case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
+                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
                     break;
 
                 default:
@@ -7595,21 +7615,9 @@ void loop()
                 }
                 break;
             }
+            break;
 
-            // Switch to MIDI_MONITOR
-            else if (Read_pushbutton(31))
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Archive.Save_first_octave(first_octave);
-                }
-
-                Golive_MIDI_MONITOR();
-                break;
-            }
-
-            // Switch to MIDI_LOOP
-            else if (Read_pushbutton(32))
+            case SwModesMidiLoop:
             {
                 if (first_octave != first_octave_cache)
                 {
@@ -7639,6 +7647,8 @@ void loop()
                 }
                 break;
             }
+            break;
+            }
         }
     }
 
@@ -7651,7 +7661,7 @@ void loop()
     if (Lilla_state == CC_SETTINGS)
     {
 
-        if (Read_encoder(25, CC_menu, 9, 0, 1))
+        if (Read_encoder(EN_PB_Select, CC_menu, 9, 0, 1))
         {
             Display_Manager.CC_show_frame_menu(CC_menu);
             if (CC_menu > 0 && CC_menu < 9)
@@ -7664,7 +7674,7 @@ void loop()
             }
         }
 
-        if (Read_encoder(24, CC_number, 127, 0, 1))
+        if (Read_encoder(EN_PB_Value, CC_number, 127, 0, 1))
         {
             if (CC_menu > 0 && CC_menu < 9)
             {
@@ -7679,7 +7689,7 @@ void loop()
         }
 
         // scegli l'item
-        if (Read_pushbutton(24))
+        if (Read_pushbutton(EN_PB_Value))
         {
             if (CC_menu > 0 && CC_menu < 9)
             {
@@ -7712,7 +7722,7 @@ void loop()
         }
 
         // Return to SETUP
-        if (Read_pushbutton(25) && CC_menu == 0)
+        if (Read_pushbutton(EN_PB_Select) && CC_menu == 0)
         {
             CC_Save_settings();
             Golive_SETUP();
@@ -8014,12 +8024,12 @@ int P_Ask_if_change_Patch(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(25, action, 2, 0, 1))
+        if (Read_encoder(EN_PB_Select, action, 2, 0, 1))
         {
             Display_Manager.P_Confirm_patch_change_popup_frame(action);
         }
 
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirmation = true;
         }
@@ -8041,11 +8051,11 @@ bool P_Ask_if_delete_this_Patch(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(25, action, 1, 0, 1))
+        if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
             Display_Manager.P_Confirm_patch_delete_popup_frame(action);
         }
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirmation = true;
         }
@@ -8614,11 +8624,11 @@ void DS_ask_if_EXIT_from_DS(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(25, action, 1, 0, 1))
+        if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
             Display_Manager.P_Confirm_patch_delete_popup_frame(action);
         }
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirmation = true;
         }
@@ -10467,7 +10477,7 @@ void VFS_Make_VFS(void)
         {
             Shifters_manager.Update();
 
-            result = Read_encoder_simple(24);
+            result = Read_encoder_simple(EN_PB_Value);
             if (result != 0)
             {
                 if (result == +1)
@@ -10488,7 +10498,7 @@ void VFS_Make_VFS(void)
                 }
             }
 
-            if (Read_pushbutton(25))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 confirmation = true;
             }
@@ -11548,11 +11558,11 @@ bool LS_ask_if_exit_from_LS(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(25, action, 1, 0, 1))
+        if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
             Display_Manager.P_Confirm_patch_delete_popup_frame(action);
         }
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirmation = true;
         }
@@ -11943,11 +11953,11 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(25, result, 1, 0, 1))
+        if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
             Display_Manager.Confirm_config_import_frame(result);
         }
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirmation = true;
         }
@@ -11962,11 +11972,11 @@ void SET_Ask_if_FACTORY_RESET(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(25, result, 1, 0, 1))
+        if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
             Display_Manager.Confirm_config_import_frame(result);
         }
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirmation = true;
         }
@@ -12085,7 +12095,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     // Adesto AT25SF128A    16          1F 89 01
 
     float erasing_time_ms = Get_flash_size() / SET_eraseBytesPerSecond(id) * 1000;
-    uint32_t erasing_time_ms_step = erasing_time_ms / 100;
+    const uint32_t erasing_time_ms_step = static_cast<uint32_t>(erasing_time_ms / 100.0f);
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
 
     // Confirmation
@@ -12097,7 +12107,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     {
         Shifters_manager.Update();
 
-        result = Read_encoder_simple(25);
+        result = Read_encoder_simple(EN_PB_Select);
         if (result == +1)
         {
             if (action == 0)
@@ -12115,7 +12125,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
             }
         }
 
-        if (Read_pushbutton(25))
+        if (Read_pushbutton(EN_PB_Select))
         {
             confirm = true;
         }
