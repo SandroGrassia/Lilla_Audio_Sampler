@@ -163,7 +163,7 @@ void DelayManager::Update(void)
             // Calcola i nuovi valori
             Calc_delay_routing(Delay_data.instrument_route);
 
-            for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+            for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
             {
                 // trasmetti i nuovi valori
                 Players_Manager_ptr->MX_multicast_change_routing(Delay_values.instrument_route[instrument_id]);

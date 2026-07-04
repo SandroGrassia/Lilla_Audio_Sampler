@@ -17,11 +17,11 @@ class LoopLedSet;
 class PlayersStatistics
 {
 private:
-    int total_Players_per_instrument[INSTRUMENTS_MAX]; // usato da DISPLAY_led_instrument(instrument_id): quanti Player stanno suonando l'Instrument
-    int total_Players_per_instrument_old[INSTRUMENTS_MAX];
+    int total_Players_per_instrument[INSTRUMENTS]; // usato da DISPLAY_led_instrument(instrument_id): quanti Player stanno suonando l'Instrument
+    int total_Players_per_instrument_old[INSTRUMENTS];
 
-    int8_t total_Players_per_track_instrument[TRACKS][INSTRUMENTS_MAX]; // usato da DISPLAY_led_instrument(instrument_id): quanti Player stanno suonando nella track l'instrument_id
-    int8_t total_Players_per_track_instrument_old[TRACKS][INSTRUMENTS_MAX];
+    int8_t total_Players_per_track_instrument[TRACKS][INSTRUMENTS]; // usato da DISPLAY_led_instrument(instrument_id): quanti Player stanno suonando nella track l'instrument_id
+    int8_t total_Players_per_track_instrument_old[TRACKS][INSTRUMENTS];
     
 
 public:

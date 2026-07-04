@@ -659,7 +659,7 @@ void PlayersManager::Broadcast_reset_effect(float resolution, uint8_t downsampli
 
 void PlayersManager::Update_all_Preset(int patch_id, float volume_patch)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[patch_id].Instrument[instrument_id].used)
         {
@@ -670,7 +670,7 @@ void PlayersManager::Update_all_Preset(int patch_id, float volume_patch)
 
 void PlayersManager::Update_all_Preset_volume(int patch_id, float volume_patch)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[patch_id].Instrument[instrument_id].used)
         {

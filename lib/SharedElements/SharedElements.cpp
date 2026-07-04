@@ -28,7 +28,7 @@ int volume_patch = 29;
 uint8_t map_instrument_for_note[16][NOTE_NUMBERS] = {0};
 bool key_state[16][NOTE_NUMBERS] = {0}; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
 bool file_midi_ch_flag;
-int8_t P_line_of_instrument[INSTRUMENTS_MAX];
+int8_t P_line_of_instrument[INSTRUMENTS];
 float pitch_from_note[NOTE_NUMBERS] = {0};
 bool display_instrument_volume_flag;
 uint8_t instrument_volume_changed;
@@ -67,12 +67,12 @@ uint8_t Get_midi_channel(int patch_id, int instrument_id)
 }
 
 // PRESET
-Preset_struct Preset[INSTRUMENTS_MAX];
+Preset_struct Preset[INSTRUMENTS];
 
 // PLAYER
 elapsedMicros security_timer = 0;
-int16_t *Noclick_pointer[INSTRUMENTS_MAX] = {0};   // each Noclick instance contains 2 arrays
-int16_t *Wavetable_pointer[INSTRUMENTS_MAX] = {0}; // each Wavetable instance contains 2 arrays
+int16_t *Noclick_pointer[INSTRUMENTS] = {0};   // each Noclick instance contains 2 arrays
+int16_t *Wavetable_pointer[INSTRUMENTS] = {0}; // each Wavetable instance contains 2 arrays
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id) // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative
@@ -115,7 +115,7 @@ float pitch_bend_value[16] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
 float after_touch_channel_value[16] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
 // CONTROL CHANGE
-uint8_t CC_Sound_gain[INSTRUMENTS_MAX] = {0};
+uint8_t CC_Sound_gain[INSTRUMENTS] = {0};
 uint8_t CC_lowpass_filter_value;
 uint8_t CC_midi_controller;
 

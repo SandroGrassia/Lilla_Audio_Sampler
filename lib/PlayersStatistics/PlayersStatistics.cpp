@@ -10,7 +10,7 @@ void PlayersStatistics::Reset_total_Players_per_track_instrument(void)
 {
     for (auto track = 0; track < TRACKS; ++track)
     {
-        for (auto instrument_local = 0; instrument_local < INSTRUMENTS_MAX; ++instrument_local)
+        for (auto instrument_local = 0; instrument_local < INSTRUMENTS; ++instrument_local)
         {
             total_Players_per_track_instrument[track][instrument_local] = 0;
             total_Players_per_track_instrument_old[track][instrument_local] = 0;
@@ -51,7 +51,7 @@ void PlayersStatistics::Dec_total_Players_per_track_instrument(const int &track,
 
 void PlayersStatistics::Reset_total_Players_per_instrument(void)
 {
-    for (auto i = 0; i < INSTRUMENTS_MAX; ++i)
+    for (auto i = 0; i < INSTRUMENTS; ++i)
     {
         total_Players_per_instrument[i] = 0;
         total_Players_per_instrument_old[i] = 0;
@@ -69,7 +69,7 @@ void PlayersStatistics::Inc_total_Players_per_instrument(int instrument_id)
 
     if (false)
     {
-        for (auto i = 0; i < INSTRUMENTS_MAX; ++i)
+        for (auto i = 0; i < INSTRUMENTS; ++i)
         {
             Serial.print(total_Players_per_instrument[i]);
             Serial.print(" ");
@@ -82,7 +82,6 @@ void PlayersStatistics::Inc_total_Players_per_instrument(int instrument_id)
         // Serial.println("invio richiesta LED_ON");   
         Performance_led_set_ptr->Request_LED_switch(instrument_id, true);
     }
-
 }
 
 void PlayersStatistics::Dec_total_Players_per_instrument(int instrument_id)
@@ -100,7 +99,7 @@ void PlayersStatistics::Dec_total_Players_per_instrument(int instrument_id)
 
     if (false)
     {
-        for (auto i = 0; i < INSTRUMENTS_MAX; ++i)
+        for (auto i = 0; i < INSTRUMENTS; ++i)
         {
             Serial.print(total_Players_per_instrument[i]);
             Serial.print(" ");

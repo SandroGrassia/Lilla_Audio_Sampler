@@ -104,7 +104,7 @@ void DisplayManager::Led_SOUND_EDIT_instrument(int instrument_id, bool on)
 {
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 6, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
     }
     else
     {
@@ -119,7 +119,7 @@ void DisplayManager::Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on)
     {
         if (on)
         {
-            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 6, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
         }
         else
         {
@@ -130,7 +130,7 @@ void DisplayManager::Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on)
     {
         if (on)
         {
-            tft.drawBitmap(display_coordinate_x(40) - 4, display_coordinate_y(0), led_pic, 6, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+            tft.drawBitmap(display_coordinate_x(40) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
         }
         else
         {
@@ -144,7 +144,7 @@ void DisplayManager::Led_DIRECT_SAMPLING(bool on)
     // PATCHES_MAX ha 2 instrument
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(8), led_pic, 6, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(8), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
     }
     else
     {
@@ -185,8 +185,6 @@ void DisplayManager::P_show_pointer_frame(P_field_description_struct value, bool
         break;
     }
 }
-
-
 
 FLASHMEM
 void DisplayManager::P_show_PERFORMANCE_page(bool change_patch, bool change_vol)
@@ -710,7 +708,7 @@ void DisplayManager::P_show_all_instruments(int patch_id)
 {
     tft.fillRect(0, P_Instrument_pixels_y(0) - 4, 320, 240, ILI9341_BLACK);
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[patch_id].Instrument[instrument_id].used)
         {
@@ -1075,7 +1073,7 @@ void DisplayManager::CC_show_ControlChange_page(void)
 FLASHMEM
 void DisplayManager::CC_show_all_sound_gains(void)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         CC_show_sound_gain(instrument_id);
     }
@@ -1447,7 +1445,6 @@ void DisplayManager::Config_reset_popup(void)
     tft.print(F("   PLEASE WAIT. LILLA WILL RESTART AFTER RESET")); // 43
 }
 
-
 FLASHMEM
 void DisplayManager::VFS_Make_presentation(void)
 {
@@ -1725,6 +1722,3 @@ void DisplayManager::Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const 
     tft.print(filesize / 1024);
     tft.print("KB");
 }
-
-
-

@@ -59,7 +59,7 @@ struct Delay_values_struct
     float loop_gain;
     float samples;
     float samples_LR;
-    bool instrument_route[INSTRUMENTS_MAX];
+    bool instrument_route[INSTRUMENTS];
     uint8_t modulation_source; // 0: none 1:wave 2:signal
     float modulation_depth;        // 0.0 --> 1.0 modulation index
     float modulation_frequency;    // only for waveform

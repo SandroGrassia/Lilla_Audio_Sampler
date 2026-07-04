@@ -9,12 +9,13 @@
 #include <Arduino.h>
 #include "SharedElements.h" // per INSTRUMENT_MAX
 #include "config.h"
+#include "Functions.h"
 
 class PerformanceLedSet
 {
 private:
 
-    int8_t led_activity[INSTRUMENTS_MAX]; // -2: request switch-OFF   -1: led OFF    +1: led ON   -2: request switch-ON
+    int8_t led_activity[INSTRUMENTS]; // -2: request switch-OFF   -1: led OFF    +1: led ON   +2: request switch-ON
 
 public:
     PerformanceLedSet() {}

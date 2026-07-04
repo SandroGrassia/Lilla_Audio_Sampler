@@ -55,7 +55,7 @@ void Print_Delay_values(const Delay_values_struct Delay_values)
     Serial.print("Delay_values.loop_gain: ");
     Serial.println(Delay_values.loop_gain);
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Serial.print("Delay_values.instrument_route[");
         Serial.print(instrument_id);
@@ -99,7 +99,7 @@ void Print_Delay_data(const Delay_data_struct &data)
 
 void Calc_delay_routing(const uint8_t value)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Delay_values.instrument_route[instrument_id] = (bitRead(value, instrument_id) == 1 ? true : false);
         
@@ -113,11 +113,11 @@ void Calc_delay_routing(const uint8_t value)
 
 void Turn_ON_Delay(const bool ON) // switch on/off Delay (using Instrument routing)
 {
-    static int instrument_route[INSTRUMENTS_MAX];
+    static int instrument_route[INSTRUMENTS];
 
     if (!ON)
     {
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             instrument_route[instrument_id] = Delay_values.instrument_route[instrument_id];
             Delay_values.instrument_route[instrument_id] = 0;
@@ -126,7 +126,7 @@ void Turn_ON_Delay(const bool ON) // switch on/off Delay (using Instrument routi
     
     else
     {
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             Delay_values.instrument_route[instrument_id] = instrument_route[instrument_id];
         }

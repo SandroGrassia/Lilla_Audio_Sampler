@@ -55,5 +55,5 @@ struct P_field_description_struct
     int instrument_id;
 };
 
-extern int8_t instrument_on_position[INSTRUMENTS_MAX];
+extern int8_t instrument_on_position[INSTRUMENTS];
 void P_Update_line_of_all_instruments(void);

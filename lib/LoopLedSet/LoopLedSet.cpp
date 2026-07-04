@@ -17,7 +17,7 @@ void LoopLedSet::Request_all_LED_switch_off(void)
 void LoopLedSet::Request_track_LED_switch_off(int track)
 {
     // also NOT existing instruments
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         led_activity[track][instrument_id] = -2;
     }

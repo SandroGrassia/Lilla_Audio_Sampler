@@ -51,7 +51,7 @@ static inline int16_t Lilla_saturate16(const int32_t &val)
     return out;
 }
 
-static inline void Lilla_PrintErrorLocation(const __FlashStringHelper *message, const char *file, int line)
+static inline void PrintErrorLocation(const __FlashStringHelper *message, const char *file, int line)
 {
     Serial.print(message);
     Serial.print(file);
@@ -59,4 +59,23 @@ static inline void Lilla_PrintErrorLocation(const __FlashStringHelper *message, 
     Serial.println(line);
 }
 
-#define LILLA_PRINT_ERROR_LOCATION(message) Lilla_PrintErrorLocation((message), __FILE__, __LINE__)
+#define PRINT_ERROR(message) PrintErrorLocation((message), __FILE__, __LINE__)
+
+static inline void PrintControlPoint(
+    const char *expression,
+    int value,
+    const char *file,
+    int line)
+{
+    Serial.print(F("CONTROL POINT - "));
+    Serial.print(file);
+    Serial.print(F(" - line "));
+    Serial.print(line);
+    Serial.print(F(" - "));
+    Serial.print(expression);
+    Serial.print(F(": "));
+    Serial.println(value);
+}
+
+#define PRINT_CONTROL_POINT(value) \
+    PrintControlPoint(#value, (value), __FILE__, __LINE__)

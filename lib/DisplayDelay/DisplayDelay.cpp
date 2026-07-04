@@ -122,7 +122,7 @@ void DisplayDelay::D_sounds(void)
         return;
     }
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Delay_values.instrument_route[instrument_id])
         {

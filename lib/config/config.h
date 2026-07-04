@@ -40,11 +40,11 @@ void Setup_GATE_pins(void);
 
 // MAIN CONSTANTS
 static constexpr int PLAYERS = 16;
+static constexpr int INSTRUMENTS = 8;   // mux number of Instruments per Patch
 static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari
 static constexpr int BLOCK_MIN = 674;       // (at least AUDIO_BLOCK_SAMPLES * MAX_PITCH_FLASH) ; below this lenght, samples are copied from flash to RAM and tune is tracked with inner_tune
 static constexpr int NOCLICK_DIM = 300;     // max number of samples included in cross-fade time in NoClick array creation
 static constexpr int PATCHES_MAX = 24;      // max number of Patchs stored in EEPROM
-static constexpr int INSTRUMENTS_MAX = 8;   // mux number of Instruments per Patch
 static constexpr int SOUNDS_MAX = 85;       // max number of Sounds stored in EEPROM
 static constexpr int NOTE_NUMBERS = 128;
 

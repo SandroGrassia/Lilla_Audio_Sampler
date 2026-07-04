@@ -155,7 +155,7 @@ void MidiReader::Update(void)
                 Players_Manager_ptr->Reset_booked_and_restart_player();
                 Players_Manager_ptr->Reset_players_to_restart();
 
-                for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                 {
                     if ((Patch[Patch_id].Instrument[instrument_id].used) && bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id))
                     {
@@ -270,7 +270,7 @@ void MidiReader::Update(void)
                 midi_value = MIDI.getData1();
                 after_touch_channel_value[midi_channel] = midi_value / 127.0f;
 
-                for(auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                for(auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                     if ((Preset[instrument_id].midi_channel == midi_channel) && (Preset[instrument_id].Filter.use == 1) && (Preset[instrument_id].Filter.modulation == 4))
                     {
                         Players_Manager_ptr->Multicast_IF_index(instrument_id, Preset[instrument_id].Filter.index * after_touch_channel_value[midi_channel]);
@@ -339,7 +339,7 @@ void MidiReader::Update(void)
 
                 else
                 {
-                    for(auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                    for(auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                     {
                         if ((controller == CC_Sound_gain[instrument_id]) && (controller > 0))
                         {
@@ -468,7 +468,7 @@ void MidiReader::Update(void)
                     Players_Manager_ptr->Reset_players_to_restart();
 
                     // Inoltra note_on
-                    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                     {
                         if ((Patch[Patch_id].Instrument[instrument_id].used) && bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id))
                         {

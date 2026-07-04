@@ -101,7 +101,7 @@ void ArchivingManager::Save_Patch(const int patch_id)
     EEPROM_Patch.used = Patch[patch_id].used;
     EEPROM_Patch.instruments = Patch[patch_id].instruments;
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         EEPROM_Patch.Instrument[instrument_id].used = Patch[patch_id].Instrument[instrument_id].used;
         EEPROM_Patch.Instrument[instrument_id].sound_id = Patch[patch_id].Instrument[instrument_id].sound_id;
@@ -128,7 +128,7 @@ void ArchivingManager::Read_Patch(const int patch_id)
     Patch[patch_id].used = EEPROM_Patch.used;
     Patch[patch_id].instruments = EEPROM_Patch.instruments;
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Patch[patch_id].Instrument[instrument_id].used = EEPROM_Patch.Instrument[instrument_id].used;
         Patch[patch_id].Instrument[instrument_id].sound_id = EEPROM_Patch.Instrument[instrument_id].sound_id;
@@ -1013,7 +1013,7 @@ void ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
     };
     */
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         value_txt = file.readStringUntil('\n');
         value = value_txt.toInt();

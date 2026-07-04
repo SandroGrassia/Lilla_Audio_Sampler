@@ -129,7 +129,7 @@ struct Patch_struct
 {
     bool used;
     uint8_t instruments;
-    Instrument_struct Instrument[INSTRUMENTS_MAX];
+    Instrument_struct Instrument[INSTRUMENTS];
 } __attribute__((__packed__));
 static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 14 = 114
 
@@ -185,7 +185,7 @@ inline bool operator==(const Patch_struct &lhs, const Patch_struct &rhs)
         return false;
     }
 
-    for (int i = 0; i < INSTRUMENTS_MAX; ++i)
+    for (int i = 0; i < INSTRUMENTS; ++i)
     {
         if (!(lhs.Instrument[i] == rhs.Instrument[i]))
         {
@@ -208,7 +208,7 @@ extern int volume_patch;
 extern uint8_t map_instrument_for_note[16][NOTE_NUMBERS];
 extern bool key_state[16][NOTE_NUMBERS]; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
 extern bool file_midi_ch_flag;           // quale funzionalita' regola l'encoder 2
-extern int8_t P_line_of_instrument[INSTRUMENTS_MAX];
+extern int8_t P_line_of_instrument[INSTRUMENTS];
 extern float pitch_from_note[NOTE_NUMBERS];
 extern bool display_instrument_volume_flag;
 extern uint8_t instrument_volume_changed; // [instrument_id]
@@ -316,12 +316,12 @@ struct Preset_struct
     bool lock;
     Instrument_filter_values_struct Filter;
 };
-extern Preset_struct Preset[INSTRUMENTS_MAX];
+extern Preset_struct Preset[INSTRUMENTS];
 
 // AUDIOPLAYER
 extern elapsedMicros security_timer;                // Protezione Audiostream update()
-extern int16_t *Noclick_pointer[INSTRUMENTS_MAX];   // each Noclick instance contains 2 arrays
-extern int16_t *Wavetable_pointer[INSTRUMENTS_MAX]; // each Wavetable instance contains 2 arrays
+extern int16_t *Noclick_pointer[INSTRUMENTS];   // each Noclick instance contains 2 arrays
+extern int16_t *Wavetable_pointer[INSTRUMENTS]; // each Wavetable instance contains 2 arrays
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id); // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative
@@ -361,7 +361,7 @@ extern float pitch_bend_value[16];
 extern float after_touch_channel_value[16];
 
 // CONTROL CHANGE
-extern uint8_t CC_Sound_gain[INSTRUMENTS_MAX];
+extern uint8_t CC_Sound_gain[INSTRUMENTS];
 extern uint8_t CC_lowpass_filter_value;
 extern uint8_t CC_midi_controller;
 

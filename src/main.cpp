@@ -339,8 +339,8 @@ InfoMaster Info;     // Infos about audio files
 WaveVibrato Vibrato; // LFO for midi Vibrato effect
 float *Vibrato_array_pointer;
 uint8_t *Vibrato_array_last_element;
-NoclickCrossmix Noclick[INSTRUMENTS_MAX];    // creates n. INSTRUMENTS_MAX  Noclick objects used to mix "head + tail" snippets taken from Flash memory
-WavetableManager Wavetable[INSTRUMENTS_MAX]; // creates n. INSTRUMENTS_MAX Wavetable objects ready to copy sound snippets from Falsh memory to RAM
+NoclickCrossmix Noclick[INSTRUMENTS];    // creates n. INSTRUMENTS  Noclick objects used to mix "head + tail" snippets taken from Flash memory
+WavetableManager Wavetable[INSTRUMENTS]; // creates n. INSTRUMENTS Wavetable objects ready to copy sound snippets from Falsh memory to RAM
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 FilterBiquadManager Filter_Biquad_Manager;
@@ -528,7 +528,7 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void);
 void SET_Ask_if_FACTORY_RESET(void);
 
 // CC Control Change
-uint8_t CC_Sound_gain_cache[INSTRUMENTS_MAX];
+uint8_t CC_Sound_gain_cache[INSTRUMENTS];
 uint8_t CC_lowpass_filter_cache;
 int8_t CC_menu;
 int CC_number;
@@ -698,7 +698,7 @@ void LOOP_stop_and_reset_runnig_loop_data(void);
 MX_pointer_struct MX_local_pointer;
 int volume_MONITOR = 0;
 void Golive_MIXER(void);
-constexpr int LINE_IN_CHANNEL = INSTRUMENTS_MAX;
+constexpr int LINE_IN_CHANNEL = INSTRUMENTS;
 
 // EEPROM
 void Factory_setup_Eeprom(void);
@@ -1019,7 +1019,7 @@ void setup()
         LFO_P0[player].identity = player;
     }
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         CC_Sound_gain_cache[instrument_id] = -1;
     }
@@ -1052,7 +1052,7 @@ void setup()
     Info.LiveSampler_ptr = &LiveSampler;
 
     // Setup Wavetable-s
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Wavetable[instrument_id].LiveSampler_ptr = &LiveSampler;
     }
@@ -1507,7 +1507,7 @@ void loop()
                     if (new_patch >= 0)
                     {
                         Sound_struct Sound_NEW[8];
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used)
                                 Sound_NEW[instrument_id] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
@@ -1517,7 +1517,7 @@ void loop()
                         Patch[Patch_id] = Patch_cache_P; // 4: ora patch_id è ripristinata, anche i relativi Sound sono stati ripristinati
 
                         // 5: Per ciascun Instrument utilizzato dalla Patch_NEW creo un nuovo Sound
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
                             if (Patch[new_patch].Instrument[instrument_id].used)
                             {
@@ -1567,8 +1567,8 @@ void loop()
                     new_patch = S_Get_Patch_id_free();
                     if (new_patch >= 0)
                     {
-                        Sound_struct Sound_NEW[INSTRUMENTS_MAX];
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                        Sound_struct Sound_NEW[INSTRUMENTS];
+                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used)
                             {
@@ -1583,7 +1583,7 @@ void loop()
 
                         // 4: ora patch_id è ripristinata, anche i relativi Sound sono stati ripristinati
                         // 5: Create a new Sound for each Instrument in new_patch
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
                             if (Patch[new_patch].Instrument[instrument_id].used)
                             {
@@ -1638,7 +1638,7 @@ void loop()
                         AudioInterrupts();
 
                         Patch[Patch_id].used = false;
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used)
                             {
@@ -1672,7 +1672,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("ERROR: switch MISSING! "));
+                    PRINT_ERROR(F("ERROR: switch MISSING! "));
                     break;
                 }
             }
@@ -2015,12 +2015,14 @@ void loop()
         }
 
         // Switch to SOUND_EDIT
-        for (Instrument_id = 0; Instrument_id < INSTRUMENTS_MAX; ++Instrument_id)
+        for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
-            if (Read_pushbutton(PB_Sound[Instrument_id]))
+            if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                if (Patch[Patch_id].Instrument[Instrument_id].used)
+                if (Patch[Patch_id].Instrument[Inst_id].used)
                 {
+                    Instrument_id = Inst_id;
+
                     Lilla_state_0 = PERFORMANCE;
                     Lilla_state = SOUND_EDIT;
 
@@ -2121,7 +2123,7 @@ void loop()
 
             case SwModesPerformance:
             {
-                LILLA_PRINT_ERROR_LOCATION(F("Invalid case"));
+                PRINT_ERROR(F("Invalid case"));
             }
             break;
 
@@ -2735,7 +2737,8 @@ void loop()
         result = Read_encoder_simple(EN_PB_From);
         if (result != 0)
         {
-            uint32_t So_A_change;
+            uint32_t So_A_change = Sound[Sound_id].A;
+
             if (result == 1)
             {
                 if (slicing_mode)
@@ -2762,6 +2765,7 @@ void loop()
                     }
                 }
             }
+
             else
             {
                 if (Sound[Sound_id].A >= S_trim_step)
@@ -2773,6 +2777,7 @@ void loop()
                     So_A_change = 0;
                 }
             }
+
             if (So_A_change != Sound[Sound_id].A)
             {
                 Sound[Sound_id].A = So_A_change;
@@ -2795,6 +2800,54 @@ void loop()
                     Sound[Sound_id].Noclick = Noclick_max;
                     Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
                 }
+                // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
+                S_Fill_Noclick(Instrument_id);
+                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
+                Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                AudioInterrupts();
+
+                Display_Sound.Show_players_Pitch_max_value(Instrument_id);
+                Display_Sound.Show_wave(Instrument_id);
+
+                int sound_original_0 = S_sound_original;
+                S_sound_original = S_Verify_is_Sound_original(Sound_id);
+                if (sound_original_0 != S_sound_original)
+                {
+                    if (Lilla_state_0 != MIDI_LOOP)
+                    {
+                        S_Select_menu_elements();
+                    }
+                    Display_Sound.Show_SOUND_menu();
+                }
+            }
+        }
+
+        // Set A = 0
+        if (Read_pushbutton(EN_PB_From))
+        {
+            if (Sound[Sound_id].A != 0)
+            {
+                Sound[Sound_id].A = 0;
+
+                AudioNoInterrupts();
+                if (!slicing_mode) // slicing A-Samples
+                {
+                    Sound[Sound_id].B = Sound[Sound_id].A + S_slicing_window - 1;
+                }
+                if (trim_speed == 5)
+                {
+                    S_trim_step = S_Calc_trim_step(5);
+                }
+                // verify if stop players: it can happend if use_Wavetable switches to "false". Than update Preset[I].A (DO NOT invert the sequence)
+                Players_Manager.Verify_if_stop_players(Patch_id, Instrument_id);
+                Players_Manager.Update_Preset_A_B_Wavetable(Patch_id, Instrument_id);
+                Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                if (Sound[Sound_id].Noclick > Noclick_max)
+                {
+                    Sound[Sound_id].Noclick = Noclick_max;
+                    Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
+                }
+
                 // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
                 S_Fill_Noclick(Instrument_id);
                 S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
@@ -2893,7 +2946,7 @@ void loop()
         }
 
         // Switch Sound or INSTRUMENT_EDIT
-        for (auto i = 0; i < INSTRUMENTS_MAX; ++i)
+        for (auto i = 0; i < INSTRUMENTS; ++i)
         {
             if (Read_pushbutton(PB_Sound[i]))
             {
@@ -3275,7 +3328,7 @@ void loop()
         // Switch Sound or INSTRUMENT_EDIT
         if (Lilla_state_0 == PERFORMANCE)
         {
-            for (auto Inst_id = 0; Inst_id < INSTRUMENTS_MAX; ++Inst_id)
+            for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
             {
                 if (Read_pushbutton(PB_Sound[Inst_id]))
                 {
@@ -3382,7 +3435,7 @@ void loop()
 
         else if (Lilla_state_0 == MIDI_LOOP)
         {
-            for (auto Inst_id = 0; Inst_id < INSTRUMENTS_MAX; ++Inst_id)
+            for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
             {
                 if (Read_pushbutton(PB_Sound[Inst_id]))
                 {
@@ -3734,7 +3787,7 @@ void loop()
                             break;
 
                         default:
-                            LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                            PRINT_ERROR(F("Switch MISSING! "));
                             break;
                         }
                     }
@@ -3801,7 +3854,7 @@ void loop()
                             break;
 
                         default:
-                            LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                            PRINT_ERROR(F("Switch MISSING! "));
                             break;
                         }
                     }
@@ -3848,7 +3901,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -3895,7 +3948,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -3918,7 +3971,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -3951,7 +4004,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4262,7 +4315,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4312,7 +4365,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -4355,7 +4408,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -6058,7 +6111,7 @@ void loop()
                 break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 } // END switch(choice_DS_menu)
             }
@@ -6210,7 +6263,7 @@ void loop()
                 Display_Manager.Midi_monitor_data(MM_midi_channel, 7, -1, -1, -1, -1);
                 break;
             default:
-                LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                PRINT_ERROR(F("Switch MISSING! "));
                 break;
             }
             display_wait = false;
@@ -6241,7 +6294,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -6284,7 +6337,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 };
             }
@@ -6311,7 +6364,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -6338,7 +6391,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
             }
@@ -7313,7 +7366,7 @@ void loop()
 
                 display_wait = false;
 
-                for (auto local_instrument_id = 0; local_instrument_id < INSTRUMENTS_MAX; ++local_instrument_id)
+                for (auto local_instrument_id = 0; local_instrument_id < INSTRUMENTS; ++local_instrument_id)
                 {
                     CC_Sound_gain_cache[local_instrument_id] = CC_Sound_gain[local_instrument_id];
                 }
@@ -7467,7 +7520,7 @@ void loop()
                 break;
 
             default:
-                LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                PRINT_ERROR(F("Switch MISSING! "));
                 break;
             }
         }
@@ -7551,7 +7604,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7581,7 +7634,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7610,7 +7663,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7642,7 +7695,7 @@ void loop()
                     break;
 
                 default:
-                    LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+                    PRINT_ERROR(F("Switch MISSING! "));
                     break;
                 }
                 break;
@@ -7801,7 +7854,7 @@ void P_Delete_one_map_Instrument_for_notes(const int instrument_id)
 void P_Update_all_maps_Instrument_for_notes()
 {
     P_Reset_all_maps_Instrument_for_notes();
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[Patch_id].Instrument[instrument_id].used)
         {
@@ -7841,7 +7894,7 @@ void P_Delete_all_Patches_and_Sounds(void)
     {
         Patch[patch_id].used = false;
         Patch[patch_id].instruments = 0; // number of instruments in the patch_id
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             Patch[patch_id].Instrument[instrument_id].used = false;
             Patch[patch_id].Instrument[instrument_id].sound_id = 0;
@@ -8127,7 +8180,7 @@ bool P_Verify_is_Patch_original(const int patch_id)
 
     if (Patch[patch_id].instruments == Patch_cache_P.instruments)
     {
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             result = result && P_Verify_if_Instrument_original(instrument_id);
         }
@@ -8353,7 +8406,7 @@ void S_Drop_Instrument(const int instrument_id)
 
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
 {
-    for (new_instrument = 0; new_instrument < INSTRUMENTS_MAX; ++new_instrument)
+    for (new_instrument = 0; new_instrument < INSTRUMENTS; ++new_instrument)
     {
         if (!Patch[Patch_id].Instrument[new_instrument].used)
         {
@@ -8386,7 +8439,7 @@ void Update_instruments_leds()
     {
         for (auto track = 0; track < TRACKS; ++track)
         {
-            for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+            for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
             {
                 if (Patch[Patch_id].Instrument[instrument_id].used) // check if i is used
                 {
@@ -8408,7 +8461,7 @@ void Update_instruments_leds()
 
     else if (Lilla_state == PERFORMANCE)
     {
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             if (Patch[Patch_id].Instrument[instrument_id].used) // check if i is used
             {
@@ -9407,7 +9460,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         break;
 
     default:
-        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+        PRINT_ERROR(F("Switch MISSING! "));
         break;
     }
 }
@@ -9582,7 +9635,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         break;
 
     default:
-        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+        PRINT_ERROR(F("Switch MISSING! "));
         break;
     }
 }
@@ -9726,7 +9779,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         break;
 
     default:
-        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+        PRINT_ERROR(F("Switch MISSING! "));
         break;
     }
 }
@@ -11175,7 +11228,7 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
 
 void S_Get_all_Noclick_pointer(void) // initialization of *Noclick_pointer[] array
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Noclick_pointer[instrument_id] = Noclick[instrument_id].get_pointer();
     }
@@ -11183,7 +11236,7 @@ void S_Get_all_Noclick_pointer(void) // initialization of *Noclick_pointer[] arr
 
 void S_Fill_all_Noclick(void)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[Patch_id].Instrument[instrument_id].used) // S_Fill_Noclick(instrument)
         {
@@ -11202,7 +11255,7 @@ void S_Fill_Noclick(uint8_t instrument_id)
 // ***************************************************************************************************************
 void S_Get_all_Wavetable_pointer(void) // initialization of *Wavetable_pointer[] array
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Wavetable_pointer[instrument_id] = Wavetable[instrument_id].get_pointer();
     }
@@ -11210,7 +11263,7 @@ void S_Get_all_Wavetable_pointer(void) // initialization of *Wavetable_pointer[]
 
 void S_Fill_all_Wavetable(void) // DELETE
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[Patch_id].Instrument[instrument_id].used)
         {
@@ -11320,7 +11373,7 @@ void Print_Patch(int patch_id)
         Serial.print(Patch[patch_id].used);
         Serial.print(" instruments:");
         Serial.println(Patch[patch_id].instruments);
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             if (!Patch[patch_id].Instrument[instrument_id].used)
             {
@@ -11381,13 +11434,12 @@ void Print_Sound(int sound_id)
     Serial.print("sound_id:");
     Serial.print(sound_id);
     Serial.print(" used:");
-    Serial.println(Sound[sound_id].used);
     Serial.println((Sound[sound_id].used ? "yes" : "no"));
+
     Serial.print(" file_id:");
     Serial.print(Sound[sound_id].file);
     Serial.print(" file name: ");
     Serial.print(name_file[Sound[sound_id].file]);
-
     Serial.print(" samples:");
 
     // xxx.raw file (standard files coming from micro SD)
@@ -11467,7 +11519,7 @@ void Print_Lilla_state(void)
         Serial.println("MIDI Loop");
         break;
     default:
-        LILLA_PRINT_ERROR_LOCATION(F("Switch MISSING! "));
+        PRINT_ERROR(F("Switch MISSING! "));
         break;
     }
 }
@@ -11499,11 +11551,11 @@ void Print_map_instrument_for_note(int midi_channel)
     Serial.println();
     Serial.print(F("Map notes/Sound for MIDI channel:"));
     Serial.println(midi_channel + 1);
-    for (auto instrument_id = (INSTRUMENTS_MAX - 1); instrument_id >= 0; --instrument_id)
+    for (auto Inst_id = (INSTRUMENTS - 1); Inst_id >= 0; --Inst_id)
     {
         for (auto note_number = 0; note_number < NOTE_NUMBERS; ++note_number)
         {
-            Serial.print(bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id));
+            Serial.print(bitRead(map_instrument_for_note[midi_channel][note_number], Inst_id));
             Serial.print("  ");
         }
         Serial.println();
@@ -11882,7 +11934,7 @@ void Switch_to_MIXER()
     // Se non si sta editando, si parte dal primo Instrument esistente
     if (Lilla_state_0 != PERFORMANCE && Lilla_state_0 != SOUND_EDIT && Lilla_state_0 != INSTRUMENT_VCF && Lilla_state_0 != LIVE_SAMPLING)
     {
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
             if (Patch[Patch_id].Instrument[instrument_id].used)
             {
@@ -11927,7 +11979,7 @@ void CC_Save_settings(void)
 {
     Midi_reader.Stop();
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (CC_Sound_gain[instrument_id] != CC_Sound_gain_cache[instrument_id])
         {
@@ -11989,7 +12041,7 @@ void SET_Ask_if_FACTORY_RESET(void)
 
 void CC_Read_all_Sound_gain()
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Archive.Read_CC_Sound_gain(instrument_id, CC_Sound_gain[instrument_id]);
     }
@@ -12274,7 +12326,7 @@ void S_Select_menu_elements(void)
     S_Menu[value_S_Clone] = true;  // CLONE
     S_Menu[value_S_Drop] = true;   // DELETE
 
-    if (Patch[Patch_id].instruments == INSTRUMENTS_MAX)
+    if (Patch[Patch_id].instruments == INSTRUMENTS)
     {
         S_Menu[value_S_Clone] = false; // CLONE
     }

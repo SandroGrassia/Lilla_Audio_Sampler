@@ -341,5 +341,5 @@ enum EnPbNames : int
 
 constexpr EnPbNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
 constexpr EnPbNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
-constexpr EnPbNames PB_Sound[INSTRUMENTS_MAX] = {PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8};
+constexpr EnPbNames PB_Sound[INSTRUMENTS] = {PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8};
 

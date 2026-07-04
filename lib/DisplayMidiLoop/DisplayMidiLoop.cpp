@@ -96,7 +96,7 @@ void DisplayMidiLoop::Show_Loop_page(void)
 
     tft.setTextColor(ILI9341_WHITE);
 
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (Patch[Patch_id].Instrument[instrument_id].used)
         {

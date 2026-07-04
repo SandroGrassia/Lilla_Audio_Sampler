@@ -7,7 +7,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include "SharedElements.h"  // only for INSTRUMENTS_MAX
+#include "SharedElements.h"  // only for INSTRUMENTS
 #include "SharedLoop.h"
 #include "GraphicElements.h"
 #include <SPI.h>
@@ -21,7 +21,7 @@ e dal confronto con l'array total_Players_per_instrument_old.
 
 IMPORTANTE: Update(track) e Update_all() NON vanno chiamate all'interno delle funzioni update() degli oggetti AudioStream
 
-Lo stato ON/OFF dei led e' contenuto in led[TRACKS][INSTRUMENTS_MAX].
+Lo stato ON/OFF dei led e' contenuto in led[TRACKS][INSTRUMENTS].
 
 Per un funzionamento corretto, ad ogni passaggio di contesto (es da PERFORMANCE a MIDI_LOOP e viceversa) total_Players_per_instrument e
 total_Players_per_instrument_old vanno azzerati assieme al reset dei Player.
@@ -31,7 +31,7 @@ class LoopLedSet
 {
 private:
     // riferimenti esterni
-    int8_t led_activity[TRACKS][INSTRUMENTS_MAX]; // -2: request switch-OFF   -1: led OFF    +1: led ON   -2: request switch-ON
+    int8_t led_activity[TRACKS][INSTRUMENTS]; // -2: request switch-OFF   -1: led OFF    +1: led ON   -2: request switch-ON
 
 public:
     LoopLedSet()

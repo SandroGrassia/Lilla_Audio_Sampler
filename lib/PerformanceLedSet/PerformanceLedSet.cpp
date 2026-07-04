@@ -8,7 +8,7 @@
 
 void PerformanceLedSet::Request_all_LED_switch_off(void)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         led_activity[instrument_id] = -2; // request switch OFF
     }
@@ -44,11 +44,11 @@ void PerformanceLedSet::Write_LED_activity(int instrument_id, bool on)
 
 void PerformanceLedSet::Restore_all_LED(void)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS_MAX; ++instrument_id)
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         if (abs(led_activity[instrument_id]) == 1)
         {
-           led_activity[instrument_id] = 2 * led_activity[instrument_id];
+           led_activity[instrument_id] = 2 * led_activity[instrument_id]; // write LED switch ON (+2) or OFF (-2)
         }
     }
 }
