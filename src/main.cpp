@@ -2946,11 +2946,11 @@ void loop()
         }
 
         // Switch Sound or INSTRUMENT_EDIT
-        for (auto i = 0; i < INSTRUMENTS; ++i)
+        for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
-            if (Read_pushbutton(PB_Sound[i]))
+            if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                if (i == Instrument_id)
+                if (Inst_id == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
 
@@ -2962,7 +2962,7 @@ void loop()
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
                 }
-                else if (Patch[Patch_id].Instrument[i].used)
+                else if (Patch[Patch_id].Instrument[Inst_id].used)
                 {
                     AudioNoInterrupts();
                     if (solo_flag)
@@ -2972,7 +2972,7 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    Instrument_id = i;
+                    Instrument_id = Inst_id;
                     Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
@@ -3115,15 +3115,6 @@ void loop()
         }
 
         // Solo
-        if (Read_pushbutton(EN_PB_LineOutVol))
-        {
-            AudioNoInterrupts();
-            Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
-            S_Map_one_Instrument_for_all_notes(Instrument_id);
-            AudioInterrupts();
-
-            Display_VCF.VCF_show_solo_value();
-        }
 
         // Move pointer
         result = Read_encoder_simple(EN_PB_Select);
@@ -3153,6 +3144,7 @@ void loop()
                     }
                 }
             }
+
             // Gain
             else
             {
@@ -3164,6 +3156,17 @@ void loop()
                     AudioInterrupts();
 
                     Display_VCF.VCF_show_sound_gain_value(Sound_id);
+                }
+
+                // Solo
+                if (Read_pushbutton(EN_PB_Value) || Read_pushbutton(EN_PB_Select))
+                {
+                    AudioNoInterrupts();
+                    Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
+                    S_Map_one_Instrument_for_all_notes(Instrument_id);
+                    AudioInterrupts();
+
+                    Display_VCF.VCF_show_solo_value();
                 }
             }
         }
@@ -3568,8 +3571,8 @@ void loop()
             {
                 if (Lilla_state_0 == PERFORMANCE)
                 {
-                    S_Set_Sound_SOLO_OFF();
-                    Golive_with_PERFORMANCE(Patch_id);
+                    // S_Set_Sound_SOLO_OFF();
+                    // Golive_with_PERFORMANCE(Patch_id);
                 }
                 else
                 {
@@ -3588,6 +3591,7 @@ void loop()
         }
 
         // Read menu_pushbutton and exit
+        /*
         if (Lilla_state_0 == PERFORMANCE)
         {
             if (Read_pushbutton(EN_PB_Select))
@@ -3602,6 +3606,8 @@ void loop()
                 Golive_with_LIVE_SAMPLING();
             }
         }
+        */
+
 
     } // end INSTRUMENT_VCF
 
