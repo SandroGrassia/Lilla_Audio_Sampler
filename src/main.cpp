@@ -460,7 +460,6 @@ uint8_t patch_change;
 // functions
 void Update_instruments_leds(void);
 void P_Update_line_of_all_instruments(void); // posizione di tutti gli Instrument sul display
-void P_Return_to_PERFORMANCE_from_SOUND_EDIT(void);
 bool P_Verify_if_Instrument_original(const int instrument_id);
 void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, const int element);
 void P_Update_all_maps_Instrument_for_notes(void); // aggiorna la mappatura tra tutte le coppie midi_channel/note_number e relativi Instrument
@@ -2173,7 +2172,8 @@ void loop()
                 {
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
-                    P_Return_to_PERFORMANCE_from_SOUND_EDIT();
+                    S_Set_Sound_SOLO_OFF();
+                    Golive_with_PERFORMANCE(Patch_id);
                 }
                 break;
 
@@ -2191,7 +2191,8 @@ void loop()
                     }
                     AudioInterrupts();
 
-                    P_Return_to_PERFORMANCE_from_SOUND_EDIT();
+                    S_Set_Sound_SOLO_OFF();
+                    Golive_with_PERFORMANCE(Patch_id);
                 }
                 break;
 
@@ -2203,7 +2204,8 @@ void loop()
                     S_Drop_Instrument(Instrument_id); // instruments is decremented by 1
                     AudioInterrupts();
 
-                    P_Return_to_PERFORMANCE_from_SOUND_EDIT();
+                    S_Set_Sound_SOLO_OFF();
+                    Golive_with_PERFORMANCE(Patch_id);
                 }
                 break;
 
@@ -3126,6 +3128,20 @@ void loop()
         // Change values
         switch (Pointer_VCF.Get_VCF_value_name())
         {
+
+        case value_VCF_Menu:
+        {
+            if (Lilla_state_0 == PERFORMANCE)
+            {
+                S_Set_Sound_SOLO_OFF();
+                Golive_with_PERFORMANCE(Patch_id);
+            }
+            else if (Lilla_state_0 == LIVE_SAMPLING)
+            {
+                Golive_with_LIVE_SAMPLING();
+            }
+        }
+
         case value_VCF_Gain_Volume:
         {
             // Volume
@@ -3337,7 +3353,8 @@ void loop()
                 {
                     if (Inst_id == Instrument_id)
                     {
-                        P_Return_to_PERFORMANCE_from_SOUND_EDIT();
+                        S_Set_Sound_SOLO_OFF();
+                        Golive_with_PERFORMANCE(Patch_id);
                     }
 
                     else if (Patch[Patch_id].Instrument[Inst_id].used)
@@ -3446,7 +3463,6 @@ void loop()
                     {
                         S_Set_Sound_SOLO_OFF();
 
-                        // Ritorna a MIDI_LOOP
                         Golive_with_MIDI_LOOP(false);
                     }
 
@@ -3590,25 +3606,6 @@ void loop()
             }
         }
 
-        // Read menu_pushbutton and exit
-        /*
-        if (Lilla_state_0 == PERFORMANCE)
-        {
-            if (Read_pushbutton(EN_PB_Select))
-            {
-                Golive_with_PERFORMANCE(Patch_id);
-            }
-        }
-        else if (Lilla_state_0 == LIVE_SAMPLING)
-        {
-            if (Read_pushbutton(EN_PB_Select))
-            {
-                Golive_with_LIVE_SAMPLING();
-            }
-        }
-        */
-
-
     } // end INSTRUMENT_VCF
 
 #pragma endregion // INSTRUMENT_VCF
@@ -3645,15 +3642,10 @@ void loop()
         if (MX_local_pointer.field_name == field_MX_Source)
         {
             // Enter inside
-            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 Pointer_Mixer.Move_pointer_to_field_MX_Elements();
                 MX_local_pointer = Pointer_Mixer.Get_pointer();
-            }
-
-            if (Read_encoder_simple(EN_PB_Value))
-            {
-                // reset encoder increment/decrement
             }
         }
 
@@ -3663,13 +3655,13 @@ void loop()
             if (Read_pushbutton(EN_PB_Select))
             {
                 Pointer_Mixer.Move_pointer_to_field_MX_Source();
+                MX_local_pointer = Pointer_Mixer.Get_pointer();
             }
 
             switch (MX_local_pointer.element)
             {
             case value_MX_Mute_Gain:
             {
-
                 if (MX_local_pointer.source == LINE_IN_source) // MX_source == LINE_IN_CHANNEL
                 {
                     if (Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
@@ -3692,7 +3684,7 @@ void loop()
                     }
                 }
 
-                if (Read_pushbutton(4))
+                if (Read_pushbutton(EN_PB_Value)) // Mute source
                 {
                     MX_mute[MX_local_pointer.source] = !MX_mute[MX_local_pointer.source];
 
@@ -3806,11 +3798,6 @@ void loop()
 
                     Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
-
-                if (Read_encoder_simple(EN_PB_Value))
-                {
-                    // reset encoder increment/decrement
-                }
             }
             break;
 
@@ -3874,11 +3861,6 @@ void loop()
 
                     Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
-
-                if (Read_encoder_simple(EN_PB_Value))
-                {
-                    // reset encoder increment/decrement
-                }
             }
             break;
 
@@ -3887,33 +3869,15 @@ void loop()
             }
         }
 
-        if (Read_pushbutton_fast(35))
+        // Switch verso un TOOL
+        if (Switches_manager.Get_change(SwitchTools))
         {
-            // Switch to PERFORMANCE
-            if (Read_pushbutton(26))
+            switch (Switches_manager.Get_value(SwitchTools))
             {
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Golive_with_PERFORMANCE(Patch_id);
-                    break;
+            case SwToolsMixer:
+                break;
 
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-            }
-
-            // Switch to DELAY
-            else if (Read_pushbutton(28))
+            case SwToolsDelay:
             {
                 if (Lilla_state_0 == DIRECT_SAMPLING)
                 {
@@ -3935,32 +3899,31 @@ void loop()
                     DELAY_local_pointer = Pointer_Delay.Get_element_name();
                 }
             }
+            break;
 
-            // Switch to LIVE_SAMPLING
-            else if (Read_pushbutton(29))
+            case SwToolsSetup:
             {
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
-                    break;
-
-                case LIVE_SAMPLING:
-                    LS_refresh_LS_page();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
+                Golive_SETUP();
             }
+            break;
 
-            // Switch to DIRECT_SAMPLING
-            else if (Read_pushbutton(30))
+            case SwToolsTest:
+            {
+                Golive_MIDI_MONITOR();
+            }
+            break;
+            }
+        }
+
+        // Switch Mode
+        if (Read_pushbutton(PB_Tools))
+        {
+            TOOLS_pushbutton = false;
+            Shifters_manager.Switch_led(LED_Tools, false);
+
+            switch (Switches_manager.Get_value(SwitchModes))
+            {
+            case SwModesSampler:
             {
                 switch (Lilla_state_0)
                 {
@@ -3981,15 +3944,55 @@ void loop()
                     break;
                 }
             }
+            break;
 
-            // Switch to MIDI_MONITOR
-            else if (Read_pushbutton(31))
+            case SwModesLiveSampler:
             {
-                Golive_MIDI_MONITOR();
-            }
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                    break;
 
-            // Switch to MIDI_LOOP
-            else if (Read_pushbutton(32))
+                case DIRECT_SAMPLING:
+                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
+                    break;
+
+                case LIVE_SAMPLING:
+                    LS_refresh_LS_page();
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                }
+            }
+            break;
+
+            case SwModesPerformance:
+            {
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Golive_with_PERFORMANCE(Patch_id);
+                    break;
+
+                case DIRECT_SAMPLING:
+                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
+                    break;
+
+                case LIVE_SAMPLING:
+                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                }
+            }
+            break;
+
+            case SwModesMidiLoop:
             {
                 switch (Lilla_state_0)
                 {
@@ -4014,11 +4017,7 @@ void loop()
                     break;
                 }
             }
-
-            // Switch to SETUP
-            else if (Read_pushbutton(33))
-            {
-                Golive_SETUP();
+            break;
             }
         }
     }
@@ -4051,195 +4050,194 @@ void loop()
         }
 
         // Change values
+        switch (DELAY_local_pointer)
         {
-            switch (DELAY_local_pointer)
+        case value_DELAY_Feedback:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
             {
-            case value_DELAY_Feedback:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
-                {
-                    Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-                    Serial.println(Delay_values.loop_gain);
+                Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
+                Serial.println(Delay_values.loop_gain);
 
-                    AudioNoInterrupts();
-                    D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-                    D_gain_R_n.Set_gain(Delay_values.loop_gain);
-                    AudioInterrupts();
+                AudioNoInterrupts();
+                D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
+                D_gain_R_n.Set_gain(Delay_values.loop_gain);
+                AudioInterrupts();
 
-                    Display_Delay.D_feedback();
-                }
+                Display_Delay.D_feedback();
             }
+        }
+        break;
+
+        case value_DELAY_Delay_time:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.samples, 99, 0, 1))
+            {
+                Delay_values.samples = Calc_delay_samples(Delay_data.samples);
+
+                AudioNoInterrupts();
+                if (Delay_values.samples_LR >= 0) // Left channel
+                {
+                    Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                    Delay_R.Set_delay_central_value(Delay_values.samples);
+                }
+                else
+                {
+                    Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                    Delay_L.Set_delay_central_value(Delay_values.samples);
+                }
+                AudioInterrupts();
+
+                Display_Delay.D_delay_time();
+            }
+        }
+        break;
+
+        case value_DELAY_Delay_time_LR:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.samples_LR, 10, -10, 1))
+            {
+                Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
+
+                AudioNoInterrupts();
+                if (Delay_values.samples_LR >= 0) // Left channel
+                {
+                    Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
+                }
+                else
+                {
+                    Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
+                }
+                AudioInterrupts();
+
+                Display_Delay.D_delay_time_LR();
+            }
+        }
+        break;
+
+        case value_DELAY_Modulation_source:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.modulation_source, 2, 0, 1))
+            {
+                Delay_values.modulation_source = Delay_data.modulation_source;
+
+                AudioNoInterrupts();
+                Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
+                Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_source();
+            }
+
+            // Change delay_modulation_source = NONE
+            else if (Read_pushbutton(EN_PB_Value))
+            {
+                Delay_data.modulation_source = 0;
+                Delay_values.modulation_source = Delay_data.modulation_source;
+
+                AudioNoInterrupts();
+                Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
+                Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_source();
+            }
+        }
+        break;
+
+        case value_DELAY_Modulation_frequency:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.modulation_frequency, 90, 0, 1))
+            {
+                Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
+
+                AudioNoInterrupts();
+                LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
+                LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_frequency();
+            }
+        }
+        break;
+
+        case value_DELAY_Modulation_depth:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.modulation_depth, 39, 0, 1))
+            {
+                Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
+
+                AudioNoInterrupts();
+                Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_depth();
+            }
+
+            // Set delay_modulation_depth = 0
+            else if (Read_pushbutton(EN_PB_Value))
+            {
+                Delay_data.modulation_depth = 0;
+
+                Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
+
+                AudioNoInterrupts();
+                Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_depth();
+            }
+        }
+        break;
+
+        case value_DELAY_Modulation_phase_LR:
+        {
+            if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
+            {
+                Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+
+                AudioNoInterrupts();
+                LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_phase_LR();
+            }
+
+            // Change delay_modulation_phase_LR = 0
+            else if (Read_pushbutton(EN_PB_Value))
+            {
+                Delay_data.modulation_phase_LR = 0;
+                Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
+
+                AudioNoInterrupts();
+                LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+                AudioInterrupts();
+
+                Display_Delay.D_modulation_phase_LR();
+            }
+        }
+        break;
+
+        default:
             break;
-
-            case value_DELAY_Delay_time:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.samples, 99, 0, 1))
-                {
-                    Delay_values.samples = Calc_delay_samples(Delay_data.samples);
-
-                    AudioNoInterrupts();
-                    if (Delay_values.samples_LR >= 0) // Left channel
-                    {
-                        Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                        Delay_R.Set_delay_central_value(Delay_values.samples);
-                    }
-                    else
-                    {
-                        Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                        Delay_L.Set_delay_central_value(Delay_values.samples);
-                    }
-                    AudioInterrupts();
-
-                    Display_Delay.D_delay_time();
-                }
-            }
-            break;
-
-            case value_DELAY_Delay_time_LR:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.samples_LR, 10, -10, 1))
-                {
-                    Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
-
-                    AudioNoInterrupts();
-                    if (Delay_values.samples_LR >= 0) // Left channel
-                    {
-                        Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                    }
-                    else
-                    {
-                        Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                    }
-                    AudioInterrupts();
-
-                    Display_Delay.D_delay_time_LR();
-                }
-            }
-            break;
-
-            case value_DELAY_Modulation_source:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.modulation_source, 2, 0, 1))
-                {
-                    Delay_values.modulation_source = Delay_data.modulation_source;
-
-                    AudioNoInterrupts();
-                    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-                    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_source();
-                }
-
-                // Change delay_modulation_source = NONE
-                else if (Read_pushbutton(EN_PB_Value))
-                {
-                    Delay_data.modulation_source = 0;
-                    Delay_values.modulation_source = Delay_data.modulation_source;
-
-                    AudioNoInterrupts();
-                    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-                    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_source();
-                }
-            }
-            break;
-
-            case value_DELAY_Modulation_frequency:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.modulation_frequency, 90, 0, 1))
-                {
-                    Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
-
-                    AudioNoInterrupts();
-                    LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
-                    LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_frequency();
-                }
-            }
-            break;
-
-            case value_DELAY_Modulation_depth:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.modulation_depth, 39, 0, 1))
-                {
-                    Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-                    AudioNoInterrupts();
-                    Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                    Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_depth();
-                }
-
-                // Set delay_modulation_depth = 0
-                else if (Read_pushbutton(EN_PB_Value))
-                {
-                    Delay_data.modulation_depth = 0;
-
-                    Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-                    AudioNoInterrupts();
-                    Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                    Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_depth();
-                }
-            }
-            break;
-
-            case value_DELAY_Modulation_phase_LR:
-            {
-                if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
-                {
-                    Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-                    AudioNoInterrupts();
-                    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_phase_LR();
-                }
-
-                // Change delay_modulation_phase_LR = 0
-                else if (Read_pushbutton(EN_PB_Value))
-                {
-                    Delay_data.modulation_phase_LR = 0;
-                    Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-                    AudioNoInterrupts();
-                    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-                    AudioInterrupts();
-
-                    Display_Delay.D_modulation_phase_LR();
-                }
-            }
-            break;
-
-            default:
-                break;
-            }
         }
 
         // Configure Instrument routing
-        if (!Read_pushbutton_fast(35))
+        for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
-            if (Read_pushbutton(PB_number + 26))
+            if (Read_pushbutton(PB_Sound[Inst_id]))
             {
                 if (Lilla_state_0 != LIVE_SAMPLING)
                 {
-                    Delay_values.instrument_route[PB_number] = !Delay_values.instrument_route[PB_number];
-                    bitWrite(Delay_data.instrument_route, PB_number, (Delay_values.instrument_route[PB_number] ? 1 : 0));
-                    delay_instrument_routing = PB_number; // indica un instrument se <=7; se 8 indica instrument 0 e 1
+                    Delay_values.instrument_route[Inst_id] = !Delay_values.instrument_route[Inst_id];
+                    bitWrite(Delay_data.instrument_route, Inst_id, (Delay_values.instrument_route[Inst_id] ? 1 : 0));
+                    delay_instrument_routing = Inst_id;
 
                     AudioNoInterrupts();
-                    if (delay_instrument_routing <= 7)
+
+                    if (delay_instrument_routing < INSTRUMENTS)
                     {
                         Players_Manager.MX_multicast_change_routing(delay_instrument_routing);
                     }
@@ -4278,11 +4276,101 @@ void loop()
             }
         }
 
-        // Switch
-        if (Read_pushbutton_fast(35))
+        // Switch Mode
+        if (Read_pushbutton(PB_Tools))
         {
-            // Switch to PERFORMANCE
-            if (Read_pushbutton(26))
+            TOOLS_pushbutton = false;
+            Shifters_manager.Switch_led(LED_Tools, false);
+
+            switch (Switches_manager.Get_value(SwitchModes))
+            {
+            case SwModesSampler:
+            {
+                Archive.Save_Delay_to_Eeprom(Delay_data);
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Switch_to_DIRECT_SAMPLING();
+                    break;
+
+                case DIRECT_SAMPLING:
+                    DS_refresh_DS_page();
+                    break;
+
+                case LIVE_SAMPLING:
+                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
+                    break;
+
+                case MIDI_LOOP:
+                    // Esci da MIDI_LOOP
+
+                    AudioNoInterrupts();
+                    // Ferma i track running
+                    for (auto local_track = 0; local_track < TRACKS; ++local_track) // true --> il track va suonato
+                    {
+                        LOOP_track_run[local_track] = false;
+                    }
+
+                    // Ferma i Player dei loop
+                    Players_Manager.Release_all_players_loop();
+                    AudioInterrupts();
+
+                    Loop_led_set.Request_all_LED_switch_off();
+
+                    Switch_to_DIRECT_SAMPLING();
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                }
+            }
+            break;
+
+            case SwModesLiveSampler:
+            {
+                Archive.Save_Delay_to_Eeprom(Delay_data);
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                    break;
+
+                case DIRECT_SAMPLING:
+                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
+                    break;
+
+                case LIVE_SAMPLING:
+                    LS_refresh_LS_page();
+                    break;
+
+                case MIDI_LOOP:
+                    // Esci da MIDI_LOOP
+
+                    AudioNoInterrupts();
+                    // Ferma i track running
+                    for (auto local_track = 0; local_track < TRACKS; ++local_track) // true --> il track va suonato
+                    {
+                        LOOP_track_run[local_track] = false;
+                    }
+
+                    // Ferma i Player dei track
+                    Players_Manager.Release_all_players_loop();
+                    AudioInterrupts();
+
+                    Loop_led_set.Request_all_LED_switch_off();
+
+                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                }
+            }
+            break;
+
+            case SwModesPerformance:
             {
                 switch (Lilla_state_0)
                 {
@@ -4325,119 +4413,45 @@ void loop()
                     break;
                 }
             }
+            break;
 
-            // Switch to MIXER
-            else if (Read_pushbutton(27))
-            {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
-                Switch_to_MIXER();
-            }
-
-            // Switch to LIVE_SAMPLING
-            else if (Read_pushbutton(29))
-            {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
-                    break;
-
-                case LIVE_SAMPLING:
-                    LS_refresh_LS_page();
-                    break;
-
-                case MIDI_LOOP:
-                    // Esci da MIDI_LOOP
-
-                    AudioNoInterrupts();
-                    // Ferma i track running
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track) // true --> il track va suonato
-                    {
-                        LOOP_track_run[local_track] = false;
-                    }
-
-                    // Ferma i Player dei track
-                    Players_Manager.Release_all_players_loop();
-                    AudioInterrupts();
-
-                    Loop_led_set.Request_all_LED_switch_off();
-
-                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-            }
-
-            // Switch to DIRECT_SAMPLING
-            else if (Read_pushbutton(30))
-            {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_to_DIRECT_SAMPLING();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    DS_refresh_DS_page();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
-                    break;
-
-                case MIDI_LOOP:
-                    // Esci da MIDI_LOOP
-
-                    AudioNoInterrupts();
-                    // Ferma i track running
-                    for (auto local_track = 0; local_track < TRACKS; ++local_track) // true --> il track va suonato
-                    {
-                        LOOP_track_run[local_track] = false;
-                    }
-
-                    // Ferma i Player dei loop
-                    Players_Manager.Release_all_players_loop();
-                    AudioInterrupts();
-
-                    Loop_led_set.Request_all_LED_switch_off();
-
-                    Switch_to_DIRECT_SAMPLING();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-            }
-
-            // Switch to MIDI_MONITOR
-            else if (Read_pushbutton(31))
-            {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
-                Golive_MIDI_MONITOR();
-            }
-
-            // Switch to MIDI_LOOP
-            else if (Read_pushbutton(32))
+            case SwModesMidiLoop:
             {
                 Archive.Save_Delay_to_Eeprom(Delay_data);
                 Golive_with_MIDI_LOOP(false);
             }
+            break;
+            }
+        }
 
-            // Switch to SETUP
-            else if (Read_pushbutton(33))
+        // Switch Tool
+        if (Switches_manager.Get_change(SwitchTools))
+        {
+            switch (Switches_manager.Get_value(SwitchTools))
+            {
+            case SwToolsMixer:
+            {
+                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Switch_to_MIXER();
+            }
+            break;
+
+            case SwToolsDelay:
+                break;
+
+            case SwToolsSetup:
             {
                 Archive.Save_Delay_to_Eeprom(Delay_data);
                 Golive_SETUP();
+            }
+            break;
+
+            case SwToolsTest:
+            {
+                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Golive_MIDI_MONITOR();
+            }
+            break;
             }
         }
     }
@@ -4547,6 +4561,7 @@ void loop()
         */
 
         // ******************************************  Move to SETTINGS Change line_in gain
+        /*
         if (Read_encoder(4, Line_in_gain, 15, 0, 1))
         {
             AudioNoInterrupts();
@@ -4555,6 +4570,7 @@ void loop()
 
             Serial.println(Line_in_gain);
         }
+        */
 
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
@@ -5113,55 +5129,70 @@ void loop()
             }
         }
 
-        /*
-        else
+        // Switch Mode
+        if (Switches_manager.Get_change(SwitchModes))
         {
-            // Switch to PERFORMANCE
-            if (Read_pushbutton(26))
+            switch (Switches_manager.Get_value(SwitchModes))
+            {
+            case SwModesSampler:
+            {
+                Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
+            }
+            break;
+
+            case SwModesLiveSampler:
+                break;
+
+            case SwModesPerformance:
             {
                 Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
             }
+            break;
 
-            // Switch to Mixer
-            else if (Read_pushbutton(27))
+            case SwModesMidiLoop:
+            {
+                Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
+            }
+            break;
+            }
+        }
+
+        // Switch verso un TOOL
+        if (Read_pushbutton(PB_Tools))
+        {
+            TOOLS_pushbutton = true;
+            Shifters_manager.Switch_led(LED_Tools, true);
+
+            switch (Switches_manager.Get_value(SwitchTools))
+            {
+            case SwToolsMixer:
             {
                 Lilla_state_0 = LIVE_SAMPLING;
                 Switch_to_MIXER();
             }
+            break;
 
-            // Switch to DELAY
-            else if (Read_pushbutton(28))
+            case SwToolsDelay:
             {
                 Switch_from_LIVE_SAMPLING_to_DELAY(); // setta anche: Lilla_state_0 = LIVE_SAMPLING;
             }
+            break;
 
-            // Switch to DIRECT_SAMPLING
-            else if (Read_pushbutton(30))
-            {
-                Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
-            }
-
-            // Switch to MIDI_MONITOR
-            else if (Read_pushbutton(31))
-            {
-                Lilla_state_0 = LIVE_SAMPLING;
-                Golive_MIDI_MONITOR();
-            }
-
-            // Switch to MIDI_LOOP
-            if (Read_pushbutton(32))
-            {
-                Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
-            }
-
-            // Switch to SETUP
-            else if (Read_pushbutton(33))
+            case SwToolsSetup:
             {
                 Lilla_state_0 = LIVE_SAMPLING;
                 Golive_SETUP();
             }
+            break;
+
+            case SwToolsTest:
+            {
+                Lilla_state_0 = LIVE_SAMPLING;
+                Golive_MIDI_MONITOR();
+            }
+            break;
+            }
         }
-        */
     }
 
 #pragma endregion // LIVE_SAMPLING
@@ -8033,23 +8064,6 @@ void Golive_with_PERFORMANCE(int patch_id)
 
     Print_Lilla_state();
     Print_Patch(patch_id);
-}
-
-void P_Return_to_PERFORMANCE_from_SOUND_EDIT(void)
-{
-    S_Set_Sound_SOLO_OFF();
-
-    Lilla_state = PERFORMANCE;
-
-    patch_original = P_Verify_is_Patch_original(Patch_id);
-    P_Select_menu_elements();
-    P_Update_line_of_all_instruments();
-
-    Display_Manager.P_show_PERFORMANCE_page(true, true);
-    Performance_led_set.Restore_all_LED();
-
-    Pointer_Performance.Set_pointer_to_last_instrument(Instrument_id);
-    P_pointer = Pointer_Performance.Get_pointer();
 }
 
 void P_Rebuild_patch_old(void)
@@ -12632,7 +12646,7 @@ void Bootstrap_setup(void)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
-    Display_Manager.Lilla_cover_slow();
+    // Display_Manager.Lilla_cover_slow();
     // Display_Manager.Lilla_cover_saturate();
 
     // ****************    START with PERFORMANCE     ************

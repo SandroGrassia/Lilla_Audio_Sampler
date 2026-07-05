@@ -9,14 +9,14 @@
 #include <Arduino.h>
 
 static constexpr int VCF_value_names = 8;
-enum VCF_value_name
+enum VCF_value_name : int
 {
-    value_VCF_Menu,
-    value_VCF_Gain_Volume,
-    value_VCF_FilterType,
-    value_VCF_Cutoff,
-    value_VCF_Resonance,
-    value_VCF_LfoModulationType,
-    value_VCF_LfoModFreqTime,
-    value_VCF_LfoModDepth
+    value_VCF_Menu = 0,
+    value_VCF_Gain_Volume = 1,
+    value_VCF_FilterType = 2,
+    value_VCF_Cutoff = 3,
+    value_VCF_Resonance = 4,
+    value_VCF_LfoModulationType = 5,
+    value_VCF_LfoModFreqTime = 6,
+    value_VCF_LfoModDepth = 7
 };
