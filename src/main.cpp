@@ -6948,7 +6948,7 @@ void loop()
                 }
 
                 // Change track values
-                if (!Read_pushbutton_fast(EN_PB_Value))
+                if (!Read_pushbutton_fast(EN_PB_PreListenVol))
                 {
                     switch (LOOP_local_pointerTrack[track])
                     {
