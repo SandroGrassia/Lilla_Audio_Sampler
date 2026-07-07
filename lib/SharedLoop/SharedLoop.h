@@ -72,18 +72,33 @@ unsigned long LOOP_Clock(void); // definita in main.cpp
 extern int LOOP_id; // loop_id actually displayed
 
 // Pointer
-enum LOOP_menu_element_name
+enum LOOP_field_name
 {
-    value_LOOP_New,
-    value_LOOP_Save,
-    value_LOOP_SaveAsNew,
-    value_LOOP_Delete
+    field_LOOP_Menu,
+    field_LOOP_TrackValues
+};
+
+enum LOOP_menu_element_name : int
+{
+    value_LOOP_Menu_none = -1,
+    value_LOOP_New = 0,
+    value_LOOP_Save = 1,
+    value_LOOP_SaveAsNew = 2,
+    value_LOOP_Delete = 3
 };
 
 static constexpr int LOOP_track_values = 3;
-enum LOOP_track_value_name
+enum LOOP_track_value_name : int
 {
-    value_LOOP_slide,
-    value_LOOP_pitch,
-    value_LOOP_level
+    value_LOOP_Track_none = -1,
+    value_LOOP_shift = 0,
+    value_LOOP_pitch = 1,
+    value_LOOP_level = 2
+};
+
+struct LOOP_field_description_struct
+{
+LOOP_field_name field_name;
+LOOP_menu_element_name menu_element;
+LOOP_track_value_name track_value_element;
 };

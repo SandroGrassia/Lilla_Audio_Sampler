@@ -9,42 +9,53 @@
 #include <Arduino.h>
 #include "DisplayPrimitives.h"
 #include "GlobalDisplayMidiLoop.h"
+#include "SharedLoop.h"
 
 /*
-static constexpr int LOOP_menu_values = 4;
-enum LOOP_menu_element_name
+// Pointer
+enum LOOP_field_name
 {
-    value_LOOP_New,
-    value_LOOP_Save,
-    value_LOOP_SaveAsNew,
-    value_LOOP_Delete
+    field_LOOP_Menu,
+    field_LOOP_TrackValues
+};
+
+enum LOOP_menu_element_name : int
+{
+    value_LOOP_Menu_none = -1,
+    value_LOOP_New = 0,
+    value_LOOP_Save = 1,
+    value_LOOP_SaveAsNew = 2,
+    value_LOOP_Delete = 3
 };
 
 static constexpr int LOOP_track_values = 3;
-enum LOOP_track_value_name
+enum LOOP_track_value_name : int
 {
-    value_LOOP_slide,
-    value_LOOP_pitch,
-    value_LOOP_level
+    value_LOOP_Track_none = -1,
+    value_LOOP_shift = 0,
+    value_LOOP_pitch = 1,
+    value_LOOP_level = 2
+};
+
+struct LOOP_field_description_struct
+{
+LOOP_field_name field_name;
+LOOP_menu_element_name menu_element;
+LOOP_track_value_name track_value_element;
 };
 */
 
 class PointerMidiLoop
 {
     private:
-    LOOP_menu_element_name pointerMenu;
-    LOOP_track_value_name pointerTrack[TRACKS];
+    LOOP_field_description_struct pointer;
 
     public:
     PointerMidiLoop() {}
 
-    void Set_pointerMenu_to_first_menu_element(void);
-    void Show_pointerMenu(const bool show);
-    void Move_pointerMenu(const int value);
-    LOOP_menu_element_name Get_pointerMenu(void);
-
-    void Move_pointerTrack(const int track, const int value);
-    void Set_pointerTrack_to_level(const int track);
+    void Set_pointer_to_first_menu_element(void);
+    LOOP_field_description_struct Get_pointer(void);
     void Show_pointerTrack(const int track, const bool show);
-    LOOP_track_value_name Get_pointerTrack (const int track);
+    void Show_pointer(const bool show);
+    void Move_pointer(const int value);
 };

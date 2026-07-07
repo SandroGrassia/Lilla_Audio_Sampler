@@ -6,96 +6,130 @@
 
 #include "PointerMidiLoop.h"
 
-void PointerMidiLoop::Set_pointerMenu_to_first_menu_element(void)
+void PointerMidiLoop::Set_pointer_to_first_menu_element(void)
 {
-    pointerMenu = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]);
-    Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, true);
-}
+    // pointerMenu = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]);
+    // Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, true);
 
-void PointerMidiLoop::Move_pointerMenu(const int value)
-{
-    bool change = false;
-    LOOP_menu_element_name pointerMenu_old = pointerMenu;
+    pointer.field_name = field_LOOP_Menu;
+    pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]);
+    pointer.track_value_element = value_LOOP_Track_none;
 
-    int position = position_Menu_LOOP[pointerMenu];
+    Display_MidiLoop.Loop_show_pointerMenu(pointer.menu_element, true);
 
-    if (value == 1)
+    for (auto track = 0; track < TRACKS; ++track)
     {
-        if (position < LOOP_menu_max)
+        for (auto value = 0; value < LOOP_track_values; ++value)
         {
-            pointerMenu = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[++position]);
-            change = true;
+            Display_MidiLoop.Loop_show_pointerTrack(track, static_cast<LOOP_track_value_name>(value), false);
         }
     }
-    else if (value == -1)
-    {
-        if (position > 0)
-        {
-            pointerMenu = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[--position]);
-            change = true;
-        }
-    }
-
-    if (change)
-    {
-        Display_MidiLoop.Loop_show_pointerMenu(pointerMenu_old, false);
-        Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, true);
-    }
 }
 
-LOOP_menu_element_name PointerMidiLoop::Get_pointerMenu(void)
+LOOP_field_description_struct PointerMidiLoop::Get_pointer(void)
 {
-    return pointerMenu;
-}
-
-void PointerMidiLoop::Move_pointerTrack(const int track, const int value)
-{
-    LOOP_track_value_name pointerTrack_old = pointerTrack[track];
-    
-    if(value == 1)
-    {
-      if (pointerTrack[track] == value_LOOP_level)
-      {
-        pointerTrack[track] = value_LOOP_slide;
-      }
-      else
-      {
-        pointerTrack[track] = static_cast<LOOP_track_value_name>(pointerTrack[track] + 1);
-      }
-    }
-    else if(value == -1)
-    {
-      if (pointerTrack[track] == value_LOOP_slide)
-      {
-        pointerTrack[track] = value_LOOP_level;
-      }
-      else
-      {
-        pointerTrack[track] = static_cast<LOOP_track_value_name>(pointerTrack[track] - 1);
-      }
-    }
-
-    Display_MidiLoop.Loop_show_pointerTrack(track, pointerTrack_old, false);
-    Display_MidiLoop.Loop_show_pointerTrack(track, pointerTrack[track], true);
-}
-
-LOOP_track_value_name PointerMidiLoop::Get_pointerTrack(const int track)
-{
-    return pointerTrack[track];
-}
-
-void PointerMidiLoop::Set_pointerTrack_to_level(const int track)
-{
-    pointerTrack[track] = value_LOOP_level;
-    Display_MidiLoop.Loop_show_pointerTrack(track, pointerTrack[track], true);
+    return pointer;
 }
 
 void PointerMidiLoop::Show_pointerTrack(const int track, const bool show)
 {
-    Display_MidiLoop.Loop_show_pointerTrack(track, pointerTrack[track], show);
+    if (LOOP_events[track] == 0 && show)
+    {
+        return;
+    }
+    Display_MidiLoop.Loop_show_pointerTrack(track, pointer.track_value_element, show);
 }
 
-void PointerMidiLoop::Show_pointerMenu(const bool show)
+void PointerMidiLoop::Show_pointer(const bool show)
 {
-    Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, show);
+    switch (pointer.field_name)
+    {
+    case field_LOOP_Menu:
+    {
+        if (pointer.menu_element != value_LOOP_Menu_none)
+        {
+            Display_MidiLoop.Loop_show_pointerMenu(pointer.menu_element, show);
+        }
+    }
+    break;
+
+    case field_LOOP_TrackValues:
+    {
+        if (pointer.track_value_element != value_LOOP_Track_none)
+        {
+            for (auto track = 0; track < TRACKS; ++track)
+            {
+                Show_pointerTrack(track, show);
+            }
+        }
+    }
+    break;
+    }
+}
+
+void PointerMidiLoop::Move_pointer(const int value)
+{
+    if (value == 0)
+    {
+        return;
+    }
+
+    Show_pointer(false);
+
+    switch (pointer.field_name)
+    {
+    case field_LOOP_Menu:
+    {
+        int position = position_Menu_LOOP[pointer.menu_element];
+
+        if (value == 1)
+        {
+            if (position < LOOP_menu_max)
+            {
+                pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[++position]);
+            }
+            else
+            {
+                pointer.field_name = field_LOOP_TrackValues;
+                pointer.menu_element = value_LOOP_Menu_none;
+                pointer.track_value_element = value_LOOP_shift;
+            }
+        }
+        else if (value == -1)
+        {
+            if (position > 0)
+            {
+                pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[--position]);
+            }
+        }
+    }
+    break;
+
+    case field_LOOP_TrackValues:
+    {
+        if (value == 1)
+        {
+            if (pointer.track_value_element < value_LOOP_level)
+            {
+                pointer.track_value_element = static_cast<LOOP_track_value_name>(pointer.track_value_element + 1);
+            }
+        }
+        else if (value == -1)
+        {
+            if (pointer.track_value_element > value_LOOP_shift)
+            {
+                pointer.track_value_element = static_cast<LOOP_track_value_name>(pointer.track_value_element - 1);
+            }
+            else
+            {
+                pointer.field_name = field_LOOP_Menu;
+                pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[LOOP_menu_max]);
+                pointer.track_value_element = value_LOOP_Track_none;
+            }
+        }
+    }
+    break;
+    }
+
+    Show_pointer(true);
 }

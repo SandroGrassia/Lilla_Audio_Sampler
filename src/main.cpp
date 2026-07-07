@@ -664,10 +664,7 @@ int LOOP_stretch_int = 100; // stretch comune ai track, in %
 bool LOOP_original;
 
 // Pointer
-LOOP_menu_element_name LOOP_local_pointerMenu;
-LOOP_menu_element_name LOOP_local_pointerMenu_old;
-LOOP_track_value_name LOOP_local_pointerTrack[TRACKS];
-LOOP_track_value_name LOOP_local_pointerTrack_old[TRACKS];
+LOOP_field_description_struct LOOP_local_pointer;
 
 // functions
 void LOOP_reset_all_data(void);
@@ -6493,8 +6490,8 @@ void loop()
             result = Read_encoder_simple(EN_PB_Select);
             if (result != 0)
             {
-                Pointer_MidiLoop.Move_pointerMenu(result);
-                LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+                Pointer_MidiLoop.Move_pointer(result);
+                LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
             }
         }
 
@@ -6535,12 +6532,12 @@ void loop()
                     Display_MidiLoop.Show_track_all_data(track);
                 }
 
-                // Update menu and pointerMenu
-                Pointer_MidiLoop.Show_pointerMenu(false);
+                // Update menu and pointer
+                Pointer_MidiLoop.Show_pointer(false);
                 LOOP_select_menu_elements();
                 Display_MidiLoop.Show_menu();
-                Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-                LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+                Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
                 // Switch off all tracks LEDs on display
                 Loop_led_set.Request_all_LED_switch_off();
@@ -6574,16 +6571,6 @@ void loop()
                 {
                     LOOP_track_run_memo[track] = LOOP_events[track] > 0;
                     LOOP_track_run[track] = false;
-                }
-
-                // Show pointerTrack
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    if (LOOP_events[track] > 0)
-                    {
-                        Pointer_MidiLoop.Set_pointerTrack_to_level(track);
-                        LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
-                    }
                 }
 
                 // Report
@@ -6696,12 +6683,12 @@ void loop()
                     // Switch off all tracks LEDs
                     Loop_led_set.Request_all_LED_switch_off();
 
-                    // Update menu and pointerMenu
-                    Pointer_MidiLoop.Show_pointerMenu(false);
+                    // Update menu and pointer
+                    Pointer_MidiLoop.Show_pointer(false);
                     LOOP_select_menu_elements();
                     Display_MidiLoop.Show_menu();
-                    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-                    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+                    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
                     // Prepare learning
                     LOOP_learn_clock = 0;
@@ -6839,12 +6826,10 @@ void loop()
                             LOOP_original = false;
                         }
 
-                        // Update menu and pointerMenu on display
-                        Pointer_MidiLoop.Show_pointerMenu(false);
+                        // Update menu and pointer on display
+                        Pointer_MidiLoop.Show_pointer(false);
                         LOOP_select_menu_elements();
                         Display_MidiLoop.Show_menu();
-                        Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-                        LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
 
                         // Report
                         Serial.println(" **************** ");
@@ -6890,9 +6875,9 @@ void loop()
 
                     Display_MidiLoop.Show_track_all_data(track);
 
-                    // Pointer pointerTrack
-                    Pointer_MidiLoop.Set_pointerTrack_to_level(track);
-                    LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
+                    // pointer
+                    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
                     // Display loop time
                     if (LOOP_learning_track == MASTER_TRACK)
@@ -6905,6 +6890,7 @@ void loop()
             // Change values
             if (LOOP_events[track] > 0)
             {
+
                 // Track start-stop
                 if (Read_pushbutton(EN_PB_Track[track]))
                 {
@@ -6947,19 +6933,15 @@ void loop()
                     }
                 }
 
-                // Change track values
-                if (!Read_pushbutton_fast(EN_PB_PreListenVol))
+                if (LOOP_local_pointer.field_name == field_LOOP_TrackValues)
                 {
-                    switch (LOOP_local_pointerTrack[track])
+                    // Change track parameters
+                    switch (LOOP_local_pointer.track_value_element)
                     {
                     // Slide temporale
-                    case value_LOOP_slide:
+                    case value_LOOP_shift:
                     {
-                        if (!Read_pushbutton_fast(EN_PB_Track[track]))
-                        {
-                            result = Read_encoder_simple(EN_PB_Track[track]);
-                        }
-
+                        result = Read_encoder_simple(EN_PB_Track[track]);
                         if (result != 0)
                         {
                             LOOP_original = false;
@@ -7009,9 +6991,8 @@ void loop()
                             Display_MidiLoop.Show_track_all_data(track);
                         }
 
-                        // Cancel (time) slide
-                        if (Read_pushbutton_fast(EN_PB_Track[track]))
-                        {
+                        // REMOVED - Cancel time slide
+                        /*
                             int jump = LOOP_time - LOOP_slide[track];
 
                             AudioNoInterrupts();
@@ -7035,7 +7016,7 @@ void loop()
 
                             LOOP_slide[track] = (LOOP_slide[track] + jump) % LOOP_time;
                             Display_MidiLoop.Show_track_all_data(track);
-                        }
+                        */
                     }
                     break;
 
@@ -7089,96 +7070,80 @@ void loop()
                 LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
             }
 
-            // Move pointerTrack - move pointerMain
-            if (Read_pushbutton_fast(EN_PB_PreListenVol))
-            {
-                // Move pointerTrack
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    if (LOOP_events[track] > 0)
-                    {
-                        result = Read_encoder_simple(EN_PB_Track[track]);
-                        if (result != 0)
-                        {
-                            Pointer_MidiLoop.Move_pointerTrack(track, result);
-                            LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
-                        }
-                    }
-                }
-            }
-
             // Choose menu item
-            if (Read_pushbutton(EN_PB_Select))
+            if (LOOP_local_pointer.field_name == field_LOOP_Menu)
             {
-                switch (LOOP_local_pointerMenu)
+                if (Read_pushbutton(EN_PB_Select))
                 {
-                case value_LOOP_New:
-                {
-                    LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
-                    LOOP_id = NEW_LOOP;
-                    LOOP_original = true;
-                    LOOP_run_button_state = true;
-
-                    Golive_with_MIDI_LOOP(true);
-                }
-                break;
-
-                case value_LOOP_Save:
-                {
-                    LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
-
-                    LOOP_original = true;
-
-                    // Update menu and pointerMenu
-                    Pointer_MidiLoop.Show_pointerMenu(false);
-                    LOOP_select_menu_elements();
-                    Display_MidiLoop.Show_menu();
-                    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-                    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
-                }
-                break;
-
-                case value_LOOP_SaveAsNew:
-                {
-                    result = LOOP_Get_first_loop_id_free();
-                    if (result >= 0)
+                    switch (LOOP_local_pointer.menu_element)
                     {
-                        LOOP_id = result;
-                        LOOP_Print_midi_loop_complete_data(LOOP_id);
+                    case value_LOOP_New:
+                    {
+                        LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
+                        LOOP_id = NEW_LOOP;
+                        LOOP_original = true;
+                        LOOP_run_button_state = true;
+
+                        Golive_with_MIDI_LOOP(true);
+                    }
+                    break;
+
+                    case value_LOOP_Save:
+                    {
                         LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
 
-                        // Update menu
                         LOOP_original = true;
 
                         // Update menu and pointerMenu
-                        Pointer_MidiLoop.Show_pointerMenu(false);
+                        Pointer_MidiLoop.Show_pointer(false);
                         LOOP_select_menu_elements();
                         Display_MidiLoop.Show_menu();
-                        Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-                        LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
+                        Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                        LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+                    }
+                    break;
 
-                        // Update loop_id
-                        Display_MidiLoop.Show_loop_id();
+                    case value_LOOP_SaveAsNew:
+                    {
+                        result = LOOP_Get_first_loop_id_free();
+                        if (result >= 0)
+                        {
+                            LOOP_id = result;
+                            LOOP_Print_midi_loop_complete_data(LOOP_id);
+                            LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
+
+                            // Update menu
+                            LOOP_original = true;
+
+                            // Update menu and pointerMenu
+                            Pointer_MidiLoop.Show_pointer(false);
+                            LOOP_select_menu_elements();
+                            Display_MidiLoop.Show_menu();
+                            Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                            LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+
+                            // Update loop_id
+                            Display_MidiLoop.Show_loop_id();
+                        }
+                    }
+                    break;
+
+                    case value_LOOP_Delete:
+                    {
+                        LOOP_Delete_midi_loop_from_SD(LOOP_id);
+
+                        // new
+                        LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
+                        LOOP_id = NEW_LOOP;
+                        LOOP_original = true;
+                        LOOP_run_button_state = true;
+
+                        Golive_with_MIDI_LOOP(true);
+                    }
+                    break;
                     }
                 }
-                break;
-
-                case value_LOOP_Delete:
-                {
-                    LOOP_Delete_midi_loop_from_SD(LOOP_id);
-
-                    // new
-                    LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
-                    LOOP_id = NEW_LOOP;
-                    LOOP_original = true;
-                    LOOP_run_button_state = true;
-
-                    Golive_with_MIDI_LOOP(true);
-                }
-                break;
-                }
             }
-
             // Change tempo
             if (Read_encoder_inverse(EN_PB_Tempo, LOOP_stretch_int, 198, 1, 1))
             {
@@ -9415,19 +9380,9 @@ void Golive_with_MIDI_LOOP(bool restart)
     LOOP_select_menu_elements();
     Display_MidiLoop.Show_Loop_page();
 
-    // Pointer pointerMenu
-    Pointer_MidiLoop.Set_pointerMenu_to_first_menu_element();
-    LOOP_local_pointerMenu = Pointer_MidiLoop.Get_pointerMenu();
-
-    // Pointers pointerTrack
-    for (auto track = 0; track < TRACKS; ++track)
-    {
-        if (LOOP_events[track] > 0)
-        {
-            Pointer_MidiLoop.Set_pointerTrack_to_level(track);
-            LOOP_local_pointerTrack[track] = Pointer_MidiLoop.Get_pointerTrack(track);
-        }
-    }
+    // Pointer
+    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
     // LEDs setup
     if (restart)
