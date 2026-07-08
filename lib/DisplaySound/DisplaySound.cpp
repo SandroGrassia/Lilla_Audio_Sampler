@@ -219,7 +219,7 @@ FLASHMEM
 void DisplaySound::Show_File_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
-    tft.setTextColor((file_midi_ch_flag ? ILI9341_YELLOW : ILI9341_WHITE));
+    tft.setTextColor(ILI9341_YELLOW);
     tft.print(name_file[Preset[instrument_id].file]);
 }
 
@@ -227,7 +227,7 @@ FLASHMEM
 void DisplaySound::Show_Midi_channel_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Midi][0]), display_coordinate_y(S_column_row_value_element[value_S_Midi][1]), S_chars_Midi);
-    tft.setTextColor((!file_midi_ch_flag ? ILI9341_YELLOW : ILI9341_WHITE));
+    tft.setTextColor(ILI9341_WHITE);
     tft.print(Preset[instrument_id].midi_channel + 1);
 }
 FLASHMEM

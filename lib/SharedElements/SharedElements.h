@@ -207,7 +207,6 @@ extern uint8_t Patch_id;
 extern int volume_patch;
 extern uint8_t map_instrument_for_note[16][NOTE_NUMBERS];
 extern bool key_state[16][NOTE_NUMBERS]; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
-extern bool file_midi_ch_flag;           // quale funzionalita' regola l'encoder 2
 extern int8_t P_line_of_instrument[INSTRUMENTS];
 extern float pitch_from_note[NOTE_NUMBERS];
 extern bool display_instrument_volume_flag;

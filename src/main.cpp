@@ -770,6 +770,7 @@ static inline void P_UpdatePatchOriginalAndMenu(void)
 }
 
 // >>>>>>>>>>> STARTUP
+void Startup_mode(void);
 void Compile_tables(void);
 void Bootstrap_setup(void);
 
@@ -1191,9 +1192,9 @@ void setup()
     //    ********************    START   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
     Bootstrap_setup();
 
-    File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
     AudioInterrupts();
 }
 
@@ -2099,7 +2100,7 @@ void loop()
         }
 
         // Switch Mode
-        if (Switches_manager.Get_change(SwitchModes))
+        if(Switches_manager.Get_change(SwitchModes))
         {
             switch (Switches_manager.Get_value(SwitchModes))
             {
@@ -2118,10 +2119,7 @@ void loop()
             break;
 
             case SwModesPerformance:
-            {
-                PRINT_ERROR(F("Invalid case"));
-            }
-            break;
+                break;
 
             case SwModesMidiLoop:
             {
@@ -6504,12 +6502,14 @@ void loop()
             {
                 new_loop_id = LOOP_Get_next_loop_id_in_SD(LOOP_id);
             }
-            else
+            else if (result == -1)
             {
                 new_loop_id = LOOP_Get_previous_loop_id_in_SD(LOOP_id);
             }
 
-            if (new_loop_id != -1 && new_loop_id != LOOP_id)
+            PRINT_CONTROL_POINT(new_loop_id);
+
+            if ((new_loop_id != -1) && (new_loop_id != LOOP_id))
             {
                 // delete runnig loop data and stop metronomo
                 LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
@@ -7144,6 +7144,7 @@ void loop()
                     }
                 }
             }
+
             // Change tempo
             if (Read_encoder_inverse(EN_PB_Tempo, LOOP_stretch_int, 198, 1, 1))
             {
@@ -8069,25 +8070,6 @@ bool P_Verify_if_Instrument_original(const int instrument_id)
            S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
 }
 
-void Golive_with_PERFORMANCE(int patch_id)
-{
-    Lilla_state = PERFORMANCE;
-
-    patch_original = P_Verify_is_Patch_original(patch_id);
-    P_Select_menu_elements();
-    P_Update_line_of_all_instruments();
-
-    Display_Manager.P_show_PERFORMANCE_page(true, true);
-    Performance_led_set.Request_all_LED_switch_off();
-
-    // pointer
-    Pointer_Performance.Set_pointer_to_Patch();
-    P_pointer = Pointer_Performance.Get_pointer();
-
-    Print_Lilla_state();
-    Print_Patch(patch_id);
-}
-
 void P_Rebuild_patch_old(void)
 {
     Players_Manager.Release_softly_all_players(Patch_id);
@@ -8634,6 +8616,8 @@ void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     Turn_ON_Delay(false); // switch on/off Delay (using Instrument routing)
     recording = DS_get_last_Recording();
 
+    PRINT_CONTROL_POINT(recording);
+
     // Set up Sound parameters
     if (recording >= 0)
     {
@@ -8653,38 +8637,6 @@ void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
         Sound[SOUNDS_MAX + 1].B = 100000;
     }
     Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-}
-
-void Golive_DIRECT_SAMPLING(void)
-{
-    Lilla_state = DIRECT_SAMPLING;
-
-    DS_state = DS_waiting_state;
-
-    // Switch ON the VU meter
-    PeakTracking_L.reset();
-    PeakTracking_R.reset();
-
-    Display_Sampler.DS_page(recording);
-    Display_Sampler.DS_line_out(false);
-
-    // Menu
-    DS_define_menu();
-    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-
-    // Pointer
-    Pointer_Sampler.Set_pointer_to_first_menu_element();
-    DS_local_pointer = Pointer_Sampler.Get_pointer();
-
-    // Display the VU meter
-    Display_Sampler.DS_bar(0, 0);
-    Display_Sampler.DS_bar(1, 0);
-
-    // Reporting
-    Print_Patch(Patch_id);
-    Serial.println(F("*** DIRECT_SAMPLING ***  Sounds are:"));
-    Print_Sound(SOUNDS_MAX);
-    Print_Sound(SOUNDS_MAX + 1);
 }
 
 void DS_refresh_DS_page(void)
@@ -9192,10 +9144,12 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
     {
         Menu_DS[5] = false; // CONVERT REC-TO-RAW
     }
-
-    if ((Get_flash_size() - Get_flash_occupation()) < Recording[recording].bytes) // if recording is stereo, at least one file can be saved
+    else
     {
-        Menu_DS[5] = false; // CONVERT REC-TO-RAW
+        if ((Get_flash_size() - Get_flash_occupation()) < Recording[recording].bytes) // if recording is stereo, at least one file can be saved
+        {
+            Menu_DS[5] = false; // CONVERT REC-TO-RAW
+        }
     }
 
     DS_menu_max = -1;
@@ -9315,6 +9269,128 @@ void P_Recording(int value)
 // ******************************************            SWITCH           ****************************************
 // ***************************************************************************************************************
 
+void Golive_with_LIVE_SAMPLING(void)
+{
+    Lilla_state = LIVE_SAMPLING;
+
+    Display_LiveSampler.Page();
+
+    // restore LEDs
+    Performance_led_set.Restore_all_LED();
+
+    LS_update_menu_elements();
+    Display_LiveSampler.Menu();
+    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
+    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+    if (!LS_XY_lock)
+    {
+        LS_update_both_X_Y_samples();
+    }
+    else // altrimenti e' gia' stato calcolato
+    {
+        LS_update_Q_sample();
+    }
+
+    Display_LiveSampler.Show_wave(LS_sound_id);
+
+    Print_Lilla_state();
+    Print_Patch(Patch_id);
+}
+
+void Golive_DIRECT_SAMPLING(void)
+{
+    Lilla_state = DIRECT_SAMPLING;
+
+    DS_state = DS_waiting_state;
+
+    // Switch ON the VU meter
+    PeakTracking_L.reset();
+    PeakTracking_R.reset();
+
+    Display_Sampler.DS_page(recording);
+    Display_Sampler.DS_line_out(false);
+
+    // Menu
+    DS_define_menu();
+    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
+
+    // Pointer
+    Pointer_Sampler.Set_pointer_to_first_menu_element();
+    DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+    // Display the VU meter
+    Display_Sampler.DS_bar(0, 0);
+    Display_Sampler.DS_bar(1, 0);
+
+    // Reporting
+    Print_Patch(Patch_id);
+    Serial.println(F("*** DIRECT_SAMPLING ***  Sounds are:"));
+    Print_Sound(SOUNDS_MAX);
+    Print_Sound(SOUNDS_MAX + 1);
+}
+
+void Golive_with_PERFORMANCE(int patch_id)
+{
+    Lilla_state = PERFORMANCE;
+
+    patch_original = P_Verify_is_Patch_original(patch_id);
+    P_Select_menu_elements();
+    P_Update_line_of_all_instruments();
+
+    Display_Manager.P_show_PERFORMANCE_page(true, true);
+    Performance_led_set.Request_all_LED_switch_off();
+
+    // pointer
+    Pointer_Performance.Set_pointer_to_Patch();
+    P_pointer = Pointer_Performance.Get_pointer();
+
+    Print_Lilla_state();
+    Print_Patch(patch_id);
+}
+
+void Golive_with_MIDI_LOOP(bool restart)
+{
+    Lilla_state = MIDI_LOOP;
+
+    LOOP_select_menu_elements();
+    Display_MidiLoop.Show_Loop_page();
+
+    // Pointer
+    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+
+    // LEDs setup
+    if (restart)
+    {
+        Players_statistics.Reset_total_Players_per_track_instrument();
+        Loop_led_set.Request_all_LED_switch_off();
+    }
+
+    // Update_instruments_leds();
+    LOOP_metronomo.Leds_off(); // spegni i LED del metronomo
+
+    // Se esiste loop_0, accendi il metronomo
+    if (LOOP_events[0] != 0)
+    {
+        if (restart)
+        {
+            LOOP_restart_clock();
+
+            // Accendi primo led metronomo
+            LOOP_metronomo.Led_ON(0);
+
+            /*
+            // calcolo prossimo evento metronomo
+            LOOP_metronomo.metro_time = 0 + LOOP_metronomo.Read_metro_delta_ms();
+
+            // avvia il metronomo
+            LOOP_metronomo_run = true
+            */
+        }
+    }
+}
+
 void Switch_to_DIRECT_SAMPLING(void)
 {
     AudioNoInterrupts();
@@ -9370,48 +9446,6 @@ void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void)
     else // true: stop and exit
     {
         Switch_to_DIRECT_SAMPLING();
-    }
-}
-
-void Golive_with_MIDI_LOOP(bool restart)
-{
-    Lilla_state = MIDI_LOOP;
-
-    LOOP_select_menu_elements();
-    Display_MidiLoop.Show_Loop_page();
-
-    // Pointer
-    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
-    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
-
-    // LEDs setup
-    if (restart)
-    {
-        Players_statistics.Reset_total_Players_per_track_instrument();
-        Loop_led_set.Request_all_LED_switch_off();
-    }
-
-    // Update_instruments_leds();
-    LOOP_metronomo.Leds_off(); // spegni i LED del metronomo
-
-    // Se esiste loop_0, accendi il metronomo
-    if (LOOP_events[0] != 0)
-    {
-        if (restart)
-        {
-            LOOP_restart_clock();
-
-            // Accendi primo led metronomo
-            LOOP_metronomo.Led_ON(0);
-
-            /*
-            // calcolo prossimo evento metronomo
-            LOOP_metronomo.metro_time = 0 + LOOP_metronomo.Read_metro_delta_ms();
-
-            // avvia il metronomo
-            LOOP_metronomo_run = true
-            */
-        }
     }
 }
 
@@ -9533,35 +9567,6 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
     }
-}
-
-void Golive_with_LIVE_SAMPLING(void)
-{
-    Lilla_state = LIVE_SAMPLING;
-
-    Display_LiveSampler.Page();
-
-    // restore LEDs
-    Performance_led_set.Restore_all_LED();
-
-    LS_update_menu_elements();
-    Display_LiveSampler.Menu();
-    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
-    LS_local_pointer = Pointer_LiveSampler.Get_pointer();
-
-    if (!LS_XY_lock)
-    {
-        LS_update_both_X_Y_samples();
-    }
-    else // altrimenti e' gia' stato calcolato
-    {
-        LS_update_Q_sample();
-    }
-
-    Display_LiveSampler.Show_wave(LS_sound_id);
-
-    Print_Lilla_state();
-    Print_Patch(Patch_id);
 }
 
 void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void)
@@ -11483,8 +11488,15 @@ void Print_Sound(int sound_id)
     // Rxxx.raw file (Recording)
     else if (sound_id >= SOUNDS_MAX)
     {
-        int recording = ((Sound[sound_id].file - 260) / 2);
-        Serial.print(DS_get_samples_in_Recording(recording));
+        if (Sound[sound_id].file >= FIRST_RECORDING_FILE)
+        {
+            int recording = ((Sound[sound_id].file - FIRST_RECORDING_FILE) / 2);
+            Serial.print(DS_get_samples_in_Recording(recording));
+        }
+        else
+        {
+            Serial.print(Get_samples_in_raw_file(Sound[sound_id].file));
+        }
     }
 
     Serial.print(" mode:");
@@ -12478,6 +12490,43 @@ bool Read_encoder_fast(int element)
 // *************************************            BOOTSTRAP             ***************************************
 // **************************************************************************************************************
 
+void Startup_mode(void)
+{
+    Lilla_state = PERFORMANCE;
+    Lilla_state_0 = Lilla_state;
+
+    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    S_Fill_all_Noclick();
+    S_Fill_all_Wavetable();
+
+    Patch_id_old = Patch_id;
+    Patch_cache_P = Patch[Patch_id];
+
+    P_Update_all_maps_Instrument_for_notes();
+
+    switch (Switches_manager.Get_value(SwitchModes))
+    {
+    case SwModesSampler:
+        Patch_id_old = Patch_id;
+        Switch_to_DIRECT_SAMPLING();
+        break;
+
+    case SwModesLiveSampler:
+        Patch_id_old = Patch_id;
+        Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+        break;
+
+    case SwModesMidiLoop:
+        Golive_with_MIDI_LOOP(true);
+        break;
+
+    case SwModesPerformance:
+    default:
+        Golive_with_PERFORMANCE(Patch_id);
+        break;
+    }
+}
+
 void Bootstrap_setup(void)
 {
 
@@ -12636,8 +12685,8 @@ void Bootstrap_setup(void)
     biquad_R.setLowpass(0, 20000, 0.707);
 
     // **************            FLAGS            ****************
-    file_midi_ch_flag = true;
     display_instrument_volume_flag = false;
+    instrument_volume_changed = 0;
 
     // **************     MIDI CONTROL CHANGE     ****************
     CC_lowpass_filter_value = 0;
@@ -12661,6 +12710,10 @@ void Bootstrap_setup(void)
     // Display_Manager.Lilla_cover_slow();
     // Display_Manager.Lilla_cover_saturate();
 
+    // ****************    DEFINE STARTUP MODE     ************
+    Startup_mode();
+
+    /*
     // ****************    START with PERFORMANCE     ************
     Lilla_state = PERFORMANCE;
     Lilla_state_0 = Lilla_state;
@@ -12677,8 +12730,8 @@ void Bootstrap_setup(void)
     P_Update_all_maps_Instrument_for_notes();
     Print_map_instrument_for_note(0); // Print_map_instrument_for_note(uint8_t midi_channel)
 
-    instrument_volume_changed = 0;
     Golive_with_PERFORMANCE(Patch_id);
+    */
 
     // *******************    START MIDI   ************************
     Midi_reader.Begin();

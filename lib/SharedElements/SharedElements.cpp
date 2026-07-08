@@ -27,11 +27,10 @@ uint8_t Patch_id = 0;
 int volume_patch = 29;
 uint8_t map_instrument_for_note[16][NOTE_NUMBERS] = {0};
 bool key_state[16][NOTE_NUMBERS] = {0}; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
-bool file_midi_ch_flag;
 int8_t P_line_of_instrument[INSTRUMENTS];
 float pitch_from_note[NOTE_NUMBERS] = {0};
-bool display_instrument_volume_flag;
-uint8_t instrument_volume_changed;
+bool display_instrument_volume_flag = false;
+uint8_t instrument_volume_changed = 0;
 
 uint8_t P_choice_menu;
 bool Menu_P[5];
