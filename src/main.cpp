@@ -638,7 +638,7 @@ const int LS_XY_DELTA_MIN = 4 * AUDIO_BLOCK_SAMPLES; // 5000
 int16_t *LS_buffer_mono_ptr = nullptr;
 int16_t *LS_buffer_L_ptr = nullptr;
 int16_t *LS_buffer_R_ptr = nullptr;
-const int LS_REFRESH = 160; // tempo di refresh ms
+const int LS_REFRESH = 160; // tempo di refresh 160 ms
 elapsedMillis LS_wave_refresh_timer;
 
 // functions
@@ -2994,6 +2994,7 @@ void loop()
                 Golive_with_LIVE_SAMPLING();
             }
         }
+        break;
 
         case value_VCF_Gain_Volume:
         {
@@ -3042,6 +3043,7 @@ void loop()
         break;
 
         case value_VCF_FilterType:
+        {
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.type, 3, 0, 1))
             {
                 if (Lilla_state_0 == LIVE_SAMPLING)
@@ -3069,9 +3071,11 @@ void loop()
                 Macro_VCF_filter_on_none();
                 Display_VCF.VCF_show_filter_type_value(Instrument_id);
             }
-            break;
+        }
+        break;
 
         case value_VCF_Cutoff:
+        {
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.pivot, 100, 0, 1))
             {
                 AudioNoInterrupts();
@@ -3098,9 +3102,11 @@ void loop()
 
                 Display_VCF.VCF_show_cutoff_value(Instrument_id);
             }
-            break;
+        }
+        break;
 
         case value_VCF_Resonance:
+        {
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.resonance, 40, 0, 1))
             {
 
@@ -3117,9 +3123,11 @@ void loop()
 
                 Display_VCF.VCF_show_resonance_value(Instrument_id);
             }
-            break;
+        }
+        break;
 
         case value_VCF_LfoModulationType:
+        {
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.modulation, 4, 0, 1))
             {
                 if (Lilla_state_0 == LIVE_SAMPLING)
@@ -3144,9 +3152,11 @@ void loop()
                 Macro_VCF_modulation_none();
                 Display_VCF.VCF_show_LFO_modulation_source(Instrument_id);
             }
-            break;
+        }
+        break;
 
         case value_VCF_LfoModFreqTime:
+        {
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.frequency_time, 40, 0, 1))
             {
                 AudioNoInterrupts();
@@ -3172,9 +3182,11 @@ void loop()
 
                 Display_VCF.VCF_show_LFO_freq_time(Instrument_id);
             }
-            break;
+        }
+        break;
 
         case value_VCF_LfoModDepth:
+        {
             if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.index, 20, 0, 1))
             {
                 AudioNoInterrupts();
@@ -3191,7 +3203,8 @@ void loop()
 
                 Display_VCF.VCF_show_LFO_modulation_depth(Instrument_id);
             }
-            break;
+        }
+        break;
 
         default:
             break;
@@ -4447,7 +4460,7 @@ void loop()
         // Change values
         if (LS_local_pointer.field_name == field_LS_Menu)
         {
-            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 switch (LS_local_pointer.menu_element)
                 {
@@ -4891,11 +4904,11 @@ void loop()
             }
         }
 
-        // Toggle wave Left/Right and LPF
+        // Toggle wave Left/Right and VCF
         if (LS_stereo)
         {
-            // Display Left wave or LPF
-            if (Read_pushbutton(EN_PB_From))
+            // Display Left wave or VCF
+            if (Read_pushbutton(PB_S1))
             {
                 if (LS_instrument == 1) // Right
                 {
@@ -4924,14 +4937,17 @@ void loop()
                     Lilla_state = INSTRUMENT_VCF;
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+                    
+                    // pointer
+                    Pointer_VCF.Set_pointer_to_FilterType();
 
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
                 }
             }
 
-            // Display Right wave or LPF
-            if (Read_pushbutton(EN_PB_To))
+            // Display Right wave or VCF
+            if (Read_pushbutton(PB_S2))
             {
                 if (LS_instrument == 0) // Left
                 {
@@ -4960,6 +4976,9 @@ void loop()
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
 
+                    // pointer
+                    Pointer_VCF.Set_pointer_to_FilterType();
+
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
                 }
@@ -4968,7 +4987,7 @@ void loop()
 
         else // Mono
         {
-            if (Read_pushbutton(EN_PB_From) || Read_pushbutton(EN_PB_To))
+            if (Read_pushbutton(PB_S1) || Read_pushbutton(PB_S2))
             {
                 Instrument_id = 0;
                 Sound_id = SOUNDS_MAX;
@@ -4976,6 +4995,9 @@ void loop()
                 Lilla_state = INSTRUMENT_VCF;
 
                 Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
+
+                // pointer
+                Pointer_VCF.Set_pointer_to_FilterType();
 
                 // restore all LED
                 Performance_led_set.Restore_all_LED();
@@ -9157,8 +9179,6 @@ void Golive_with_LIVE_SAMPLING(void)
     }
 
     Display_LiveSampler.Show_wave(LS_sound_id);
-
-    Print_Lilla_state();
     Print_Patch(Patch_id);
 }
 
@@ -11272,7 +11292,7 @@ void Print_Patch(int patch_id)
 {
     Serial.print("Patch:");
     Serial.print(patch_id);
-    if (false)
+    if (true)
     {
         Serial.print(" used:");
         Serial.print(Patch[patch_id].used);
@@ -12418,7 +12438,7 @@ void Startup_hardware_and_objects(void)
     Audio_shield.enable();
     Audio_shield.volume(headphones_volume_int / (float)40.0);
     Audio_shield.inputSelect(myInput);
-    Audio_shield.lineInLevel(Line_in_gain);
+    // Audio_shield.lineInLevel(Line_in_gain);
     // Audio_shield.audioPostProcessorEnable();
     Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
     Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html

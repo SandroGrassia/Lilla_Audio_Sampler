@@ -128,7 +128,6 @@ void DisplayLiveSampler::Play_mode(void)
     tft.print(name_mode[LS_mode]);
 
     LS_chars_play_mode = (tft.getCursorX() - display_coordinate_x(LS_column_row_play_mode[0])) / 6;
-    Serial.println(LS_chars_play_mode);
 }
 
 FLASHMEM
@@ -141,7 +140,6 @@ void DisplayLiveSampler::Feedback(void)
     tft.print("%");
 
     LS_chars_feedback = (tft.getCursorX() - display_coordinate_x(LS_column_row_feedback[0])) / 6;
-    Serial.println(LS_chars_feedback);
 }
 
 FLASHMEM
@@ -164,7 +162,6 @@ void DisplayLiveSampler::Window(void)
     tft.print("sec");
 
     LS_chars_window = (tft.getCursorX() - display_coordinate_x(LS_column_row_window[0])) / 6;
-    Serial.println(LS_chars_window);
 }
 
 FLASHMEM
