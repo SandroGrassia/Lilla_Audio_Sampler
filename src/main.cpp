@@ -771,8 +771,9 @@ static inline void P_UpdatePatchOriginalAndMenu(void)
 
 // >>>>>>>>>>> STARTUP
 void Startup_mode(void);
+void Startup_hardware_and_objects(void);
 void Compile_tables(void);
-void Bootstrap_setup(void);
+void Reload_system_state(void);
 
 // >>>>>>>>>>>  ENCODER - PUSHBUTTONS
 bool Read_pushbutton(int element);
@@ -960,155 +961,14 @@ void setup()
       usage is checked with AudioMemoryUsageMax().
     */
     AudioMemory(80);
-    Serial.begin(115200);
-
-    // Value tables
-    Compile_tables();
-
-    // udioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
-    Line_in_gain = 15;
-    Audio_shield.enable();
-    Audio_shield.volume(headphones_volume_int / (float)40.0);
-    Audio_shield.inputSelect(myInput);
-    Audio_shield.lineInLevel(Line_in_gain);
-    // Audio_shield.audioPostProcessorEnable();
-    Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
-    Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
-
-    // Start SPI communication with W25Q512 Flash memory chip
-    SerialFlash.begin();
-    delay(100);
-
-    // Start Gate IN/OUT
-    Setup_GATE_pins();
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //   ***********    INIZIALIZZAZIONE OGGETTI    *************
+    //   *************** SETUP HARDWARE E OBJECTS *****************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    S_Get_all_Wavetable_pointer();
-    S_Get_all_Noclick_pointer();
-
-    // Get Vibrato pointers
-    Vibrato_array_pointer = Vibrato.Get_vibrato_array_pointer();
-    Vibrato_array_last_element = Vibrato.Get_vibrato_array_last_element();
-    Vibrato.Make_vibrato_table();
-
-    // PlayerManager
-    Players_Manager.Set_ADSR_ptr(&ADSR[0]);
-
-    // AudioADSR
-    for (auto i = 0; i < PLAYERS; ++i)
-    {
-        ADSR[i].Set_identity(i);
-    }
-
-    // Setup Player and LFO
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        Player[player].Set_identity(player);
-        Player[player].Set_vibrato_pointers(Vibrato_array_pointer, Vibrato_array_last_element); // void Set_vibrato_pointers(float *p_vibrato_array_in, uint8_t *p_vibrato_array_last_element_in)
-        Player[player].VCF_ptr = &VCF[player];
-        Player[player].LFO_ptr = &LFO_P0[player];
-        Player[player].LiveSampler_ptr = &LiveSampler;
-        Player[player].Players_statistics_ptr = &Players_statistics;
-        Player[player].Set_ADSR_ptr(&ADSR[player]);
-        LFO_P0[player].identity = player;
-    }
-
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        CC_Sound_gain_cache[instrument_id] = -1;
-    }
-
-    // Setup Midi_reader
-    Midi_reader.Vibrato_ptr = &Vibrato;
-    Midi_reader.Tone_generator_ptr = &Tone_generator;
-    Midi_reader.Players_Manager_ptr = &Players_Manager;
-
-    // Setup Execute_Commands
-    Filter_Biquad_Manager.biquad_L_ptr = &biquad_L;
-    Filter_Biquad_Manager.biquad_R_ptr = &biquad_R;
-
-    // Setup Trigger
-    Trigger_0.identity = 0;
-    Trigger_1.identity = 1;
-    Trigger_0.Midi_reader_ptr = &Midi_reader;
-    Trigger_1.Midi_reader_ptr = &Midi_reader;
-    Trigger_0.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
-    Trigger_1.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
-    Trigger_0.Delay_Manager_ptr = &Delay_manager;
-
-    // Setup Delays
-    Delay_L.LFO_ptr = &LFO_D[0];
-    Delay_R.LFO_ptr = &LFO_D[1];
-    LFO_D[0].identity = 88;
-    LFO_D[0].identity = 99;
-
-    // Setup Infotest
-    Info.LiveSampler_ptr = &LiveSampler;
-
-    // Setup Wavetable-s
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        Wavetable[instrument_id].LiveSampler_ptr = &LiveSampler;
-    }
-
-    // Setup Live Sampling Feedback mixers
-    LS_Feedback_L.identity = 0;
-    LS_Feedback_R.identity = 1;
-    LS_Feedback_L.value(0); // nessun feedback
-    LS_Feedback_R.value(0); // nessun feedback
-
-    // Setup Display (module)
-    tft.begin();
-    tft.setRotation(1);
-    tft.setTextWrap(false);
-    tft.fillScreen(ILI9341_BLACK);
-    canvas.setTextWrap(false);
-
-    // DelayManager
-    Delay_manager.Delay_L_ptr = &Delay_L;
-    Delay_manager.Delay_R_ptr = &Delay_R;
-    Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
-    Delay_manager.LFO_D_ptr[1] = &LFO_D[1];
-    Delay_manager.D_gain_L_feedback_ptr = &D_gain_L_feedback;
-    Delay_manager.D_gain_R_feedback_ptr = &D_gain_R_n;
-    Delay_manager.Players_Manager_ptr = &Players_Manager;
-
-    // Setup PlayersStatistics
-    Players_statistics.Loop_led_set_ptr = &Loop_led_set;
-    Players_statistics.Performance_led_set_ptr = &Performance_led_set;
-
-    // Gate
-    Gate_out.Reset();
-
-    // DirectSampler and LiveSampler inputs are not used
-    MAIN_mixer_out_L.gain(2, 0.0); // Direct Samp
-    MAIN_mixer_out_R.gain(2, 0.0); // Live Sampler
-
-    // mutes LINE_IN to MAIN (Audio Board)
-    MAIN_mixer_out_L.gain(1, 0.0);
-    MAIN_mixer_out_R.gain(1, 0.0);
-
-    // Note-to-pitch conversion array
-    key_step = 0;
-    Calc_pitch_from_note(key_step);
-
+    Startup_hardware_and_objects();
+    
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // *******************        FRAM       **********************
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Wire2.begin();
-
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // *******************   SHIFTERS DATA   **********************
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    Shifters_manager.Monitor_all_controllers();
-    Shifters_manager.Update();
-
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //   ***************    FUNZIONI SPECIALI   *****************
+    // *****************    SPECIAL FUNCTIONS   *******************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     // Very first startup
@@ -1191,9 +1051,7 @@ void setup()
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //    ********************    START   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
-    Bootstrap_setup();
+    Reload_system_state();
 
     AudioInterrupts();
 }
@@ -2100,7 +1958,7 @@ void loop()
         }
 
         // Switch Mode
-        if(Switches_manager.Get_change(SwitchModes))
+        if (Switches_manager.Get_change(SwitchModes))
         {
             switch (Switches_manager.Get_value(SwitchModes))
             {
@@ -7451,7 +7309,7 @@ void loop()
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
-                    Bootstrap_setup();
+                    Reload_system_state();
                 }
                 else
                 {
@@ -7502,7 +7360,7 @@ void loop()
 
                     // eventually imported Recordings MUST be deleted
                     DS_seed_all_Recordings();
-                    Bootstrap_setup();
+                    Reload_system_state();
                 }
                 break;
 
@@ -7576,7 +7434,7 @@ void loop()
 
                 delay(3000); // per ripensamenti last minute!
                 Factory_setup_Eeprom();
-                Bootstrap_setup();
+                Reload_system_state();
                 break;
 
             default:
@@ -12508,12 +12366,24 @@ void Startup_mode(void)
     {
     case SwModesSampler:
         Patch_id_old = Patch_id;
-        Switch_to_DIRECT_SAMPLING();
+        DS_setup_DIRECT_SAMPLING_Patch_and_Preset();
+        Golive_DIRECT_SAMPLING();
         break;
 
     case SwModesLiveSampler:
         Patch_id_old = Patch_id;
-        Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+        // Setup LIVE_SAMPLING
+        LS_gain = 28;
+        LINE_IN_amplifier.Set_gain(Volume_float[LS_gain]);
+
+        Patch_id = PATCHES_MAX; // Live Sampler uses PATCHES_MAX
+        LS_setup_LS_Patch(LS_stereo);
+
+        P_Update_all_maps_Instrument_for_notes();
+        Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+        LOOP_run_button_state = true;
+
+        Golive_with_LIVE_SAMPLING();
         break;
 
     case SwModesMidiLoop:
@@ -12527,7 +12397,166 @@ void Startup_mode(void)
     }
 }
 
-void Bootstrap_setup(void)
+FLASHMEM
+void Startup_hardware_and_objects(void)
+{
+    Serial.begin(115200);
+
+    // Value tables
+    Compile_tables();
+
+    // audioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
+    Line_in_gain = 15;
+    Audio_shield.enable();
+    Audio_shield.volume(headphones_volume_int / (float)40.0);
+    Audio_shield.inputSelect(myInput);
+    Audio_shield.lineInLevel(Line_in_gain);
+    // Audio_shield.audioPostProcessorEnable();
+    Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
+    Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
+
+    // Start SPI communication with W25Q512 Flash memory chip
+    SerialFlash.begin();
+    delay(100);
+
+    // Start Gate IN/OUT
+    Setup_GATE_pins();
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //   ***********    INIZIALIZZAZIONE OGGETTI    *************
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    S_Get_all_Wavetable_pointer();
+    S_Get_all_Noclick_pointer();
+
+    // Get Vibrato pointers
+    Vibrato_array_pointer = Vibrato.Get_vibrato_array_pointer();
+    Vibrato_array_last_element = Vibrato.Get_vibrato_array_last_element();
+    Vibrato.Make_vibrato_table();
+
+    // PlayerManager
+    Players_Manager.Set_ADSR_ptr(&ADSR[0]);
+
+    // AudioADSR
+    for (auto i = 0; i < PLAYERS; ++i)
+    {
+        ADSR[i].Set_identity(i);
+    }
+
+    // Setup Player and LFO
+    for (auto player = 0; player < PLAYERS; ++player)
+    {
+        Player[player].Set_identity(player);
+        Player[player].Set_vibrato_pointers(Vibrato_array_pointer, Vibrato_array_last_element); // void Set_vibrato_pointers(float *p_vibrato_array_in, uint8_t *p_vibrato_array_last_element_in)
+        Player[player].VCF_ptr = &VCF[player];
+        Player[player].LFO_ptr = &LFO_P0[player];
+        Player[player].LiveSampler_ptr = &LiveSampler;
+        Player[player].Players_statistics_ptr = &Players_statistics;
+        Player[player].Set_ADSR_ptr(&ADSR[player]);
+        LFO_P0[player].identity = player;
+    }
+
+    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        CC_Sound_gain_cache[instrument_id] = -1;
+    }
+
+    // Setup Midi_reader
+    Midi_reader.Vibrato_ptr = &Vibrato;
+    Midi_reader.Tone_generator_ptr = &Tone_generator;
+    Midi_reader.Players_Manager_ptr = &Players_Manager;
+
+    // Setup Execute_Commands
+    Filter_Biquad_Manager.biquad_L_ptr = &biquad_L;
+    Filter_Biquad_Manager.biquad_R_ptr = &biquad_R;
+
+    // Setup Trigger
+    Trigger_0.identity = 0;
+    Trigger_1.identity = 1;
+    Trigger_0.Midi_reader_ptr = &Midi_reader;
+    Trigger_1.Midi_reader_ptr = &Midi_reader;
+    Trigger_0.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
+    Trigger_1.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
+    Trigger_0.Delay_Manager_ptr = &Delay_manager;
+
+    // Setup Delays
+    Delay_L.LFO_ptr = &LFO_D[0];
+    Delay_R.LFO_ptr = &LFO_D[1];
+    LFO_D[0].identity = 88;
+    LFO_D[1].identity = 99;
+
+    // Setup Infotest
+    Info.LiveSampler_ptr = &LiveSampler;
+
+    // Setup Wavetable-s
+    for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
+    {
+        Wavetable[Inst_id].LiveSampler_ptr = &LiveSampler;
+    }
+
+    // Setup Live Sampling Feedback mixers
+    LS_Feedback_L.identity = 0;
+    LS_Feedback_R.identity = 1;
+    LS_Feedback_L.value(0); // nessun feedback
+    LS_Feedback_R.value(0); // nessun feedback
+
+    // Setup Display (module)
+    tft.begin();
+    tft.setRotation(1);
+    tft.setTextWrap(false);
+    tft.fillScreen(ILI9341_BLACK);
+    canvas.setTextWrap(false);
+
+    // DelayManager
+    Delay_manager.Delay_L_ptr = &Delay_L;
+    Delay_manager.Delay_R_ptr = &Delay_R;
+    Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
+    Delay_manager.LFO_D_ptr[1] = &LFO_D[1];
+    Delay_manager.D_gain_L_feedback_ptr = &D_gain_L_feedback;
+    Delay_manager.D_gain_R_feedback_ptr = &D_gain_R_n;
+    Delay_manager.Players_Manager_ptr = &Players_Manager;
+
+    // Setup PlayersStatistics
+    Players_statistics.Loop_led_set_ptr = &Loop_led_set;
+    Players_statistics.Performance_led_set_ptr = &Performance_led_set;
+
+    // Gate
+    Gate_out.Reset();
+
+    // DirectSampler and LiveSampler inputs are not used
+    MAIN_mixer_out_L.gain(2, 0.0); // Direct Samp
+    MAIN_mixer_out_R.gain(2, 0.0); // Live Sampler
+
+    // mutes LINE_IN to MAIN (Audio Board)
+    MAIN_mixer_out_L.gain(1, 0.0);
+    MAIN_mixer_out_R.gain(1, 0.0);
+
+    // Note-to-pitch conversion array
+    key_step = 0;
+    Calc_pitch_from_note(key_step);
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // *******************        FRAM       **********************
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    Wire2.begin();
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // *******************   SHIFTERS DATA   **********************
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    Shifters_manager.Monitor_all_controllers();
+    Shifters_manager.Update();
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // *******************   FILE SCANNER   **********************
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
+}
+
+
+
+FLASHMEM
+void Reload_system_state(void)
 {
 
     // ***************   DIRECT SAMPLING AND VFS   ******************
