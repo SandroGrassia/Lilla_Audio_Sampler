@@ -864,7 +864,7 @@ void DisplayManager::P_Confirm_patch_change_popup_frame(int value)
 
 void DisplayManager::P_Confirm_frame(int X, int Y, int chars, bool print)
 {
-    Frame_by_pixels(X, Y, (6 * chars) + 7, print);
+    Frame_by_pixels(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
 }
 
 FLASHMEM
@@ -1323,10 +1323,10 @@ void DisplayManager::Confirm_config_import_frame(uint8_t value)
     switch (value)
     {
     case 0: // NO
-        P_Confirm_frame(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     case 1: // YES
-        P_Confirm_frame(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     default:
         break;

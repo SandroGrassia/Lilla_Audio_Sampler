@@ -966,7 +966,7 @@ void setup()
     //   *************** SETUP HARDWARE E OBJECTS *****************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Startup_hardware_and_objects();
-    
+
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *****************    SPECIAL FUNCTIONS   *******************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -6169,153 +6169,154 @@ void loop()
             display_wait = false;
         }
 
-        // Switch verso un TOOL
-        if (Read_pushbutton(PB_Tools))
+        // Switch TOOL
+        switch (Switches_manager.Get_value(SwitchTools))
         {
-            TOOLS_pushbutton = true;
-            Shifters_manager.Switch_led(LED_Tools, true);
+        case SwToolsMixer:
+        {
+            Switch_to_MIXER();
+        }
+        break;
 
-            switch (Switches_manager.Get_value(SwitchTools))
-            {
-            case SwToolsMixer:
-            {
-                Switch_to_MIXER();
-            }
+        case SwToolsDelay:
+        {
+            Lilla_state = DELAY_SETTINGS;
+
+            Display_Delay.D_show_page();
+            Pointer_Delay.Set_pointer_to_Feedback();
+            DELAY_local_pointer = Pointer_Delay.Get_element_name();
+        }
+        break;
+
+        case SwToolsSetup:
+        {
+            Switch_from_MIDI_LOOP_to_SETUP();
+        }
+        break;
+
+        case SwToolsTest:
             break;
-
-            case SwToolsDelay:
-            {
-                Lilla_state = DELAY_SETTINGS;
-
-                Display_Delay.D_show_page();
-                Pointer_Delay.Set_pointer_to_Feedback();
-                DELAY_local_pointer = Pointer_Delay.Get_element_name();
-            }
-            break;
-
-            case SwToolsSetup:
-            {
-                Switch_from_MIDI_LOOP_to_SETUP();
-            }
-            break;
-
-            case SwToolsTest:
-                break;
-            }
         }
 
         // Switch Mode
-        if (Switches_manager.Get_change(SwitchModes))
+        if (Read_pushbutton(PB_Tools))
         {
-            switch (Switches_manager.Get_value(SwitchModes))
+            TOOLS_pushbutton = false;
+            Shifters_manager.Switch_led(LED_Tools, false);
             {
-            case SwModesSampler:
-            {
-                switch (Lilla_state_0)
+                if (Switches_manager.Get_change(SwitchModes))
                 {
-                case PERFORMANCE:
-                    Switch_to_DIRECT_SAMPLING();
+                    switch (Switches_manager.Get_value(SwitchModes))
+                    {
+                    case SwModesSampler:
+                    {
+                        switch (Lilla_state_0)
+                        {
+                        case PERFORMANCE:
+                            Switch_to_DIRECT_SAMPLING();
+                            break;
+
+                        case DIRECT_SAMPLING:
+                            DS_refresh_DS_page();
+                            break;
+
+                        case LIVE_SAMPLING:
+                            Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
+                            break;
+
+                        case MIDI_LOOP:
+                            Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING();
+                            break;
+
+                        default:
+                            PRINT_ERROR(F("Switch MISSING! "));
+                            break;
+                        }
+                    }
                     break;
 
-                case DIRECT_SAMPLING:
-                    DS_refresh_DS_page();
+                    case SwModesLiveSampler:
+                    {
+                        switch (Lilla_state_0)
+                        {
+                        case PERFORMANCE:
+                            Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                            break;
+
+                        case DIRECT_SAMPLING:
+                            Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
+                            break;
+
+                        case LIVE_SAMPLING:
+                            LS_refresh_LS_page();
+                            break;
+
+                        case MIDI_LOOP:
+                            Switch_from_MIDI_LOOP_to_LIVE_SAMPLING();
+                            break;
+
+                        default:
+                            PRINT_ERROR(F("Switch MISSING! "));
+                            break;
+                        };
+                    }
                     break;
 
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
+                    case SwModesPerformance:
+                    {
+                        switch (Lilla_state_0)
+                        {
+                        case PERFORMANCE:
+                            Golive_with_PERFORMANCE(Patch_id);
+                            break;
+
+                        case DIRECT_SAMPLING:
+                            Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
+                            break;
+
+                        case LIVE_SAMPLING:
+                            Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
+                            break;
+
+                        case MIDI_LOOP:
+                            Switch_from_MIDI_LOOP_to_PERFORMANCE();
+                            break;
+
+                        default:
+                            PRINT_ERROR(F("Switch MISSING! "));
+                            break;
+                        }
+                    }
                     break;
 
-                case MIDI_LOOP:
-                    Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING();
-                    break;
+                    case SwModesMidiLoop:
+                    {
+                        switch (Lilla_state_0)
+                        {
+                        case PERFORMANCE:
+                            Switch_from_PERFORMANCE_to_MIDI_LOOP();
+                            break;
 
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
+                        case DIRECT_SAMPLING:
+                            Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
+                            break;
+
+                        case LIVE_SAMPLING:
+                            Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
+                            break;
+
+                        case MIDI_LOOP:
+                            Golive_with_MIDI_LOOP(false);
+                            break;
+
+                        default:
+                            PRINT_ERROR(F("Switch MISSING! "));
+                            break;
+                        }
+                    }
                     break;
+                    }
                 }
-            }
-            break;
-
-            case SwModesLiveSampler:
-            {
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
-                    break;
-
-                case LIVE_SAMPLING:
-                    LS_refresh_LS_page();
-                    break;
-
-                case MIDI_LOOP:
-                    Switch_from_MIDI_LOOP_to_LIVE_SAMPLING();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                };
-            }
-            break;
-
-            case SwModesPerformance:
-            {
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Golive_with_PERFORMANCE(Patch_id);
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                case MIDI_LOOP:
-                    Switch_from_MIDI_LOOP_to_PERFORMANCE();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-            }
-            break;
-
-            case SwModesMidiLoop:
-            {
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_from_PERFORMANCE_to_MIDI_LOOP();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
-                    break;
-
-                case MIDI_LOOP:
-                    Golive_with_MIDI_LOOP(false);
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-            }
-            break;
             }
         }
     }
@@ -6367,7 +6368,12 @@ void loop()
 
             PRINT_CONTROL_POINT(new_loop_id);
 
-            if ((new_loop_id != -1) && (new_loop_id != LOOP_id))
+            if (new_loop_id == -1)
+            {
+                LOOP_run_button_state = true;
+            }
+
+            else if (new_loop_id != LOOP_id)
             {
                 // delete runnig loop data and stop metronomo
                 LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
@@ -9246,6 +9252,10 @@ void Golive_with_MIDI_LOOP(bool restart)
             LOOP_metronomo_run = true
             */
         }
+    }
+    else
+    {
+        LOOP_run_button_state = true; // stato pulsante EN_PB_Loop (arresta/riavvia tutti i loop)
     }
 }
 
@@ -12378,10 +12388,8 @@ void Startup_mode(void)
 
         Patch_id = PATCHES_MAX; // Live Sampler uses PATCHES_MAX
         LS_setup_LS_Patch(LS_stereo);
-
         P_Update_all_maps_Instrument_for_notes();
         Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-        LOOP_run_button_state = true;
 
         Golive_with_LIVE_SAMPLING();
         break;
@@ -12552,8 +12560,6 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
 }
-
-
 
 FLASHMEM
 void Reload_system_state(void)
@@ -12732,7 +12738,6 @@ void Reload_system_state(void)
 
     // *******************    MIDI LOOP   ************************
     LOOP_id = -1;
-    LOOP_run_button_state = true; // stato pulsante EN_PB_Loop (arresta/riavvia tutti i loop)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
