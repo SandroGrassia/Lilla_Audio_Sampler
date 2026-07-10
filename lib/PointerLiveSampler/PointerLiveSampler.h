@@ -42,9 +42,6 @@ public:
     // handled automatically. Erases the previous frame and draws the new one.
     void Move_pointer(const int value);
 
-    // Resets the pointer to the first menu element when the current field is field_LS_Menu, without touching the display.
-    void Restore_pointer(void);
-
     // Shows or hides the pointer frame at the current position.
     void Show_pointer(const bool show);
 

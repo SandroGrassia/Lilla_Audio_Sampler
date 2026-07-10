@@ -14,15 +14,6 @@ void PointerLiveSampler::Set_pointer_to_first_menu_element(void)
 }
 
 FLASHMEM
-void PointerLiveSampler::Restore_pointer(void)
-{
-    if (pointer.field_name == field_LS_Menu)
-    {
-        pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[0]);
-    }
-}
-
-FLASHMEM
 void PointerLiveSampler::Move_pointer(const int value)
 {
     pointer_old = pointer;

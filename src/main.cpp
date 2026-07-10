@@ -638,7 +638,7 @@ const int LS_XY_DELTA_MIN = 4 * AUDIO_BLOCK_SAMPLES; // 5000
 int16_t *LS_buffer_mono_ptr = nullptr;
 int16_t *LS_buffer_L_ptr = nullptr;
 int16_t *LS_buffer_R_ptr = nullptr;
-const int LS_REFRESH = 160; // tempo di refresh 160 ms
+const int LS_REFRESH = 200; // tempo di refresh 160 ms
 elapsedMillis LS_wave_refresh_timer;
 
 // functions
@@ -4470,7 +4470,8 @@ void loop()
 
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                    Pointer_LiveSampler.Restore_pointer();
+                    
+                    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
                     LiveSampler.Start(LS_stereo);
@@ -4485,7 +4486,8 @@ void loop()
 
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                    Pointer_LiveSampler.Restore_pointer();
+                    
+                    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
                     delay(20);
@@ -4526,9 +4528,9 @@ void loop()
                     LS_X_step = LS_window_width / LS_COMB;
 
                     LS_refresh_LS_page();
-                    Pointer_LiveSampler.Restore_pointer();
+
+                    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
-                    Pointer_LiveSampler.Show_pointer(true);
 
                     Midi_reader.Start();
                 }
@@ -4567,9 +4569,10 @@ void loop()
                     Performance_led_set.Restore_all_LED();
 
                     LS_update_menu_elements();
-                    Pointer_LiveSampler.Restore_pointer();
+                    Display_LiveSampler.Menu();
+
+                    Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
-                    Pointer_LiveSampler.Show_pointer(true);
 
                     if (!LS_XY_lock)
                     {
@@ -6353,7 +6356,7 @@ void loop()
     if (Lilla_state == MIDI_LOOP)
     {
         // Change volume_patch
-        if (Read_encoder(EN_PB_PreListenVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
