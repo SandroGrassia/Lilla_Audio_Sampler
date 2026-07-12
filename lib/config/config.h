@@ -13,13 +13,12 @@ constexpr char FIRMWARE_VERSION[] = "6_TEST_10 2/04/2026";
 
 // Hardware versions
 /*
-Lilla PCB2025_R2
-This model includes 6 Shift Registers (Shifters) MCP23S17 (SPI communication)
-- each Shifter address matches with its id (0 to 6)
+Lilla PCB2026_R1
+This model includes 5 Shift Registers (Shifters) MCP23S17 (SPI communication)
+- each Shifter address matches with its id (0 to 4)
 - Shiters' channels are configured with INPUT_PULLUP
 - each Encoder (DT,CLK,PB) is connected to a single Shifter
 */
-#define PCB_2025_R2
 
 // Bus SPI1 pins
 // Communication with Display and Shift register chips
@@ -37,6 +36,10 @@ static constexpr int GATE_OUT_pin = 22;
 
 // Configure GateIn and GateOut GPIO pins
 void Setup_GATE_pins(void);
+
+// FRAM chips su I2C n.2
+// SCL2 pin 24
+// SDA2 pin 25
 
 // MAIN CONSTANTS
 static constexpr int PLAYERS = 16;

@@ -11,7 +11,7 @@ bool ArchivingManager::Test_Fram(const uint8_t writevalue)
     Serial.println("ArchivingManager::Test_Fram(void) - start");
 
     // FRAM info
-    FRAMchip.begin();
+    FRAMarray.begin();
 
     int lap = 0;
     elapsedMillis time = 0;
@@ -19,8 +19,8 @@ bool ArchivingManager::Test_Fram(const uint8_t writevalue)
     uint8_t readvalue;
     for (uint16_t i = 0; i < 1000; ++i)
     {
-        FRAMchip.writeByte(i, writevalue);
-        FRAMchip.readByte(i, &readvalue);
+        FRAMarray.writeByte(i, writevalue);
+        FRAMarray.readByte(i, &readvalue);
 
         if (writevalue != readvalue)
         {

@@ -11,7 +11,7 @@
 
 
 static constexpr int FRAM_LOCATIONS = 0b1000000000000000;
-extern LillaFRAM_MB85RC_I2C FRAMchip;
+extern LillaFRAM_MB85RC_I2C FRAMarray;
 
 /*
 

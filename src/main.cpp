@@ -388,7 +388,7 @@ Switches Switches_manager;
 ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager, Switches_manager);
 
 // FRAM
-LillaFRAM_MB85RC_I2C FRAMchip;
+LillaFRAM_MB85RC_I2C FRAMarray;
 
 // Pointers
 PointerPerformance Pointer_Performance;
@@ -12569,6 +12569,10 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // I2C n.2 bus inizialization.
+    // Bus I2C n.2 is:
+    // SCL2: 24
+    // SDA2: 25
     Wire2.begin();
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
