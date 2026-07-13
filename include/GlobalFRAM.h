@@ -7,11 +7,10 @@
 #pragma once
 
 #include <Arduino.h>
-#include <LillaFRAM_MB85RC_I2C.h>
+#include <LillaFRAM.h>
 
-
-static constexpr int FRAM_LOCATIONS = 0b1000000000000000;
-extern LillaFRAM_MB85RC_I2C FRAMarray;
+// static constexpr int FRAM_LOCATIONS = 0b1000000000000000;
+extern LillaFRAM LillaFram;
 
 /*
 

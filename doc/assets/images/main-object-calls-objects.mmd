@@ -1,0 +1,217 @@
+---
+config:
+  layout: elk
+  flowchart:
+    curve: basis
+---
+flowchart TB
+  archive["Archive"]
+  fram["FRAMarray"]
+  directSampler["DirectSampler"]
+  trigger0["Trigger_0"]
+  midiReader["Midi_reader"]
+  filterManager["Filter_Biquad_Manager"]
+  delayManager["Delay_manager"]
+  trigger1["Trigger_1"]
+  biquadL["biquad_L"]
+  biquadR["biquad_R"]
+  delayL["Delay_L"]
+  lfoD0["LFO_D[0]"]
+  delayR["Delay_R"]
+  lfoD1["LFO_D[1]"]
+  gainLF["D_gain_L_feedback"]
+  gainRF["D_gain_R_n"]
+  playersManager["Players_Manager"]
+  playersStats["Players_statistics"]
+  loopLeds["Loop_led_set"]
+  performanceLeds["Performance_led_set"]
+  midi["MIDI"]
+  metronome["LOOP_metronomo"]
+  tone["Tone_generator"]
+  vibrato["Vibrato"]
+  midiOut["Midi_out"]
+  displayMidiLoop["Display_MidiLoop"]
+  shifters["Shifters_manager"]
+  encoders["Encoders_manager"]
+  pushbuttons["Pushbuttons_manager"]
+  switches["Switches_manager"]
+  displayManager["Display_Manager"]
+  tft["tft"]
+  displayDelay["Display_Delay"]
+  displayLive["Display_LiveSampler"]
+  canvas["canvas"]
+  info["Info"]
+  displayMixer["Display_Mixer"]
+  displaySampler["Display_Sampler"]
+  displaySound["Display_Sound"]
+  displayVCF["Display_VCF"]
+  ptrDelay["Pointer_Delay"]
+  ptrLive["Pointer_LiveSampler"]
+  ptrMidiLoop["Pointer_MidiLoop"]
+  ptrMixer["Pointer_Mixer"]
+  ptrPerformance["Pointer_Performance"]
+  ptrSampler["Pointer_Sampler"]
+  ptrSound["Pointer_Sound"]
+  ptrVCF["Pointer_VCF"]
+  archive --> fram
+  archive --> fram
+  archive --> fram
+  directSampler --> archive
+  trigger0 --> midiReader
+  trigger0 --> filterManager
+  trigger0 --> delayManager
+  trigger1 --> midiReader
+  trigger1 --> filterManager
+  filterManager --> biquadL
+  filterManager --> biquadR
+  delayL --> lfoD0
+  delayR --> lfoD1
+  delayManager --> delayL
+  delayManager --> delayL
+  delayManager --> delayL
+  delayManager --> delayR
+  delayManager --> delayR
+  delayManager --> delayR
+  delayManager --> lfoD0
+  delayManager --> lfoD0
+  delayManager --> lfoD1
+  delayManager --> gainLF
+  delayManager --> gainRF
+  delayManager --> playersManager
+  playersStats --> loopLeds
+  playersStats --> performanceLeds
+  midiReader --> midi
+  midiReader --> midi
+  midiReader --> midi
+  midiReader --> midi
+  midiReader --> midi
+  midiReader --> midi
+  midiReader --> metronome
+  midiReader --> metronome
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> playersManager
+  midiReader --> tone
+  midiReader --> tone
+  midiReader --> tone
+  midiReader --> tone
+  midiReader --> vibrato
+  midiOut --> midi
+  midiOut --> midi
+  midiOut --> midi
+  midiOut --> midi
+  midiOut --> midi
+  midiOut --> midi
+  midiOut --> midi
+  metronome --> displayMidiLoop
+  shifters --> encoders
+  shifters --> pushbuttons
+  shifters --> switches
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayManager --> tft
+  displayDelay --> displayManager
+  displayDelay --> displayManager
+  displayDelay --> tft
+  displayDelay --> tft
+  displayDelay --> tft
+  displayDelay --> tft
+  displayDelay --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> tft
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> canvas
+  displayLive --> info
+  displayMidiLoop --> displayManager
+  displayMidiLoop --> tft
+  displayMidiLoop --> tft
+  displayMidiLoop --> tft
+  displayMidiLoop --> tft
+  displayMidiLoop --> tft
+  displayMidiLoop --> tft
+  displayMixer --> tft
+  displayMixer --> tft
+  displayMixer --> tft
+  displayMixer --> tft
+  displayMixer --> tft
+  displayMixer --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySampler --> tft
+  displaySound --> displayManager
+  displaySound --> displayManager
+  displaySound --> displayManager
+  displaySound --> displayMidiLoop
+  displaySound --> tft
+  displaySound --> tft
+  displaySound --> tft
+  displaySound --> tft
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> canvas
+  displaySound --> info
+  displayVCF --> displayManager
+  displayVCF --> displayManager
+  displayVCF --> displayManager
+  displayVCF --> displayManager
+  displayVCF --> displayMidiLoop
+  displayVCF --> tft
+  displayVCF --> tft
+  displayVCF --> tft
+  displayVCF --> tft
+  ptrDelay --> displayDelay
+  ptrLive --> displayLive
+  ptrMidiLoop --> displayMidiLoop
+  ptrMidiLoop --> displayMidiLoop
+  ptrMixer --> displayMixer
+  ptrMixer --> displayMixer
+  ptrPerformance --> displayManager
+  ptrSampler --> displaySampler
+  ptrSound --> displaySound
+  ptrVCF --> displayVCF
+  classDef mainNodeStyle fill:#193f5e,color:#fff,stroke:#102f49,stroke-width:3px
+  classDef objectNodeStyle fill:#fff,color:#172b3a,stroke:#9cabb7,stroke-width:1px
+  class archive,fram,directSampler,trigger0,midiReader,filterManager,delayManager,trigger1,biquadL,biquadR,delayL,lfoD0,delayR,lfoD1,gainLF,gainRF,playersManager,playersStats,loopLeds,performanceLeds,midi,metronome,tone,vibrato,midiOut,displayMidiLoop,shifters,encoders,pushbuttons,switches,displayManager,tft,displayDelay,displayLive,canvas,info,displayMixer,displaySampler,displaySound,displayVCF,ptrDelay,ptrLive,ptrMidiLoop,ptrMixer,ptrPerformance,ptrSampler,ptrSound,ptrVCF objectNodeStyle

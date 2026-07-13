@@ -19,7 +19,7 @@ static constexpr int LOOP_UI_C = 17;   // primo encoder terza fila
 static constexpr int LOOP_metro_leds = 4; // 4 = 4/4
 static constexpr int MIDI_LOOP_FILES = 1000;
 
-struct LOOP_struct // verificata 12 byte 
+struct LOOP_struct // verificata 8 byte 
 {
     int time;    // ms
     uint8_t midi_channel;
@@ -27,6 +27,8 @@ struct LOOP_struct // verificata 12 byte
     uint8_t velocity;
     bool note_on;
 };
+static constexpr int LOOP_struct_bytes = sizeof(LOOP_struct);
+
 extern LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS];
 extern byte LOOP_events[TRACKS];
 extern int LOOP_slide[TRACKS]; // slittamento temporale in ms

@@ -11,29 +11,48 @@ bool ArchivingManager::Test_Fram(const uint8_t writevalue)
     Serial.println("ArchivingManager::Test_Fram(void) - start");
 
     // FRAM info
-    FRAMarray.begin();
+    LillaFram.begin();
 
     int lap = 0;
     elapsedMillis time = 0;
+    bool success = true;
 
-    uint8_t readvalue;
     for (uint16_t i = 0; i < 1000; ++i)
     {
-        FRAMarray.writeByte(i, writevalue);
-        FRAMarray.readByte(i, &readvalue);
+        byte writeResult = LillaFram.writeByte(i, writevalue);
+
+        if (writeResult != LillaFRAM::ERROR_0)
+        {
+            success = false;
+            Serial.print(F("WRITE error at location: "));
+            Serial.println(i);
+            continue;
+        }
+
+        uint8_t readvalue = 0;
+        byte readResult = LillaFram.readByte(i, &readvalue);
+
+        if (readResult != LillaFRAM::ERROR_0)
+        {
+            success = false;
+            Serial.print(F("READ error at location: "));
+            Serial.println(i);
+            continue;
+        }
 
         if (writevalue != readvalue)
         {
-            Serial.print("Mistake at location: ");
+            success = false;
+            Serial.print(F("NOT corresponding value at location: "));
             Serial.println(i);
         }
     }
 
     lap = time;
-
-    Serial.print("ArchivingManager::Test_Fram(void) done in milliseconds: ");
+    Serial.print(F("ArchivingManager::Test_Fram(void) done in milliseconds: "));
     Serial.println(lap);
-    return true;
+    
+    return success;
 }
 
 void ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)

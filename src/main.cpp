@@ -160,7 +160,7 @@
 
 #include "ArchivingManager.h"
 #include "PsramManager.h"
-#include "LillaFRAM_MB85RC_I2C.h"
+#include "LillaFRAM.h"
 
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
@@ -388,7 +388,7 @@ Switches Switches_manager;
 ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager, Switches_manager);
 
 // FRAM
-LillaFRAM_MB85RC_I2C FRAMarray;
+LillaFRAM LillaFram;
 
 // Pointers
 PointerPerformance Pointer_Performance;
@@ -1138,17 +1138,6 @@ void loop()
         }
     }
 
-    // ****************************************************************************************************************
-    // *****************************************************   Test FRAM  *********************************************
-    /*
-    if (Read_pushbutton(0))
-    {
-        Archive.Test_Fram(0xAB);
-    }
-    */
-    // *****************************************************************************************************************
-    // *****************************************************************************************************************
-
     // Resolution (on/off) pushbutton
     if (Read_pushbutton(EN_PB_Resolution))
     {
@@ -1204,6 +1193,9 @@ void loop()
     // Pushbutton tuning tone
     if (Read_pushbutton(EN_PB_TuningTone)) // switch ON/OFF the Tuning Tone
     {
+        // *****************************************************   Test FRAM  *********************************************
+        Archive.Test_Fram(0x91);
+        
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
         {
@@ -1217,7 +1209,7 @@ void loop()
 
     // Tuning tone volume
     if (tuning_tone_flag && Read_encoder(EN_PB_TuningTone, tuning_tone_volume, 40, 0, 1))
-    {
+    {     
         if (Lilla_state == PERFORMANCE)
         {
             Display_Manager.P_show_gain_TuningTone(Patch_id);
@@ -10155,9 +10147,8 @@ void LOOP_Compile_midi_loop_file(int loop_id, File &file) // private
     {
         for (auto event = 0; event < LOOP_events[track]; ++event)
         {
-            // LOOP_struct LOOP_element[track][LOOP_EVENTS] -> 8 byte
             data = (const byte *)(const void *)&LOOP_element[track][event];
-            for (auto i = 0; i < 8; ++i)
+            for (auto i = 0; i < LOOP_struct_bytes; ++i)
             {
                 file.println(*(data + i));
             }
@@ -12574,6 +12565,7 @@ void Startup_hardware_and_objects(void)
     // SCL2: 24
     // SDA2: 25
     Wire2.begin();
+    Wire2.setClock(1000000); // Wire2.setClock(400000);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************   SHIFTERS DATA   **********************
