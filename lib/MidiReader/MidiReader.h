@@ -56,7 +56,7 @@ public:
         midi_stop_flag = true;
     }
 
-    WaveVibrato *Vibrato_ptr = nullptr; // Midi_reader.Vibrato_ptr = &Vibrato
-    WaveSine *Tone_generator_ptr = nullptr;
-    PlayersManager *Players_Manager_ptr = nullptr;
+    WaveVibrato *Vibrato = nullptr; // Midi_reader.Vibrato = &Vibrato
+    WaveSine *Tone_generator = nullptr;
+    PlayersManager *Players_Manager = nullptr;
 };

@@ -704,6 +704,11 @@ int PB_number;
 
 // SGTL5000 Audio_shield
 int headphones_volume_int = 20; // 0 --> 40
+constexpr float headphones_volume_max = 40.0f;
+
+// Pre-listen Volume
+int headphones_pwm_volume_int = 40; // 0 --> 40
+constexpr int headphones_pwm_volume_max = 40; 
 
 // >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
@@ -1103,10 +1108,17 @@ void loop()
     }
 
     // Pre-listen volume
-    if (Read_encoder(EN_PB_PreListenVol, headphones_volume_int, 40, 0, 1))
+    if (Read_encoder(EN_PB_PreListenVol, headphones_pwm_volume_int, headphones_pwm_volume_max, 0, 1))
     {
-        Audio_shield.volume(headphones_volume_int / (float)40.0);
+        float value = headphones_pwm_volume_int/(static_cast<float>(headphones_pwm_volume_max));
+        AudioNoInterrupts();
+        PWM_mixer_out_L.gain(value);
+        PWM_mixer_out_R.gain(value);
+        AudioInterrupts();                                       
     }
+
+    // To-do
+    // Audio_shield.volume(headphones_volume_int / 40.0);
 
     // Resolution
     if (Read_encoder_inverse(EN_PB_Resolution, resolution, RES_MAX, 0, 1))
@@ -12484,9 +12496,9 @@ void Startup_hardware_and_objects(void)
     }
 
     // Setup Midi_reader
-    Midi_reader.Vibrato_ptr = &Vibrato;
-    Midi_reader.Tone_generator_ptr = &Tone_generator;
-    Midi_reader.Players_Manager_ptr = &Players_Manager;
+    Midi_reader.Vibrato = &Vibrato;
+    Midi_reader.Tone_generator = &Tone_generator;
+    Midi_reader.Players_Manager = &Players_Manager;
 
     // Setup Execute_Commands
     Filter_Biquad_Manager.biquad_L_ptr = &biquad_L;

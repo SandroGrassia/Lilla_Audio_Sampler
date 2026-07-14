@@ -139,9 +139,9 @@ void MidiReader::Update(void)
                 if (tuning_tone_flag)
                 {
                     tuning_tone_last_note = note_number;
-                    Tone_generator_ptr->Frequency(pitch_from_note[note_number] * 261.63);
-                    Tone_generator_ptr->Amplitude(Volume_float[tuning_tone_volume]);
-                    Tone_generator_ptr->Start();
+                    Tone_generator->Frequency(pitch_from_note[note_number] * 261.63);
+                    Tone_generator->Amplitude(Volume_float[tuning_tone_volume]);
+                    Tone_generator->Start();
                     TT_playing = true;
                     TT_led_flag = true;
                 }
@@ -152,14 +152,14 @@ void MidiReader::Update(void)
                 // Player_booked serve ad evitare che gli Instrument (quindi anche piu' di uno) che sono attivati da NoteOn non competano sullo stesso Player
                 // players_to_restart, se risultera' >0, richiede il calcolo dei vari valori di samples (mix_samples_for_Player[p])
                 // che ciascun Player da riavviare (restart_Player[p] == true) dovra' utilizzare
-                Players_Manager_ptr->Reset_booked_and_restart_player();
-                Players_Manager_ptr->Reset_players_to_restart();
+                Players_Manager->Reset_booked_and_restart_player();
+                Players_Manager->Reset_players_to_restart();
 
                 for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                 {
                     if ((Patch[Patch_id].Instrument[instrument_id].used) && bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id))
                     {
-                        Players_Manager_ptr->Play_note(instrument_id, note_number, velocity_float, NO_TRACK);
+                        Players_Manager->Play_note(instrument_id, note_number, velocity_float, NO_TRACK);
                     }
                 }
 
@@ -169,9 +169,9 @@ void MidiReader::Update(void)
                 // - update_time della nuova esecuzione, per ciascun Player da avviare o riavviare
 
                 // Ora si calcola e si trasmette mix_samples (numero di samples del cross mix) a ciascun Player da riavviare.
-                if (Players_Manager_ptr->Get_players_to_restart() > 0)
+                if (Players_Manager->Get_players_to_restart() > 0)
                 {
-                    Players_Manager_ptr->Calculate_and_set_mix_samples();
+                    Players_Manager->Calculate_and_set_mix_samples();
                 }
 
                 if (Lilla_state == MIDI_MONITOR && !display_wait)
@@ -224,13 +224,13 @@ void MidiReader::Update(void)
 
                 if (tuning_tone_flag && (tuning_tone_last_note == note_number))
                 {
-                    Tone_generator_ptr->Stop();
+                    Tone_generator->Stop();
                     TT_playing = false;
                     TT_led_flag = true;
                 }
 
                 key_state[midi_channel][note_number] = false; // real key
-                Players_Manager_ptr->Multicast_stop_players_for_NoteOff(midi_channel, note_number, -1);
+                Players_Manager->Multicast_stop_players_for_NoteOff(midi_channel, note_number, -1);
 
                 if (Lilla_state == MIDI_MONITOR && !display_wait)
                 {
@@ -252,7 +252,7 @@ void MidiReader::Update(void)
                 MM_pitch_bend_most = MIDI.getData2();
 
                 pitch_bend_value[midi_channel] = ((MM_pitch_bend_most << 7) + MM_pitch_bend_least) / 16384.0f + 0.5f;
-                Players_Manager_ptr->Broadcast_pitch_bend(midi_channel, pitch_bend_value[midi_channel]);
+                Players_Manager->Broadcast_pitch_bend(midi_channel, pitch_bend_value[midi_channel]);
 
                 if (Lilla_state == MIDI_MONITOR && !display_wait)
                 {
@@ -273,7 +273,7 @@ void MidiReader::Update(void)
                 for(auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                     if ((Preset[instrument_id].midi_channel == midi_channel) && (Preset[instrument_id].Filter.use == 1) && (Preset[instrument_id].Filter.modulation == 4))
                     {
-                        Players_Manager_ptr->Multicast_IF_index(instrument_id, Preset[instrument_id].Filter.index * after_touch_channel_value[midi_channel]);
+                        Players_Manager->Multicast_IF_index(instrument_id, Preset[instrument_id].Filter.index * after_touch_channel_value[midi_channel]);
                     }
                 if (Lilla_state == MIDI_MONITOR && !display_wait)
                 {
@@ -297,13 +297,13 @@ void MidiReader::Update(void)
                 if (controller == 123) // All sound off
                 {
                     // PRINT("All Note off", " data 1:", 123);
-                    Players_Manager_ptr->Multicast_all_notes_off(midi_channel);
+                    Players_Manager->Multicast_all_notes_off(midi_channel);
                 }
 
                 else if (controller == 126) // All notes off
                 {
                     // PRINT("All Note off", " data 1:", 126);
-                    Players_Manager_ptr->Multicast_all_notes_off(midi_channel);
+                    Players_Manager->Multicast_all_notes_off(midi_channel);
                 }
 
                 else if (controller == 1) // Modulation
@@ -311,17 +311,17 @@ void MidiReader::Update(void)
                     // PRINT("Mod", "", midi_value);
                     if (midi_value > 0)
                     {
-                        Vibrato_ptr->Update_vibrato_array(midi_value);
+                        Vibrato->Update_vibrato_array(midi_value);
                         if (!vibrato_flag)
                         {
                             vibrato_flag = true;
-                            Players_Manager_ptr->Multicast_update_vibrato(midi_channel, vibrato_flag);
+                            Players_Manager->Multicast_update_vibrato(midi_channel, vibrato_flag);
                         }
                     }
                     else
                     {
                         vibrato_flag = false;
-                        Players_Manager_ptr->Multicast_update_vibrato(midi_channel, vibrato_flag);
+                        Players_Manager->Multicast_update_vibrato(midi_channel, vibrato_flag);
                     }
                 }
 
@@ -346,8 +346,8 @@ void MidiReader::Update(void)
                             if (Patch[Patch_id].Instrument[instrument_id].used && (Get_midi_channel(Patch_id, instrument_id) == midi_channel))
                             {
                                 Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].gain = (float)midi_value * 0.315; // 127 --> 40
-                                Players_Manager_ptr->Update_Preset_volume(Patch_id, instrument_id, Volume_float[volume_patch]);
-                                Players_Manager_ptr->Multicast_volume_for_instrument_edit(instrument_id);
+                                Players_Manager->Update_Preset_volume(Patch_id, instrument_id, Volume_float[volume_patch]);
+                                Players_Manager->Multicast_volume_for_instrument_edit(instrument_id);
                                 
                                 if (Lilla_state == PERFORMANCE)
                                 {
@@ -440,7 +440,7 @@ void MidiReader::Update(void)
                 // Prima del primo evento, tutti i Player di track devono aver gia' ricevuto NoteOff, altrimenti gli vengono inviati
                 if (event == 0)
                 {
-                    Players_Manager_ptr->Multicast_stop_players_for_loop_track(track);
+                    Players_Manager->Multicast_stop_players_for_loop_track(track);
                 }
                 midi_channel = LOOP_element[track][event].midi_channel;
                 note_number = constrain(LOOP_element[track][event].note_number + LOOP_pitch_int[track], 0, 127);
@@ -452,9 +452,9 @@ void MidiReader::Update(void)
                     if (tuning_tone_flag)
                     {
                         tuning_tone_last_note = note_number;
-                        Tone_generator_ptr->Frequency(pitch_from_note[note_number] * 261.63);
-                        Tone_generator_ptr->Amplitude(Volume_float[tuning_tone_volume]);
-                        Tone_generator_ptr->Start();
+                        Tone_generator->Frequency(pitch_from_note[note_number] * 261.63);
+                        Tone_generator->Amplitude(Volume_float[tuning_tone_volume]);
+                        Tone_generator->Start();
                         TT_playing = true;
                         TT_led_flag = true;
                     }
@@ -462,17 +462,17 @@ void MidiReader::Update(void)
                     // Player_booked serve ad evitare che gli Instrument che sono attivati da NoteOn non competano sullo stesso Player
                     // players_to_restart, se risultera' >0, richiede il calcolo dei vari valori di samples (mix_samples_for_Player[p])
                     // che ciascun Player da riavviare (restart_Player[p] == true) dovra' utilizzare
-                    Players_Manager_ptr->Reset_booked_and_restart_player();
+                    Players_Manager->Reset_booked_and_restart_player();
 
                     // players_to_restart, se risultera' >0, richiede il calcolo dei vari valori di samples (mix_samples_for_Player[p])
-                    Players_Manager_ptr->Reset_players_to_restart();
+                    Players_Manager->Reset_players_to_restart();
 
                     // Inoltra note_on
                     for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                     {
                         if ((Patch[Patch_id].Instrument[instrument_id].used) && bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id))
                         {
-                            Players_Manager_ptr->Play_note(instrument_id, note_number, velocity_float, track);
+                            Players_Manager->Play_note(instrument_id, note_number, velocity_float, track);
                         }
                     }
 
@@ -482,9 +482,9 @@ void MidiReader::Update(void)
                     // - update_time della nuova esecuzione, per ciascun Player da avviare o riavviare
 
                     // Ora si calcola e si trasmette mix_samples (numero di samples del cross mix) a ciascun Player da riavviare.
-                    if (Players_Manager_ptr->Get_players_to_restart() > 0)
+                    if (Players_Manager->Get_players_to_restart() > 0)
                     {
-                        Players_Manager_ptr->Calculate_and_set_mix_samples();
+                        Players_Manager->Calculate_and_set_mix_samples();
                     }
                 }
 
@@ -492,7 +492,7 @@ void MidiReader::Update(void)
                 {
                     if (tuning_tone_flag && (tuning_tone_last_note == note_number))
                     {
-                        Tone_generator_ptr->Stop();
+                        Tone_generator->Stop();
                         TT_playing = false;
                         TT_led_flag = true;
                     }
@@ -504,7 +504,7 @@ void MidiReader::Update(void)
                     //  }
                     // Serial.println();
 
-                    Players_Manager_ptr->Multicast_stop_players_for_NoteOff(midi_channel, note_number, track);
+                    Players_Manager->Multicast_stop_players_for_NoteOff(midi_channel, note_number, track);
                 }
 
                 // Prossimo evento
