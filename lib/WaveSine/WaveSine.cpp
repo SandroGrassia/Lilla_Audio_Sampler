@@ -22,24 +22,21 @@ void WaveSine::Frequency(float freq)
 
 void WaveSine::Amplitude(float gain_in)
 {
+    if (gain_in < 0)
+    {
+        gain_in = 0;
+    }
+    else if (gain_in > 1.0)
+    {
+        gain_in = 1.0;
+    }
+
     if (!playing) // if NOT playing the magnitude value is applied immediately
     {
-        if (gain_in < 0)
-        {
-            gain_magnitude = 0;
-        }
-        else if (gain_in > 1.0)
-        {
-            gain_magnitude = 1.0;
-        }
-        else
-        {
-            gain_magnitude = gain_in;
-        }
-
+        gain_magnitude = gain_in;
         magnitude = gain_magnitude * 65536.0;
     }
-    
+
     else // while playing the magnitude value will be reached gradually
     {
         gain_magnitude_flag = true;
@@ -84,7 +81,7 @@ void WaveSine::update(void)
     {
         ph = phase_accumulator;
         inc = phase_increment;
-        
+
         for (sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
         {
             index = ph >> 24;
@@ -112,14 +109,16 @@ void WaveSine::update(void)
             if (gain_magnitude_flag)
             {
                 gain_magnitude += gain_magnitude_delta;
-                magnitude = gain_magnitude * 65536.0;
+                magnitude = gain_magnitude * 65536.0f;
 
-                if (gain_magnitude_target - gain_magnitude < 0.00001)
+                if ((gain_magnitude_delta >= 0.0f && gain_magnitude >= gain_magnitude_target) || (gain_magnitude_delta < 0.0f && gain_magnitude <= gain_magnitude_target))
                 {
+                    gain_magnitude = gain_magnitude_target;
+                    magnitude = gain_magnitude * 65536.0f;
                     gain_magnitude_flag = false;
                 }
             }
-            
+
             if (gain_start_stop_flag)
             {
                 update_gain_start_stop();
@@ -128,7 +127,7 @@ void WaveSine::update(void)
             block->data[sample] = gain_start_stop * gain_suspend * ((((val1 + val2) >> 16) * magnitude) >> 16);
             ph += inc;
         }
-        
+
         phase_accumulator = ph;
         transmit(block);
         release(block);

@@ -40,9 +40,9 @@ class WaveSine : public AudioStream
 {
 private:
     bool go_on = false;
-    float gain_start_stop = 0; // gain in the "start and stop phase
+    float gain_start_stop = 0;                                             // gain in the "start and stop phase
     float gain_magnitude, gain_magnitude_target, gain_magnitude_delta = 0; // gain and gain-step in the Amplitude-adjust phase
-    float gain_suspend = 0;  // gain in the suspend phase
+    float gain_suspend = 0;                                                // gain in the suspend phase
     bool gain_magnitude_flag, gain_start_stop_flag, gain_suspend_flag = 0;
     unsigned long time_0 = 0;
 

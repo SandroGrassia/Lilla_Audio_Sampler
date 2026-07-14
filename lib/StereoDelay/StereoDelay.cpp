@@ -9,59 +9,72 @@
 // value e' espresso in Samples
 void StereoDelay::Setup_delay(int value)
 {
-    Constrain_delay_value(value);
+    value = constrain(value, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+
     delay_value = value;
     sample_write = delay_value;
     sample_read = 0;
     delay_central_value = delay_value;
+    delay_central_value_target = delay_value;
 }
 
-// delay_value è il valore effettivo del delay;
-// Se non c'e' modulazione del delay --> delay_value == delay_central_value
-//
-// 0-------------------------(delay_central_value)-----------------------------(DELAY_PIPELINE - 128)
-//                   (delay_value)
-//                         (delay_value)
-//                                     (delay_value)
-//                                          (delay_value)
-//                                   (delay_value)
-//                         (delay_value)
+/*
 
-// La variazione di delay va applicata gradualmente ad ogni update()
+ delay_value è il valore effettivo del delay. Se non c'e' modulazione del delay:
+ delay_value == delay_central_value
+
+ Invece se c'è modulazione delay_value oscilla attorno a delay_central_value:
+
+ 0-------------------------(delay_central_value)-----------------------------(DELAY_PIPELINE - 128)
+                   (delay_value)
+                         (delay_value)
+                                     (delay_value)
+                                          (delay_value)
+                                   (delay_value)
+                         (delay_value)
+
+ La variazione di delay va applicata gradualmente ad ogni update()
+
+*/
+
 void StereoDelay::Set_delay_central_value(int value) // value = numero di campioni
 {
-    int delay_central_value_delta;
-    Constrain_delay_value(value);
+    value = constrain(value, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+    delay_central_value_target = value;
 
-    if (value != delay_central_value)
+    const int delta = delay_central_value_target - delay_central_value;
+
+    if (delta == 0)
     {
-        delay_central_value_delta = value - delay_central_value;
-
-        if (abs(delay_central_value_delta) < 500)
-        {
-            // Queste due variabili sono usate nell'aggiornamento di delay_central_value
-            // J_delay_central_value_counter diverso per ogni tap
-            J_delay_central_value_counter = abs(delay_central_value_delta) / DELAY_CENTRAL_VALUE_STEP; // quanti cicli di update() servono per raggiungere il delay richiesto
-
-            // delay_central_value_step identico per ogni tap
-            delay_central_value_step = ((delay_central_value_delta > 0) ? 1 : -1) * DELAY_CENTRAL_VALUE_STEP; // = +/- 2 // quanti campioni in piu' o in meno ad ogni update()
-        }
-        else if (abs(delay_central_value_delta) < 2000)
-        {
-            J_delay_central_value_counter = abs(delay_central_value_delta) / (2 * DELAY_CENTRAL_VALUE_STEP);      // quanti cicli di update() servono per raggiungere il delay richiesto
-            delay_central_value_step = ((delay_central_value_delta > 0) ? 1 : -1) * 2 * DELAY_CENTRAL_VALUE_STEP; // = +/- 2 // quanti campioni in piu' o in meno ad ogni update()
-        }
-        else if (abs(delay_central_value_delta) < 5000)
-        {
-            J_delay_central_value_counter = abs(delay_central_value_delta) / (4 * DELAY_CENTRAL_VALUE_STEP);      // quanti cicli di update() servono per raggiungere il delay richiesto
-            delay_central_value_step = ((delay_central_value_delta > 0) ? 1 : -1) * 4 * DELAY_CENTRAL_VALUE_STEP; // = +/- 2 // quanti campioni in piu' o in meno ad ogni update()
-        }
-        else
-        {
-            J_delay_central_value_counter = abs(delay_central_value_delta) / (8 * DELAY_CENTRAL_VALUE_STEP);      // quanti cicli di update() servono per raggiungere il delay richiesto
-            delay_central_value_step = ((delay_central_value_delta > 0) ? 1 : -1) * 8 * DELAY_CENTRAL_VALUE_STEP; // = +/- 2 // quanti campioni in piu' o in meno ad ogni update()
-        }
+        delay_central_value_step = 0;
+        J_delay_central_value_counter = 0;
+        return;
     }
+
+    const int absolute_delta = abs(delta);
+    int step_magnitude;
+
+    if (absolute_delta < 500)
+    {
+        step_magnitude = DELAY_CENTRAL_VALUE_STEP; // 2 samples
+    }
+    else if (absolute_delta < 2000)
+    {
+        step_magnitude = 2 * DELAY_CENTRAL_VALUE_STEP; // 4 samples
+    }
+    else if (absolute_delta < 5000)
+    {
+        step_magnitude = 4 * DELAY_CENTRAL_VALUE_STEP; // 8 samples
+    }
+    else
+    {
+        step_magnitude = 8 * DELAY_CENTRAL_VALUE_STEP; // 16 samples
+    }
+
+    delay_central_value_step = (delta > 0) ? step_magnitude : -step_magnitude;
+
+    // Rounded-up division: the final update may use a shorter step.
+    J_delay_central_value_counter = (absolute_delta + step_magnitude - 1) / step_magnitude;
 }
 
 // La variazione della sorgente di modulazione del delay va applicata immediatamente
@@ -121,13 +134,23 @@ void StereoDelay::update(void)
     // ***** spostato ****
 
     // Variazione del valore centrale delay_value
-    if (J_delay_central_value_counter > 0) // J_delay_central_value_counter e' un contatore
+    if (J_delay_central_value_counter > 0)
     {
-        // valorizzo delay_delta; l'effetto e' un pitch != 1.0 sulla lettura, e avviene piu' avanti
-        delay_delta = delay_central_value_step; // +/- 2
-        // aggiorno gia' da ora il valore di delay_central_value
-        delay_central_value += delay_delta;
-        J_delay_central_value_counter--;
+        const int remaining = delay_central_value_target - delay_central_value;
+
+        if (abs(remaining) <= abs(delay_central_value_step))
+        {
+            // Use the remaining distance as the final step.
+            delay_delta = remaining;
+            delay_central_value = delay_central_value_target;
+            J_delay_central_value_counter = 0;
+        }
+        else
+        {
+            delay_delta = delay_central_value_step;
+            delay_central_value += delay_delta;
+            --J_delay_central_value_counter;
+        }
     }
 
     // delay modulation con LFO
@@ -138,11 +161,8 @@ void StereoDelay::update(void)
         delay_by_modulation = delay_central_value + delay_modulation;
         delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
-        delay_delta += delay_by_modulation - delay_value;
-        if (delay_delta > (AUDIO_BLOCK_SAMPLES - 10))
-        {
-            delay_delta = AUDIO_BLOCK_SAMPLES - 10;
-        }
+        delay_delta = delay_by_modulation - delay_value;
+        delay_delta = constrain(delay_delta, -(AUDIO_BLOCK_SAMPLES - 10), AUDIO_BLOCK_SAMPLES - 10);
     }
 
     // delay modulation da input_1
@@ -155,11 +175,8 @@ void StereoDelay::update(void)
             delay_by_modulation = delay_central_value + delay_modulation;
             delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
-            delay_delta += delay_by_modulation - delay_value;
-            if (delay_delta > (AUDIO_BLOCK_SAMPLES - 10))
-            {
-                delay_delta = AUDIO_BLOCK_SAMPLES - 10;
-            }
+            delay_delta = delay_by_modulation - delay_value;
+            delay_delta = constrain(delay_delta, -(AUDIO_BLOCK_SAMPLES - 10), AUDIO_BLOCK_SAMPLES - 10);
 
             release(in_block);
         }
@@ -297,9 +314,3 @@ void StereoDelay::update(void)
 //                       read_sample       write_sample
 // rrrrrrrrrrrrrrrrrrrrrrRwwwwwwwwwwwwwwwwwW-------------------------------|
 // 0                     <-  delay_value ->                      (DELAY_CACHE_SAMPLES - 1)
-
-void StereoDelay::Constrain_delay_value(int value)
-{
-    const int maximum = DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES;
-    value = constrain(value, 0, maximum);
-}
