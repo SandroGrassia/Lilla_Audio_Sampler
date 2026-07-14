@@ -8,6 +8,21 @@
 
 bool ArchivingManager::Test_Fram(const uint8_t writevalue)
 {
+
+    /*
+        | FRAM | I²C    | Indirizzo globale | Indirizzo locale |
+
+        | 0    | `0x50` | `0x00000–0x07FFF` | `0x0000–0x7FFF` |
+        | 1    | `0x51` | `0x08000–0x0FFFF` | `0x0000–0x7FFF` |
+        | 2    | `0x52` | `0x10000–0x17FFF` | `0x0000–0x7FFF` |
+        | 3    | `0x53` | `0x18000–0x1FFFF` | `0x0000–0x7FFF` |
+
+        FRAM 0:      0  –  32.767
+        FRAM 1: 32.768  –  65.535
+        FRAM 2: 65.536  –  98.303
+        FRAM 3: 98.304  – 131.071
+    */
+
     Serial.println("ArchivingManager::Test_Fram(void) - start");
 
     // FRAM info
@@ -17,41 +32,81 @@ bool ArchivingManager::Test_Fram(const uint8_t writevalue)
     elapsedMillis time = 0;
     bool success = true;
 
-    for (uint16_t i = 0; i < 1000; ++i)
+    bool chipPresent[LillaFRAM::CHIP_COUNT] = {false};
+
+    // Verifica la presenza di ciascun chip
+    for (uint8_t chip = 0; chip < LillaFRAM::CHIP_COUNT; ++chip)
     {
-        byte writeResult = LillaFram.writeByte(i, writevalue);
+        const uint8_t i2cAddress = LillaFRAM::FIRST_I2C_ADDRESS + chip;
 
-        if (writeResult != LillaFRAM::ERROR_0)
+        Wire2.beginTransmission(i2cAddress);
+        chipPresent[chip] = (Wire2.endTransmission() == 0);
+
+        Serial.print(F("FRAM "));
+        Serial.print(chip);
+        Serial.print(F(" at I2C address 0x"));
+        Serial.print(i2cAddress, HEX);
+        Serial.println(chipPresent[chip] ? F(": PRESENT") : F(": NOT PRESENT"));
+    }
+
+    // Test dei primi 1000 indirizzi di ciascun chip
+    for (uint8_t chip = 0; chip < LillaFRAM::CHIP_COUNT; ++chip)
+    {
+        if (!chipPresent[chip])
         {
-            success = false;
-            Serial.print(F("WRITE error at location: "));
-            Serial.println(i);
             continue;
         }
 
-        uint8_t readvalue = 0;
-        byte readResult = LillaFram.readByte(i, &readvalue);
+        const uint32_t chipBaseAddress = static_cast<uint32_t>(chip) * LillaFRAM::CHIP_SIZE;
 
-        if (readResult != LillaFRAM::ERROR_0)
+        for (uint16_t localAddress = 0; localAddress < 1000; ++localAddress)
         {
-            success = false;
-            Serial.print(F("READ error at location: "));
-            Serial.println(i);
-            continue;
-        }
+            const uint32_t globalAddress = chipBaseAddress + localAddress;
 
-        if (writevalue != readvalue)
-        {
-            success = false;
-            Serial.print(F("NOT corresponding value at location: "));
-            Serial.println(i);
+            const byte writeResult = LillaFram.writeByte(globalAddress, writevalue);
+
+            if (writeResult != LillaFRAM::ERROR_0)
+            {
+                success = false;
+                Serial.print(F("WRITE error on FRAM "));
+                Serial.print(chip);
+                Serial.print(F(", global location: "));
+                Serial.println(globalAddress);
+                continue;
+            }
+
+            uint8_t readvalue = 0;
+            const byte readResult = LillaFram.readByte(globalAddress, &readvalue);
+
+            if (readResult != LillaFRAM::ERROR_0)
+            {
+                success = false;
+                Serial.print(F("READ error on FRAM "));
+                Serial.print(chip);
+                Serial.print(F(", global location: "));
+                Serial.println(globalAddress);
+                continue;
+            }
+
+            if (writevalue != readvalue)
+            {
+                success = false;
+                Serial.print(F("NOT corresponding value on FRAM "));
+                Serial.print(chip);
+                Serial.print(F(", global location: "));
+                Serial.println(globalAddress);
+            }
         }
+        
+        Serial.print("Chip n.");
+        Serial.print(chip);
+        Serial.println("- Test done.");
     }
 
     lap = time;
     Serial.print(F("ArchivingManager::Test_Fram(void) done in milliseconds: "));
     Serial.println(lap);
-    
+
     return success;
 }
 

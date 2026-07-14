@@ -39,6 +39,19 @@ Pullup resistor:
 from 0: 0b 0000 0000 0000 0000
 to 32K - 1 = 2^15 - 1 = 0b 01111111 11111111 (requires 15 bit)
 
+| FRAM | I²C    | Indirizzo globale | Indirizzo locale |
+
+| 0    | `0x50` | `0x00000–0x07FFF` | `0x0000–0x7FFF` |
+| 1    | `0x51` | `0x08000–0x0FFFF` | `0x0000–0x7FFF` |
+| 2    | `0x52` | `0x10000–0x17FFF` | `0x0000–0x7FFF` |
+| 3    | `0x53` | `0x18000–0x1FFFF` | `0x0000–0x7FFF` |
+
+FRAM 0:      0  –  32.767
+FRAM 1: 32.768  –  65.535
+FRAM 2: 65.536  –  98.303
+FRAM 3: 98.304  – 131.071
+
+
 generic memory location (15 bit): 0b 0abcdefg hijklmno
 
 is transposed into:
