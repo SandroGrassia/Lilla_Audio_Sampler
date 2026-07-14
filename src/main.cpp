@@ -12772,31 +12772,11 @@ void Reload_system_state(void)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
-    // Display_Manager.Lilla_cover_slow();
+    Display_Manager.Lilla_cover_slow();
     // Display_Manager.Lilla_cover_saturate();
 
     // ****************    DEFINE STARTUP MODE     ************
     Startup_mode();
-
-    /*
-    // ****************    START with PERFORMANCE     ************
-    Lilla_state = PERFORMANCE;
-    Lilla_state_0 = Lilla_state;
-
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-
-    S_Fill_all_Noclick(); // fill Noclick for all Instrument in the Patch
-    S_Fill_all_Wavetable();
-
-    Patch_id_old = Patch_id;
-    Patch_cache_P = Patch[Patch_id];
-    Print_Patch(Patch_id);
-
-    P_Update_all_maps_Instrument_for_notes();
-    Print_map_instrument_for_note(0); // Print_map_instrument_for_note(uint8_t midi_channel)
-
-    Golive_with_PERFORMANCE(Patch_id);
-    */
 
     // *******************    START MIDI   ************************
     Midi_reader.Begin();
