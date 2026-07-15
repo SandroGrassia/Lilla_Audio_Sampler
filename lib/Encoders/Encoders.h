@@ -56,4 +56,5 @@ public:
 
     void Transmit_DT_CLK(const uint8_t &encoder, const uint8_t &DT, const uint8_t &CLK);
     int Get_rotation(const uint8_t &encoder);
+    void Clear_rotation_all_encoders(void);
 };

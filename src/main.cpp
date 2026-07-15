@@ -708,7 +708,7 @@ constexpr float headphones_volume_max = 40.0f;
 
 // Pre-listen Volume
 int headphones_pwm_volume_int = 40; // 0 --> 40
-constexpr int headphones_pwm_volume_max = 40; 
+constexpr int headphones_pwm_volume_max = 40;
 
 // >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
@@ -785,6 +785,7 @@ bool Read_pushbutton(int element);
 bool Read_pushbutton_fast(int element);
 int Read_encoder_simple(int element);
 bool Read_encoder_fast(int element);
+void Clear_UI_events(void); // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
 
 /*
 template <class T>
@@ -1110,11 +1111,11 @@ void loop()
     // Pre-listen volume
     if (Read_encoder(EN_PB_PreListenVol, headphones_pwm_volume_int, headphones_pwm_volume_max, 0, 1))
     {
-        float value = headphones_pwm_volume_int/(static_cast<float>(headphones_pwm_volume_max));
+        float value = headphones_pwm_volume_int / (static_cast<float>(headphones_pwm_volume_max));
         AudioNoInterrupts();
         PWM_mixer_out_L.gain(value);
         PWM_mixer_out_R.gain(value);
-        AudioInterrupts();                                       
+        AudioInterrupts();
     }
 
     // To-do
@@ -1207,7 +1208,7 @@ void loop()
     {
         // *****************************************************   Test FRAM  *********************************************
         Archive.Test_Fram(0x91);
-        
+
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
         {
@@ -1221,7 +1222,7 @@ void loop()
 
     // Tuning tone volume
     if (tuning_tone_flag && Read_encoder(EN_PB_TuningTone, tuning_tone_volume, 40, 0, 1))
-    {     
+    {
         if (Lilla_state == PERFORMANCE)
         {
             Display_Manager.P_show_gain_TuningTone(Patch_id);
@@ -1306,6 +1307,8 @@ void loop()
         {
             Pointer_Performance.Move_pointer(result, P_menu_max);
             P_pointer = Pointer_Performance.Get_pointer();
+
+            Clear_UI_events();
         }
 
         // Change values
@@ -1340,6 +1343,8 @@ void loop()
 
                     Pointer_Performance.Set_pointer_to_Patch();
                     P_pointer = Pointer_Performance.Get_pointer();
+
+                    Clear_UI_events();
 
                     Print_Patch(Patch_id);
                     break;
@@ -1628,6 +1633,8 @@ void loop()
             {
                 Pointer_Performance.Move_pointer_from_Instrument_to_inside();
                 P_pointer = Pointer_Performance.Get_pointer();
+
+                Clear_UI_events();
             }
         }
         break;
@@ -1643,6 +1650,8 @@ void loop()
             {
                 Pointer_Performance.Move_pointer_from_inside_to_Instrument();
                 P_pointer = Pointer_Performance.Get_pointer();
+
+                Clear_UI_events();
             }
 
             switch (Pointer_Performance.Get_pointer().element)
@@ -1892,20 +1901,24 @@ void loop()
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+                    
+
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
                     S_Select_menu_elements();
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
-
+                    
                     // Pointer
                     Pointer_Sound.Set_pointer_to_file(S_menu_max);
                     S_pointer = Pointer_Sound.Get_pointer();
                     Pointer_Sound.Display_pointer();
-
+                    
                     // Restore LEDs
                     Performance_led_set.Restore_all_LED();
 
                     // Wave
                     Display_Sound.Show_wave(Instrument_id);
+
+                    Clear_UI_events();
 
                     // Report
                     Serial.print("Editing Sound: ");
@@ -1938,8 +1951,11 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
 
                 Display_Delay.D_show_page();
+
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+                Clear_UI_events();
             }
             break;
 
@@ -2016,6 +2032,8 @@ void loop()
         {
             Pointer_Sound.Move_pointer(result, S_menu_max);
             S_pointer = Pointer_Sound.Get_pointer();
+
+            Clear_UI_events();
         }
 
         // Change values
@@ -2814,9 +2832,11 @@ void loop()
                     Lilla_state = INSTRUMENT_VCF;
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
+                    
                     // pointer
                     Pointer_VCF.Set_pointer_to_FilterType();
+
+                    Clear_UI_events();
 
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
@@ -2846,8 +2866,9 @@ void loop()
                     }
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                    // Pointer
-                    // to do
+                    // Restore the pointer previously selected in SOUND_EDIT
+                    S_pointer = Pointer_Sound.Get_pointer();
+                    Pointer_Sound.Display_pointer();
 
                     // Restore LEDs
                     if (Lilla_state_0 != MIDI_LOOP)
@@ -2860,6 +2881,8 @@ void loop()
                     }
 
                     Display_Sound.Show_wave(Instrument_id);
+
+                    Clear_UI_events();
 
                     // Report
                     Serial.print("Editing Sound: ");
@@ -2890,8 +2913,11 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
 
                 Display_Delay.D_show_page();
+
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+                Clear_UI_events();
             }
             break;
 
@@ -2980,6 +3006,8 @@ void loop()
         if (result != 0)
         {
             Pointer_VCF.Move_pointer(result);
+
+            Clear_UI_events();
         }
 
         // Change values
@@ -3256,6 +3284,12 @@ void loop()
 
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                        
+                        // Restore the pointer previously selected in SOUND_EDIT
+                        S_pointer = Pointer_Sound.Get_pointer();
+                        Pointer_Sound.Display_pointer();
+
+                        Clear_UI_events();
                     }
                 }
             }
@@ -3332,7 +3366,6 @@ void loop()
                     if (Inst_id == Instrument_id)
                     {
                         S_Set_Sound_SOLO_OFF();
-
                         Golive_with_MIDI_LOOP(false);
                     }
 
@@ -3357,14 +3390,18 @@ void loop()
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
 
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
-
+                        
                         // to do: display LED
 
                         Display_Sound.Show_wave(Instrument_id);
-
+                        
+                        S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+    
+                        S_pointer = Pointer_Sound.Get_pointer();
+                        Pointer_Sound.Display_pointer();
 
-                        // Display_Sound.S_show_menu_frame(S_menu);
+                        Clear_UI_events();
                     }
                 }
             }
@@ -3401,8 +3438,11 @@ void loop()
                 Lilla_state = DELAY_SETTINGS;
 
                 Display_Delay.D_show_page();
+                
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+                Clear_UI_events();
             }
             break;
 
@@ -3502,8 +3542,10 @@ void loop()
         if (result != 0)
         {
             Pointer_Mixer.Move_pointer(result);
-
             MX_local_pointer = Pointer_Mixer.Get_pointer();
+
+            Clear_UI_events();
+
             Instrument_id = (MX_local_pointer.source < LINE_IN_source ? MX_local_pointer.source : 0);
             Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
         }
@@ -3516,6 +3558,8 @@ void loop()
             {
                 Pointer_Mixer.Move_pointer_to_field_MX_Elements();
                 MX_local_pointer = Pointer_Mixer.Get_pointer();
+
+                Clear_UI_events();
             }
         }
 
@@ -3526,6 +3570,8 @@ void loop()
             {
                 Pointer_Mixer.Move_pointer_to_field_MX_Source();
                 MX_local_pointer = Pointer_Mixer.Get_pointer();
+
+                Clear_UI_events();
             }
 
             switch (MX_local_pointer.element)
@@ -3765,8 +3811,11 @@ void loop()
                     Lilla_state = DELAY_SETTINGS;
 
                     Display_Delay.D_show_page();
+                    
                     Pointer_Delay.Set_pointer_to_Feedback();
                     DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+                    Clear_UI_events();
                 }
             }
             break;
@@ -3917,6 +3966,8 @@ void loop()
         {
             Pointer_Delay.Move_pointer(result);
             DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+            Clear_UI_events();
         }
 
         // Change values
@@ -4459,6 +4510,8 @@ void loop()
         {
             Pointer_LiveSampler.Move_pointer(result);
             LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+            Clear_UI_events();
         }
 
         // Change values
@@ -4474,9 +4527,11 @@ void loop()
 
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                    
+
                     Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+                    Clear_UI_events();
 
                     LiveSampler.Start(LS_stereo);
                     LS_wave_refresh_timer = 0;
@@ -4490,9 +4545,11 @@ void loop()
 
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
-                    
+
                     Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+                    Clear_UI_events();
 
                     delay(20);
                     if (!LS_XY_lock)
@@ -4536,6 +4593,8 @@ void loop()
                     Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
 
+                    Clear_UI_events();
+
                     Midi_reader.Start();
                 }
                 break;
@@ -4577,6 +4636,8 @@ void loop()
 
                     Pointer_LiveSampler.Set_pointer_to_first_menu_element();
                     LS_local_pointer = Pointer_LiveSampler.Get_pointer();
+
+                    Clear_UI_events();
 
                     if (!LS_XY_lock)
                     {
@@ -4944,9 +5005,11 @@ void loop()
                     Lilla_state = INSTRUMENT_VCF;
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-                    
+
                     // pointer
                     Pointer_VCF.Set_pointer_to_FilterType();
+
+                    Clear_UI_events();
 
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
@@ -4986,6 +5049,8 @@ void loop()
                     // pointer
                     Pointer_VCF.Set_pointer_to_FilterType();
 
+                    Clear_UI_events();
+
                     // restore all LED
                     Performance_led_set.Restore_all_LED();
                 }
@@ -5002,9 +5067,11 @@ void loop()
                 Lilla_state = INSTRUMENT_VCF;
 
                 Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-
+                
                 // pointer
                 Pointer_VCF.Set_pointer_to_FilterType();
+
+                Clear_UI_events();
 
                 // restore all LED
                 Performance_led_set.Restore_all_LED();
@@ -5193,6 +5260,8 @@ void loop()
                 Pointer_Sampler.Set_pointer_to_first_menu_element();
                 DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                Clear_UI_events(); 
+
                 Display_Sampler.DS_available_memory();
 
                 Display_Sampler.DS_line_out(false);
@@ -5214,6 +5283,8 @@ void loop()
         {
             Pointer_Sampler.Move_pointer(result);
             DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+            Clear_UI_events();
         }
 
         // Change values
@@ -5286,6 +5357,8 @@ void loop()
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                    Clear_UI_events();
+
                     Display_Sampler.DS_line_out(true);
                 }
                 break;
@@ -5318,6 +5391,8 @@ void loop()
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Clear_UI_events();
 
                     Display_Sampler.DS_Recording_description(recording, false);
                     Display_Sampler.DS_sampler_txt(true);
@@ -5360,6 +5435,8 @@ void loop()
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Clear_UI_events();
 
                     Display_Sampler.DS_Recording_description(recording, false);
                     Display_Sampler.DS_sampler_txt(true);
@@ -5413,6 +5490,8 @@ void loop()
                     // Pointer
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                    Clear_UI_events();
 
                     Display_Sampler.DS_available_memory();
                     Display_Sampler.DS_line_out(false);
@@ -5527,6 +5606,8 @@ void loop()
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
                         DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                        Clear_UI_events();
+
                         Display_Sampler.DS_Recording_description(recording, true);
 
                         // Restore LED
@@ -5543,6 +5624,8 @@ void loop()
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                    Clear_UI_events();
+
                     Display_Sampler.DS_conversion_options(file_L_RAW, file_R_RAW, DS_export);
 
                     // Choose what to do
@@ -5556,6 +5639,8 @@ void loop()
                         {
                             Pointer_Sampler.Move_pointer_within_menu(result);
                             DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                            Clear_UI_events();
                         }
 
                         // Choose element
@@ -5564,6 +5649,7 @@ void loop()
                             confirmation = true;
                         }
                     }
+                    Clear_UI_events();
 
                     switch (choice_DS_menu)
                     {
@@ -5635,6 +5721,8 @@ void loop()
                     Pointer_Sampler.Set_pointer_to_first_menu_element();
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                    Clear_UI_events();
+
                     // Switch bar_display ON
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
@@ -5677,6 +5765,8 @@ void loop()
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
                         DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                        Clear_UI_events();
+
                         // Switch bar_display ON
                         PeakTracking_L.reset();
                         PeakTracking_R.reset();
@@ -5702,6 +5792,8 @@ void loop()
                         // Pointer
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
                         DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                        Clear_UI_events();
 
                         PeakTracking_L.reset();
                         PeakTracking_R.reset();
@@ -5801,6 +5893,8 @@ void loop()
                             Pointer_Sampler.Set_pointer_to_first_menu_element();
                             DS_local_pointer = Pointer_Sampler.Get_pointer();
 
+                            Clear_UI_events();
+
                             PeakTracking_L.reset();
                             PeakTracking_R.reset();
                             Display_Sampler.DS_bar(0, 0);
@@ -5881,6 +5975,8 @@ void loop()
                                 // Pointer
                                 Pointer_Sampler.Set_pointer_to_first_menu_element();
                                 DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                                Clear_UI_events();
 
                                 PeakTracking_L.reset();
                                 PeakTracking_R.reset();
@@ -6019,6 +6115,8 @@ void loop()
                         // Pointer
                         Pointer_Sampler.Set_pointer_to_first_menu_element();
                         DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+                        Clear_UI_events();
 
                         // Switch bar_display ON
                         PeakTracking_L.reset();
@@ -6214,6 +6312,8 @@ void loop()
             Display_Delay.D_show_page();
             Pointer_Delay.Set_pointer_to_Feedback();
             DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+            Clear_UI_events();
         }
         break;
 
@@ -6378,6 +6478,8 @@ void loop()
             {
                 Pointer_MidiLoop.Move_pointer(result);
                 LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+
+                Clear_UI_events();
             }
         }
 
@@ -6431,6 +6533,8 @@ void loop()
                 Display_MidiLoop.Show_menu();
                 Pointer_MidiLoop.Set_pointer_to_first_menu_element();
                 LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+
+                Clear_UI_events();
 
                 // Switch off all tracks LEDs on display
                 Loop_led_set.Request_all_LED_switch_off();
@@ -6583,6 +6687,8 @@ void loop()
                     Pointer_MidiLoop.Set_pointer_to_first_menu_element();
                     LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
+                    Clear_UI_events();
+
                     // Prepare learning
                     LOOP_learn_clock = 0;
                     LOOP_elements = 0;      // ancora nessun evento
@@ -6641,6 +6747,8 @@ void loop()
 
                     // Learnig closed. From here: LOOP_learn_flag == false
                     LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
+                    
+                    Clear_UI_events();
 
                     // LED_Rec OFF
                     Shifters_manager.Switch_led(LED_Rec[LOOP_learning_track], false);
@@ -6777,6 +6885,8 @@ void loop()
                     {
                         Display_MidiLoop.Loop_total_time();
                     }
+
+                    Clear_UI_events();
                 }
             }
 
@@ -6993,6 +7103,8 @@ void loop()
                         Display_MidiLoop.Show_menu();
                         Pointer_MidiLoop.Set_pointer_to_first_menu_element();
                         LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+
+                        Clear_UI_events();
                     }
                     break;
 
@@ -7017,6 +7129,8 @@ void loop()
 
                             // Update loop_id
                             Display_MidiLoop.Show_loop_id();
+
+                            Clear_UI_events();
                         }
                     }
                     break;
@@ -7171,6 +7285,8 @@ void loop()
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+                Clear_UI_events();
             }
             break;
 
@@ -7233,7 +7349,6 @@ void loop()
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
-                    // Display page
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                     // Menu
@@ -7251,6 +7366,8 @@ void loop()
 
                     // Wave
                     Display_Sound.Show_wave(Instrument_id);
+
+                    Clear_UI_events();
 
                     // Report
                     Serial.print("Editing Sound: ");
@@ -7307,6 +7424,8 @@ void loop()
         if (Read_encoder(EN_PB_Select, SET_menu, 7, 0, 1))
         {
             Display_Manager.SETUP_show_frame(SET_menu);
+
+            Clear_UI_events();
         }
 
         // Choose menu item
@@ -7326,10 +7445,14 @@ void loop()
 
                 CC_lowpass_filter_cache = CC_lowpass_filter_value;
                 Display_Manager.CC_show_ControlChange_page();
+
                 Display_Manager.CC_show_all_sound_gains();
                 Display_Manager.CC_show_lowpass_filter_value();
+
                 CC_menu = 0;
                 Display_Manager.CC_show_frame_menu(CC_menu);
+
+                Clear_UI_events();
                 break;
 
                 // case 3: // USB access to SD card - funzionalita' MTP
@@ -7506,6 +7629,8 @@ void loop()
                 Display_Delay.D_show_page();
                 Pointer_Delay.Set_pointer_to_Feedback();
                 DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+                Clear_UI_events();
                 break;
             }
             break;
@@ -7670,6 +7795,9 @@ void loop()
         if (Read_encoder(EN_PB_Select, CC_menu, 9, 0, 1))
         {
             Display_Manager.CC_show_frame_menu(CC_menu);
+
+            Clear_UI_events();
+
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_number = CC_Sound_gain[CC_menu - 1];
@@ -7990,6 +8118,7 @@ int P_Ask_if_change_Patch(void)
 
     Serial.println("OK P_Ask_if_change_Patch(void)");
 
+    Clear_UI_events();
     while (!confirmation)
     {
         Shifters_manager.Update();
@@ -8004,6 +8133,8 @@ int P_Ask_if_change_Patch(void)
             confirmation = true;
         }
     }
+    Clear_UI_events();
+
     return action;
 }
 
@@ -8017,6 +8148,7 @@ bool P_Ask_if_delete_this_Patch(void)
     Display_Manager.P_Confirm_patch_delete_popup_frame(0);
     delay(200);
 
+    Clear_UI_events();
     while (!confirmation)
     {
         Shifters_manager.Update();
@@ -8030,6 +8162,8 @@ bool P_Ask_if_delete_this_Patch(void)
             confirmation = true;
         }
     }
+    Clear_UI_events();
+
     return (action == 1 ? true : false);
 }
 
@@ -8550,6 +8684,8 @@ void DS_refresh_DS_page(void)
     // Display the VU meter
     Display_Sampler.DS_bar(0, 0);
     Display_Sampler.DS_bar(1, 0);
+
+    Clear_UI_events();
 }
 
 void DS_ask_if_EXIT_from_DS(void)
@@ -8560,6 +8696,7 @@ void DS_ask_if_EXIT_from_DS(void)
     Display_Manager.P_Confirm_patch_delete_popup_frame(0);
     delay(200);
 
+    Clear_UI_events();
     while (!confirmation)
     {
         Shifters_manager.Update();
@@ -8573,6 +8710,7 @@ void DS_ask_if_EXIT_from_DS(void)
             confirmation = true;
         }
     }
+    Clear_UI_events();
 }
 
 void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
@@ -8640,6 +8778,8 @@ void DS_back_to_first_DS_Recording(void)
     // Pointer
     Pointer_Sampler.Set_pointer_to_first_menu_element();
     DS_local_pointer = Pointer_Sampler.Get_pointer();
+
+    Clear_UI_events();
 
     Display_Sampler.DS_hide_recording();
     Display_Sampler.DS_Recording_description(recording, true);
@@ -9168,6 +9308,8 @@ void Golive_with_LIVE_SAMPLING(void)
 
     Display_LiveSampler.Page();
 
+    Clear_UI_events();
+
     // restore LEDs
     Performance_led_set.Restore_all_LED();
 
@@ -9186,12 +9328,15 @@ void Golive_with_LIVE_SAMPLING(void)
     }
 
     Display_LiveSampler.Show_wave(LS_sound_id);
+
     Print_Patch(Patch_id);
 }
 
 void Golive_DIRECT_SAMPLING(void)
 {
     Lilla_state = DIRECT_SAMPLING;
+
+    Clear_UI_events();
 
     DS_state = DS_waiting_state;
 
@@ -9230,6 +9375,9 @@ void Golive_with_PERFORMANCE(int patch_id)
     P_Update_line_of_all_instruments();
 
     Display_Manager.P_show_PERFORMANCE_page(true, true);
+
+    Clear_UI_events();
+
     Performance_led_set.Request_all_LED_switch_off();
 
     // pointer
@@ -9243,6 +9391,8 @@ void Golive_with_PERFORMANCE(int patch_id)
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
+
+    Clear_UI_events();
 
     LOOP_select_menu_elements();
     Display_MidiLoop.Show_Loop_page();
@@ -9737,6 +9887,7 @@ void Switch_from_MIDI_LOOP_to_SETUP(void)
 void Switch_from_LIVE_SAMPLING_to_DELAY(void)
 {
     Lilla_state_0 = LIVE_SAMPLING;
+
     if (Delay_values.instrument_route[0] || Delay_values.instrument_route[1])
     {
         Delay_values.instrument_route[0] = true;
@@ -9745,12 +9896,16 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
     Lilla_state = DELAY_SETTINGS;
 
     Display_Delay.D_show_page();
+
+    Clear_UI_events();
+
     Pointer_Delay.Set_pointer_to_Feedback();
     DELAY_local_pointer = Pointer_Delay.Get_element_name();
 }
 
 void Golive_MIDI_MONITOR(void)
 {
+
     AudioNoInterrupts();
     Players_Manager.Stop_all_players();
     AudioInterrupts();
@@ -9759,6 +9914,8 @@ void Golive_MIDI_MONITOR(void)
 
     display_wait = false;
     Display_Manager.Midi_monitor_page();
+
+    Clear_UI_events();
 }
 
 void Golive_SETUP(void)
@@ -9767,6 +9924,9 @@ void Golive_SETUP(void)
 
     SET_menu = 0;
     Display_Manager.SETUP_show_SETUP_page();
+
+    Clear_UI_events();
+
     Display_Manager.SETUP_show_frame(SET_menu);
 }
 
@@ -10457,6 +10617,7 @@ void VFS_Make_VFS(void)
         Display_Manager.VFS_show_packets();
         bool confirmation = false;
 
+        Clear_UI_events();
         while (!confirmation)
         {
             Shifters_manager.Update();
@@ -10486,7 +10647,8 @@ void VFS_Make_VFS(void)
             {
                 confirmation = true;
             }
-        }
+        }    
+        Clear_UI_events();
 
         // create VFS
         for (auto i = 0; i < VFS_packets; ++i)
@@ -11534,6 +11696,8 @@ void LS_refresh_LS_page(void)
         LS_update_Q_sample(); // Usato da LS_wave_color
     }
     Display_LiveSampler.Show_wave(LS_sound_id);
+
+    Clear_UI_events();
 }
 
 bool LS_ask_if_exit_from_LS(void)
@@ -11544,6 +11708,7 @@ bool LS_ask_if_exit_from_LS(void)
     Display_Manager.P_Confirm_patch_delete_popup_frame(0);
     delay(200);
 
+    Clear_UI_events();
     while (!confirmation)
     {
         Shifters_manager.Update();
@@ -11557,7 +11722,9 @@ bool LS_ask_if_exit_from_LS(void)
             confirmation = true;
         }
     }
-    return (action == 0 ? false : true);
+    Clear_UI_events();
+
+    return (action == 0 ? false : true); 
 }
 
 void LS_update_menu_elements(void)
@@ -11897,14 +12064,17 @@ void Golive_MIXER(void)
     Lilla_state = MIXER;
 
     Display_Mixer.MX_page();
+
+    Clear_UI_events();
+
     for (auto source = 0; source < MX_sources; ++source)
     {
         Display_Mixer.MX_source_values(source, (source == 0 ? true : false));
     }
 
     Pointer_Mixer.Set_pointer_to_source(0);
-
     MX_local_pointer = Pointer_Mixer.Get_pointer();
+
     Instrument_id = 0;
     Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 }
@@ -11939,6 +12109,7 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
     confirmation = false;
     result = 0;
 
+    Clear_UI_events();
     while (!confirmation)
     {
         Shifters_manager.Update();
@@ -11952,12 +12123,16 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
             confirmation = true;
         }
     }
+
+    Clear_UI_events();
 }
 
 void SET_Ask_if_FACTORY_RESET(void)
 {
     confirmation = false;
     result = 0;
+
+    Clear_UI_events();
     while (!confirmation)
     {
         Shifters_manager.Update();
@@ -11971,6 +12146,7 @@ void SET_Ask_if_FACTORY_RESET(void)
             confirmation = true;
         }
     }
+    Clear_UI_events();
 }
 
 // ***************************************************************************************************************
@@ -12093,6 +12269,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     uint8_t action = 0;
     Display_Manager.Import_raw_files_frame(action);
 
+    Clear_UI_events();
     while (!confirm)
     {
         Shifters_manager.Update();
@@ -12120,6 +12297,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
             confirm = true;
         }
     }
+    Clear_UI_events();
 
     if (action == 0)
     {
@@ -12378,6 +12556,12 @@ bool Read_encoder_fast(int element)
     {
         return true;
     }
+}
+
+void Clear_UI_events(void)
+{
+    Encoders_manager.Clear_rotation_all_encoders();
+    Pushbuttons_manager.Clear_change_all_pushbuttons();
 }
 
 // **************************************************************************************************************
