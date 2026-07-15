@@ -737,6 +737,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void); // si ripristina Patch_id_o
 void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void);   // si ripristina Patch_id_old
 void Golive_SETUP(void);
 void Switch_from_MIDI_LOOP_to_SETUP(void); // si fermano i track
+void Golive_DELAY_SETTINGS(void);
 
 // >>>>>>>>>>> PRINT
 void Print_Patch(int patch_id);
@@ -1901,17 +1902,16 @@ void loop()
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
-                    
 
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
                     S_Select_menu_elements();
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
-                    
+
                     // Pointer
                     Pointer_Sound.Set_pointer_to_file(S_menu_max);
                     S_pointer = Pointer_Sound.Get_pointer();
                     Pointer_Sound.Display_pointer();
-                    
+
                     // Restore LEDs
                     Performance_led_set.Restore_all_LED();
 
@@ -1948,14 +1948,7 @@ void loop()
             {
                 Lilla_state_0 = PERFORMANCE;
                 Patch_id_old = Patch_id;
-                Lilla_state = DELAY_SETTINGS;
-
-                Display_Delay.D_show_page();
-
-                Pointer_Delay.Set_pointer_to_Feedback();
-                DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-                Clear_UI_events();
+                Golive_DELAY_SETTINGS();
             }
             break;
 
@@ -2832,7 +2825,7 @@ void loop()
                     Lilla_state = INSTRUMENT_VCF;
 
                     Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-                    
+
                     // pointer
                     Pointer_VCF.Set_pointer_to_FilterType();
 
@@ -2910,14 +2903,7 @@ void loop()
             case SwToolsDelay:
             {
                 S_Set_Sound_SOLO_OFF();
-                Lilla_state = DELAY_SETTINGS;
-
-                Display_Delay.D_show_page();
-
-                Pointer_Delay.Set_pointer_to_Feedback();
-                DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-                Clear_UI_events();
+                Golive_DELAY_SETTINGS();
             }
             break;
 
@@ -3284,7 +3270,7 @@ void loop()
 
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
-                        
+
                         // Restore the pointer previously selected in SOUND_EDIT
                         S_pointer = Pointer_Sound.Get_pointer();
                         Pointer_Sound.Display_pointer();
@@ -3390,14 +3376,14 @@ void loop()
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
 
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
-                        
+
                         // to do: display LED
 
                         Display_Sound.Show_wave(Instrument_id);
-                        
+
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
-    
+
                         S_pointer = Pointer_Sound.Get_pointer();
                         Pointer_Sound.Display_pointer();
 
@@ -3435,14 +3421,8 @@ void loop()
                         Delay_values.instrument_route[1] = true;
                     }
                 }
-                Lilla_state = DELAY_SETTINGS;
 
-                Display_Delay.D_show_page();
-                
-                Pointer_Delay.Set_pointer_to_Feedback();
-                DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-                Clear_UI_events();
+                Golive_DELAY_SETTINGS();
             }
             break;
 
@@ -3808,14 +3788,7 @@ void loop()
                 }
                 else
                 {
-                    Lilla_state = DELAY_SETTINGS;
-
-                    Display_Delay.D_show_page();
-                    
-                    Pointer_Delay.Set_pointer_to_Feedback();
-                    DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-                    Clear_UI_events();
+                    Golive_DELAY_SETTINGS();
                 }
             }
             break;
@@ -5067,7 +5040,7 @@ void loop()
                 Lilla_state = INSTRUMENT_VCF;
 
                 Display_VCF.VCF_show_VCF_page(Patch_id, Instrument_id);
-                
+
                 // pointer
                 Pointer_VCF.Set_pointer_to_FilterType();
 
@@ -5260,7 +5233,7 @@ void loop()
                 Pointer_Sampler.Set_pointer_to_first_menu_element();
                 DS_local_pointer = Pointer_Sampler.Get_pointer();
 
-                Clear_UI_events(); 
+                Clear_UI_events();
 
                 Display_Sampler.DS_available_memory();
 
@@ -6307,13 +6280,7 @@ void loop()
 
         case SwToolsDelay:
         {
-            Lilla_state = DELAY_SETTINGS;
-
-            Display_Delay.D_show_page();
-            Pointer_Delay.Set_pointer_to_Feedback();
-            DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-            Clear_UI_events();
+            Golive_DELAY_SETTINGS();
         }
         break;
 
@@ -6747,7 +6714,7 @@ void loop()
 
                     // Learnig closed. From here: LOOP_learn_flag == false
                     LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
-                    
+
                     Clear_UI_events();
 
                     // LED_Rec OFF
@@ -7280,13 +7247,7 @@ void loop()
             case SwToolsDelay:
             {
                 Lilla_state_0 = MIDI_LOOP;
-                Lilla_state = DELAY_SETTINGS;
-
-                Display_Delay.D_show_page();
-                Pointer_Delay.Set_pointer_to_Feedback();
-                DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-                Clear_UI_events();
+                Golive_DELAY_SETTINGS();
             }
             break;
 
@@ -7624,13 +7585,7 @@ void loop()
                     Archive.Save_first_octave(first_octave);
                 }
 
-                Lilla_state = DELAY_SETTINGS;
-
-                Display_Delay.D_show_page();
-                Pointer_Delay.Set_pointer_to_Feedback();
-                DELAY_local_pointer = Pointer_Delay.Get_element_name();
-
-                Clear_UI_events();
+                Golive_DELAY_SETTINGS();
                 break;
             }
             break;
@@ -9388,6 +9343,17 @@ void Golive_with_PERFORMANCE(int patch_id)
     Print_Patch(patch_id);
 }
 
+void Golive_DELAY_SETTINGS(void)
+{
+    Lilla_state = DELAY_SETTINGS;
+
+    Display_Delay.D_show_page();
+    Pointer_Delay.Set_pointer_to_Feedback();
+    DELAY_local_pointer = Pointer_Delay.Get_element_name();
+
+    Clear_UI_events();
+}
+
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
@@ -9893,14 +9859,8 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
         Delay_values.instrument_route[0] = true;
         Delay_values.instrument_route[1] = true;
     }
-    Lilla_state = DELAY_SETTINGS;
-
-    Display_Delay.D_show_page();
-
-    Clear_UI_events();
-
-    Pointer_Delay.Set_pointer_to_Feedback();
-    DELAY_local_pointer = Pointer_Delay.Get_element_name();
+    
+    Golive_DELAY_SETTINGS();
 }
 
 void Golive_MIDI_MONITOR(void)
@@ -10647,7 +10607,7 @@ void VFS_Make_VFS(void)
             {
                 confirmation = true;
             }
-        }    
+        }
         Clear_UI_events();
 
         // create VFS
@@ -11724,7 +11684,7 @@ bool LS_ask_if_exit_from_LS(void)
     }
     Clear_UI_events();
 
-    return (action == 0 ? false : true); 
+    return (action == 0 ? false : true);
 }
 
 void LS_update_menu_elements(void)
