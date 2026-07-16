@@ -24,7 +24,7 @@ private:
     bool state = false;
 
 public:
-    GateOut() {}
+    GateOut() {Reset();}
 
     void Reset(void);
     void Write(void);

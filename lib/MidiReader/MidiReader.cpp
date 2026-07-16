@@ -11,6 +11,7 @@
 void MidiReader::Begin(void)
 {
     MIDI.begin(MIDI_CHANNEL_OMNI);
+    MIDI.turnThruOff();
 }
 
 void MidiReader::Start(void)
@@ -85,6 +86,12 @@ void MidiReader::Update(void)
                 midi_channel = MIDI.getChannel() - 1; // from 0 (MIDI CH. 1) to 15 (MIDI CH.16)
                 note_number = MIDI.getData1();
                 velocity = MIDI.getData2();
+
+                // Test Midi Out
+                /*
+                Midi_out.NoteOn(note_number, velocity,  midi_channel + 1);
+                Midi_out.NoteOff(note_number, velocity,  midi_channel + 1);
+                */
 
                 // Loop learning
                 if ((Lilla_state == MIDI_LOOP) & LOOP_learn_flag)

@@ -9,6 +9,6 @@
 void Setup_GATE_pins(void)
 {
     // Gate in/out
-    pinMode(GATE_IN_pin, INPUT_PULLUP);
+    pinMode(GATE_IN_pin, INPUT);
     pinMode(GATE_OUT_pin, OUTPUT);
 }

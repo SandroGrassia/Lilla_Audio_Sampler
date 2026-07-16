@@ -1043,7 +1043,17 @@ void setup()
         exibition = true;
     }
 
-    // Gate test
+    // ********************   GATE IN OUT TEST  ******************
+    while (false)
+    {
+            Serial.println("Gate OUT high..");
+            Gate_out.Write();
+            delay(2000);
+            Serial.println("Gate OUT low..");
+            Gate_out.Reset();
+            delay(2000);
+    }
+
     while (false)
     {
         if (Gate_in.Read())
@@ -1207,8 +1217,17 @@ void loop()
     // Pushbutton tuning tone
     if (Read_pushbutton(EN_PB_TuningTone)) // switch ON/OFF the Tuning Tone
     {
-        // *****************************************************   Test FRAM  *********************************************
+        /*
+
+        // ****************************************************   Test FRAM  *********************************************
         Archive.Test_Fram(0x91);
+
+        // **************************************************   Test Midi Out  *******************************************
+        result = random(128);
+        Midi_out.NoteOn(result, 100,  1);
+        Midi_out.NoteOff(result, 100, 1);
+
+        */
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)

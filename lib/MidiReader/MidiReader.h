@@ -19,6 +19,7 @@
 #include "PlayersManager.h"
 #include "PlayersStatistics.h"
 #include "LoopMetronomo.h"
+#include "GlobalMidiOut.h"
 #include "config.h"
 
 extern MIDI_NAMESPACE::SerialMIDI<HardwareSerial> serialMIDI; // Define your transport - by Francois Best (https://github.com/FortySevenEffects/arduino_midi_library/issues/165)
