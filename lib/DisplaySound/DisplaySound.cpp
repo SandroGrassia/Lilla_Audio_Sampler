@@ -115,8 +115,6 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 FLASHMEM
 void DisplaySound::Show_SOUND_menu(void)
 {
-    if (Lilla_state_0 != MIDI_LOOP)
-    {
         auto position = 0;
 
         Delete_text_row(S_row_menu);
@@ -143,7 +141,6 @@ void DisplaySound::Show_SOUND_menu(void)
                 ++position;
             }
         }
-    }
 }
 
 FLASHMEM

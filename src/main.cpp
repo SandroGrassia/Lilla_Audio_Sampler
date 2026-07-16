@@ -2032,14 +2032,22 @@ void loop()
         {
         case field_S_Menu:
         {
-            if ((Lilla_state_0 != MIDI_LOOP) && (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value)))
+            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
             {
                 switch (S_element_menu[S_pointer.menu_element])
                 {
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
                     S_Set_Sound_SOLO_OFF();
-                    Golive_with_PERFORMANCE(Patch_id);
+
+                    if (Lilla_state_0 == MIDI_LOOP)
+                    {
+                        Golive_with_MIDI_LOOP(false);
+                    }
+                    else
+                    {
+                        Golive_with_PERFORMANCE(Patch_id);
+                    }
                 }
                 break;
 
@@ -2853,8 +2861,8 @@ void loop()
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
-                    S_Select_menu_elements();
-                    Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
+                    S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
+                    Display_Sound.Show_SOUND_menu();
 
                     // Restore the pointer previously selected in SOUND_EDIT
                     S_pointer = Pointer_Sound.Get_pointer();
@@ -2941,10 +2949,15 @@ void loop()
             case SwModesMidiLoop:
             {
                 S_Set_Sound_SOLO_OFF();
+
                 if (Lilla_state_0 == MIDI_LOOP)
+                {
                     Golive_with_MIDI_LOOP(false);
+                }
                 else
+                {
                     Switch_from_PERFORMANCE_to_MIDI_LOOP();
+                }
             }
             break;
             }
@@ -3249,7 +3262,7 @@ void loop()
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                         S_trim_step = S_Calc_trim_step(trim_speed);
-                    
+
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -3363,7 +3376,7 @@ void loop()
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                         S_trim_step = S_Calc_trim_step(trim_speed);
-                        
+
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -9848,7 +9861,7 @@ void Switch_from_LIVE_SAMPLING_to_DELAY(void)
         Delay_values.instrument_route[0] = true;
         Delay_values.instrument_route[1] = true;
     }
-    
+
     Golive_DELAY_SETTINGS();
 }
 
