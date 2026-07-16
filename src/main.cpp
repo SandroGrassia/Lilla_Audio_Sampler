@@ -1907,15 +1907,13 @@ void loop()
                     S_Select_menu_elements();
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                    // Pointer
+                    // Reset pointer
                     Pointer_Sound.Set_pointer_to_file(S_menu_max);
                     S_pointer = Pointer_Sound.Get_pointer();
                     Pointer_Sound.Display_pointer();
 
-                    // Restore LEDs
                     Performance_led_set.Restore_all_LED();
 
-                    // Wave
                     Display_Sound.Show_wave(Instrument_id);
 
                     Clear_UI_events();
@@ -2845,6 +2843,7 @@ void loop()
                     AudioInterrupts();
 
                     Instrument_id = Inst_id;
+
                     Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
@@ -2852,26 +2851,16 @@ void loop()
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
-                    if (Lilla_state_0 != MIDI_LOOP)
-                    {
-                        S_Select_menu_elements();
-                    }
+                    S_Select_menu_elements();
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
                     // Restore the pointer previously selected in SOUND_EDIT
                     S_pointer = Pointer_Sound.Get_pointer();
                     Pointer_Sound.Display_pointer();
 
-                    // Restore LEDs
-                    if (Lilla_state_0 != MIDI_LOOP)
-                    {
-                        Performance_led_set.Restore_all_LED();
-                    }
-                    else
-                    {
-                        // to do
-                    }
+                    Performance_led_set.Restore_all_LED();
 
                     Display_Sound.Show_wave(Instrument_id);
 
@@ -3251,29 +3240,29 @@ void loop()
                         }
                         AudioInterrupts();
 
+                        Instrument_id = Inst_id;
+
                         Lilla_state = SOUND_EDIT;
 
-                        Instrument_id = Inst_id;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                         S_trim_step = S_Calc_trim_step(trim_speed);
-                        S_sound_original = S_Verify_is_Sound_original(Sound_id);
-
+                    
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
-                        // restore LED
-                        Performance_led_set.Restore_all_LED();
-
-                        Display_Sound.Show_wave(Instrument_id);
-
+                        S_sound_original = S_Verify_is_Sound_original(Sound_id);
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                        // Restore the pointer previously selected in SOUND_EDIT
+                        // Restore pointer to the previously selected in SOUND_EDIT
                         S_pointer = Pointer_Sound.Get_pointer();
                         Pointer_Sound.Display_pointer();
+
+                        Performance_led_set.Restore_all_LED();
+
+                        Display_Sound.Show_wave(Instrument_id);
 
                         Clear_UI_events();
                     }
@@ -3365,27 +3354,29 @@ void loop()
                         }
                         AudioInterrupts();
 
+                        Instrument_id = Inst_id;
+
                         Lilla_state = SOUND_EDIT;
 
-                        Instrument_id = Inst_id;
                         Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
 
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                         S_trim_step = S_Calc_trim_step(trim_speed);
-                        S_sound_original = S_Verify_is_Sound_original(Sound_id);
-
+                        
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
-                        // to do: display LED
-
-                        Display_Sound.Show_wave(Instrument_id);
-
+                        S_sound_original = S_Verify_is_Sound_original(Sound_id);
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
+                        // Restore pointer to the previously selected in SOUND_EDIT
                         S_pointer = Pointer_Sound.Get_pointer();
                         Pointer_Sound.Display_pointer();
+
+                        Performance_led_set.Restore_all_LED();
+
+                        Display_Sound.Show_wave(Instrument_id);
 
                         Clear_UI_events();
                     }
@@ -7322,10 +7313,8 @@ void loop()
                     S_pointer = Pointer_Sound.Get_pointer();
                     Pointer_Sound.Display_pointer();
 
-                    // Restore LEDs
                     Performance_led_set.Restore_all_LED();
 
-                    // Wave
                     Display_Sound.Show_wave(Instrument_id);
 
                     Clear_UI_events();
