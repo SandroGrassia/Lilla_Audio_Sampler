@@ -4,7 +4,7 @@
 
 # LILLA Audio Sampler 2026
 
-This repository contains the PlatformIO firmware project for the LILLA Audio Sampler, a Teensy 4.1 based hardware sampler designed and assembled in Italy.
+This repository contains the firmware project for the LILLA Audio Sampler, a 16 voices Teensy 4.1 based hardware sampler, designed and assembled in Italy.
 
 The codebase targets a Teensy 4.1 running at 600 MHz and is organized as a standalone PlatformIO project with custom audio, display, storage, MIDI, and user-interface modules.
 
@@ -29,30 +29,13 @@ The firmware is written for a hardware platform built around:
 - 16 MB total QSPI PSRAM
 - 1-4 FRAM chips
 - ILI9341 SPI display
-- MCP23S17 shift-register based I/O expansion
+
 - MIDI input and output
 - stereo line input and output
-- monitor output and phones output
+- line phones out
+- monitor phones out
 - gate input and output
 - micro SD storage
-
-## Build Environment
-
-This repository uses PlatformIO.
-
-Current target from [platformio.ini](platformio.ini):
-
-- platform: `teensy`
-- board: `teensy41`
-- framework: `arduino`
-- CPU clock: `600000000L`
-- build flag: `TEENSY_OPT_FASTEST`
-
-Declared external library dependencies:
-
-- Adafruit GFX Library
-- Adafruit ILI9341
-- Adafruit MCP23017 Arduino Library
 
 
 ## Repository Layout
@@ -70,42 +53,6 @@ Declared external library dependencies:
 - Live Sampler audio is stored in PSRAM
 - MIDI loops are stored on micro SD
 - The codebase includes a large set of custom building blocks for playback, envelopes, filters, delays, display management, encoders, and archiving
-
-## Project History
-
-The images below were copied from the original LILLA project documentation and show the hardware evolution over time.
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_0.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_1.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_2.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_3.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_4.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_5.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_6.jpg")
-</p>
-
-<p align="center">
-<img width="400" src="/doc/assets/images/story_7.jpg")
-</p>
 
 
 ## Links
