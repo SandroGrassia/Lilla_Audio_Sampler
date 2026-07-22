@@ -10,7 +10,29 @@
 
 void AudioVCF::Update(void)
 {
+    /*
+     * Processes one audio block through the VCF.
+     *
+     * When LFO modulation is disabled, the entire block is processed using the
+     * current filter coefficients.
+     *
+     * When LFO modulation is enabled, the block is divided into four sections of
+     * 32 samples. The coefficients for the first section are set by
+     * AudioPlayer::Send_LFO_to_VCF() before calling Update(). During processing,
+     * Update() recalculates the filter coefficients at samples 32, 64, and 96,
+     * using VCF_frequency_array[1], [2], and [3], respectively.
+     *
+     * This gradual distribution of frequency changes across the audio block
+     * reduces abrupt filter transitions and helps prevent clicks and zipper noise.
+     *
+     * The audio samples are processed in pairs using fixed-point DSP instructions.
+     * The biquad state is preserved when coefficients change, ensuring continuity
+     * between sections and consecutive audio blocks.
+     * 
+    */
+
     // FILTER execution: n.1 stage: 5micros, n.2 stages: 9micros, n.3 stages: 12micros , n.4 stages: 15micros
+    
     int32_t b0, b1, b2, a1, a2, sum;
     uint32_t in2, out2, bprev, aprev, flag;
     uint32_t *data, *last;
@@ -111,7 +133,7 @@ void AudioVCF::setCoefficients(uint32_t stage, const int *coefficients)
     {
         *(dest - 1) |= 0x80000000;
     }
-    
+
     *dest++ = *coefficients++;
     *dest++ = *coefficients++;
     *dest++ = *coefficients++;

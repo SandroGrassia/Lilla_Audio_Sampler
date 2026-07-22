@@ -1298,9 +1298,11 @@ void AudioPlayer::update(void)
         {
             int32_t cache;
             F_basket_sample = (sample * pitch) + initial_index_offset; // "initial_index_offset" may be modified in harvest function
-            I_basket_L_sample = floor(F_basket_sample);                // index of the lower sample needed for calculation
-            I_basket_H_sample = ceil(F_basket_sample);                 // index of the upper sample needed for calculation
+
+            I_basket_L_sample = static_cast<int16_t>(F_basket_sample); // index of the lower sample needed for calculation
             F_index_delta = F_basket_sample - I_basket_L_sample;
+            I_basket_H_sample =  I_basket_L_sample + (F_index_delta > 0.0f); // index of the upper sample needed for calculation
+            
 
             if (volume_flag)
             {
@@ -1336,7 +1338,7 @@ void AudioPlayer::update(void)
 
             if (restart_flag)
             {
-                fast_stop_gain = (AUDIO_BLOCK_SAMPLES - 1 - sample) / (AUDIO_BLOCK_SAMPLES - 1);
+                fast_stop_gain = static_cast<float>(AUDIO_BLOCK_SAMPLES - 1 - sample) / static_cast<float>(AUDIO_BLOCK_SAMPLES - 1);
                 block[sample] = block[sample] * fast_stop_gain;
             }
 
@@ -2215,7 +2217,7 @@ void AudioPlayer::Set_vibrato_flag(bool value)
 
 void AudioPlayer::Set_mix_samples(uint8_t value)
 {
-    mix_samples = value;
+    mix_samples = (value == 1? 2 : value);
 }
 
 float AudioPlayer::Read_pitch(void)
@@ -2331,31 +2333,55 @@ void AudioPlayer::Update_VCF_resonance(float resonance)
     VCF_ptr->q_value = resonance; // Butterworth: 0.7071
 }
 
+
 void AudioPlayer::Send_LFO_to_VCF(void)
 {
-    const uint8_t ABS_4 = AUDIO_BLOCK_SAMPLES / 4;
+
+/*
+ * Calculates the four VCF cutoff frequencies used while processing the next
+ * audio block.
+ *
+ * The LFO output is sampled at the beginning and at one-quarter intervals of
+ * the 128-sample block. Each LFO value is converted from a logarithmic pitch
+ * offset into a cutoff-frequency multiplier using 2^x. The resulting frequency
+ * is constrained to the supported VCF range of 50 Hz to 15 kHz.
+ *
+ * The first frequency is applied immediately by calling Set_filter(). The
+ * remaining three frequencies are stored in VCF_frequency_array[] and applied
+ * by AudioVCF::Update() at samples 32, 64, and 96. Distributing the coefficient
+ * changes across the block produces smoother filter modulation and helps avoid
+ * clicks and zipper noise.
+ *
+ * When the LFO modulation index or the VCF pivot frequency is being changed,
+ * their values are advanced gradually at the same four positions within the
+ * block. This prevents sudden parameter changes from reaching the filter.
+ */
+
+ const uint8_t ABS_4 = AUDIO_BLOCK_SAMPLES / 4;
     const uint8_t ABS_2 = AUDIO_BLOCK_SAMPLES / 2;
     const uint8_t ABS_3_4 = 3 * AUDIO_BLOCK_SAMPLES / 4;
 
     if (LFO_index_steps <= 0 && VCF_pivot_steps <= 0)
     {
-        VCF_ptr->Set_filter(0, constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000));  // Set_filter(uint32_t stage, float frequency)
-        VCF_frequency_array[0] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000); // ONLY FOR PRINT
-        VCF_frequency_array[1] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_frequency_array[2] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_frequency_array[3] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_ptr->Set_filter(0, VCF_frequency_array[0]);  // Set_filter(uint32_t stage, float frequency)
+        
+        VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
     }
     else if (LFO_index_steps > 0)
     {
         LFO_index += LFO_index_grain;
-        VCF_ptr->Set_filter(0, constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000));  // Set_filter(uint32_t stage, float frequency)
-        VCF_frequency_array[0] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000); // ONLY FOR PRINT
+        VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_ptr->Set_filter(0, VCF_frequency_array[0]);  // Set_filter(uint32_t stage, float frequency)
+        
         LFO_index += LFO_index_grain;
-        VCF_frequency_array[1] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
         LFO_index += LFO_index_grain;
-        VCF_frequency_array[2] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
         LFO_index += LFO_index_grain;
-        VCF_frequency_array[3] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
         LFO_index_steps -= 4;
 
         // Serial.print("LFO_index_steps: ");
@@ -2365,17 +2391,18 @@ void AudioPlayer::Send_LFO_to_VCF(void)
     {
         VCF_frequency_pivot += VCF_pivot_grain;
         VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_ptr->Set_filter(0, constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000));  // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
-        VCF_frequency_array[0] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000); // ONLY FOR PRINT
+        VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_ptr->Set_filter(0, VCF_frequency_array[0]);  // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
+        
         VCF_frequency_pivot += VCF_pivot_grain;
         VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[1] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
         VCF_frequency_pivot += VCF_pivot_grain;
         VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[2] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
         VCF_frequency_pivot += VCF_pivot_grain;
         VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[3] = constrain(VCF_central_frequency * pow(2.0f, (LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
+        VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
         VCF_pivot_steps -= 4;
 
         // Serial.print("VCF_pivot_steps: ");
