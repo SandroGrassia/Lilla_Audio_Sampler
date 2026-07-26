@@ -1320,7 +1320,7 @@ void AudioPlayer::update(void)
             if (!shoot_flag && mix_flag && sample < mix_samples)
             {
                 value_float = mix_samples;
-                cache = (sample / value_float) * volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample]))) + (mix_samples - 1 - sample) / ((float)mix_samples - 1.0) * raw_first_value_cache[sample];
+                cache = (sample / value_float) * volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample]))) + (mix_samples - 1 - sample) / (mix_samples - 1.0) * raw_first_value_cache[sample];
                 block[sample] = Lilla_saturate16(cache);
             }
             else if (shoot_flag && mix_flag && sample < mix_samples)

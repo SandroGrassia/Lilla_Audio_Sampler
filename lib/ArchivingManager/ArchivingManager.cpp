@@ -958,7 +958,7 @@ bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int i
 
     if (SD.begin(BUILTIN_SDCARD))
     {
-        if (!SD.exists("/LILLASOUD"))
+        if (!SD.exists("/LILLASOUND"))
         {
             SD.mkdir("/LILLASOUND");
             Serial.println(F("/LILLASOUND directory created"));
