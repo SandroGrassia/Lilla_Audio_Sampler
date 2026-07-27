@@ -10273,14 +10273,14 @@ void LOOP_Compile_midi_loop_file(int loop_id, File &file) // private
         file.println(*(data + i));
     }
 
-    // int LOOP_slide[6]  - total bytes: 4 per each track
+    // int LOOP_slide[TRACKS]  - total bytes: 4 per each track
     data = (const byte *)(const void *)&LOOP_slide[0];
     for (auto i = 0; i < 24; ++i)
     {
         file.println(*(data + i));
     }
 
-    // int LOOP_pitch_int[6] - total bytes: 4 per each track
+    // int LOOP_pitch_int[TRACKS] - total bytes: 4 per each track
     data = (const byte *)(const void *)&LOOP_pitch_int[0];
     for (auto i = 0; i < 24; ++i)
     {

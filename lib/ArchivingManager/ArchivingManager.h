@@ -13,23 +13,24 @@
 #include <SD.h>
 #include <FS.h>
 #include "config.h"
+#include "Functions.h"
 #include "GlobalFRAM.h"
 
 class ArchivingManager
 {
 private:
-    #define AUDIO_BOARD_SDCARD 10
+#define AUDIO_BOARD_SDCARD 10
 
     // Locations of settings data in emulated EEPROM memory (dimension T4.1: 4284 bytes)
     static constexpr int EEPROM_BYTES = 4284;          // Teensy 4.1 EEPROM total bytes
-    static constexpr int LOCATION_PATCH = 0;         // location in EEPROM of Patch[0]   --> 24 patches_number x 90 bytes = 2160 bytes
+    static constexpr int LOCATION_PATCH = 0;           // location in EEPROM of Patch[0]   --> 24 patches_number x 90 bytes = 2160 bytes
     static constexpr int LOCATION_RECORDING = 2160;    // location in EEPROM of Recording[0] --> 30 recordings x 4 bytes = 120 bytes
     static constexpr int LOCATION_SOUND = 2280;        // location in EEPROM of Sound[0]     --> 85 sounds x 22 bytes = 2200 bytes
     static constexpr int LOCATION_OPTIMIZATION = 4235; // extension and voices in Flash mode: 0 --> x3, 8 voices   1 --> x1.5, 12 voices
     static constexpr int LOCATION_FIRST_OCTAVE = 4236; // 1 byte   int8_t -2 --> 0
     static constexpr int LOCATION_DELAY = 4237;        // 17 bytes
     static constexpr int LOCATION_CC_SETTINGS = 4254;  // 31 bytes
-
+    
     template <class T>
     int Eeprom_writeAnything(const size_t, const T &value);
     template <class T>
@@ -45,18 +46,27 @@ private:
     String Filename_patch_Delay(const int patch_id);
     String Filename_Patch(const int patch_id);
     String Filename_Sound(const int patch_id, const int instrument_id);
-
+    
+    static constexpr size_t PATCH_PATH_SIZE = 32;
+    bool Is_SD_inserted(void);
     void Copy_Delay_data_from_RAM_to_SD(File &file);
     void Copy_Delay_data_from_Eeprom_to_SD(File &file);
     void Copy_Delay_data_from_SD_to_Eeprom(File &file);
     void Print_Delay_data_reading_from_Eeprom(void);
 
     void Copy_Delay_data_from_SD_to_RAM(File &file);
-
     void Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
     void Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
     void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
     void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
+    
+    static constexpr uint16_t FILEHEADER_VERSION = 0;
+
+    struct FileHeader
+    {
+        uint16_t version;
+        uint16_t payloadSize;
+    };
 
     struct EEPROM_Instrument_filter_data_struct // 5 bytes
     {
@@ -86,8 +96,8 @@ private:
     } __attribute__((__packed__));              // https://cs50.stackexchange.com/questions/22297/i-am-getting-an-unexpected-sizeof-error
     EEPROM_Patch_struct EEPROM_Patch;
     static constexpr int SIZE_OF_EEPROM_PATCH = sizeof(EEPROM_Patch);
-
-    bool Is_SD_inserted(void);
+    
+    
 
 public:
     ArchivingManager(void) {}
@@ -128,5 +138,9 @@ public:
     bool Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id);
 
     int GET_location_of_DS_Recording(const int &recording);
+    
+    bool Save_Patch_from_RAM_to_SD(const int patch_id);
+    bool Resume_Patch_from_SD_to_RAM(const int patch_id);
+
     bool Test_Fram(const uint8_t writevalue);
 };

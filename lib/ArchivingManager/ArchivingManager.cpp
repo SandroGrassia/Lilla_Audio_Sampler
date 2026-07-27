@@ -97,7 +97,7 @@ bool ArchivingManager::Test_Fram(const uint8_t writevalue)
                 Serial.println(globalAddress);
             }
         }
-        
+
         Serial.print("Chip n.");
         Serial.print(chip);
         Serial.println("- Test done.");
@@ -938,6 +938,175 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
         Serial.println(F("ArchivingManager::Copy_Patch_from_RAM_to_SD - SD not present!"));
         return false;
     }
+}
+
+bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
+{
+    if (patch_id < 0 || patch_id >= PATCHES_MAX)
+    {
+        PRINT_ERROR(F("ERROR: patch_id out of range"));
+        return false;
+    }
+
+    char full_path[PATCH_PATH_SIZE];
+    const int length = snprintf(full_path, sizeof(full_path), "/LILLAPATCH/%d.bin.patch", patch_id);
+
+    if (length < 0 || static_cast<size_t>(length) >= sizeof(full_path))
+    {
+        PRINT_ERROR(F("ERROR: Patch path too long"));
+        return false;
+    }
+
+    if (!Is_SD_inserted())
+    {
+        PRINT_ERROR(F("ERROR: SD not inserted"));
+        return false;
+    }
+
+    else
+    {
+        if (!SD.exists("/LILLAPATCH"))
+        {
+            SD.mkdir("/LILLAPATCH");
+            Serial.println(F("/LILLAPATCH directory created"));
+        }
+
+        if (SD.exists(full_path) && !SD.remove(full_path))
+        {
+            PRINT_ERROR(F("ERROR: impossible to remove previous Patch"));
+            return false;
+        }
+
+        File file = SD.open(full_path, FILE_WRITE);
+
+        if (file)
+        {
+            FileHeader header = {FILEHEADER_VERSION, static_cast<uint16_t>(sizeof(Patch_struct))};
+
+            size_t headerWritten = file.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header));
+            size_t payloadWritten = file.write(reinterpret_cast<const uint8_t *>(&Patch[patch_id]), sizeof(Patch[patch_id]));
+
+            bool success = (headerWritten == sizeof(header)) && (payloadWritten == sizeof(Patch[patch_id]));
+
+            if (success)
+            {
+                Serial.print(F("ArchivingManager::Save_Patch_from_RAM_to_SD - Patch saved in "));
+                Serial.println(full_path);
+
+                file.close();
+                return success;
+            }
+            else
+            {
+                PRINT_ERROR(F("ERROR: incomplete file writing on SD"));
+
+                file.close();
+                return false;
+            }
+        }
+        else
+        {
+            PRINT_ERROR(F("ERROR: file not created on SD"));
+            return false;
+        }
+    }
+
+    PRINT_ERROR(F("ERROR: SD not present for saving Patch"));
+    return false;
+}
+
+bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
+{
+    if (patch_id < 0 || patch_id >= PATCHES_MAX)
+    {
+        PRINT_ERROR(F("ERROR: patch_id out of range"));
+        return false;
+    }
+
+    char full_path[PATCH_PATH_SIZE];
+
+    const int length = snprintf(full_path, sizeof(full_path), "/LILLAPATCH/%d.bin.patch", patch_id);
+
+    if (length < 0 || static_cast<size_t>(length) >= sizeof(full_path))
+    {
+        PRINT_ERROR(F("ERROR: Patch path too long"));
+        return false;
+    }
+
+    if (!Is_SD_inserted())
+    {
+        PRINT_ERROR(F("ERROR: SD not inserted"));
+        return false;
+    }
+
+    if (!SD.exists(full_path))
+    {
+        PRINT_ERROR(F("Patch not present in SD"));
+        return false;
+    }
+
+    // Copy data
+    File file = SD.open(full_path, FILE_READ);
+
+    if (!file)
+    {
+        PRINT_ERROR(F("ERROR: unable to open Patch file"));
+        return false;
+    }
+
+    FileHeader header{};
+    const size_t headerRead = file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header));
+
+    if (headerRead != sizeof(header))
+    {
+        PRINT_ERROR(F("ERROR: incomplete Patch header"));
+        file.close();
+        return false;
+    }
+
+    if (header.version != FILEHEADER_VERSION)
+    {
+        PRINT_ERROR(F("ERROR: unsupported Patch file version"));
+        file.close();
+        return false;
+    }
+
+    if (header.payloadSize != sizeof(Patch_struct))
+    {
+        PRINT_ERROR(F("ERROR: incompatible Patch payload size"));
+        file.close();
+        return false;
+    }
+
+    const uint64_t expectedFileSize = sizeof(FileHeader) + sizeof(Patch_struct);
+
+    if (file.size() != expectedFileSize)
+    {
+        PRINT_ERROR(F("ERROR: invalid Patch file size"));
+        file.close();
+        return false;
+    }
+
+    Patch_struct temporaryPatch{};
+
+    const size_t payloadRead = file.read(reinterpret_cast<uint8_t *>(&temporaryPatch), sizeof(temporaryPatch));
+
+    if (payloadRead != sizeof(temporaryPatch))
+    {
+        PRINT_ERROR(F("ERROR: incomplete Patch payload"));
+        file.close();
+        return false;
+    }
+
+    file.close();
+
+    // Modifica la Patch attiva soltanto dopo una lettura completa.
+    Patch[patch_id] = temporaryPatch;
+
+    Serial.print(F( "ArchivingManager::Resume_Patch_from_SD_to_RAM - Patch restored from "));
+    Serial.println(full_path);
+
+    return true;
 }
 
 void ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file) // private
