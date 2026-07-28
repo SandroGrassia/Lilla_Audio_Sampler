@@ -750,6 +750,7 @@ void DS_Print_Directory(File dir, int numSpaces);
 
 // >>>>>>>>>>> TEST
 bool test_devices = false;
+bool TEST_Current_Patch_SD_round_trip(void);
 
 // >>>>>>>>>>> PROTECTION
 bool exibition = false;
@@ -1046,12 +1047,12 @@ void setup()
     // ********************   GATE IN OUT TEST  ******************
     while (false)
     {
-            Serial.println("Gate OUT high..");
-            Gate_out.Write();
-            delay(2000);
-            Serial.println("Gate OUT low..");
-            Gate_out.Reset();
-            delay(2000);
+        Serial.println("Gate OUT high..");
+        Gate_out.Write();
+        delay(2000);
+        Serial.println("Gate OUT low..");
+        Gate_out.Reset();
+        delay(2000);
     }
 
     while (false)
@@ -1217,17 +1218,23 @@ void loop()
     // Pushbutton tuning tone
     if (Read_pushbutton(EN_PB_TuningTone)) // switch ON/OFF the Tuning Tone
     {
-        /*
+        
 
         // ****************************************************   Test FRAM  *********************************************
-        Archive.Test_Fram(0x91);
+        // Archive.Test_Fram(0x91);
+
 
         // **************************************************   Test Midi Out  *******************************************
+        /*
         result = random(128);
         Midi_out.NoteOn(result, 100,  1);
         Midi_out.NoteOff(result, 100, 1);
-
         */
+        
+
+         // *********************************************    Test SD save Patch   ****************************************
+        // TEST_Current_Patch_SD_round_trip();
+
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -1336,7 +1343,7 @@ void loop()
         {
         case field_P_Menu:
         {
-            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 int8_t new_patch;
 
@@ -1649,7 +1656,7 @@ void loop()
         case field_P_Instrument:
         {
             // Enter Instrument_inside area
-            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 Pointer_Performance.Move_pointer_from_Instrument_to_inside();
                 P_pointer = Pointer_Performance.Get_pointer();
@@ -1666,7 +1673,7 @@ void loop()
             const int sound_id = Patch[Patch_id].Instrument[instrument_id].sound_id;
 
             // Exit from Instrument_inside area
-            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 Pointer_Performance.Move_pointer_from_inside_to_Instrument();
                 P_pointer = Pointer_Performance.Get_pointer();
@@ -2051,7 +2058,7 @@ void loop()
         {
         case field_S_Menu:
         {
-            if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+            if (Read_pushbutton(EN_PB_Select))
             {
                 switch (S_element_menu[S_pointer.menu_element])
                 {
@@ -2162,6 +2169,24 @@ void loop()
                         }
                     }
                 }
+
+                // SOLO
+                if (Read_pushbutton(EN_PB_Select))
+                {
+                    if (!solo_flag)
+                    {
+                        solo_flag = true;
+                        AudioNoInterrupts();
+                        Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
+                        S_Map_one_Instrument_for_all_notes(Instrument_id);
+                        AudioInterrupts();
+                    }
+                    else
+                    {
+                        S_Set_Sound_SOLO_OFF();
+                    }
+                    Display_Sound.Show_wave(Instrument_id);
+                }
             }
             break;
 
@@ -2256,7 +2281,8 @@ void loop()
                     }
                 }
 
-                if (Read_pushbutton(EN_PB_Value))
+                // Set pitch = 1.0
+                else if (Read_pushbutton(EN_PB_Value))
                 {
                     if (Sound[Sound_id].pitch != 0)
                     {
@@ -2309,7 +2335,7 @@ void loop()
                 }
 
                 // SOLO
-                if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+                if (Read_pushbutton(EN_PB_Select))
                 {
                     if (!solo_flag)
                     {
@@ -2352,7 +2378,7 @@ void loop()
                 }
 
                 // Set PAN to center
-                if (Read_pushbutton(EN_PB_Value))
+                else if (Read_pushbutton(EN_PB_Value))
                 {
                     Sound[Sound_id].pan = 0;
 
@@ -2400,7 +2426,7 @@ void loop()
                 }
 
                 // toggle Attack curve
-                if (Read_pushbutton(EN_PB_Value))
+                else if (Read_pushbutton(EN_PB_Value))
                 {
                     AudioNoInterrupts();
                     bitWrite(Sound[Sound_id].data, 0, !bitRead(Sound[Sound_id].data, 0));
@@ -3068,7 +3094,7 @@ void loop()
                 }
 
                 // Solo
-                if (Read_pushbutton(EN_PB_Value) || Read_pushbutton(EN_PB_Select))
+                if (Read_pushbutton(EN_PB_Select))
                 {
                     AudioNoInterrupts();
                     Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
@@ -3105,6 +3131,8 @@ void loop()
 
                 Display_VCF.VCF_show_filter_type_value(Instrument_id);
             }
+
+            // Exclude VCF
             else if (Read_pushbutton(EN_PB_Value) || Read_pushbutton(EN_PB_Select))
             {
                 Macro_VCF_filter_on_none();
@@ -3186,6 +3214,8 @@ void loop()
 
                 Display_VCF.VCF_show_LFO_modulation_source(Instrument_id);
             }
+
+            // Exclude VCF
             else if (Read_pushbutton(EN_PB_Value) || Read_pushbutton(EN_PB_Select))
             {
                 Macro_VCF_modulation_none();
@@ -12952,4 +12982,71 @@ void Reload_system_state(void)
     Trigger_0.Start();
     Trigger_1.Start();
     delay(20);
+}
+
+bool TEST_Current_Patch_SD_round_trip(void)
+{
+    const int test_patch_id = Patch_id;
+
+    Serial.println();
+    Serial.println(F("*** PATCH SD ROUND-TRIP TEST ***"));
+    Serial.print(F("Patch id: "));
+    Serial.println(test_patch_id);
+
+    // Conserva lo stato originale della Patch in uso.
+    const Patch_struct Original_Patch = Patch[test_patch_id];
+
+    // 1. Salvataggio su SD
+    if (!Archive.Save_Patch_from_RAM_to_SD(test_patch_id))
+    {
+        PRINT_ERROR(F("TEST FAILED: unable to save Patch"));
+        return false;
+    }
+
+    Serial.println(F("Patch successfully saved"));
+
+    // 2. Alterazione intenzionale della Patch in RAM.
+    // Serve a dimostrare che Resume non è un semplice no-op.
+    Patch[test_patch_id].used = !Original_Patch.used;
+
+    if (Patch[test_patch_id] == Original_Patch)
+    {
+        PRINT_ERROR(F("TEST FAILED: RAM Patch was not altered"));
+        Patch[test_patch_id] = Original_Patch;
+        return false;
+    }
+
+    Serial.println(F("RAM Patch intentionally altered"));
+
+    // 3. Recupero dalla SD
+    const bool resume_success =
+        Archive.Resume_Patch_from_SD_to_RAM(test_patch_id);
+
+    if (!resume_success)
+    {
+        PRINT_ERROR(F("TEST FAILED: unable to resume Patch"));
+
+        // Mantiene invariato lo stato applicativo anche in caso di errore.
+        Patch[test_patch_id] = Original_Patch;
+        return false;
+    }
+
+    // 4. Confronto campo per campo tramite operator==
+    const bool data_match = Patch[test_patch_id] == Original_Patch;
+
+    // Ripristino finale garantito.
+    // In caso di successo l'assegnazione è ridondante ma innocua.
+    Patch[test_patch_id] = Original_Patch;
+
+    if (!data_match)
+    {
+        PRINT_ERROR(F("TEST FAILED: restored Patch does not match"));
+        return false;
+    }
+
+    Serial.println(F("TEST PASSED: saved and restored Patch match"));
+    Serial.println(F("*** END PATCH SD ROUND-TRIP TEST ***"));
+    Serial.println();
+
+    return true;
 }

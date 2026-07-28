@@ -1109,7 +1109,7 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
     return true;
 }
 
-void ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file) // private
+void ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
 {
     const auto *data = (const byte *)(const void *)&Patch[patch_id];
 
@@ -1119,7 +1119,7 @@ void ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
     }
 }
 
-bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id) // public
+bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id)
 {
     String filename = Filename_Sound(patch_id, instrument_id);
     String full_path = String("/LILLASOUND/" + filename);
@@ -1178,7 +1178,7 @@ void ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int i
     }
 }
 
-bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id) // public
+bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
 {
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLAPATCH/" + filename);
