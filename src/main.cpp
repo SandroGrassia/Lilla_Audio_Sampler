@@ -6595,11 +6595,11 @@ void loop()
                 LOOP_Print_midi_loop_complete_data(LOOP_id);
             }
         }
-
+        
+        // Recording
         for (auto track = 0; track < TRACKS; ++track)
         {
-            // Learning
-            if (Read_pushbutton(PB_Rec[track]) && LOOP_run_button_state)
+            if (Read_pushbutton(PB_Rec[track]) && LOOP_run_button_state && (track == MASTER_TRACK || LOOP_events[MASTER_TRACK] != 0))
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
