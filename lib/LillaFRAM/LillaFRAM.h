@@ -44,13 +44,54 @@
  */
 class LillaFRAM
 {
+private:
+    static constexpr uint8_t MASTER_CODE = 0xF8;
+    static constexpr uint16_t FUJITSU_MANUFACTURER_ID = 0x00A;
+    static constexpr uint8_t MB85RC256V_DENSITY_CODE = 0x05;
+
+
+    enum class BankCheckError : uint8_t
+    {
+        None,
+        ChipNotPresent,
+        DeviceIdReadFailed,
+        WrongManufacturer,
+        WrongCapacity
+    };
+
+    struct BankCheckResult
+    {
+        BankCheckError error;
+        uint8_t chip;
+        uint8_t i2cAddress;
+        uint16_t manufacturer;
+        uint16_t product;
+        uint16_t densityCode;
+
+        bool ok() const
+        {
+            return error == BankCheckError::None;
+        }
+    };
+
+    boolean _framInitialised;
+    uint16_t manufacturer;
+    uint16_t productid;
+    uint16_t densitycode;
+    uint16_t density;
+
+    static bool validRange(uint32_t framAddr, uint32_t items);
+    static uint8_t chipAddress(uint32_t framAddr);
+    static uint16_t localAddress(uint32_t framAddr);
+    byte getDeviceID(uint8_t address, uint16_t &manufacturerId, uint16_t &productId, uint16_t &densityCode);
+    byte beginAddressTransmission(uint32_t framAddr);
+
 public:
     static constexpr uint8_t CHIP_COUNT = 4;
     static constexpr uint8_t FIRST_I2C_ADDRESS = 0x50;
     static constexpr uint32_t CHIP_SIZE = 32768UL;
     static constexpr uint32_t TOTAL_SIZE = CHIP_COUNT * CHIP_SIZE;
     static constexpr uint32_t MAX_ADDRESS = TOTAL_SIZE - 1;
-
     enum Error : byte
     {
         ERROR_0 = 0,
@@ -70,6 +111,7 @@ public:
     LillaFRAM();
 
     void begin();
+    bool Destructive_Fram_Test(const uint8_t writevalue);
     byte checkDevice();
     byte readBit(uint32_t framAddr, uint8_t bitNb, byte *bit);
     byte setOneBit(uint32_t framAddr, uint8_t bitNb);
@@ -87,22 +129,5 @@ public:
     byte getOneDeviceID(uint8_t idType, uint16_t *id);
     boolean isReady() const;
     byte eraseDevice();
-
-private:
-    static constexpr uint8_t MASTER_CODE = 0xF8;
-    static constexpr uint16_t FUJITSU_MANUFACTURER_ID = 0x00A;
-    static constexpr uint8_t MB85RC256V_DENSITY_CODE = 0x05;
-
-    boolean _framInitialised;
-    uint16_t manufacturer;
-    uint16_t productid;
-    uint16_t densitycode;
-    uint16_t density;
-
-    static bool validRange(uint32_t framAddr, uint32_t items);
-    static uint8_t chipAddress(uint32_t framAddr);
-    static uint16_t localAddress(uint32_t framAddr);
-    byte getDeviceID(uint8_t address, uint16_t &manufacturerId,
-                     uint16_t &productId, uint16_t &densityCode);
-    byte beginAddressTransmission(uint32_t framAddr);
+    BankCheckResult checkConfiguredBank();
 };

@@ -1218,11 +1218,9 @@ void loop()
     // Pushbutton tuning tone
     if (Read_pushbutton(EN_PB_TuningTone)) // switch ON/OFF the Tuning Tone
     {
-        
 
         // ****************************************************   Test FRAM  *********************************************
-        // Archive.Test_Fram(0x91);
-
+        // LillaFram.Destructive_Fram_Test(0x91);
 
         // **************************************************   Test Midi Out  *******************************************
         /*
@@ -1230,11 +1228,9 @@ void loop()
         Midi_out.NoteOn(result, 100,  1);
         Midi_out.NoteOff(result, 100, 1);
         */
-        
 
-         // *********************************************    Test SD save Patch   ****************************************
+        // *********************************************    Test SD save Patch   ****************************************
         // TEST_Current_Patch_SD_round_trip();
-
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -6595,7 +6591,7 @@ void loop()
                 LOOP_Print_midi_loop_complete_data(LOOP_id);
             }
         }
-        
+
         // Recording
         for (auto track = 0; track < TRACKS; ++track)
         {
@@ -12773,6 +12769,15 @@ void Startup_hardware_and_objects(void)
     // SDA2: 25
     Wire2.begin();
     Wire2.setClock(1000000); // Wire2.setClock(400000);
+    
+    const auto check = LillaFram.checkConfiguredBank();
+    if (!check.ok())
+    {
+        Serial.print("FRAM check failed at chip ");
+        Serial.print(check.chip);
+        Serial.print(", address 0x");
+        Serial.println(check.i2cAddress, HEX);
+    }
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************   SHIFTERS DATA   **********************
