@@ -12770,13 +12770,16 @@ void Startup_hardware_and_objects(void)
     Wire2.begin();
     Wire2.setClock(1000000); // Wire2.setClock(400000);
     
-    const auto check = LillaFram.checkConfiguredBank();
-    if (!check.ok())
+    const byte result = LillaFram.begin();
+
+    if (result == LillaFRAM::ERROR_0)
     {
-        Serial.print("FRAM check failed at chip ");
-        Serial.print(check.chip);
-        Serial.print(", address 0x");
-        Serial.println(check.i2cAddress, HEX);
+        Serial.println(F("FRAM bank check: OK"));
+    }
+    else
+    {
+        Serial.print(F("FRAM bank check failed, error: "));
+        Serial.println(result);
     }
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

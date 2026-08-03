@@ -35,28 +35,27 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <config.h>
 
 /*
  * Driver for a linear bank of four MB85RC256V FRAM devices on Wire2.
  *
- * Device addresses: 0x50, 0x51, 0x52, 0x53
- * Linear address:   0x00000 .. 0x1FFFF (128 KiB)
+ * Available chip addresses: 0x50, 0x51, 0x52, 0x53
+ * Linear address example:
+ * 0x00000 .. 0x1FFFF (128 KiB)
+ * 
  */
+
 class LillaFRAM
 {
 private:
-    static constexpr uint8_t MASTER_CODE = 0xF8;
-    static constexpr uint16_t FUJITSU_MANUFACTURER_ID = 0x00A;
-    static constexpr uint8_t MB85RC256V_DENSITY_CODE = 0x05;
-
-
     enum class BankCheckError : uint8_t
     {
-        None,
-        ChipNotPresent,
-        DeviceIdReadFailed,
-        WrongManufacturer,
-        WrongCapacity
+        None = 0,
+        ChipNotPresent = 1,
+        DeviceIdReadFailed = 2,
+        WrongManufacturer = 3,
+        WrongCapacity = 4
     };
 
     struct BankCheckResult
@@ -87,10 +86,8 @@ private:
     byte beginAddressTransmission(uint32_t framAddr);
 
 public:
-    static constexpr uint8_t CHIP_COUNT = 4;
     static constexpr uint8_t FIRST_I2C_ADDRESS = 0x50;
-    static constexpr uint32_t CHIP_SIZE = 32768UL;
-    static constexpr uint32_t TOTAL_SIZE = CHIP_COUNT * CHIP_SIZE;
+    static constexpr uint32_t TOTAL_SIZE = FRAM_CHIPS * FRAM_CHIP_SIZE;
     static constexpr uint32_t MAX_ADDRESS = TOTAL_SIZE - 1;
     enum Error : byte
     {
@@ -110,8 +107,8 @@ public:
 
     LillaFRAM();
 
-    void begin();
-    bool Destructive_Fram_Test(const uint8_t writevalue);
+    byte begin();
+    void Destructive_Fram_Test(const uint8_t writevalue);
     byte checkDevice();
     byte readBit(uint32_t framAddr, uint8_t bitNb, byte *bit);
     byte setOneBit(uint32_t framAddr, uint8_t bitNb);
@@ -129,5 +126,4 @@ public:
     byte getOneDeviceID(uint8_t idType, uint16_t *id);
     boolean isReady() const;
     byte eraseDevice();
-    BankCheckResult checkConfiguredBank();
 };

@@ -37,9 +37,15 @@ static constexpr int GATE_OUT_pin = 22;
 // Configure GateIn and GateOut GPIO pins
 void Setup_GATE_pins(void);
 
-// FRAM chips su I2C n.2
+// FRAM chips Fujitsu MB85RC256V (32KByte) su I2C n.2
 // SCL2 pin 24
 // SDA2 pin 25
+static constexpr uint8_t FRAM_CHIPS = 2;
+static constexpr uint32_t FRAM_CHIP_SIZE = 32768UL;
+static constexpr uint8_t FRAM_DEVICE_ID_RESERVED_SLAVE_ID = 0xF8;
+static constexpr uint16_t FRAM_MANUFACTURER_ID = 0x00A;
+static constexpr uint8_t FRAM_DENSITY_CODE = 0x05;
+
 
 // MAIN CONSTANTS
 static constexpr int PLAYERS = 16;
