@@ -160,7 +160,7 @@
 
 #include "ArchivingManager.h"
 #include "PsramManager.h"
-#include "LillaFRAM_2x256.h"
+#include "LillaFRAM_2x512.h"
 
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
@@ -388,7 +388,7 @@ Switches Switches_manager;
 ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager, Switches_manager);
 
 // FRAM
-LillaFRAM_2x256 LillaFram;
+LillaFRAM_2x512 LillaFram;
 
 // Pointers
 PointerPerformance Pointer_Performance;
@@ -12772,7 +12772,7 @@ void Startup_hardware_and_objects(void)
     
     const byte result = LillaFram.begin();
 
-    if (result == LillaFRAM_2x256::ERROR_0)
+    if (result == LillaFRAM_2x512::ERROR_0)
     {
         Serial.println(F("FRAM bank check: OK"));
     }

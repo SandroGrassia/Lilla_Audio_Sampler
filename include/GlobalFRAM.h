@@ -7,10 +7,10 @@
 #pragma once
 
 #include <Arduino.h>
-#include <LillaFRAM_2x256.h>
+#include <LillaFRAM_2x512.h>
 
 // static constexpr int FRAM_LOCATIONS = 0b1000000000000000;
-extern LillaFRAM_2x256 LillaFram;
+extern LillaFRAM_2x512 LillaFram;
 
 /*
 
@@ -28,29 +28,8 @@ SDA2: 25
 Pullup resistor:
 "1K to 4.7K resistors are recommended for most applications. The on-chip pullup resistors in Teensy 2.0, Teensy 4.0, Teensy 4.1 are very weak. Usually communication with 1 chip at 100kHz can work, but with poor signal quality. The on-chip resistors are not enough for several chips or higher speeds."
 
-*****************************
-*** Lilla case, 256K chip ***
-*****************************
-
-| Model          | Density (kB) | Device addressing | Device ID feature | Density code | Memory addressing | Tested |
-| **MB85RC256V** | 256          | 7 bits            | Yes               | 0x05         | 15 bits           | Yes    |
-
-256Kbit/8 --> 32KB
-from 0: 0b 0000 0000 0000 0000
-to 32K - 1 = 2^15 - 1 = 0b 01111111 11111111 (requires 15 bit)
-
-| FRAM | I²C    | Indirizzo globale | Indirizzo locale |
-
-| 0    | `0x50` | `0x00000–0x07FFF` | `0x0000–0x7FFF` |
-| 1    | `0x51` | `0x08000–0x0FFFF` | `0x0000–0x7FFF` |
-| 2    | `0x52` | `0x10000–0x17FFF` | `0x0000–0x7FFF` |
-| 3    | `0x53` | `0x18000–0x1FFFF` | `0x0000–0x7FFF` |
-
-FRAM 0:      0  –  32.767
-FRAM 1: 32.768  –  65.535
-FRAM 2: 65.536  –  98.303
-FRAM 3: 98.304  – 131.071
-
+FRAM 0:      0  –  65.535
+FRAM 1: 65.536  - 131.071
 
 generic memory location (15 bit): 0b 0abcdefg hijklmno
 
