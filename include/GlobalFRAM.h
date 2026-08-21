@@ -7,10 +7,10 @@
 #pragma once
 
 #include <Arduino.h>
-#include <LillaFRAM.h>
+#include <LillaFRAM_2x256.h>
 
 // static constexpr int FRAM_LOCATIONS = 0b1000000000000000;
-extern LillaFRAM LillaFram;
+extern LillaFRAM_2x256 LillaFram;
 
 /*
 

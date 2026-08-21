@@ -38,17 +38,43 @@
 #include <config.h>
 
 /*
- * Driver for a linear bank of four MB85RC256V FRAM devices on Wire2.
- *
- * Available chip addresses: 0x50, 0x51, 0x52, 0x53
- * Linear address example:
- * 0x00000 .. 0x1FFFF (128 KiB)
- * 
+
+Driver for a linear bank of n.2 chips MB85RC256V (32KByte) on I2C number 2.
+ 
+chip addresses: 0x50, 0x51 (not used 0x52, 0x53)
+
+byte addresses:
+FRAM 0:      0  –  32.767
+FRAM 1: 32.768  –  65.535
+
+not used:
+FRAM 2: 65.536  –  98.303
+FRAM 3: 98.304  – 131.071
+
+This class implements a "global address" strategy:
+
+| FRAM | I²C    | Indirizzo globale | Indirizzo locale |
+| 0    | `0x50` | `0x00000–0x07FFF` | `0x0000–0x7FFF` |
+| 1    | `0x51` | `0x08000–0x0FFFF` | `0x0000–0x7FFF` |
+
+not used:
+| 2    | `0x52` | `0x10000–0x17FFF` | `0x0000–0x7FFF` |
+| 3    | `0x53` | `0x18000–0x1FFFF` | `0x0000–0x7FFF` |
+
  */
 
-class LillaFRAM
+class LillaFRAM_2x256
 {
 private:
+    // n2 chip FRAM chips Fujitsu MB85RC256V on I2C_2:
+    // SCL2 pin 24
+    // SDA2 pin 25
+    static constexpr uint8_t FRAM_CHIPS = 2;
+    static constexpr uint32_t FRAM_CHIP_SIZE = 32768UL;
+    static constexpr uint8_t FRAM_DEVICE_ID_RESERVED_SLAVE_ID = 0xF8;
+    static constexpr uint16_t FRAM_MANUFACTURER_ID = 0x00A;
+    static constexpr uint8_t FRAM_DENSITY_CODE = 0x05;
+
     enum class BankCheckError : uint8_t
     {
         None = 0,
@@ -105,7 +131,7 @@ public:
         ERROR_11 = 11
     };
 
-    LillaFRAM();
+    LillaFRAM_2x256();
 
     byte begin();
     void Destructive_Fram_Test(const uint8_t writevalue);

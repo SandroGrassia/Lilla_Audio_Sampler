@@ -1,26 +1,26 @@
 /**************************************************************************
  * Derived from FRAM_MB85RC_I2C by SOSAndroid.fr (E. Ha.).
- * Adapted for LILLA Audio Sampler to manage four MB85RC256V devices as a
+ * Adapted for LILLA Audio Sampler to manage n.2 MB85RC256V devices as a
  * single linear address space.
  *
  * Distributed under the BSD License reproduced in LillaFRAM.h.
  * Copyright (c) 2013, SOSAndroid.fr (E. Ha.). All rights reserved.
  **************************************************************************/
 
-#include "LillaFRAM.h"
+#include "LillaFRAM_2x256.h"
 
 #include <string.h>
 
-LillaFRAM::LillaFRAM() : _framInitialised(false), manufacturer(0), productid(0), densitycode(0), density(0)
+LillaFRAM_2x256::LillaFRAM_2x256() : _framInitialised(false), manufacturer(0), productid(0), densitycode(0), density(0)
 {
 }
 
-byte LillaFRAM::begin()
+byte LillaFRAM_2x256::begin()
 {
     return checkDevice();
 }
 
-byte LillaFRAM::checkDevice(void)
+byte LillaFRAM_2x256::checkDevice(void)
 {
     _framInitialised = false;
 
@@ -48,22 +48,22 @@ byte LillaFRAM::checkDevice(void)
     return ERROR_0;
 }
 
-bool LillaFRAM::validRange(uint32_t framAddr, uint32_t items)
+bool LillaFRAM_2x256::validRange(uint32_t framAddr, uint32_t items)
 {
     return items != 0 && framAddr < TOTAL_SIZE && items <= (TOTAL_SIZE - framAddr);
 }
 
-uint8_t LillaFRAM::chipAddress(uint32_t framAddr)
+uint8_t LillaFRAM_2x256::chipAddress(uint32_t framAddr)
 {
     return FIRST_I2C_ADDRESS + static_cast<uint8_t>(framAddr / FRAM_CHIP_SIZE);
 }
 
-uint16_t LillaFRAM::localAddress(uint32_t framAddr)
+uint16_t LillaFRAM_2x256::localAddress(uint32_t framAddr)
 {
     return static_cast<uint16_t>(framAddr % FRAM_CHIP_SIZE);
 }
 
-byte LillaFRAM::beginAddressTransmission(uint32_t framAddr)
+byte LillaFRAM_2x256::beginAddressTransmission(uint32_t framAddr)
 {
     const uint16_t address = localAddress(framAddr);
     Wire2.beginTransmission(chipAddress(framAddr));
@@ -72,7 +72,7 @@ byte LillaFRAM::beginAddressTransmission(uint32_t framAddr)
     return ERROR_0;
 }
 
-byte LillaFRAM::writeArray(uint32_t framAddr, byte items, uint8_t values[])
+byte LillaFRAM_2x256::writeArray(uint32_t framAddr, byte items, uint8_t values[])
 {
     if (items == 0)
     {
@@ -113,7 +113,7 @@ byte LillaFRAM::writeArray(uint32_t framAddr, byte items, uint8_t values[])
     return ERROR_0;
 }
 
-byte LillaFRAM::readArray(uint32_t framAddr, byte items, uint8_t values[])
+byte LillaFRAM_2x256::readArray(uint32_t framAddr, byte items, uint8_t values[])
 {
     if (items == 0)
     {
@@ -163,24 +163,24 @@ byte LillaFRAM::readArray(uint32_t framAddr, byte items, uint8_t values[])
     return ERROR_0;
 }
 
-byte LillaFRAM::writeByte(uint32_t framAddr, uint8_t value)
+byte LillaFRAM_2x256::writeByte(uint32_t framAddr, uint8_t value)
 {
     return writeArray(framAddr, 1, &value);
 }
 
-byte LillaFRAM::readByte(uint32_t framAddr, uint8_t *value)
+byte LillaFRAM_2x256::readByte(uint32_t framAddr, uint8_t *value)
 {
     return readArray(framAddr, 1, value);
 }
 
-byte LillaFRAM::copyByte(uint32_t origAddr, uint32_t destAddr)
+byte LillaFRAM_2x256::copyByte(uint32_t origAddr, uint32_t destAddr)
 {
     uint8_t value = 0;
     byte result = readByte(origAddr, &value);
     return result == ERROR_0 ? writeByte(destAddr, value) : result;
 }
 
-byte LillaFRAM::readBit(uint32_t framAddr, uint8_t bitNb, byte *bit)
+byte LillaFRAM_2x256::readBit(uint32_t framAddr, uint8_t bitNb, byte *bit)
 {
     if (bitNb > 7)
     {
@@ -197,7 +197,7 @@ byte LillaFRAM::readBit(uint32_t framAddr, uint8_t bitNb, byte *bit)
     return result;
 }
 
-byte LillaFRAM::setOneBit(uint32_t framAddr, uint8_t bitNb)
+byte LillaFRAM_2x256::setOneBit(uint32_t framAddr, uint8_t bitNb)
 {
     if (bitNb > 7)
     {
@@ -215,7 +215,7 @@ byte LillaFRAM::setOneBit(uint32_t framAddr, uint8_t bitNb)
     return writeByte(framAddr, value);
 }
 
-byte LillaFRAM::clearOneBit(uint32_t framAddr, uint8_t bitNb)
+byte LillaFRAM_2x256::clearOneBit(uint32_t framAddr, uint8_t bitNb)
 {
     if (bitNb > 7)
     {
@@ -231,7 +231,7 @@ byte LillaFRAM::clearOneBit(uint32_t framAddr, uint8_t bitNb)
     return writeByte(framAddr, value);
 }
 
-byte LillaFRAM::toggleBit(uint32_t framAddr, uint8_t bitNb)
+byte LillaFRAM_2x256::toggleBit(uint32_t framAddr, uint8_t bitNb)
 {
     if (bitNb > 7)
     {
@@ -247,7 +247,7 @@ byte LillaFRAM::toggleBit(uint32_t framAddr, uint8_t bitNb)
     return writeByte(framAddr, value);
 }
 
-byte LillaFRAM::readWord(uint32_t framAddr, uint16_t *value)
+byte LillaFRAM_2x256::readWord(uint32_t framAddr, uint16_t *value)
 {
     uint8_t buffer[sizeof(*value)];
     const byte result = readArray(framAddr, sizeof(buffer), buffer);
@@ -258,12 +258,12 @@ byte LillaFRAM::readWord(uint32_t framAddr, uint16_t *value)
     return result;
 }
 
-byte LillaFRAM::writeWord(uint32_t framAddr, uint16_t value)
+byte LillaFRAM_2x256::writeWord(uint32_t framAddr, uint16_t value)
 {
     return writeArray(framAddr, sizeof(value), reinterpret_cast<uint8_t *>(&value));
 }
 
-byte LillaFRAM::readLong(uint32_t framAddr, uint32_t *value)
+byte LillaFRAM_2x256::readLong(uint32_t framAddr, uint32_t *value)
 {
     uint8_t buffer[sizeof(*value)];
     const byte result = readArray(framAddr, sizeof(buffer), buffer);
@@ -274,12 +274,12 @@ byte LillaFRAM::readLong(uint32_t framAddr, uint32_t *value)
     return result;
 }
 
-byte LillaFRAM::writeLong(uint32_t framAddr, uint32_t value)
+byte LillaFRAM_2x256::writeLong(uint32_t framAddr, uint32_t value)
 {
     return writeArray(framAddr, sizeof(value), reinterpret_cast<uint8_t *>(&value));
 }
 
-byte LillaFRAM::getOneDeviceID(uint8_t idType, uint16_t *id)
+byte LillaFRAM_2x256::getOneDeviceID(uint8_t idType, uint16_t *id)
 {
     switch (idType)
     {
@@ -301,12 +301,12 @@ byte LillaFRAM::getOneDeviceID(uint8_t idType, uint16_t *id)
     }
 }
 
-boolean LillaFRAM::isReady() const
+boolean LillaFRAM_2x256::isReady() const
 {
     return _framInitialised;
 }
 
-byte LillaFRAM::eraseDevice()
+byte LillaFRAM_2x256::eraseDevice()
 {
     for (uint32_t address = 0; address < TOTAL_SIZE; ++address)
     {
@@ -319,8 +319,7 @@ byte LillaFRAM::eraseDevice()
     return ERROR_0;
 }
 
-byte LillaFRAM::getDeviceID(uint8_t address, uint16_t &manufacturerId,
-                            uint16_t &productId, uint16_t &densityCode)
+byte LillaFRAM_2x256::getDeviceID(uint8_t address, uint16_t &manufacturerId, uint16_t &productId, uint16_t &densityCode)
 {
     uint8_t buffer[3] = {0, 0, 0};
 
@@ -347,23 +346,8 @@ byte LillaFRAM::getDeviceID(uint8_t address, uint16_t &manufacturerId,
     return ERROR_0;
 }
 
-void LillaFRAM::Destructive_Fram_Test(const uint8_t writevalue)
+void LillaFRAM_2x256::Destructive_Fram_Test(const uint8_t writevalue)
 {
-
-    /*
-        | FRAM | I²C    | Indirizzo globale | Indirizzo locale |
-
-        | 0    | `0x50` | `0x00000–0x07FFF` | `0x0000–0x7FFF` |
-        | 1    | `0x51` | `0x08000–0x0FFFF` | `0x0000–0x7FFF` |
-        | 2    | `0x52` | `0x10000–0x17FFF` | `0x0000–0x7FFF` |
-        | 3    | `0x53` | `0x18000–0x1FFFF` | `0x0000–0x7FFF` |
-
-        FRAM 0:      0  –  32.767
-        FRAM 1: 32.768  –  65.535
-        FRAM 2: 65.536  –  98.303
-        FRAM 3: 98.304  – 131.071
-    */
-
     Serial.println("ArchivingManager::Destructive_Fram_Test(void) - start - first 1000 byte of each chip are written.");
 
     bool chipPresent[FRAM_CHIPS] = {false};
@@ -371,7 +355,7 @@ void LillaFRAM::Destructive_Fram_Test(const uint8_t writevalue)
     // Verifica la presenza di ciascun chip
     for (uint8_t chip = 0; chip < FRAM_CHIPS; ++chip)
     {
-        const uint8_t i2cAddress = LillaFRAM::FIRST_I2C_ADDRESS + chip;
+        const uint8_t i2cAddress = LillaFRAM_2x256::FIRST_I2C_ADDRESS + chip;
 
         Wire2.beginTransmission(i2cAddress);
         chipPresent[chip] = (Wire2.endTransmission() == 0);
@@ -398,7 +382,7 @@ void LillaFRAM::Destructive_Fram_Test(const uint8_t writevalue)
             const uint32_t globalAddress = chipBaseAddress + localAddress;
             const byte writeResult = writeByte(globalAddress, writevalue);
 
-            if (writeResult != LillaFRAM::ERROR_0)
+            if (writeResult != LillaFRAM_2x256::ERROR_0)
             {
                 Serial.print(F("WRITE error on FRAM "));
                 Serial.print(chip);
@@ -410,7 +394,7 @@ void LillaFRAM::Destructive_Fram_Test(const uint8_t writevalue)
             uint8_t readvalue = 0;
             const byte readResult = readByte(globalAddress, &readvalue);
 
-            if (readResult != LillaFRAM::ERROR_0)
+            if (readResult != LillaFRAM_2x256::ERROR_0)
             {
                 Serial.print(F("READ error on FRAM "));
                 Serial.print(chip);
