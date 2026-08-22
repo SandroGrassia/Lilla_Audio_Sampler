@@ -11,18 +11,19 @@
 // **************       VERSIONE LILLA         **************
 // **********************************************************
 /*
-    PCB: LILLA_2026_R2 - 2 PCBs
+    PCB: LILLA_2026_R2 - august 2026
 
     Hardware
-    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes); clock 600MHz
+    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes)
     - Audio Adaptor Rev.D
     - display: SPI ILI9341 240x320
     - n.1 Mic amplifier (AD828A) module
     - n.1 SPI Flash memory chip 64MB (W25Q512JVFIM)
-    - n.2 QSPI PSRAM chips 8MB (APS6404L-3SQR or ESP-PSRAM64H) tot: 16MB
-    - n.4 FRAM chips
+    - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
+    - n.2 FRAM chips 64Mbyte tot: 128MByte
     - n.5 Shift registers chips (MCP23S17)
-
+    
+    Microcontrolleer
     RAM1 (fast): 512KB (16 blocks x 32KB)
     RAM2 (4 times slower): 512KB
 
@@ -53,7 +54,7 @@
     - Live Sampler stores audio into 2 x 8MB PSRAM chips
 
     Midi Loop
-    - Midi Loope stores loops data into the micro SD card
+    - Midi Loop stores loops data into the micro SD card
 
     Notes from: https://gist.github.com/somebox/d969f8a97e5a4362af5049ed554a9e69
     - Fact (Voltage Levels): Teensy 4.1 operates at 3.3V logic levels. Its I/O pins are NOT 5V tolerant. Applying more than 3.3V to any general-purpose I/O pin will cause permanent damage.
