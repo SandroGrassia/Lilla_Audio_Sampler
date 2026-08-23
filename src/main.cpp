@@ -7476,6 +7476,8 @@ void loop()
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
+                    TOOLS_pushbutton = false;
+                    Shifters_manager.Switch_led(LED_Tools, false);
                     Reload_system_state();
                 }
                 else
@@ -12728,7 +12730,7 @@ void Startup_hardware_and_objects(void)
 
     // Setup Display (module)
     tft.begin();
-    tft.setRotation(1);
+    tft.setRotation(3);
     tft.setTextWrap(false);
     tft.fillScreen(ILI9341_BLACK);
     canvas.setTextWrap(false);
