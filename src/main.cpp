@@ -7476,8 +7476,11 @@ void loop()
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
+
+                    // switch off Tools LED
                     TOOLS_pushbutton = false;
                     Shifters_manager.Switch_led(LED_Tools, false);
+
                     Reload_system_state();
                 }
                 else
@@ -7529,6 +7532,11 @@ void loop()
 
                     // eventually imported Recordings MUST be deleted
                     DS_seed_all_Recordings();
+
+                    // switch off Tools LED
+                    TOOLS_pushbutton = false;
+                    Shifters_manager.Switch_led(LED_Tools, false);
+
                     Reload_system_state();
                 }
                 break;
@@ -7602,6 +7610,11 @@ void loop()
                 Display_Manager.Factory_reset_wait_popup();
 
                 delay(3000); // per ripensamenti last minute!
+
+                // switch off Tools LED
+                TOOLS_pushbutton = false;
+                Shifters_manager.Switch_led(LED_Tools, false);
+
                 Factory_setup_Eeprom();
                 Reload_system_state();
                 break;
