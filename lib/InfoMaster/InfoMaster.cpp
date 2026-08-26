@@ -91,54 +91,165 @@ int16_t *InfoMaster::Sound_620_samples_array(int file_id, uint32_t A, uint32_t B
         samples_620_array[i] = 0;
     }
 
-    // (B - A + 1) >= 100
-    float samples_per_pixel = (B - A + 1) / WAVEBOARD_WIDTH_F;                                     // fondamentale il "." nel divisore!!
-    int Samples = (samples_per_pixel >= BASKET_INFO ? BASKET_INFO : ceil(samples_per_pixel)); // numero di campioni da leggere 1 <= Samples <= BASKET_INFO
-
-    for (auto i = 0; i < WAVEBOARD_WIDTH; ++i)
+    if (B < A)
     {
-        //    samples_per_pixel = 0.7
-        //    file_id:   A          (A+1)      (A+2)      (A+3)      (A+5)         .......................B
-        //    position:  0       0.7  |   1.4    2.1     2.8|    3.5   |
-        //    position:  p        p   |    p     |p       p |     p    |
+        return samples_620_array;
+    }
 
-        float position = samples_per_pixel * i;
-        Read_samples(file_id, samples_basket, A + position, (Samples <= 2 ? 2 : Samples));
+    // (B - A + 1) >= 100
 
-        int16_t max_pos = 0;
-        int16_t min_neg = 0;
+    const uint32_t span = B - A + 1;
 
-        if (samples_per_pixel <= 1.0001)
+    if (span <= static_cast<uint32_t>(WAVEBOARD_WIDTH))
+    {
+        // In questo ramo span <= WAVEBOARD_WIDTH e quindi entra interamente in samples_basket[BASKET_INFO].
+        const int samples_to_read = static_cast<int>(span);
+
+        // Protegge da un eventuale errore o lettura incompleta.
+        memset(samples_basket, 0, samples_to_read * sizeof(samples_basket[0]));
+
+        // Una sola lettura Flash invece di WAVEBOARD_WIDTH letture.
+        Read_samples(file_id, samples_basket, static_cast<int>(A), samples_to_read);
+
+        // Mappa esattamente:
+        // colonna 0                      -> campione A
+        // colonna WAVEBOARD_WIDTH - 1    -> campione B
+        const float position_step = static_cast<float>(span - 1) / static_cast<float>(WAVEBOARD_WIDTH - 1);
+
+        for (int i = 0; i < WAVEBOARD_WIDTH; ++i)
         {
-            float microposition = position - floor(position);
-            int16_t value = samples_basket[0] + (samples_basket[1] - samples_basket[0]) * microposition;
-            if (value >= 0)
-            {
-                max_pos = value;
-            }
-            else
-            {
-                min_neg = value;
-            }
+            const float position = position_step * i;
+            const uint32_t lower = static_cast<uint32_t>(position);
+            const uint32_t upper = (lower + 1 < span) ? lower + 1 : lower;
+            const float fraction = position - static_cast<float>(lower);
+            const float interpolated = samples_basket[lower] + (samples_basket[upper] - samples_basket[lower]) * fraction;
+            const int16_t value = static_cast<int16_t>(lroundf(interpolated));
+            samples_620_array[i] = value > 0 ? value : 0;
+            samples_620_array[i + WAVEBOARD_WIDTH] = value < 0 ? value : 0;
         }
 
-        else
+        return samples_620_array;
+    }
+
+    if (span <= BASKET_INFO)
+    {
+        // Protegge da un eventuale errore o lettura incompleta.
+        memset(samples_basket, 0, span * sizeof(samples_basket[0]));
+
+        // Un'unica lettura per tutta la finestra [A, B].
+        Read_samples(file_id, samples_basket, static_cast<int>(A), span);
+
+        for (int i = 0; i < WAVEBOARD_WIDTH; ++i)
         {
-            for (auto j = 0; j < Samples; ++j)
+            // Suddivisione intera ed esatta dell'intervallo.
+            const uint32_t first = (static_cast<uint32_t>(i) * span) / WAVEBOARD_WIDTH;
+            const uint32_t last_excluded = (static_cast<uint32_t>(i + 1) * span) / WAVEBOARD_WIDTH;
+
+            int16_t max_pos = 0;
+            int16_t min_neg = 0;
+
+            for (uint32_t j = first; j < last_excluded; ++j)
             {
-                if (samples_basket[j] >= 0 && samples_basket[j] > max_pos)
+                const int16_t value = samples_basket[j];
+
+                if (value > max_pos)
                 {
-                    max_pos = samples_basket[j];
+                    max_pos = value;
                 }
-                if (samples_basket[j] < 0 && samples_basket[j] < min_neg)
+                else if (value < min_neg)
                 {
-                    min_neg = samples_basket[j];
+                    min_neg = value;
                 }
             }
-        }
 
-        samples_620_array[i] = max_pos;
-        samples_620_array[i + WAVEBOARD_WIDTH] = min_neg;
+            samples_620_array[i] = max_pos;
+            samples_620_array[i + WAVEBOARD_WIDTH] = min_neg;
+        }
+        return samples_620_array;
+    }
+
+    // Se la scansione completa richiederebbe più di 310 letture, viene effettuata una sola lettura per ogni colonna.
+    if (span > FULL_SCAN_LIMIT)
+    {
+        for (int pixel = 0; pixel < WAVEBOARD_WIDTH; ++pixel)
+        {
+            // Intervallo completo rappresentato dalla colonna.
+            const uint32_t first = static_cast<uint32_t>((static_cast<uint64_t>(pixel) * span) / WAVEBOARD_WIDTH);
+
+            const uint32_t last_excluded = static_cast<uint32_t>((static_cast<uint64_t>(pixel + 1) * span) / WAVEBOARD_WIDTH);
+            const uint32_t pixel_span = last_excluded - first;
+            const uint32_t samples_to_read = pixel_span < BASKET_INFO ? pixel_span : BASKET_INFO;
+
+            // Se l'intervallo è più grande del basket, seleziona una finestra centrata per evitare una preferenza sistematica verso il suo inizio.
+            const uint32_t read_offset = first + ((pixel_span - samples_to_read) / 2);
+
+            // Protegge da un eventuale errore o lettura incompleta.
+            memset(samples_basket, 0, samples_to_read * sizeof(samples_basket[0]));
+
+            Read_samples(file_id, samples_basket, static_cast<int>(A + read_offset), samples_to_read);
+
+            int16_t max_pos = 0;
+            int16_t min_neg = 0;
+
+            for (uint32_t j = 0; j < samples_to_read; ++j)
+            {
+                const int16_t sample = samples_basket[j];
+
+                if (sample > max_pos)
+                {
+                    max_pos = sample;
+                }
+                else if (sample < min_neg)
+                {
+                    min_neg = sample;
+                }
+            }
+
+            samples_620_array[pixel] = max_pos;
+            samples_620_array[pixel + WAVEBOARD_WIDTH] = min_neg;
+        }
+        return samples_620_array;
+    }
+
+    // Case BASKET_INFO < span <= FULL_SCAN_LIMIT --> block sequential reading, using all samples_basket elements.
+    uint32_t processed = 0;
+    int pixel = 0;
+    uint32_t next_pixel_offset = static_cast<uint32_t>((static_cast<uint64_t>(pixel + 1) * span) / WAVEBOARD_WIDTH);
+
+    while (processed < span)
+    {
+        const uint32_t remaining = span - processed;
+
+        const int samples_to_read = static_cast<int>(remaining < BASKET_INFO ? remaining : BASKET_INFO);
+
+        // Protegge da un eventuale errore o lettura incompleta.
+        memset(samples_basket, 0, samples_to_read * sizeof(samples_basket[0]));
+
+        Read_samples(file_id, samples_basket, static_cast<int>(A + processed), samples_to_read);
+
+        for (int j = 0; j < samples_to_read; ++j)
+        {
+            const uint32_t sample_offset = processed + static_cast<uint32_t>(j);
+
+            // Avanza alla colonna alla quale appartiene il campione.
+            while (pixel < WAVEBOARD_WIDTH - 1 && sample_offset >= next_pixel_offset)
+            {
+                ++pixel;
+                next_pixel_offset = static_cast<uint32_t>((static_cast<uint64_t>(pixel + 1) * span) / WAVEBOARD_WIDTH);
+            }
+
+            const int16_t sample = samples_basket[j];
+
+            if (sample > samples_620_array[pixel])
+            {
+                samples_620_array[pixel] = sample;
+            }
+            else if (sample < samples_620_array[pixel + WAVEBOARD_WIDTH])
+            {
+                samples_620_array[pixel + WAVEBOARD_WIDTH] = sample;
+            }
+        }
+        processed += static_cast<uint32_t>(samples_to_read);
     }
     return samples_620_array;
 }
@@ -156,11 +267,10 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
     int samples_to_read;  // numero di campioni da leggere per una riga verticale della window
     int samples_per_line; // numero di campioni associati ad una riga verticale della window
 
-
     if (file_id == FIRST_LIVE_SAMPLING_FILE)
     {
         FIFO = LS_buffer_mono_ptr;
-        FIFO_dim = LS_CACHE_MONO_SAMPLES; // samples
+        FIFO_dim = LS_CACHE_SAMPLES; // samples
     }
     else if (file_id == FIRST_LIVE_SAMPLING_FILE + 1)
     {
@@ -295,7 +405,7 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
                 min_neg = samples_basket[j];
             }
         }
-        
+
         samples_620_array[i] = max_pos;
         samples_620_array[i + WAVEBOARD_WIDTH] = min_neg;
     }
@@ -403,7 +513,7 @@ void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, in
         }
 
         int last_sample = seek_in + samples_in - 1;
-        
+
         if (last_sample <= FIFO_dim - 1)
         {
             memcpy(destination, (FIFO + seek_in), total_bytes);

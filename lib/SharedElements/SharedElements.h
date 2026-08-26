@@ -9,7 +9,12 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <array>
+#include <AudioStream.h>
 #include "config.h"
+
+
+static constexpr int AUDIO_BLOCK_BYTES = AUDIO_BLOCK_SAMPLES * 2;
+
 
 // LILLA STATE
 extern uint8_t Lilla_state;
@@ -77,25 +82,37 @@ extern int verified_flash_memory_MB;
 int FLASHMEM Get_flash_size(void);       // definita in main.cpp
 int VFS_Get_packets_free(void);          // definita in main.cpp ma possibile trasferirla qui
 int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
-
-
-// PSRAM MANAGEMENT
+ 
 /*
-PSRAM_16MB
-total space: 16.777.216 byte
-pointer space (in excess): 500 byte
-audio data space = total space - pointer space = 16.776.704 byte (190sec @44.1Ksps/16bit)
-delay space = 220672 Samples x 2 byte x 2 channels = 882.688 byte (about 5 sec per channel)
-applications data space = audio data space - delay space = 15.894.016 byte
+    PSRAM MANAGEMENT
+    
+    Lilla 2026 PCB R2 includes:
+    - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
+
+    Raw space = 33.554.432 byte;
+    Metadata space = 0 --> only static allocation
+    Audio space = Raw space = 380.4 sec
+
+    Delay space = DELAY_CACHE_BYTES x 2 channels
+    Live Sampler space max = LS_CACHE_BYTES X 2 channels
+
+    Patch space = Audio space - Delay space - Live Sampler space
 */
-// Live sampler cache
-static constexpr int LS_CACHE_MONO_SAMPLES = 7946752;
-static constexpr uint32_t LS_CACHE_MONO_BYTES = LS_CACHE_MONO_SAMPLES << 1; // 0xf28400 - 15.893.504
-static constexpr int LS_CACHE_STEREO_SAMPLES = 3973376; 
-static constexpr uint32_t LS_CACHE_STEREO_BYTES = LS_CACHE_STEREO_SAMPLES << 1; // 0x794200 - decimale 7.946.752
-// Delay cahce
-static constexpr int DELAY_CACHE_SAMPLES = 220672;
-static constexpr uint32_t DELAY_CACHE_BYTES = DELAY_CACHE_SAMPLES << 1; // 0x6bc00 - decimale 441.344
+
+// Delay cache (for each channel)
+static constexpr int DELAY_CACHE_SECONDS = 20; // each channel
+static constexpr int DELAY_CACHE_SAMPLES = ceil(DELAY_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES + AUDIO_BLOCK_SAMPLES; // each channel
+static constexpr uint32_t DELAY_CACHE_BYTES = DELAY_CACHE_SAMPLES << 1; // each channel
+
+// Live sampler cache: must be multiple of AUDIO_BLOCK_SAMPLES samples (256 byte)
+static constexpr int LS_CACHE_SECONDS = 20;
+static constexpr int LS_CACHE_SAMPLES = ceil(LS_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES;
+static constexpr uint32_t LS_CACHE_BYTES = LS_CACHE_SAMPLES << 1;
+
+// stereo recording option offers the same time capacity using double memory (L_cache + R_cache)
+static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_SAMPLES; 
+static constexpr uint32_t LS_CACHE_STEREO_BYTES = LS_CACHE_BYTES;
+
 
 // PATCH
 // Variabili runtime

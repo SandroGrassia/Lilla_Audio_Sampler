@@ -4,6 +4,8 @@
  *
  */
 
+// https://github.com/PaulStoffregen/cores/blob/master/teensy4/extmem.c
+
 #pragma once
 
 #include <Arduino.h>

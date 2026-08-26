@@ -222,7 +222,7 @@ void DelayManager::Update(void)
 
         if (flag[SAMPLES_LR])
         {
-            Delay_data.samples_LR = round(New_value(SAMPLES_LR));
+            Delay_data.samples_LR = lround(New_value(SAMPLES_LR));
             Delay_data.samples_LR = constrain(Delay_data.samples_LR, Delay_data_limits[SAMPLES_LR][0], Delay_data_limits[SAMPLES_LR][1]);
 
             // calcola nuovo valore
@@ -249,7 +249,7 @@ void DelayManager::Update(void)
 
         if (flag[MODULATION_DEPTH])
         {
-            Delay_data.modulation_depth = round(New_value(MODULATION_DEPTH));
+            Delay_data.modulation_depth = lround(New_value(MODULATION_DEPTH));
             Delay_data.modulation_depth = constrain(Delay_data.modulation_depth, Delay_data_limits[MODULATION_DEPTH][0], Delay_data_limits[MODULATION_DEPTH][1]);
 
             // calcola nuovo valore
@@ -270,7 +270,7 @@ void DelayManager::Update(void)
 
         if (flag[MODULATION_FREQUENCY])
         {
-            Delay_data.modulation_frequency = round(New_value(MODULATION_FREQUENCY));
+            Delay_data.modulation_frequency = lround(New_value(MODULATION_FREQUENCY));
             Delay_data.modulation_frequency = constrain(Delay_data.modulation_frequency, Delay_data_limits[MODULATION_FREQUENCY][0], Delay_data_limits[MODULATION_FREQUENCY][1]);
 
             // calcola nuovo valore
@@ -292,7 +292,7 @@ void DelayManager::Update(void)
 
         if (flag[MODULATION_PHASE_LR])
         {
-            Delay_data.modulation_phase_LR = round(New_value(MODULATION_PHASE_LR));
+            Delay_data.modulation_phase_LR = lround(New_value(MODULATION_PHASE_LR));
             Delay_data.modulation_phase_LR = constrain(Delay_data.modulation_phase_LR, Delay_data_limits[MODULATION_PHASE_LR][0], Delay_data_limits[MODULATION_PHASE_LR][1]);
 
             // calcola nuovo valore

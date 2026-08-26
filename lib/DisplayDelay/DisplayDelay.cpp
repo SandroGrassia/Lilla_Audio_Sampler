@@ -156,15 +156,15 @@ void DisplayDelay::D_delay_time(void)
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time[0]), display_coordinate_y(DELAY_column_row_delay_time[1]), DELAY_chars_delay_time);
     tft.setTextColor(ILI9341_YELLOW);
 
-    if (Delay_values.samples < 44100)
+    if (Delay_values.samples < AUDIO_SAMPLE_RATE)
     {
-        tft.print(Delay_values.samples / 44.1f, 1);
+        tft.print(1000 * Delay_values.samples / AUDIO_SAMPLE_RATE, 1);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms");
     }
     else
     {
-        tft.print(Delay_values.samples / 44100.0f, 2);
+        tft.print(Delay_values.samples / AUDIO_SAMPLE_RATE, 2);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("sec");
     }
@@ -185,14 +185,14 @@ void DisplayDelay::D_delay_time_LR(void)
     else if (Delay_values.samples_LR > 0)
     {
         tft.print("+");
-        tft.print(Delay_values.samples_LR / 44.1f);
+        tft.print(1000 * Delay_values.samples_LR / AUDIO_SAMPLE_RATE);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms R");
     }
     else
     {
         tft.print("+");
-        tft.print(-Delay_values.samples_LR / 44.1f);
+        tft.print(- 1000 * Delay_values.samples_LR / AUDIO_SAMPLE_RATE);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms L");
     }

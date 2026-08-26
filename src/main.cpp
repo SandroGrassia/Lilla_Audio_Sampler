@@ -59,7 +59,8 @@
     Notes from: https://gist.github.com/somebox/d969f8a97e5a4362af5049ed554a9e69
     - Fact (Voltage Levels): Teensy 4.1 operates at 3.3V logic levels. Its I/O pins are NOT 5V tolerant. Applying more than 3.3V to any general-purpose I/O pin will cause permanent damage.
     - Best Practice (External Power): The VIN pin accepts an external voltage, with an official maximum of 6V, though staying at 5V is safest.
-    - Best Practice (Library Management): The Arduino IDE prioritizes libraries in Documents/Arduino/libraries. An older or incompatible library here can override the correct version bundled with Teensyduino, causing compilation errors. If you encounter unexpected library-related errors, check this folder for duplicates and remove them.
+    - Best Practice (Library Management): The Arduino IDE prioritizes libraries in Documents/Arduino/libraries. An older or incompatible library here can override the correct version bundled with Teensyduino, causing compilation errors.
+      If you encounter unexpected library-related errors, check this folder for duplicates and remove them.
     - Critical Warning (VUSB/VIN Separation): If using an external power source on VIN, you must cut the trace between the VUSB and VIN pads on the bottom of the board. Failure to do so can back-feed voltage to your computer's USB port, causing damage.
     - Fact (USB Host Power): The Teensy 4.1's USB Host port (VHST pin) provides a software-controllable 5V rail with built-in current limiting (~850mA hardware limit, but practically limited by the main 0.5A fuse if USB-powered). This is a feature unique to the T4.1.
 
@@ -67,7 +68,8 @@
     - Synchronization: Sequential digitalWriteFast() calls to multiple pins are not perfectly simultaneous. For true atomic, multi-pin state changes, direct port register manipulation is required.
     - Audio Library: The Audio library can conflict with other DMA-based libraries (like FastLED/ObjectFLED). This is often a low-level hardware resource contention, which can sometimes be mitigated by adjusting timing parameters in the conflicting library.
 
-    - Known Issue (USB Serial Output): Initial data sent via Serial.println() may be lost or jumbled. This is often a host-side issue. Best Practice: Use while(!Serial && millis() < 5000) {} to wait for the connection to be established without blocking indefinitely. Adding a small extra delay(2) after this loop can also improve reliability.
+    - Known Issue (USB Serial Output): Initial data sent via Serial.println() may be lost or jumbled. This is often a host-side issue. Best Practice: Use while(!Serial && millis() < 5000) {} to wait for the connection to be established without blocking indefinitely.
+      Adding a small extra delay(2) after this loop can also improve reliability.
 
     - External QSPI Flash: The pads on the bottom of the T4.1 can also be used for an external QSPI Flash chip (up to 256MB). This memory must be accessed via a filesystem like LittleFS. It cannot be used to extend the program memory.
 
@@ -538,8 +540,8 @@ void CC_Save_settings(void);
 void CC_Read_all_Sound_gain(void);
 
 // >>>>>>> DELAY
-int16_t *DELAY_fifo_L = NULL;
-int16_t *DELAY_fifo_R = NULL;
+EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_SAMPLES];
+EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_SAMPLES];
 uint8_t delay_instrument_routing; // indica un instrument_id se <=7; se 8 indica instrument_id 0 e 1
 
 // pointer
@@ -4591,7 +4593,7 @@ void loop()
                     Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
 
                     LS_stereo = !LS_stereo;
-                    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
+                    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_SAMPLES);
                     LS_window_width = LS_buffer_dim;
                     LS_window_step = LS_window_width / 8;
                     LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
@@ -4607,7 +4609,7 @@ void loop()
                     LS_instrument = 0;
                     LS_X_delta = 0;
                     LS_X_sample = 0;
-                    LS_XY_delta = 44100;
+                    LS_XY_delta = AUDIO_SAMPLE_RATE;
                     LS_Y_sample = LS_X_sample + LS_XY_delta;
                     LS_X_step = LS_window_width / LS_COMB;
 
@@ -4645,7 +4647,7 @@ void loop()
                     LS_window_step = LS_window_width / 8;
                     LS_X_sample = 0;
                     LS_X_delta = 0;
-                    LS_XY_delta = 44100;
+                    LS_XY_delta = AUDIO_SAMPLE_RATE;
                     LS_Y_sample = LS_X_sample + LS_XY_delta;
                     LS_X_step = LS_window_width / LS_COMB;
 
@@ -11880,7 +11882,7 @@ void LS_Setup_buffers(bool stereo, bool first)
         }
 
         // Inizializza PSRAM
-        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_MONO_BYTES);
+        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_BYTES);
 
         // Aggiorna oggetti
         LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
@@ -11909,7 +11911,7 @@ void LS_erase_FIFO_array(int16_t *Array, int stereo)
     }
     else
     {
-        for (auto i = 0; i < LS_CACHE_MONO_SAMPLES; ++i)
+        for (auto i = 0; i < LS_CACHE_SAMPLES; ++i)
         {
             *(Array + i) = 0;
         }
@@ -12889,8 +12891,8 @@ void Reload_system_state(void)
 
     // *****************      DELAY AND LFO    ********************
     // Delay arrays (FIFO)
-    DELAY_fifo_L = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
-    DELAY_fifo_R = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
+    memset(DELAY_fifo_L, 0, sizeof(DELAY_fifo_L));
+    memset(DELAY_fifo_R, 0, sizeof(DELAY_fifo_R));    
 
     Serial.print("indirizzo DELAY_fifo_L: ");
     Serial.println((unsigned long)DELAY_fifo_L, HEX);
@@ -12947,7 +12949,7 @@ void Reload_system_state(void)
 
     // *******************   LIVE SAMPLING  **********************
     LS_stereo = false;
-    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
+    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_SAMPLES);
 
     LiveSampler.Reset();
 
@@ -12959,7 +12961,7 @@ void Reload_system_state(void)
     LS_window_width = LS_buffer_dim;
     LS_window_step = LS_window_width / 8;
     LS_XY_lock = true; // LS_X_sample blocked on FIFO; LS_X_delta is useless
-    LS_XY_delta = 44100;
+    LS_XY_delta = AUDIO_SAMPLE_RATE;
     LS_Y_sample = LS_X_sample + LS_XY_delta;
     LS_X_step = LS_window_width / LS_COMB;
     LS_feedback = 0;

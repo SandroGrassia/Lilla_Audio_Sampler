@@ -81,13 +81,13 @@ void StereoLiveSampler::update(void)
     }
     if (stereo) // si copiano i sample entranti direttamente su PSRAM, array L e array R
     {
-        memcpy((uint32_t *)(LS_buffer_L_ptr + Q_sample + 1), (uint32_t *)in_block_L->data, 256); // memcpy(destination pointer, origin pointer, bytes to be copied)
-        memcpy((uint32_t *)(LS_buffer_R_ptr + Q_sample + 1), (uint32_t *)in_block_R->data, 256); // memcpy(destination pointer, origin pointer, bytes to be copied)
+        memcpy((uint32_t *)(LS_buffer_L_ptr + Q_sample + 1), (uint32_t *)in_block_L->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
+        memcpy((uint32_t *)(LS_buffer_R_ptr + Q_sample + 1), (uint32_t *)in_block_R->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
     }
     else // si copiano i sample entranti su due Buffer, poi il valore medio viene copiato su un unico array mono
     {
-        memcpy((uint32_t *)(Buffer_L), (uint32_t *)in_block_L->data, 256); // memcpy(destination pointer, origin pointer, bytes to be copied)
-        memcpy((uint32_t *)(Buffer_R), (uint32_t *)in_block_R->data, 256); // memcpy(destination pointer, origin pointer, bytes to be copied)
+        memcpy((uint32_t *)(Buffer_L), (uint32_t *)in_block_L->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
+        memcpy((uint32_t *)(Buffer_R), (uint32_t *)in_block_R->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
 
         for (auto i = 0; i < AUDIO_BLOCK_SAMPLES; ++i)
         {

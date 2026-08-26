@@ -807,7 +807,7 @@ void DisplayManager::P_show_Performance_menu(void)
             }
 
             P_row_menu_element[position] = 1;
-            P_element_menu[position] = element;
+            P_element_menu[position] = static_cast<P_menu_elements_name>(element);
             P_position_Menu[element] = position;
             tft.setCursor(display_coordinate_x(P_column_menu_element[position]), display_coordinate_y(P_row_menu_element[position]));
             tft.print(P_menu_char[element]);

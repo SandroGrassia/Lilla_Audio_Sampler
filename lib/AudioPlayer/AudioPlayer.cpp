@@ -56,7 +56,7 @@ void AudioPlayer::Set_effects(float resolution_exp, uint8_t downsampling_in) // 
 {
     set_effects_flag = true;
     resolution_flag_wait = resolution_exp < 15.9;
-    K_resolution_step_wait = 65536 / pow(2.0, resolution_exp); //  [2.0, 16K]
+    K_resolution_step_wait = lroundf(powf(2.0f, 16.0f - resolution_exp)); //  [2.0, 16K]
     downsampling_flag_wait = downsampling_in > 1;
     downsampling_wait = downsampling_in;
 }

@@ -20,6 +20,7 @@ class InfoMaster
 {
 private: 
     static constexpr int BASKET_INFO = 500; // samples_basket[] dimension
+    static constexpr uint32_t FULL_SCAN_LIMIT = static_cast<uint32_t>(WAVEBOARD_WIDTH) * BASKET_INFO;
     int16_t samples_basket[BASKET_INFO];
     int16_t samples_620_array[2 * WAVEBOARD_WIDTH]; // for each of the 128 columns of display, the method gives the max positive value and the min negative value.
 
