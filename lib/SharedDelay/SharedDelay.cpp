@@ -139,7 +139,7 @@ int Calc_delay_samples(int value)
     const float normalized = value / 99.0f;
 
     constexpr float exponent = 2.5f;
-    constexpr int max_samples =  DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES;
+    constexpr int max_samples =  DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES;
 
     return lroundf(max_samples * powf(normalized, exponent));
 }

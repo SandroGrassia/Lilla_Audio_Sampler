@@ -47,11 +47,11 @@
     - GATE out
 
      (Direct) Sampler
-    - Sampler stores audio files into the 64MB Flash memory chip
+    - Sampler stores audio files into the external 64MB Flash memory chip
     - Sampler exports audio files into the micro SD card
 
     Live Sampler
-    - Live Sampler stores audio into 2 x 8MB PSRAM chips
+    - Live Sampler stores audio into the PSRAM chips
 
     Midi Loop
     - Midi Loop stores loops data into the micro SD card
@@ -162,7 +162,6 @@
 #include "LoopMetronomo.h"
 
 #include "ArchivingManager.h"
-#include "PsramManager.h"
 #include "LillaFRAM_2x512.h"
 
 #include "GraphicElements.h"
@@ -352,7 +351,6 @@ WaveLFO LFO_P0[PLAYERS];
 WaveLFO LFO_D[2];
 PlayersStatistics Players_statistics;
 FlashFileRegisterParser File_scanner;
-PsramManager PSRAM_Manager;
 
 DisplayManager Display_Manager;
 DisplaySound Display_Sound;
@@ -540,8 +538,8 @@ void CC_Save_settings(void);
 void CC_Read_all_Sound_gain(void);
 
 // >>>>>>> DELAY
-EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_SAMPLES];
-EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_SAMPLES];
+EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES];
+EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES];
 uint8_t delay_instrument_routing; // indica un instrument_id se <=7; se 8 indica instrument_id 0 e 1
 
 // pointer
@@ -638,9 +636,11 @@ int LS_instrument;
 int LS_COMB = 64;
 int LS_window_step;
 const int LS_XY_DELTA_MIN = 4 * AUDIO_BLOCK_SAMPLES; // 5000
-int16_t *LS_buffer_mono_ptr = nullptr;
-int16_t *LS_buffer_L_ptr = nullptr;
-int16_t *LS_buffer_R_ptr = nullptr;
+
+EXTMEM int16_t LS_buffer_storage[LS_CACHE_TOTAL_SAMPLES];
+int16_t* const LS_buffer_mono_ptr = LS_buffer_storage;
+int16_t* const LS_buffer_L_ptr    = LS_buffer_storage;
+int16_t* const LS_buffer_R_ptr    = LS_buffer_storage + LS_CACHE_CHANNEL_SAMPLES;
 const int LS_REFRESH = 200; // tempo di refresh 160 ms
 elapsedMillis LS_wave_refresh_timer;
 
@@ -652,8 +652,7 @@ int LS_constrain_position(int value);
 void LS_lock_X_sample(void);
 void LS_update_both_X_Y_samples(void);
 void LS_update_Q_sample(void);
-void LS_erase_FIFO_array(int16_t *Array, int stereo);
-void LS_Setup_buffers(bool stereo, bool first);
+void LS_Reset_buffer(void);
 void LS_setup_LS_Patch(bool stereo);
 
 // >>>>>>> MIDI_LOOP
@@ -4592,11 +4591,16 @@ void loop()
                 {
                     Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
 
+                    AudioNoInterrupts();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
                     LS_stereo = !LS_stereo;
-                    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_SAMPLES);
+                    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
                     LS_window_width = LS_buffer_dim;
                     LS_window_step = LS_window_width / 8;
-                    LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
+                    LS_Reset_buffer();
+                    LS_state = EMPTY;
                     LS_setup_LS_Patch(LS_stereo);
 
                     AudioNoInterrupts();
@@ -4629,17 +4633,7 @@ void loop()
                     Players_Manager.Stop_all_players();
                     AudioInterrupts();
 
-                    if (LS_stereo)
-                    {
-                        LS_erase_FIFO_array(LS_buffer_L_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                        LS_erase_FIFO_array(LS_buffer_R_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                    }
-                    else
-                        LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-
-                    Serial.println("Live Samplier buffer(s) erased!");
-
-                    LiveSampler.Reset(); // reset Q_sample and P_sample
+                    LS_Reset_buffer();
                     LS_state = EMPTY;
                     LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
                     LS_instrument = 0;
@@ -11819,107 +11813,23 @@ void LS_update_Q_sample(void)
 }
 
 FLASHMEM
-void LS_Setup_buffers(bool stereo, bool first)
+void LS_Reset_buffer(void)
 {
-    /*
-    DELAY
-    indirizzo DELAY_fifo_L: 7000000C
-    decimale: 1879048204
-    indirizzo DELAY_fifo_R: 7006BC28
-    decimale: 1879489576
+    memset(LS_buffer_storage, 0, sizeof(LS_buffer_storage));
 
-    MONO
-    *** LS_Setup_buffers - indirizzo _LS_buffer_mono: 700D7844
-    decimale: 1879930948
+    LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
+    LiveSampler.LS_buffer_L_ptr = LS_buffer_L_ptr;
+    LiveSampler.LS_buffer_R_ptr = LS_buffer_R_ptr;
 
-    STEREO
-    *** LS_Setup_buffers - indirizzo _LS_buffer_L tx: 700D7844
-    decimale: 1879930948
-    indirizzo LS_buffer_R_ptr tx: 7086BA64
-    decimale: 1887877732
+    Info.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
+    Info.LS_buffer_L_ptr = LS_buffer_L_ptr;
+    Info.LS_buffer_R_ptr = LS_buffer_R_ptr;
 
-    */
+    Players_Manager.Broadcast_FIFO_mono(LS_buffer_mono_ptr);
+    Players_Manager.Broadcast_FIFO_stereo(LS_buffer_L_ptr, LS_buffer_R_ptr);
 
-    if (stereo)
-    {
-        Serial.println(F("*** LS_Setup_buffers() as Stereo ***"));
-
-        if (!first)
-        {
-            PSRAM_Manager.Remove_samples_array(LS_buffer_mono_ptr);
-        }
-
-        // Inizializza PSRAM
-        LS_buffer_L_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
-        LS_buffer_R_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
-
-        // Aggiorna oggetti
-        LiveSampler.LS_buffer_L_ptr = LS_buffer_L_ptr;
-        LiveSampler.LS_buffer_R_ptr = LS_buffer_R_ptr;
-        Info.LS_buffer_L_ptr = LS_buffer_L_ptr;
-        Info.LS_buffer_R_ptr = LS_buffer_R_ptr;
-
-        Players_Manager.Broadcast_FIFO_stereo(LS_buffer_L_ptr, LS_buffer_R_ptr);
-
-        Serial.print("*** LS_Setup_buffers - indirizzo _LS_buffer_L tx: ");
-        Serial.println((unsigned long)LS_buffer_L_ptr, HEX);
-        Serial.print("decimale: ");
-        Serial.println((unsigned long)LS_buffer_L_ptr);
-        Serial.print("indirizzo LS_buffer_R_ptr tx: ");
-        Serial.println((unsigned long)LS_buffer_R_ptr, HEX);
-        Serial.print("decimale: ");
-        Serial.println((unsigned long)LS_buffer_R_ptr);
-    }
-
-    else
-    {
-        Serial.println(F("*** LS_Setup_buffers() as Mono ***"));
-        if (!first)
-        {
-            // Libera la PSRAM
-            PSRAM_Manager.Remove_samples_array(LS_buffer_L_ptr);
-            PSRAM_Manager.Remove_samples_array(LS_buffer_R_ptr);
-        }
-
-        // Inizializza PSRAM
-        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_BYTES);
-
-        // Aggiorna oggetti
-        LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
-        Info.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
-        Players_Manager.Broadcast_FIFO_mono(LS_buffer_mono_ptr);
-
-        Serial.print("*** LS_Setup_buffers - indirizzo _LS_buffer_mono: ");
-        Serial.println((unsigned long)LS_buffer_mono_ptr, HEX);
-        Serial.print("decimale: ");
-        Serial.println((unsigned long)LS_buffer_mono_ptr);
-    }
-}
-
-void LS_erase_FIFO_array(int16_t *Array, int stereo)
-{
-    // richiede 620.4 ms
-    // elapsedMicros T = 0;
-    // int time;
-
-    if (stereo)
-    {
-        for (auto i = 0; i < LS_CACHE_STEREO_SAMPLES; ++i)
-        {
-            *(Array + i) = 0;
-        }
-    }
-    else
-    {
-        for (auto i = 0; i < LS_CACHE_SAMPLES; ++i)
-        {
-            *(Array + i) = 0;
-        }
-    }
-
-    // time = T;
-    // Serial.println(F("*** LS_erase_FIFO_array() richiede us: "));
-    // Serial.println (time);
+    LiveSampler.Reset();
+    LS_Q_sample = -1;
 }
 
 FLASHMEM
@@ -12949,9 +12859,7 @@ void Reload_system_state(void)
 
     // *******************   LIVE SAMPLING  **********************
     LS_stereo = false;
-    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_SAMPLES);
-
-    LiveSampler.Reset();
+    LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
 
     LS_state = EMPTY;
     LS_sound_id = SOUNDS_MAX;
@@ -12965,7 +12873,7 @@ void Reload_system_state(void)
     LS_Y_sample = LS_X_sample + LS_XY_delta;
     LS_X_step = LS_window_width / LS_COMB;
     LS_feedback = 0;
-    LS_Setup_buffers(LS_stereo, true); // LS_Setup_buffers(bool stereo, bool first)
+    LS_Reset_buffer();
 
     // * LPF final filter Output Butterworth filters, 12 db/octave *
     biquad_L.setLowpass(0, 20000, 0.707);

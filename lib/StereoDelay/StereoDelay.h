@@ -32,22 +32,22 @@ private:
     int J_delay_central_value_counter = 0; // quanti cicli di update() servono per raggiungere delay_central_value_target richiesto
     int32_t cache;
 
-    // **  delay_Main_Array[DELAY_CACHE_SAMPLES]  **
+    // **  delay_Main_Array[DELAY_CACHE_CHANNEL_SAMPLES]  **
     //
     // Start
     // read_sample        write_sample
     // R------------------W----------------------------------------------------|
-    // 0<-  delay_value ->                                           (DELAY_CACHE_SAMPLES - 1)
+    // 0<-  delay_value ->                                           (DELAY_CACHE_CHANNEL_SAMPLES - 1)
     //
     // Running
     //            read_sample       write_sample
     // rrrrrrrrrrrR-------wwwwwwwwwwW------------------------------------------|
-    // 0          <-  delay_value ->                                 (DELAY_CACHE_SAMPLES - 1)
+    // 0          <-  delay_value ->                                 (DELAY_CACHE_CHANNEL_SAMPLES - 1)
     //
     // Running
     //                       read_sample       write_sample
     // rrrrrrrrrrrrrrrrrrrrrrRwwwwwwwwwwwwwwwwwW-------------------------------|
-    // 0                     <-  delay_value ->                      (DELAY_CACHE_SAMPLES - 1)
+    // 0                     <-  delay_value ->                      (DELAY_CACHE_CHANNEL_SAMPLES - 1)
 
 public:
     StereoDelay(void) : AudioStream(2, inputQueueArray) {}

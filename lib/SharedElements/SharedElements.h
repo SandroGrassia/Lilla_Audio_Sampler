@@ -93,30 +93,31 @@ int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
     Metadata space = 0 --> only static allocation
     Audio space = Raw space = 380.4 sec
 
-    Delay space = DELAY_CACHE_BYTES x 2 channels
-    Live Sampler space max = LS_CACHE_BYTES X 2 channels
+    Delay space = DELAY_CACHE_CHANNEL_SAMPLES x 2byte x 2channels
+    Live Sampler space = LS_CACHE_TOTAL_SAMPLES X 2byte
 
     Patch space = Audio space - Delay space - Live Sampler space
 */
 
 // Delay cache (for each channel)
 static constexpr int DELAY_CACHE_SECONDS = 20; // each channel
-static constexpr int DELAY_CACHE_SAMPLES = ceil(DELAY_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES + AUDIO_BLOCK_SAMPLES; // each channel
-static constexpr uint32_t DELAY_CACHE_BYTES = DELAY_CACHE_SAMPLES << 1; // each channel
+static constexpr int DELAY_CACHE_CHANNEL_SAMPLES = ceil(DELAY_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES + AUDIO_BLOCK_SAMPLES;
 
 // Live sampler cache: must be multiple of AUDIO_BLOCK_SAMPLES samples (256 byte)
 static constexpr int LS_CACHE_SECONDS = 20;
-static constexpr int LS_CACHE_SAMPLES = ceil(LS_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES;
-static constexpr uint32_t LS_CACHE_BYTES = LS_CACHE_SAMPLES << 1;
+static constexpr int LS_CACHE_CHANNEL_SAMPLES = ceil(LS_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES;
+static constexpr int LS_CACHE_TOTAL_SAMPLES = 2 * LS_CACHE_CHANNEL_SAMPLES;
 
-// stereo recording option offers the same time capacity using double memory (L_cache + R_cache)
-static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_SAMPLES; 
-static constexpr uint32_t LS_CACHE_STEREO_BYTES = LS_CACHE_BYTES;
+// Stereo recording option offers LS_CACHE_SECONDS time capacity
+static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_CHANNEL_SAMPLES; 
 
+// Mono recording option offers 2xLS_CACHE_SECONDS time capacity
+static constexpr int LS_CACHE_MONO_SAMPLES = LS_CACHE_TOTAL_SAMPLES;
+
+// Array per copia Patch
+static constexpr int PATCH_CACHE_ARRAY_SAMPLES = 1472000;
 
 // PATCH
-// Variabili runtime
-static constexpr int VOLUME_1 = 29;
 struct Instrument_filter_data_struct
 {
     uint8_t use;            // yes/no
