@@ -18,6 +18,7 @@
 #include "AudioVCF.h"
 #include "WaveLFO.h"
 #include "StereoLiveSampler.h"
+#include "SharedLiveSampler.h"
 #include "PlayersStatistics.h"
 #include "Functions.h"
 #include "AudioADSR.h"

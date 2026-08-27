@@ -176,6 +176,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
         mode_player_wait = mode_in;
         use_Wavetable_wait = false;
         pitch_limit_wait = MAX_PITCH_PSRAM;
+        const int live_span = LS_buffer_dim - 1;
 
         // il codice Main deve garantire che:
         // 0<= LS_X_sample <= (LS_buffer_dim - 1)
@@ -186,19 +187,21 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
             if (mode_player_wait == ONCE_FWD) // 0
             {
                 A_Flash_sample_wait = LS_X_sample;
-                B_Flash_sample_wait = A_Flash_sample_wait + 2000000000;
+                B_Flash_sample_wait = A_Flash_sample_wait + live_span;   
                 a_first_sample_wait = A_Flash_sample_wait;
             }
             else if (mode_player_wait == ONCE_REV) // 1
             {
                 B_Flash_sample_wait = LS_X_sample;
-                A_Flash_sample_wait = B_Flash_sample_wait - 2000000000;
+                A_Flash_sample_wait = B_Flash_sample_wait - live_span;
+                C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = B_Flash_sample_wait;
             }
             else if (mode_player_wait == LOOP_FWD || mode_player_wait == LOOP_FWD_REV) // 2 loop A-->B / 3 loop A<-->B
             {
                 A_Flash_sample_wait = LS_X_sample;
                 B_Flash_sample_wait = LS_X_sample + LS_XY_delta;
+                C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = A_Flash_sample_wait;
             }
 
@@ -221,31 +224,33 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
             if (mode_player_wait == ONCE_FWD)
             {
                 A_Flash_sample_wait = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
-                if (A_Flash_sample_wait > LS_buffer_dim - 1)
+                if (A_Flash_sample_wait > (LS_buffer_dim - 1))
                 {
                     A_Flash_sample_wait -= LS_buffer_dim;
                 }
-                B_Flash_sample_wait = A_Flash_sample_wait + 2000000000;
+                B_Flash_sample_wait = A_Flash_sample_wait + live_span;
                 a_first_sample_wait = A_Flash_sample_wait;
             }
             else if (mode_player_wait == ONCE_REV)
             {
                 B_Flash_sample_wait = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
-                if (B_Flash_sample_wait > LS_buffer_dim - 1)
+                if (B_Flash_sample_wait > (LS_buffer_dim - 1))
                 {
                     B_Flash_sample_wait -= LS_buffer_dim;
                 }
-                A_Flash_sample_wait = B_Flash_sample_wait - 2000000000;
+                A_Flash_sample_wait = B_Flash_sample_wait - live_span;
+                C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = B_Flash_sample_wait;
             }
             else if (mode_player_wait == LOOP_FWD || mode_player_wait == LOOP_FWD_REV) // loop A-->B / loop A<-->B
             {
                 A_Flash_sample_wait = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
-                if (A_Flash_sample_wait > LS_buffer_dim - 1)
+                if (A_Flash_sample_wait > (LS_buffer_dim - 1))
                 {
                     A_Flash_sample_wait -= LS_buffer_dim;
                 }
                 B_Flash_sample_wait = A_Flash_sample_wait + LS_XY_delta;
+                C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = A_Flash_sample_wait;
             }
 
@@ -344,30 +349,30 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
 
             switch (mode_in)
             {
-            case 0: // A-->B
+            case ONCE_FWD: // A-->B
                 a_first_sample_wait = A_Flash_sample_wait;
                 mode_player_wait = mode_in;
                 break;
-            case 1: // B-->A
+            case ONCE_REV: // B-->A
                 C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = B_Flash_sample_wait;
                 mode_player_wait = mode_in;
                 break;
-            case 2: // loop A-->B A-->B
+            case LOOP_FWD: // loop A-->B A-->B
                 a_first_sample_wait = A_Flash_sample_wait;
                 mode_player_wait = mode_in;
                 break;
-            case 3: // loop A-->B B-->A
+            case LOOP_FWD_REV: // loop A-->B B-->A
                 C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = A_Flash_sample_wait;
                 mode_player_wait = mode_in;
                 break;
-            case 4: // loop B-->A A-->B
+            case LOOP_REV_FWD: // loop B-->A A-->B
                 C_Flash_sample_wait = Mirror(B_Flash_sample_wait, A_Flash_sample_wait);
                 a_first_sample_wait = B_Flash_sample_wait;
                 mode_player_wait = 3;
                 break;
-            case 5: // loop B-->A B-->A
+            case LOOP_REV: // loop B-->A B-->A
                 B_Flash_sample_shifted_wait = B_Flash_sample_wait - delta_Noclick_wait;
                 C_Flash_sample_wait = Mirror(B_Flash_sample_shifted_wait, A_Flash_sample_wait);
                 a_first_sample_wait = B_Flash_sample_shifted_wait;
@@ -383,7 +388,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
 
 void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in)
 {
-    mode_player_E = (mode_in == 4 ? 3 : mode_in); // switching to mode 4 is ininfluent WHILE playing (besides, mode 4 does NOT exist in harvest functions)
+    mode_player_E = (mode_in == LOOP_REV_FWD ? LOOP_FWD_REV : mode_in); // switching to mode 4 is ininfluent WHILE playing (besides, mode 4 does NOT exist in harvest functions)
     A_Flash_sample_E = A_value_in;
     B_Flash_sample_E = B_value_in;
     delta_Noclick_E = delta_Noclick_in;
@@ -397,20 +402,21 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
         mode_player_E = mode_in;
         pitch_limit_E = MAX_PITCH_PSRAM;
         use_Wavetable_E = false;
+        const int live_span = LS_buffer_dim - 1;
 
         if (LS_XY_lock)
         {
-            if (mode_player_E == 0)
+            if (mode_player_E == ONCE_FWD)
             {
                 A_Flash_sample_E = LS_X_sample;
-                B_Flash_sample_E = A_Flash_sample_E + 2000000000;
+                B_Flash_sample_E = A_Flash_sample_E + live_span;
             }
-            else if (mode_player_E == 1)
+            else if (mode_player_E == ONCE_REV)
             {
                 B_Flash_sample_E = LS_X_sample;
-                A_Flash_sample_E = B_Flash_sample_E - 2000000000;
+                A_Flash_sample_E = B_Flash_sample_E - live_span;
             }
-            else if (mode_player_E == 2 || mode_player_E == 3)
+            else if (mode_player_E == LOOP_FWD || mode_player_E == LOOP_FWD_REV)
             {
                 A_Flash_sample_E = LS_X_sample;
                 B_Flash_sample_E = LS_X_sample + LS_XY_delta;
@@ -419,25 +425,25 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
 
         else
         {
-            if (mode_player_E == 0)
+            if (mode_player_E == ONCE_FWD)
             {
                 A_Flash_sample_E = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
                 if (A_Flash_sample_E > LS_buffer_dim - 1)
                 {
                     A_Flash_sample_E -= LS_buffer_dim;
                 }
-                B_Flash_sample_E = A_Flash_sample_E + 2000000000;
+                B_Flash_sample_E = A_Flash_sample_E + live_span;
             }
-            else if (mode_player_E == 1)
+            else if (mode_player_E == ONCE_REV)
             {
                 B_Flash_sample_E = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
                 if (B_Flash_sample_E > LS_buffer_dim - 1)
                 {
                     B_Flash_sample_E -= LS_buffer_dim;
                 }
-                A_Flash_sample_E = B_Flash_sample_E - 2000000000;
+                A_Flash_sample_E = B_Flash_sample_E - live_span;
             }
-            else if (mode_player_E == 2 || mode_player_E == 3)
+            else if (mode_player_E == LOOP_FWD || mode_player_E == LOOP_FWD_REV)
             {
                 A_Flash_sample_E = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
                 if (A_Flash_sample_E > LS_buffer_dim - 1)

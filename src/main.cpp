@@ -12559,11 +12559,11 @@ void Startup_hardware_and_objects(void)
     Compile_tables();
 
     // audioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
-    Line_in_gain = 15;
+    Line_in_gain = 5;
     Audio_shield.enable();
-    Audio_shield.volume(headphones_volume_int / (float)40.0);
+    Audio_shield.volume(headphones_volume_int / 40.0F);
     Audio_shield.inputSelect(myInput);
-    // Audio_shield.lineInLevel(Line_in_gain);
+    Audio_shield.lineInLevel(Line_in_gain);
     // Audio_shield.audioPostProcessorEnable();
     Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
     Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
