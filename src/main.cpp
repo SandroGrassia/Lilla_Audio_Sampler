@@ -12244,22 +12244,17 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
 
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);
     elapsedMillis dotMillis = 0;
-    unsigned char barcount = 0;
+    int percentage = 0;
 
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_initial_percentage();
+    Display_Manager.Update_raw_copy_progress(percentage);
 
     while (SerialFlash.ready() == false)
     {
         if (dotMillis > erasing_time_ms_step)
         {
-            auto x_coordinate = display_coordinate_x(0);
-            Cancel_text(x_coordinate + barcount + 10, BAR_POS_Y, 3);
             dotMillis = 0;
-            barcount = barcount + 1;
-            if (barcount <= 100)
-            {
-                Display_Manager.Copy_raw_files_SD_to_Flash_chip_progress(barcount);
-            }
+            ++percentage;
+            Display_Manager.Update_raw_copy_progress(percentage);
         }
     }
 

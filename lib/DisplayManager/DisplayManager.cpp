@@ -1639,24 +1639,38 @@ void DisplayManager::Copy_raw_files_SD_to_Flash_chip_job_start(void)
 }
 
 FLASHMEM
-void DisplayManager::Copy_raw_files_SD_to_Flash_chip_initial_percentage(void)
+void DisplayManager::Update_raw_copy_progress(int percentage)
 {
-    tft.drawLine(display_coordinate_x(0), BAR_POS_Y, display_coordinate_x(0), BAR_POS_Y + 5, ILI9341_YELLOW);
-    tft.setCursor(display_coordinate_x(0) + 10, BAR_POS_Y);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print("0%");
-}
+    const int raw_copy_progress_Y = 225; // display_coordinate_y(15)
+    const int chars_to_cancel = (percentage == 101) ? 11 : 3;
+    
+    if (percentage > 101)
+    {
+        return;
+    }
 
-FLASHMEM
-void DisplayManager::Copy_raw_files_SD_to_Flash_chip_progress(unsigned char barcount)
-{
-    tft.drawLine(display_coordinate_x(0) + barcount, BAR_POS_Y, display_coordinate_x(0) + barcount, BAR_POS_Y + 5, ILI9341_YELLOW);
-    tft.setCursor(display_coordinate_x(0) + barcount + 10, BAR_POS_Y);
+    const auto x_coordinate = display_coordinate_x(0);
+
+    // Da 1 in poi cancella la percentuale precedente.
+    if (percentage > 0)
+    {
+        Cancel_text(x_coordinate + percentage - 1 + 10, raw_copy_progress_Y, chars_to_cancel);
+    }
+
+    // A 101 cancella il 100%, senza disegnare altro.
+    if (percentage > 100)
+    {
+        return;
+    }
+
+    tft.drawLine(x_coordinate + percentage, raw_copy_progress_Y, x_coordinate + percentage, raw_copy_progress_Y + 5, ILI9341_YELLOW);
+    tft.setCursor(x_coordinate + percentage + 10, raw_copy_progress_Y);
+
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(barcount);
+    tft.print(percentage);
     tft.print("%");
 
-    if (barcount == 100)
+    if (percentage == 100)
     {
         tft.print(" *DONE*");
     }

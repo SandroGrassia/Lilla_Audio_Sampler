@@ -73,10 +73,6 @@ static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
         "Mono.liv", "Left.liv", "Right.liv"};
 
 
-// RAW FILES COPY
-static constexpr int BAR_POS_Y = 225; // display_coordinate_y(15)
-
-
 // FLASH MEMORY CHIP MANAGEMENT
 extern int verified_flash_memory_MB;
 int FLASHMEM Get_flash_size(void);       // definita in main.cpp
