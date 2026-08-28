@@ -23,3 +23,17 @@ Prima di ogni modifica, Codex deve:
 3. attendere autorizzazione esplicita dell'utente.
 
 Frasi come "procedi", "applica", "modifica", "implementa", "correggi nel codice" o equivalenti costituiscono autorizzazione solo se riferite chiaramente alla modifica proposta.
+
+# Terminatori di riga obbligatori
+
+Tutti i file di testo del repository devono usare esclusivamente terminatori CRLF.
+
+Prima di modificare un file, Codex deve controllarne i terminatori con:
+
+`git ls-files --eol -- <file>`
+
+Dopo ogni modifica, Codex deve verificare nuovamente tutti i file modificati.
+
+Una modifica non e' completata se un file risulta `w/lf` o `w/mixed`.
+Codex deve preservare o ripristinare CRLF esclusivamente nei file autorizzati,
+senza normalizzare o modificare altri file.
