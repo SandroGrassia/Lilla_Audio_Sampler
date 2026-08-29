@@ -12,9 +12,9 @@
 #include <AudioStream.h>
 #include "config.h"
 
-
 static constexpr int AUDIO_BLOCK_BYTES = AUDIO_BLOCK_SAMPLES * 2;
 
+extern elapsedMicros audio_update_time_micros;
 
 // LILLA STATE
 extern uint8_t Lilla_state;
@@ -43,6 +43,11 @@ extern int8_t first_octave;
 // .raw (imported with SD)
 // .raw .rec (produced by Sampler)
 // .liv (used by Live Sampler)
+// FILES
+static constexpr int NAME_FILE_SIZE = 10;
+static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
+static constexpr int FIRST_RECORDING_FILE = 260;
+
 static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
     {
         // raw files on Flash chip
@@ -72,16 +77,15 @@ static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
         // 320, 321, 322
         "Mono.liv", "Left.liv", "Right.liv"};
 
-
 // FLASH MEMORY CHIP MANAGEMENT
 extern int verified_flash_memory_MB;
 int FLASHMEM Get_flash_size(void);       // definita in main.cpp
 int VFS_Get_packets_free(void);          // definita in main.cpp ma possibile trasferirla qui
 int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
- 
+
 /*
     PSRAM MANAGEMENT
-    
+
     Lilla 2026 PCB R2 includes:
     - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
 
@@ -105,13 +109,17 @@ static constexpr int LS_CACHE_CHANNEL_SAMPLES = ceil(LS_CACHE_SECONDS * AUDIO_SA
 static constexpr int LS_CACHE_TOTAL_SAMPLES = 2 * LS_CACHE_CHANNEL_SAMPLES;
 
 // Stereo recording option offers LS_CACHE_SECONDS time capacity
-static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_CHANNEL_SAMPLES; 
+static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_CHANNEL_SAMPLES;
 
 // Mono recording option offers 2xLS_CACHE_SECONDS time capacity
 static constexpr int LS_CACHE_MONO_SAMPLES = LS_CACHE_TOTAL_SAMPLES;
 
 // Array per copia Patch
-static constexpr int PATCH_CACHE_ARRAY_SAMPLES = 1472000;
+static constexpr uint32_t PSRAM_TOTAL_SAMPLES = (32 * 1024 * 1024) / 2;
+static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
+static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
+static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
+static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
 
 // PATCH
 struct Instrument_filter_data_struct
@@ -332,7 +340,7 @@ struct Preset_struct
 extern Preset_struct Preset[INSTRUMENTS];
 
 // AUDIOPLAYER
-extern elapsedMicros security_timer;                // Protezione Audiostream update()
+extern elapsedMicros security_timer;            // Protezione Audiostream update()
 extern int16_t *Noclick_pointer[INSTRUMENTS];   // each Noclick instance contains 2 arrays
 extern int16_t *Wavetable_pointer[INSTRUMENTS]; // each Wavetable instance contains 2 arrays
 

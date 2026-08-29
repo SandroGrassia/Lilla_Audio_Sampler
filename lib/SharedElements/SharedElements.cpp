@@ -6,6 +6,9 @@
 
 #include "SharedElements.h"
 
+// PSRAM timing
+elapsedMicros audio_update_time_micros;
+
 // SETUP
 int key_step;
 uint8_t optimization;

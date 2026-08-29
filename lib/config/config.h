@@ -54,10 +54,5 @@ static constexpr float MAX_PITCH_FLASH[4] = {1.65, 3, 4, 10}; // [optimization]
 static constexpr float MAX_PITCH_WAVETABLE = 24.0;            // maximum value for pitch when playing from RAM
 static constexpr float MAX_PITCH_PSRAM = 12.0;                // maximum value for pitch when playing from PSRAM
 
-// FILES
-static constexpr int NAME_FILE_SIZE = 10;
-static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
-static constexpr int FIRST_RECORDING_FILE = 260;
-
 // MIDI_LOOP
 static constexpr int TRACKS = 4; // MIDI Loop encoders and pushbuttons 

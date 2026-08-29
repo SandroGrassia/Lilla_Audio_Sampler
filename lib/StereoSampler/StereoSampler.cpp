@@ -14,7 +14,6 @@ void StereoSampler::Begin(void)
 }
 bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
 {
-    // stop();
     AudioStartUsingSPI();
     recording_id = recording_id_in;
     stereo_flag = stereo_in;
