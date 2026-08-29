@@ -14,8 +14,6 @@
 
 static constexpr int AUDIO_BLOCK_BYTES = AUDIO_BLOCK_SAMPLES * 2;
 
-extern elapsedMicros audio_update_time_micros;
-
 // LILLA STATE
 extern uint8_t Lilla_state;
 extern uint8_t Lilla_state_0;
@@ -114,12 +112,14 @@ static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_CHANNEL_SAMPLES;
 // Mono recording option offers 2xLS_CACHE_SECONDS time capacity
 static constexpr int LS_CACHE_MONO_SAMPLES = LS_CACHE_TOTAL_SAMPLES;
 
-// Array per copia Patch
+// Cache per copia .raw file
 static constexpr uint32_t PSRAM_TOTAL_SAMPLES = (32 * 1024 * 1024) / 2;
 static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
 static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
 static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
 static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
+extern elapsedMicros audio_update_time_micros; // usata per calcolare il tempo disponibile per la copia
+
 
 // PATCH
 struct Instrument_filter_data_struct

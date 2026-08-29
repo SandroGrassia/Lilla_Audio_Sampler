@@ -22,7 +22,7 @@
     - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
     - n.2 FRAM chips 64Mbyte tot: 128MByte
     - n.5 Shift registers chips (MCP23S17)
-    
+
     Microcontrolleer
     RAM1 (fast): 512KB (16 blocks x 32KB)
     RAM2 (4 times slower): 512KB
@@ -93,7 +93,6 @@
 // ****************         LIBRARIES          *****************
 // *************************************************************
 
-// Standard classes
 #include <control_sgtl5000.h>
 #include <filter_biquad.h>
 #include <input_i2s.h>
@@ -186,6 +185,8 @@
 #include "PointerLiveSampler.h"
 #include "PointerSampler.h"
 #include "PointerMidiLoop.h"
+
+#include "PatchCacheManager.h"
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -369,6 +370,8 @@ MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
 AudioADSR ADSR[PLAYERS];
 
+PatchCacheManager PatchCache_Manager;
+
 // Midi out
 MidiOut Midi_out;
 
@@ -516,6 +519,9 @@ void S_Get_all_Noclick_pointer(void);
 void S_Fill_all_Noclick(void);
 void S_Fill_Noclick(uint8_t instrument_id);
 
+// >>>>>>> FILE COPY TO PSRAM
+EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMPLES];
+
 // >>>>>>> SETTINGS
 int8_t SET_menu;
 void Calc_pitch_from_note(const int &key_step);
@@ -638,9 +644,9 @@ int LS_window_step;
 const int LS_XY_DELTA_MIN = 4 * AUDIO_BLOCK_SAMPLES; // 5000
 
 EXTMEM int16_t LS_buffer_storage[LS_CACHE_TOTAL_SAMPLES];
-int16_t* const LS_buffer_mono_ptr = LS_buffer_storage;
-int16_t* const LS_buffer_L_ptr    = LS_buffer_storage;
-int16_t* const LS_buffer_R_ptr    = LS_buffer_storage + LS_CACHE_CHANNEL_SAMPLES;
+int16_t *const LS_buffer_mono_ptr = LS_buffer_storage;
+int16_t *const LS_buffer_L_ptr = LS_buffer_storage;
+int16_t *const LS_buffer_R_ptr = LS_buffer_storage + LS_CACHE_CHANNEL_SAMPLES;
 const int LS_REFRESH = 200; // tempo di refresh 160 ms
 elapsedMillis LS_wave_refresh_timer;
 
@@ -1233,6 +1239,9 @@ void loop()
 
         // *********************************************    Test SD save Patch   ****************************************
         // TEST_Current_Patch_SD_round_trip();
+
+        // ******************************************    Test copy .raw to PSRAM   **************************************
+        PatchCache_Manager.Load_audio_file(-1, Sound[Patch[Patch_id].Instrument[1].sound_id].file, 2000000);
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -12683,6 +12692,13 @@ void Startup_hardware_and_objects(void)
     key_step = 0;
     Calc_pitch_from_note(key_step);
 
+    // PatchCacheManager
+    for (auto i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    {
+        PatchCache_Manager.Set_cache_pointer(i, &patch_cache_array[i][0]);
+    }
+
+
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -12692,7 +12708,7 @@ void Startup_hardware_and_objects(void)
     // SDA2: 25
     Wire2.begin();
     Wire2.setClock(1000000); // Wire2.setClock(400000);
-    
+
     const byte result = LillaFram.begin();
 
     if (result == LillaFRAM_2x512::ERROR_0)
@@ -12797,7 +12813,7 @@ void Reload_system_state(void)
     // *****************      DELAY AND LFO    ********************
     // Delay arrays (FIFO)
     memset(DELAY_fifo_L, 0, sizeof(DELAY_fifo_L));
-    memset(DELAY_fifo_R, 0, sizeof(DELAY_fifo_R));    
+    memset(DELAY_fifo_R, 0, sizeof(DELAY_fifo_R));
 
     Serial.print("indirizzo DELAY_fifo_L: ");
     Serial.println((unsigned long)DELAY_fifo_L, HEX);
