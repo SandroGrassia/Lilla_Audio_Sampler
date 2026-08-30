@@ -1241,7 +1241,7 @@ void loop()
         // TEST_Current_Patch_SD_round_trip();
 
         // ******************************************    Test copy .raw to PSRAM   **************************************
-        PatchCache_Manager.Load_audio_file(-1, Sound[Patch[Patch_id].Instrument[1].sound_id].file);
+        PatchCache_Manager.Load_audio_file(-1, Sound[Get_sound_id(Patch_id, 1)].file);
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -1408,7 +1408,7 @@ void loop()
                         for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used)
-                                Sound_NEW[instrument_id] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
+                                Sound_NEW[instrument_id] = Sound[Get_sound_id(Patch_id, instrument_id)];
                         }
                         S_Pull_all_Sound_from_Sound_cache_P(); // 3: restore all original Sound
                         Patch[new_patch] = Patch[Patch_id];
@@ -1470,7 +1470,7 @@ void loop()
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used)
                             {
-                                Sound_NEW[instrument_id] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
+                                Sound_NEW[instrument_id] = Sound[Get_sound_id(Patch_id, instrument_id)];
                             }
                         }
 
@@ -1540,7 +1540,7 @@ void loop()
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used)
                             {
-                                Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].used = false;
+                                Sound[Get_sound_id(Patch_id, instrument_id)].used = false;
                             }
                         }
 
@@ -1677,7 +1677,7 @@ void loop()
         {
             const int instrument_id = static_cast<int>(P_pointer.instrument_id); // static_cast<int>(Pointer_Performance.Get_pointer().instrument_id);
             const int element = P_pointer.element;
-            const int sound_id = Patch[Patch_id].Instrument[instrument_id].sound_id;
+            const int sound_id = Get_sound_id(Patch_id, instrument_id);
 
             // Exit from Instrument_inside area
             if (Read_pushbutton(EN_PB_Select))
@@ -1928,7 +1928,7 @@ void loop()
                     Lilla_state_0 = PERFORMANCE;
                     Lilla_state = SOUND_EDIT;
 
-                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -2090,7 +2090,7 @@ void loop()
                     int new_instrument = 0;
                     if (S_Clone_Instrument(Instrument_id, new_instrument)) // if true, also increments instruments
                     {
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                        Sound_id = Get_sound_id(Patch_id, Instrument_id);
                         Update_map_Instrument_for_notes(Patch[Patch_id].Instrument[Instrument_id].from_note, Patch[Patch_id].Instrument[Instrument_id].to_note, Instrument_id);
                         Players_Manager.Update_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
                         S_Fill_Noclick(Instrument_id);
@@ -2904,7 +2904,7 @@ void loop()
 
                     Instrument_id = Inst_id;
 
-                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -3313,7 +3313,7 @@ void loop()
 
                         Lilla_state = SOUND_EDIT;
 
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                        Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -3427,7 +3427,7 @@ void loop()
 
                         Lilla_state = SOUND_EDIT;
 
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                        Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -3587,7 +3587,7 @@ void loop()
             Clear_UI_events();
 
             Instrument_id = (MX_local_pointer.source < LINE_IN_source ? MX_local_pointer.source : 0);
-            Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+            Sound_id = Get_sound_id(Patch_id, Instrument_id);
         }
 
         // Change values
@@ -7359,7 +7359,7 @@ void loop()
                     Lilla_state = SOUND_EDIT;
 
                     Instrument_id = Inst_id;
-                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -8110,8 +8110,7 @@ bool P_Verify_if_Instrument_original(const int instrument_id)
         return true;
     }
 
-    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
-           S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
+    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) && S_Verify_is_Sound_original(Get_sound_id(Patch_id, instrument_id));
 }
 
 void P_Rebuild_patch_old(void)
@@ -8319,11 +8318,6 @@ void P_Select_menu_elements(void)
     P_menu_max = Menu_P[value_P_Exit] + Menu_P[value_P_Save] + Menu_P[value_P_Clone] + Menu_P[value_P_SaveAsNew] + Menu_P[value_P_DropPatch] - 1;
 }
 
-int P_sound_id_from_instrument_id(const int instrument_id)
-{
-    return Patch[Patch_id].Instrument[instrument_id].sound_id;
-}
-
 // ***************************************************************************************************************
 // **********************************           SOUND, INSTRUMENT              ***********************************
 // ***************************************************************************************************************
@@ -8473,7 +8467,7 @@ uint32_t S_Calc_trim_step(int value)
 
 void S_Drop_Instrument(const int instrument_id)
 {
-    Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].used = false;
+    Sound[Get_sound_id(Patch_id, instrument_id)].used = false;
     Patch[Patch_id].Instrument[instrument_id].used = false;
     Patch[Patch_id].instruments--;
 }
@@ -8485,12 +8479,12 @@ bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
         if (!Patch[Patch_id].Instrument[new_instrument].used)
         {
             Patch[Patch_id].Instrument[new_instrument] = Patch[Patch_id].Instrument[instrument_id];
-            int S = S_Get_sound_free();
-            if (S >= 0)
+            int sound_id_new = S_Get_sound_free();
+            if (sound_id_new >= 0)
             {
-                Sound[S] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
-                Sound[S].gain = 0;
-                Patch[Patch_id].Instrument[new_instrument].sound_id = S;
+                Sound[sound_id_new] = Sound[Get_sound_id(Patch_id, instrument_id)];
+                Sound[sound_id_new].gain = 0;
+                Patch[Patch_id].Instrument[new_instrument].sound_id = sound_id_new;
                 Patch[Patch_id].instruments++;
                 return true;
             }
@@ -11517,9 +11511,9 @@ FLASHMEM
 void Print_Instrument(int patch_id, int instrument_id)
 {
     Serial.print(" sound_id:");
-    Serial.print(Patch[patch_id].Instrument[instrument_id].sound_id);
+    Serial.print(Get_sound_id(patch_id, instrument_id));
     Serial.print(" file:");
-    Serial.print(Sound[Patch[patch_id].Instrument[instrument_id].sound_id].file);
+    Serial.print(Sound[Get_sound_id(patch_id, instrument_id)].file);
     Serial.print(".raw");
     Serial.print(" root_key:");
     Serial.print(Patch[patch_id].Instrument[instrument_id].root_key);
@@ -11991,13 +11985,13 @@ void Switch_to_MIXER()
                 break;
             }
         }
-        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+        Sound_id = Get_sound_id(Patch_id, Instrument_id);
     }
 
     else if (Lilla_state == LIVE_SAMPLING)
     {
         Instrument_id = LS_instrument;
-        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+        Sound_id = Get_sound_id(Patch_id, Instrument_id);
     }
 
     Golive_MIXER();
@@ -12020,7 +12014,7 @@ void Golive_MIXER(void)
     MX_local_pointer = Pointer_Mixer.Get_pointer();
 
     Instrument_id = 0;
-    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 }
 
 // ***************************************************************************************************************

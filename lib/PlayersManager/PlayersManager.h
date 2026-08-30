@@ -40,11 +40,6 @@ private:
     bool Player_booked[PLAYERS] = {false};
     bool restart_Player[PLAYERS] = {false}; // questo array serve per contare, ad ogni ciclo, il numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
 
-    static inline uint8_t Sound_Id(int patch_id, int instrument_id)
-    {
-        return Patch[patch_id].Instrument[instrument_id].sound_id;
-    }
-
     static inline float Calc_pitch(float value)
     {
         return pow(2.0f, value / 192.0f); // 0: no shift

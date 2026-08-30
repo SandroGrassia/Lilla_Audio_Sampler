@@ -74,7 +74,7 @@ void ArchivingManager::Save_Patch(const int patch_id)
     for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         EEPROM_Patch.Instrument[instrument_id].used = Patch[patch_id].Instrument[instrument_id].used;
-        EEPROM_Patch.Instrument[instrument_id].sound_id = Patch[patch_id].Instrument[instrument_id].sound_id;
+        EEPROM_Patch.Instrument[instrument_id].sound_id = Get_sound_id(patch_id, instrument_id);
         EEPROM_Patch.Instrument[instrument_id].root_key = Patch[patch_id].Instrument[instrument_id].root_key;
 
         EEPROM_Patch.Instrument[instrument_id].from_note = Patch[patch_id].Instrument[instrument_id].from_note;
@@ -1066,7 +1066,7 @@ bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int i
 
 void ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file) // private
 {
-    const auto *data = (const byte *)(const void *)&Sound[Patch[patch_id].Instrument[instrument_id].sound_id];
+    const auto *data = (const byte *)(const void *)&Sound[Get_sound_id(patch_id, instrument_id)];
 
     for (auto i = 0; i < SIZE_OF_SOUND; ++i)
     {

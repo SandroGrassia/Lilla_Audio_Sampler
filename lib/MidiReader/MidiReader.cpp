@@ -352,7 +352,7 @@ void MidiReader::Update(void)
                         {
                             if (Patch[Patch_id].Instrument[instrument_id].used && (Get_midi_channel(Patch_id, instrument_id) == midi_channel))
                             {
-                                Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].gain = (float)midi_value * 0.315; // 127 --> 40
+                                Sound[Get_sound_id(Patch_id, instrument_id)].gain = (float)midi_value * 0.315; // 127 --> 40
                                 Players_Manager->Update_Preset_volume(Patch_id, instrument_id, Volume_float[volume_patch]);
                                 Players_Manager->Multicast_volume_for_instrument_edit(instrument_id);
                                 

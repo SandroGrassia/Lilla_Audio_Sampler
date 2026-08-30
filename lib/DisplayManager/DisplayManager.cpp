@@ -678,16 +678,18 @@ void DisplayManager::P_show_Pan_value(int patch_id, int instrument_id, bool edit
     auto x_display = display_coordinate_x(P_column_instrument_element[6]);
     tft.setTextColor((editing ? ILI9341_YELLOW : ILI9341_WHITE));
 
+    const uint16_t sound_id = Get_sound_id(patch_id, instrument_id);
+
     Cancel_text_reset_cursor(x_display, y_display, 2);
-    if (Sound[Patch[patch_id].Instrument[instrument_id].sound_id].pan < 0)
+    if (Sound[sound_id].pan < 0)
     {
         tft.print("L");
     }
-    else if (Sound[Patch[patch_id].Instrument[instrument_id].sound_id].pan > 0)
+    else if (Sound[sound_id].pan > 0)
     {
         tft.print("R");
     }
-    tft.print(abs(Sound[Patch[patch_id].Instrument[instrument_id].sound_id].pan));
+    tft.print(abs(Sound[sound_id].pan));
 }
 
 FLASHMEM
@@ -700,7 +702,7 @@ void DisplayManager::P_show_Gain_value(int patch_id, int instrument_id, bool edi
     tft.setTextColor((editing ? ILI9341_YELLOW : ILI9341_WHITE));
 
     Cancel_text_reset_cursor(x_display, y_display, 4);
-    tft.print(Sound[Patch[patch_id].Instrument[instrument_id].sound_id].gain / 20.0f, 2);
+    tft.print(Sound[Get_sound_id(patch_id, instrument_id)].gain / 20.0f, 2);
 }
 
 FLASHMEM

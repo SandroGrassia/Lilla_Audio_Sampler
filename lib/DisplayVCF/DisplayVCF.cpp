@@ -14,7 +14,7 @@ void DisplayVCF::VCF_show_pointer_frame(const int pointer, const bool show)
 FLASHMEM
 void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
 {
-    auto sound_id = Patch[patch_id].Instrument[instrument_id].sound_id;
+    uint16_t sound_id = Get_sound_id(patch_id, instrument_id);
 
     tft.fillScreen(ILI9341_BLACK);
 

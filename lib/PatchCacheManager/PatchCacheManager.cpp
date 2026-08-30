@@ -198,7 +198,7 @@ void PatchCacheManager::Free_cache_if_unused(uint16_t file_id)
         uint8_t instrument_counter = 0;
         for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
-            if (Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].file == file_id)
+            if (Sound[Get_sound_id(Patch_id, instrument_id)].file == file_id)
             {
                 ++instrument_counter;
             }

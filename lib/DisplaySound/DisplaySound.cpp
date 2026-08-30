@@ -207,11 +207,6 @@ void DisplaySound::Show_Release_value(int instrument_id)
     Show_measure_unit("sec", 3);
 }
 
-inline int DisplaySound::Sound_Id(int patch_id, int instrument_id)
-{
-    return Patch[patch_id].Instrument[instrument_id].sound_id;
-}
-
 FLASHMEM
 void DisplaySound::Show_File_value(int instrument_id)
 {
@@ -240,7 +235,7 @@ void DisplaySound::Show_Gain_value(int patch_id, int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Gain][0]), display_coordinate_y(S_column_row_value_element[value_S_Gain][1]), S_chars_Gain);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Sound[Sound_Id(patch_id, instrument_id)].gain / 20.0);
+    tft.print(Sound[Get_sound_id(patch_id, instrument_id)].gain / 20.0);
 }
 
 FLASHMEM
@@ -352,7 +347,7 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
 
 void DisplaySound::Show_wave(int instrument_id)
 {
-    auto sound_id_local = Patch[Patch_id].Instrument[instrument_id].sound_id;                                                // Active sound routed to the selected instrument.
+    auto sound_id_local = Get_sound_id(Patch_id, instrument_id);                                                // Active sound routed to the selected instrument.
     int yp, yn, y0;                                                                                                          // Upper sample, lower sample, and previous Y position on the canvas.
     int NC_A;                                                                                                                // Width of the no-click curtain drawn at both waveform edges.
     int16_t *X = Info.Sound_620_samples_array(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B); // Two 620-sample envelopes used for waveform rendering.

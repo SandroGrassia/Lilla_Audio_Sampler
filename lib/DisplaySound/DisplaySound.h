@@ -73,8 +73,7 @@ private:
         S_chars_Release,
         S_chars_PlayMode,
         S_chars_NoClick};
-
-    int Sound_Id(int patch_id, int instrument_id); // Resolves the Sound_id assigned to the selected patch instrument.
+        
     void Delete_all_menu_frame(void);            // Clears every SOUND menu highlight frame.
 
 public:

@@ -35,6 +35,8 @@ float pitch_from_note[NOTE_NUMBERS] = {0};
 bool display_instrument_volume_flag = false;
 uint8_t instrument_volume_changed = 0;
 
+
+
 uint8_t P_choice_menu;
 bool Menu_P[5];
 
@@ -62,10 +64,15 @@ float pan_gain_L_table[33];
 float pan_gain_R_table[33];
 
 // funzioni
-uint8_t Get_midi_channel(int patch_id, int instrument_id)
+inline uint8_t Get_midi_channel(int patch_id, int instrument_id)
 {
     // .data contains midi channel in its bits: 7 6 5 M I D I 0
-    return ((Sound[Patch[patch_id].Instrument[instrument_id].sound_id].data & 30) >> 1);
+    return ((Sound[Get_sound_id(patch_id, instrument_id)].data & 30) >> 1);
+}
+
+inline uint8_t Get_sound_id(int patch_id, int instrument_id)
+{
+    return Patch[patch_id].Instrument[instrument_id].sound_id;
 }
 
 // PRESET
