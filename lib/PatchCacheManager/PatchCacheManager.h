@@ -50,6 +50,6 @@ public:
     
     void Set_cache_pointer(uint8_t cache_id, int16_t* pointer);
     void Begin(void); // reset inner arrays
-    bool Load_patch(uint8_t patch_id);
+    bool Load_patch(int16_t old_patch_id, uint8_t new_patch_id);
     bool Load_audio_file(int16_t file_id_old, uint16_t file_id);
 };
