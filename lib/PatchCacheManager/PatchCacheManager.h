@@ -40,6 +40,7 @@ class PatchCacheManager
     uint16_t Get_copy_samples(uint16_t read_time_micros);
     int8_t Get_cache_free(void);
     int8_t Get_cache_id_from_file_id(uint16_t file_id);
+    void Free_cache_if_unused(uint16_t file_id);
 
 public:
     PatchCacheManager()
@@ -50,5 +51,5 @@ public:
     void Set_cache_pointer(uint8_t cache_id, int16_t* pointer);
     void Begin(void); // reset inner arrays
     bool Load_patch(uint8_t patch_id);
-    bool Load_audio_file(int16_t file_id_old, uint16_t file_id, uint32_t samples);
+    bool Load_audio_file(int16_t file_id_old, uint16_t file_id);
 };

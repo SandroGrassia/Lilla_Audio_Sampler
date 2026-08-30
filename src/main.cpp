@@ -1241,7 +1241,7 @@ void loop()
         // TEST_Current_Patch_SD_round_trip();
 
         // ******************************************    Test copy .raw to PSRAM   **************************************
-        PatchCache_Manager.Load_audio_file(-1, Sound[Patch[Patch_id].Instrument[1].sound_id].file, 2000000);
+        PatchCache_Manager.Load_audio_file(-1, Sound[Patch[Patch_id].Instrument[1].sound_id].file);
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
