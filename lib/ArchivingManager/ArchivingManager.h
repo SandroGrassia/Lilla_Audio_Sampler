@@ -113,6 +113,7 @@ public:
     void Read_first_octave(int8_t &first_octave);
     void Save_first_octave(const int8_t first_octave);
     void Save_Sound(const int sound_id);
+    bool Validate_Sound_AB_file_raw(uint32_t sound_id);
     void Read_Sound(const int sound_id);
     void Save_Patch(const int patch_id);
     void Read_Patch(const int patch_id);

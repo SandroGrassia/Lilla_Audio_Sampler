@@ -63,17 +63,6 @@ float m_release_table[10];
 float pan_gain_L_table[33];
 float pan_gain_R_table[33];
 
-// funzioni
-inline uint8_t Get_midi_channel(int patch_id, int instrument_id)
-{
-    // .data contains midi channel in its bits: 7 6 5 M I D I 0
-    return ((Sound[Get_sound_id(patch_id, instrument_id)].data & 30) >> 1);
-}
-
-inline uint8_t Get_sound_id(int patch_id, int instrument_id)
-{
-    return Patch[patch_id].Instrument[instrument_id].sound_id;
-}
 
 // PRESET
 Preset_struct Preset[INSTRUMENTS];

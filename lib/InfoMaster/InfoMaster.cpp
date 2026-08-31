@@ -73,12 +73,12 @@ int InfoMaster::Raw_file_samples(int file_id)
 
     if (!rawfile)
     {
-        Serial.println(file_id);
         return 0;
     }
     else
     {
-        result = rawfile.size() >> 1;
+        result = rawfile.size()/sizeof(int16_t);
+        result = result < PATCH_CACHE_ARRAY_SAMPLES? result : PATCH_CACHE_ARRAY_SAMPLES; 
         rawfile.close();
         return result; // return samples_available;
     }

@@ -311,8 +311,18 @@ extern float pan_gain_L_table[33];
 extern float pan_gain_R_table[33];
 
 // funzioni
-inline uint8_t Get_midi_channel(int patch_id, int instrument_id);
-inline uint8_t Get_sound_id(int patch_id, int instrument_id);
+inline uint8_t Get_sound_id(int patch_id, int instrument_id)
+{
+    return Patch[patch_id].Instrument[instrument_id].sound_id;
+}
+
+inline uint8_t Get_midi_channel(int patch_id, int instrument_id)
+{
+    // .data contains midi channel in its bits: 7 6 5 M I D I 0
+    return ((Sound[Patch[patch_id].Instrument[instrument_id].sound_id].data & 30) >> 1);
+}
+
+
 
 // PRESET
 // E' il the data-set sent to a Player; it's a complete description of a sound that has to be played

@@ -1241,7 +1241,10 @@ void loop()
         // TEST_Current_Patch_SD_round_trip();
 
         // ******************************************    Test copy .raw to PSRAM   **************************************
-        PatchCache_Manager.Load_audio_file(-1, Sound[Get_sound_id(Patch_id, 1)].file);
+        Serial.println();
+        Serial.print("Tento di copiare la patch: ");
+        Serial.println(Patch_id);
+        PatchCache_Manager.Load_patch(Patch_id);
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)

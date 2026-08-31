@@ -6,6 +6,7 @@
 
 #include "PatchCacheManager.h"
 #include "Functions.h"
+#include "GlobalInfoMaster.h"
 #include <spi_interrupt.h>
 
 void PatchCacheManager::Begin(void)
@@ -81,6 +82,15 @@ bool PatchCacheManager::Load_audio_file(int16_t file_id_old, uint16_t file_id)
 
     else
     {
+        // calcola i sample da copiare
+        const uint32_t file_samples = Info.Raw_file_samples(file_id);// rawfile.size() / sizeof(int16_t);
+
+        if (file_samples == 0)
+        {
+            PRINT_ERROR(F("ERROR: PatchCacheManager empty RAW file - "));
+            return false;
+        }
+
         rawfile.fast_open(file_id);
         if (!rawfile)
         {
@@ -88,21 +98,14 @@ bool PatchCacheManager::Load_audio_file(int16_t file_id_old, uint16_t file_id)
             return false;
         }
 
-        // calcola i sample da copiare
-        const uint32_t file_samples = rawfile.size() / sizeof(int16_t);
-        if (file_samples == 0)
-        {
-            rawfile.close();
-            PRINT_ERROR(F("ERROR: PatchCacheManager empty RAW file - "));
-            return false;
-        }
-        const uint32_t samples_to_copy = file_samples < PATCH_CACHE_ARRAY_SAMPLES ? file_samples : PATCH_CACHE_ARRAY_SAMPLES;
+        const uint32_t samples_to_copy = file_samples;
 
         // individua la cache_id Free
         cache_id = Get_cache_free();
         if (cache_id < 0)
         {
             PRINT_ERROR(F("ERROR: PatchCacheManager no free cache slot - "));
+            rawfile.close();
             return false;
         }
 
@@ -185,9 +188,15 @@ bool PatchCacheManager::Load_audio_file(int16_t file_id_old, uint16_t file_id)
     return true;
 }
 
+bool PatchCacheManager::Load_patch(uint8_t new_patch_id)
+{
+    return Load_patch(-1, new_patch_id);
+}
+
+
 bool PatchCacheManager::Load_patch(int16_t old_patch_id, uint8_t new_patch_id)
 {
-    if (old_patch_id < -1 || old_patch_id > PATCHES_MAX)
+    if (old_patch_id < -1 || old_patch_id >= PATCHES_MAX)
     {
         PRINT_ERROR(F("ERROR: PatchCacheManager invalid old patch_id - "));
         return false;

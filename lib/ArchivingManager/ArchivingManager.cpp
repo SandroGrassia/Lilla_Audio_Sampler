@@ -5,6 +5,7 @@
  */
 
 #include "ArchivingManager.h"
+#include "GlobalInfoMaster.h"
 
 void ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
 {
@@ -61,9 +62,49 @@ void ArchivingManager::Save_Sound(const int sound_id)
     Eeprom_writeAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
 }
 
+bool ArchivingManager::Validate_Sound_AB_file_raw(uint32_t sound_id)
+{
+    if (sound_id >= SOUNDS_MAX)
+    {
+        PRINT_ERROR(F("ERROR: invalid sound_id - "));
+        return false;
+    }
+
+    int sample_count = 0;
+
+    if (Sound[sound_id].file < FIRST_RECORDING_FILE)
+    {
+        sample_count = Info.Raw_file_samples(Sound[sound_id].file);
+    }
+
+    const bool invalid = sample_count <= 0 || Sound[sound_id].A >= static_cast<uint32_t>(sample_count) || Sound[sound_id].B >= static_cast<uint32_t>(sample_count) || Sound[sound_id].B < Sound[sound_id].A;
+
+    if (!invalid)
+    {
+        return true;
+    }
+
+    const int fallback_samples = Info.Raw_file_samples(0);
+
+    // La mancanza di 0.raw è un errore di sistema non recuperabile automaticamente.
+    if (fallback_samples <= 0)
+    {
+        PRINT_ERROR(F("ERROR: required 0.raw missing or empty - "));
+        return false;
+    }
+
+    Sound[sound_id].file = 0;
+    Sound[sound_id].A = 0;
+    Sound[sound_id].B = static_cast<uint32_t>(fallback_samples - 1);
+
+    Save_Sound(sound_id);
+    return true;
+}
+
 void ArchivingManager::Read_Sound(const int sound_id)
 {
     Eeprom_readAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
+    Validate_Sound_AB_file_raw(sound_id);
 }
 
 void ArchivingManager::Save_Patch(const int patch_id)
@@ -999,7 +1040,7 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
     // Modifica la Patch attiva soltanto dopo una lettura completa.
     Patch[patch_id] = temporaryPatch;
 
-    Serial.print(F( "ArchivingManager::Resume_Patch_from_SD_to_RAM - Patch restored from "));
+    Serial.print(F("ArchivingManager::Resume_Patch_from_SD_to_RAM - Patch restored from "));
     Serial.println(full_path);
 
     return true;
