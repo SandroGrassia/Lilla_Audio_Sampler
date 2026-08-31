@@ -37,3 +37,21 @@ Dopo ogni modifica, Codex deve verificare nuovamente tutti i file modificati.
 Una modifica non e' completata se un file risulta `w/lf` o `w/mixed`.
 Codex deve preservare o ripristinare CRLF esclusivamente nei file autorizzati,
 senza normalizzare o modificare altri file.
+
+# Espressioni di codice su una sola riga
+
+In caso di scrittura o modifica di codice, Codex non deve inserire interruzioni di riga all'interno delle espressioni. Ogni espressione deve essere mantenuta su una sola riga.
+
+Corretto:
+
+```cpp
+return FRAM_PATCH_ADDRESS + static_cast<uint32_t>(patch_id) * sizeof(FRAM_Patch_struct);
+```
+
+Non consentito:
+
+```cpp
+return FRAM_PATCH_ADDRESS
+         + static_cast<uint32_t>(patch_id)
+               * sizeof(FRAM_Patch_struct);
+```

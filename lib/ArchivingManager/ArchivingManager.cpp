@@ -7,6 +7,36 @@
 #include "ArchivingManager.h"
 #include "GlobalInfoMaster.h"
 
+uint32_t ArchivingManager::FRAM_Get_patch_address(uint8_t patch_id)
+{
+    return FRAM_PATCH_ADDRESS + static_cast<uint32_t>(patch_id) * sizeof(FRAM_Patch_struct);
+}
+
+uint32_t ArchivingManager::FRAM_Get_instrument_address(uint8_t patch_id, uint8_t instrument_id)
+{
+    return FRAM_Get_patch_address(patch_id) + offsetof(FRAM_Patch_struct, Instrument) + static_cast<uint32_t>(instrument_id) * sizeof(FRAM_Instrument_struct);
+}
+
+uint32_t ArchivingManager::FRAM_Get_filter_address(uint8_t patch_id, uint8_t instrument_id)
+{
+    return FRAM_Get_instrument_address(patch_id, instrument_id) + offsetof(FRAM_Instrument_struct, Filter);
+}
+
+uint32_t ArchivingManager::FRAM_Get_delay_address(uint8_t patch_id)
+{
+    return FRAM_Get_patch_address(patch_id) + offsetof(FRAM_Patch_struct, Delay);
+}
+
+uint32_t ArchivingManager::FRAM_Get_sound_address(uint16_t sound_id)
+{
+    return FRAM_SOUND_ADDRESS + static_cast<uint32_t>(sound_id) * sizeof(FRAM_Sound_struct);
+}
+
+uint32_t ArchivingManager::FRAM_Get_recording_address(uint8_t recording_id)
+{
+    return FRAM_RECORDING_ADDRESS + static_cast<uint32_t>(recording_id) * sizeof(FRAM_Recording_struct);
+}
+
 void ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
 {
     Eeprom_writeAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter);

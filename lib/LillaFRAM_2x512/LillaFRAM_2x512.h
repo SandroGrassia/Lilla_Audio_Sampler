@@ -82,6 +82,7 @@ public:
     static constexpr uint8_t FIRST_I2C_ADDRESS = 0x50;
     static constexpr uint32_t TOTAL_SIZE = FRAM_CHIPS * FRAM_CHIP_SIZE;
     static constexpr uint32_t MAX_ADDRESS = TOTAL_SIZE - 1;
+
     enum Error : byte
     {
         ERROR_0 = 0,
@@ -110,9 +111,6 @@ public:
     byte toggleBit(uint32_t framAddr, uint8_t bitNb);
     byte copyByte(uint32_t origAddr, uint32_t destAddr);
 
-    byte readArray(uint32_t framAddr, byte items, uint8_t values[]);
-    byte writeArray(uint32_t framAddr, byte items, uint8_t values[]);
-
     byte readByte(uint32_t framAddr, uint8_t *value);
     byte writeByte(uint32_t framAddr, uint8_t value);
 
@@ -121,6 +119,9 @@ public:
 
     byte readLong(uint32_t framAddr, uint32_t *value);
     byte writeLong(uint32_t framAddr, uint32_t value);
+
+    byte readArray(uint32_t framAddr, uint32_t items, uint8_t values[]);
+    byte writeArray(uint32_t framAddr, uint32_t items, const uint8_t values[]);
 
     byte eraseDevice();
 };
