@@ -159,6 +159,7 @@
 #include "AudioFeedback.h"
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
+#include "CacheCycleFinalizer.h"
 
 #include "ArchivingManager.h"
 #include "LillaFRAM_2x512.h"
@@ -198,6 +199,7 @@ AudioPlayer Player[PLAYERS];
 Router_16x3 Router_L;
 Router_16x3 Router_R;
 LillaClock Trigger_1; // 2a Lettura midi
+CacheCycleFinalizer CacheCycle_finalizer;
 AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
 AudioPeakDetector PeakTracking_L; // Track the signal peak amplitude.
@@ -2152,8 +2154,9 @@ void loop()
                         Sound[Sound_id].A = 0;
                         Sound[Sound_id].B = (samples_in_file > 0 ? samples_in_file - 1 : 0);
                         if (!slicing_mode)
+                        {
                             S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
-                        // A_value = Sound[sound_id].A;
+                        }
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
 
                         AudioNoInterrupts();
@@ -12685,9 +12688,9 @@ void Startup_hardware_and_objects(void)
     MAIN_mixer_out_L.gain(1, 0.0);
     MAIN_mixer_out_R.gain(1, 0.0);
 
-    // Note-to-pitch conversion array
-    key_step = 0;
-    Calc_pitch_from_note(key_step);
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // *******************       PSRAM       *********************
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     // PatchCacheManager
     for (auto i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
@@ -12695,6 +12698,8 @@ void Startup_hardware_and_objects(void)
         PatchCache_Manager.Set_cache_pointer(i, &patch_cache_array[i][0]);
     }
 
+    // CacheCycleFinalizer
+    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************
@@ -12729,6 +12734,10 @@ void Startup_hardware_and_objects(void)
     // *******************   FILE SCANNER   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
+
+    // Note-to-pitch conversion array
+    key_step = 0;
+    Calc_pitch_from_note(key_step);
 }
 
 FLASHMEM

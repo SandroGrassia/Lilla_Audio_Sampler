@@ -20,8 +20,7 @@ private:
     static constexpr uint16_t FULL_WAVETABLE_DIM = 2 * WAVETABLE_DIM;
     void READ_Samples(int file_id, int16_t *destination, int seek_in, int samples_in);
     int16_t Wavetable[FULL_WAVETABLE_DIM] = {0};
-    int16_t cache_1[WAVETABLE_DIM] = {0};
-    int16_t cache_2[WAVETABLE_DIM] = {0};
+    static int16_t cache[WAVETABLE_DIM];
     int length = 0;  
     
 public:

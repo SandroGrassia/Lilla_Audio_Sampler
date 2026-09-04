@@ -196,6 +196,10 @@ private:
     int16_t *Noclick_ptr;
     uint16_t delta_Noclick = 0;
 
+    // PSRAM operation
+    AudioFileSource source_now;
+    uint16_t referenced_cache_mask = 0;
+
     // wait variables
     int file_id_wait;
     float volume_gain_wait;

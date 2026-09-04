@@ -6,6 +6,9 @@
 
 #include "WavetableManager.h"
 
+int16_t WavetableManager::cache[WavetableManager::WAVETABLE_DIM] = {0};
+
+
 int16_t *WavetableManager::get_pointer(void)
 {
     return Wavetable;
@@ -39,12 +42,12 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
         length = length_max;
 
         // A>>>>>>>>>>>>>length_max>>>>>>>>>>>>>B
-        READ_Samples(file_id, cache_1, A_Flash_sample, length_max);
+        READ_Samples(file_id, cache, A_Flash_sample, length_max);
 
         // B>>>>>>>>>>>>length_max>>>>>>>>>>>>>>A
         for (auto sample = 0; sample < (length_max); ++sample)
         {
-            Wavetable[sample] = cache_1[length_max - 1 - sample];
+            Wavetable[sample] = cache[length_max - 1 - sample];
         }
 
         break;
@@ -91,21 +94,15 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
         // (A)>>>>delta>>>>(A+d-1)
         for (auto sample = 0; sample < delta_Noclick; ++sample)
         {
-            cache_1[sample] = *(p_Noclick + sample);
+            cache[sample] = *(p_Noclick + sample);
         }
-
-        // (A+d)>>>>>>>>>>>>>length_min>>>>>>>>>>>>>>>(B-d)
-        READ_Samples(file_id, cache_2, (A_Flash_sample + delta_Noclick), length_min);
-
+        
         // (A)>>>>>delta>>>>(A+d-1)(A+d)>>>>>>>>>>>>>>>>length_min>>>>>>>>>>>>(B-d)
-        for (auto sample = 0; sample < length_min; ++sample)
-        {
-            cache_1[delta_Noclick + sample] = cache_2[sample];
-        }
+        READ_Samples(file_id, cache + delta_Noclick, A_Flash_sample + delta_Noclick, length_min);
 
         for (auto sample = 0; sample < length_mix; ++sample)
         {
-            Wavetable[sample] = cache_1[(length_mix - 1) - sample];
+            Wavetable[sample] = cache[(length_mix - 1) - sample];
         }
         break;
 
@@ -129,10 +126,6 @@ void WavetableManager::READ_Samples(int file_id, int16_t *destination, int seek_
         first_byte = seek_in * 2;
 
         rawfile.fast_open(file_id);
-        {
-            return;
-        }
-
         rawfile.seek(first_byte);
         rawfile.read(destination_byte, total_bytes);
         rawfile.close();

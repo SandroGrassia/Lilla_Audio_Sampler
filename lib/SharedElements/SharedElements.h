@@ -223,6 +223,21 @@ inline bool operator==(const Sound_struct &lhs, const Sound_struct &rhs)
     return lhs.used == rhs.used && lhs.file == rhs.file && lhs.mode == rhs.mode && lhs.pitch == rhs.pitch && lhs.A == rhs.A && lhs.B == rhs.B && lhs.Noclick == rhs.Noclick && lhs.pan == rhs.pan && lhs.data == rhs.data && lhs.attack == rhs.attack && lhs.decay == rhs.decay && lhs.sustain == rhs.sustain && lhs.release == rhs.release && lhs.gain == rhs.gain;
 }
 
+enum AudioFileStorage : uint8_t
+{
+    Flash,
+    Psram
+};
+
+struct AudioFileSource
+{
+    int16_t file_id = -1;
+    AudioFileStorage storage = Flash;
+    const int16_t *psram_ptr = nullptr;
+    uint32_t samples = 0;
+    int8_t cache_id = -1;
+};
+
 // PERFORMANCE
 static constexpr char PROGMEM note_name[12][3] = {{"C"}, {"C#"}, {"D"}, {"D#"}, {"E"}, {"F"}, {"F#"}, {"G"}, {"G#"}, {"A"}, {"A#"}, {"B"}};
 extern uint8_t Patch_id;
