@@ -121,7 +121,7 @@ public:
     byte writeLong(uint32_t framAddr, uint32_t value);
 
     byte readArray(uint32_t framAddr, uint32_t items, uint8_t values[]);
-    byte writeArray(uint32_t framAddr, uint32_t items, const uint8_t values[]);
+    byte writeArray(uint32_t framAddr, uint32_t items, uint8_t values[]);
 
     byte eraseDevice();
 };

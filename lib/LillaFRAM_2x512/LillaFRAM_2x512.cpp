@@ -8,7 +8,6 @@
  **************************************************************************/
 
 #include "LillaFRAM_2x512.h"
-
 #include <string.h>
 
 byte LillaFRAM_2x512::begin()
@@ -56,7 +55,7 @@ byte LillaFRAM_2x512::beginAddressTransmission(uint32_t framAddr)
     return ERROR_0;
 }
 
-byte LillaFRAM_2x512::writeArray(uint32_t framAddr, byte items, uint8_t values[])
+byte LillaFRAM_2x512::writeArray(uint32_t framAddr, uint32_t items, uint8_t values[])
 {
     if (items == 0)
     {
@@ -97,7 +96,7 @@ byte LillaFRAM_2x512::writeArray(uint32_t framAddr, byte items, uint8_t values[]
     return ERROR_0;
 }
 
-byte LillaFRAM_2x512::readArray(uint32_t framAddr, byte items, uint8_t values[])
+byte LillaFRAM_2x512::readArray(uint32_t framAddr, uint32_t items, uint8_t values[])
 {
     if (items == 0)
     {

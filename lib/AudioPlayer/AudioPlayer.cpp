@@ -160,10 +160,11 @@ if (downsampling_flag)
 
 */
 
-void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in)
+void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in)
 {
     Noclick_wait_ptr = p_Noclick_in;
     Wavetable_wait_ptr = p_Wavetable_in;
+    tables_bank_mask_wait = tables_bank_mask_in;
 
     A_Flash_sample_wait = A_value_in;
     B_Flash_sample_wait = B_value_in;
@@ -187,7 +188,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
             if (mode_player_wait == ONCE_FWD) // 0
             {
                 A_Flash_sample_wait = LS_X_sample;
-                B_Flash_sample_wait = A_Flash_sample_wait + live_span;   
+                B_Flash_sample_wait = A_Flash_sample_wait + live_span;
                 a_first_sample_wait = A_Flash_sample_wait;
             }
             else if (mode_player_wait == ONCE_REV) // 1
@@ -386,7 +387,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
     }
 }
 
-void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in)
+void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in)
 {
     mode_player_E = (mode_in == LOOP_REV_FWD ? LOOP_FWD_REV : mode_in); // switching to mode 4 is ininfluent WHILE playing (besides, mode 4 does NOT exist in harvest functions)
     A_Flash_sample_E = A_value_in;
@@ -395,6 +396,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     use_Wavetable_E = use_Wavetable_in;
     Noclick_E_ptr = p_Noclick_in;
     Wavetable_E_ptr = p_Wavetable_in;
+    tables_bank_mask_E = tables_bank_mask_in;
 
     // Read samples from PSRAM chip
     if (file_id_wait >= FIRST_LIVE_SAMPLING_FILE)
@@ -564,6 +566,9 @@ void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int 
 
     if (state == IDLE)
     {
+        warmup_for_play_again_flag = false;
+        restart_flag = false;
+        main_settings_editing_flag = false;
         Start_playing();
     }
     else
@@ -653,6 +658,8 @@ void AudioPlayer::Start_playing(void)
     pan_gain_R = pan_gain_R_wait;
     Noclick_ptr = Noclick_wait_ptr;
     Wavetable_ptr = Wavetable_wait_ptr;
+    tables_bank_mask = tables_bank_mask_wait;
+
     A_Flash_sample = A_Flash_sample_wait;
     B_Flash_sample = B_Flash_sample_wait;
     delta_Noclick = delta_Noclick_wait;
@@ -695,8 +702,12 @@ void AudioPlayer::Start_playing(void)
 
 void AudioPlayer::Release_note(void) // release note, fires ADSR "release"
 {
-    ADSR->Release_note();
+    if (state == IDLE)
+    {
+        return;
+    }
 
+    ADSR->Release_note();
     time_stamp = millis();
     power_on = false;
     state = FADING;
@@ -1230,6 +1241,7 @@ void AudioPlayer::update(void)
             delta_Noclick = delta_Noclick_E;
             Wavetable_ptr = Wavetable_E_ptr;
             Noclick_ptr = Noclick_E_ptr;
+            tables_bank_mask = tables_bank_mask_E;
             use_Wavetable = use_Wavetable_E;
             A_Flash_sample = A_Flash_sample_E;
             B_Flash_sample = B_Flash_sample_E;
@@ -1307,8 +1319,7 @@ void AudioPlayer::update(void)
 
             I_basket_L_sample = static_cast<int16_t>(F_basket_sample); // index of the lower sample needed for calculation
             F_index_delta = F_basket_sample - I_basket_L_sample;
-            I_basket_H_sample =  I_basket_L_sample + (F_index_delta > 0.0f); // index of the upper sample needed for calculation
-            
+            I_basket_H_sample = I_basket_L_sample + (F_index_delta > 0.0f); // index of the upper sample needed for calculation
 
             if (volume_flag)
             {
@@ -2170,6 +2181,11 @@ int AudioPlayer::Read_loop_track(void)
 
 void AudioPlayer::Fast_stop(void)
 {
+    if (state == IDLE)
+    {
+        return;
+    }
+
     ADSR->Fast_stop();
     state = IDLE_REQUEST;
 }
@@ -2223,7 +2239,7 @@ void AudioPlayer::Set_vibrato_flag(bool value)
 
 void AudioPlayer::Set_mix_samples(uint8_t value)
 {
-    mix_samples = (value == 1? 2 : value);
+    mix_samples = (value == 1 ? 2 : value);
 }
 
 float AudioPlayer::Read_pitch(void)
@@ -2339,39 +2355,38 @@ void AudioPlayer::Update_VCF_resonance(float resonance)
     VCF_ptr->q_value = resonance; // Butterworth: 0.7071
 }
 
-
 void AudioPlayer::Send_LFO_to_VCF(void)
 {
 
-/*
- * Calculates the four VCF cutoff frequencies used while processing the next
- * audio block.
- *
- * The LFO output is sampled at the beginning and at one-quarter intervals of
- * the 128-sample block. Each LFO value is converted from a logarithmic pitch
- * offset into a cutoff-frequency multiplier using 2^x. The resulting frequency
- * is constrained to the supported VCF range of 50 Hz to 15 kHz.
- *
- * The first frequency is applied immediately by calling Set_filter(). The
- * remaining three frequencies are stored in VCF_frequency_array[] and applied
- * by AudioVCF::Update() at samples 32, 64, and 96. Distributing the coefficient
- * changes across the block produces smoother filter modulation and helps avoid
- * clicks and zipper noise.
- *
- * When the LFO modulation index or the VCF pivot frequency is being changed,
- * their values are advanced gradually at the same four positions within the
- * block. This prevents sudden parameter changes from reaching the filter.
- */
+    /*
+     * Calculates the four VCF cutoff frequencies used while processing the next
+     * audio block.
+     *
+     * The LFO output is sampled at the beginning and at one-quarter intervals of
+     * the 128-sample block. Each LFO value is converted from a logarithmic pitch
+     * offset into a cutoff-frequency multiplier using 2^x. The resulting frequency
+     * is constrained to the supported VCF range of 50 Hz to 15 kHz.
+     *
+     * The first frequency is applied immediately by calling Set_filter(). The
+     * remaining three frequencies are stored in VCF_frequency_array[] and applied
+     * by AudioVCF::Update() at samples 32, 64, and 96. Distributing the coefficient
+     * changes across the block produces smoother filter modulation and helps avoid
+     * clicks and zipper noise.
+     *
+     * When the LFO modulation index or the VCF pivot frequency is being changed,
+     * their values are advanced gradually at the same four positions within the
+     * block. This prevents sudden parameter changes from reaching the filter.
+     */
 
- const uint8_t ABS_4 = AUDIO_BLOCK_SAMPLES / 4;
+    const uint8_t ABS_4 = AUDIO_BLOCK_SAMPLES / 4;
     const uint8_t ABS_2 = AUDIO_BLOCK_SAMPLES / 2;
     const uint8_t ABS_3_4 = 3 * AUDIO_BLOCK_SAMPLES / 4;
 
     if (LFO_index_steps <= 0 && VCF_pivot_steps <= 0)
     {
         VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_ptr->Set_filter(0, VCF_frequency_array[0]);  // Set_filter(uint32_t stage, float frequency)
-        
+        VCF_ptr->Set_filter(0, VCF_frequency_array[0]); // Set_filter(uint32_t stage, float frequency)
+
         VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
         VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
         VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
@@ -2380,8 +2395,8 @@ void AudioPlayer::Send_LFO_to_VCF(void)
     {
         LFO_index += LFO_index_grain;
         VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_ptr->Set_filter(0, VCF_frequency_array[0]);  // Set_filter(uint32_t stage, float frequency)
-        
+        VCF_ptr->Set_filter(0, VCF_frequency_array[0]); // Set_filter(uint32_t stage, float frequency)
+
         LFO_index += LFO_index_grain;
         VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
         LFO_index += LFO_index_grain;
@@ -2398,8 +2413,8 @@ void AudioPlayer::Send_LFO_to_VCF(void)
         VCF_frequency_pivot += VCF_pivot_grain;
         VCF_central_frequency = (VCF_frequency_pivot * pitch);
         VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_ptr->Set_filter(0, VCF_frequency_array[0]);  // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
-        
+        VCF_ptr->Set_filter(0, VCF_frequency_array[0]); // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
+
         VCF_frequency_pivot += VCF_pivot_grain;
         VCF_central_frequency = (VCF_frequency_pivot * pitch);
         VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
@@ -2635,4 +2650,31 @@ void AudioPlayer::Write_precedence(bool value)
 void AudioPlayer::Write_time_stamp(unsigned long value)
 {
     time_stamp = value;
+}
+
+uint16_t AudioPlayer::Get_cache_reference_mask(void)
+{
+    return 0;
+}
+
+uint8_t AudioPlayer::Get_tables_reference_mask(void)
+{
+    if (state == IDLE)
+    {
+        return 0;
+    }
+
+    uint8_t referenced_banks_mask = tables_bank_mask;
+
+    if (warmup_for_play_again_flag || restart_flag)
+    {
+        referenced_banks_mask |= tables_bank_mask_wait;
+    }
+
+    if (main_settings_editing_flag)
+    {
+        referenced_banks_mask |= tables_bank_mask_E;
+    }
+
+    return referenced_banks_mask;
 }

@@ -679,29 +679,56 @@ void PlayersManager::Update_all_Preset_volume(int patch_id, float volume_patch)
     }
 }
 
-void PlayersManager::Update_Preset(int patch_id, int instrument_id, float volume_patch)
+Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, float volume_patch)
 {
+    Preset_struct result = {};
     const uint16_t sound_id = Get_sound_id(patch_id, instrument_id);
 
-    Update_Preset_volume(patch_id, instrument_id, volume_patch);
-    Preset[instrument_id].pan = Sound[sound_id].pan;
-    Preset[instrument_id].sound_id = sound_id;
-    Preset[instrument_id].file = Sound[sound_id].file;
-    Preset[instrument_id].midi_channel = Get_midi_channel(patch_id, instrument_id);
-    Preset[instrument_id].pitch = Calc_pitch(Sound[sound_id].pitch);
-    Preset[instrument_id].mode = Sound[sound_id].mode;
-    Preset[instrument_id].A = Sound[sound_id].A;
-    Preset[instrument_id].B = Sound[sound_id].B;
-    Preset[instrument_id].use_Wavetable = (Preset[instrument_id].B - Preset[instrument_id].A + 1) <= BLOCK_MIN;
-    Preset[instrument_id].Noclick = Sound[sound_id].Noclick;
-    Preset[instrument_id].attack_type = bitRead(Sound[sound_id].data, 0);
-    Preset[instrument_id].attack = Calc_attack(Sound[sound_id].attack);
-    Preset[instrument_id].decay = Calc_decay(Sound[sound_id].decay);
-    Preset[instrument_id].sustain = Calc_sustain(Sound[sound_id].sustain);
-    Preset[instrument_id].release = Calc_release(Sound[sound_id].release);
-    Preset[instrument_id].precedence = Patch[patch_id].Instrument[instrument_id].precedence; // Preset[I].precedence = bitRead(Patch[patch_id].Instrument[I].info, 0);
-    Preset[instrument_id].lock = Patch[patch_id].Instrument[instrument_id].lock;             // Preset[I].lock = bitRead(Patch[patch_id].Instrument[I].info, 1)
-    Update_Preset_IF(patch_id, instrument_id);
+    result.volume = MX_mute[instrument_id] ? 0.0f : volume_patch * Volume_float[Sound[sound_id].gain];
+    result.pan = Sound[sound_id].pan;
+    result.sound_id = sound_id;
+    result.file = Sound[sound_id].file;
+    result.midi_channel = Get_midi_channel(patch_id, instrument_id);
+    result.pitch = Calc_pitch(Sound[sound_id].pitch);
+    result.mode = Sound[sound_id].mode;
+    result.A = Sound[sound_id].A;
+    result.B = Sound[sound_id].B;
+    result.use_Wavetable = (result.B - result.A + 1) <= BLOCK_MIN;
+    result.Noclick = Sound[sound_id].Noclick;
+    result.attack_type = bitRead(Sound[sound_id].data, 0);
+    result.attack = Calc_attack(Sound[sound_id].attack);
+    result.decay = Calc_decay(Sound[sound_id].decay);
+    result.sustain = Calc_sustain(Sound[sound_id].sustain);
+    result.release = Calc_release(Sound[sound_id].release);
+    result.precedence = Patch[patch_id].Instrument[instrument_id].precedence;
+    result.lock = Patch[patch_id].Instrument[instrument_id].lock;
+
+    result.Filter.use = Patch[patch_id].Instrument[instrument_id].Filter.use;
+    result.Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type;
+
+    const float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;
+    result.Filter.pivot = 20.0f * pow(2.0f, value);
+    result.Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f;
+    result.Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index / 20.0f;
+    result.Filter.modulation = Patch[patch_id].Instrument[instrument_id].Filter.modulation;
+
+    if (result.Filter.modulation == 3 || result.Filter.modulation == 4)
+    {
+        result.Filter.periodic = 1;
+        result.Filter.frequency_time = Patch[patch_id].Instrument[instrument_id].Filter.frequency_time * Patch[patch_id].Instrument[instrument_id].Filter.frequency_time / 40.0f;
+    }
+    else
+    {
+        result.Filter.periodic = 0;
+        result.Filter.frequency_time = Patch[patch_id].Instrument[instrument_id].Filter.frequency_time / 8.0f;
+    }
+
+    return result;
+}
+
+void PlayersManager::Update_Preset(int patch_id, int instrument_id, float volume_patch)
+{
+    Preset[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
 }
 
 void PlayersManager::Update_Preset_volume(int patch_id, int instrument_id, float volume_patch)

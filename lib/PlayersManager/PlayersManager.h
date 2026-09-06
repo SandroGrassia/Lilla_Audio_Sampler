@@ -18,6 +18,7 @@
 #include "WavetableManager.h"
 #include "config.h"
 #include "AudioADSR.h"
+#include "AudioTables.h"
 
 class PlayersManager
 {
@@ -28,6 +29,7 @@ private:
     Router_16x3 *Router_R_ptr = nullptr;
     NoclickCrossmix *Noclick_ptr = nullptr;    // Players_Manager.Noclick_ptr = &Noclick[0]
     WavetableManager *Wavetable_ptr = nullptr; // Players_Manager.Wavetable_ptr = &Wavetable[0]
+    AudioTables *Audio_tables_ptr = nullptr;
     AudioADSR *ADSR = nullptr;
 
     // statistiche
@@ -66,8 +68,7 @@ private:
     }
 
 public:
-    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, NoclickCrossmix *NC, WavetableManager *WT) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Noclick_ptr(NC), Wavetable_ptr(WT) {}
-    
+    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, NoclickCrossmix *NC, WavetableManager *WT, AudioTables *AT) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Noclick_ptr(NC), Wavetable_ptr(WT), Audio_tables_ptr(AT) {}
     void Set_ADSR_ptr(AudioADSR* ptr); // requires &ADSR[0] from main.cpp
 
     // chiamate da MidiReader
@@ -152,6 +153,8 @@ public:
 
     void Update_all_Preset(int patch_id, float volume_patch);
     void Update_all_Preset_volume(int patch_id, float volume_patch);
+    
+    Preset_struct Build_Preset(int patch_id, int instrument_id, float volume_patch); // Build a preset without global Preset array modifications.
     void Update_Preset(int patch_id, int instrument_id, float volume_patch);
     void Update_Preset_volume(int patch_id, int instrument_id, float volume_patch); // chiamata da main e MidiReader
     void Update_Preset_pan(int patch_id, int instrument_id);

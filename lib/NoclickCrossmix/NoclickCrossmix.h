@@ -26,4 +26,5 @@ public:
 
     int16_t *get_pointer(void);
     bool Make(int file_id, int32_t A_Flash_sample, int32_t B_Flash_sample, uint16_t delta_Noclick);
+    bool Make(int file_id, int32_t A_Flash_sample, int32_t B_Flash_sample, uint16_t delta_Noclick, int16_t *destination);
 };

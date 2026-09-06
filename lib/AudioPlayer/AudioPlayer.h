@@ -33,12 +33,12 @@ private:
     uint8_t identity;
     enum PlayerStates
     {
-        IDLE,   // no output available
-        RUNNING, // running, no stop request
-        FADING,  //  stop requested, output is falling down
+        IDLE,        // no output available
+        RUNNING,     // running, no stop request
+        FADING,      //  stop requested, output is falling down
         IDLE_REQUEST // last update, than go to IDLE
     };
-    
+
     int state;
     LillaSerialFlashFile rawfile; // SerialFlashFile rawfile;
     int file_id;
@@ -153,7 +153,7 @@ private:
     int note = 0;
     unsigned long time_stamp = 0;
     int update_time;
-    
+
     float pitch = 0.0;
     float pitch_note;
     float velocity_gain; // 0 <= velocity_gain <= 1.0
@@ -195,6 +195,11 @@ private:
     int32_t Flash_first_RAM_sample;
     int16_t *Noclick_ptr;
     uint16_t delta_Noclick = 0;
+    
+    // AudioTables: banco corrente, prossima partenza e modifica in attesa.
+    uint8_t tables_bank_mask = 0;
+    uint8_t tables_bank_mask_wait = 0;
+    uint8_t tables_bank_mask_E = 0;
 
     // PSRAM operation
     AudioFileSource source_now;
@@ -272,7 +277,7 @@ private:
     float Mirror(float pivot, float value);
     void Append_reversed(int16_t *target_ptr, uint16_t first_index, int16_t *source_ptr, uint16_t N);
     void Append(int16_t *target_ptr, uint16_t first_index, int16_t *source_ptr, uint16_t N);
-    
+
     bool myLED;
     void My_LED(bool on);
 
@@ -299,7 +304,7 @@ public:
     int16_t *LS_buffer_R_ptr = nullptr;
 
     // Received after ADS moduls
-    void Set_ADSR_ptr(AudioADSR* ptr);
+    void Set_ADSR_ptr(AudioADSR *ptr);
 
     // received before playing
     void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated);
@@ -334,7 +339,7 @@ public:
     Compiti:
     - setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
     */
-    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool RAM_mode_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in);
+    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);
 
     /*
    Get_ready_to_play
@@ -352,7 +357,7 @@ public:
     Compiti:
     - setta una serie di valori e flag, individuati col suffisso "E", utilizzati al successivo update()
     */
-    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool RAM_mode_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in);
+    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);
     void Release_note(void); // release note, fires ADSR "release"
     void Fast_stop(void);
 
@@ -372,4 +377,10 @@ public:
     void Write_midi_channel(int value);
     void Write_precedence(bool value);
     void Write_time_stamp(unsigned long value);
+
+    // PSRAM cache management
+    uint16_t Get_cache_reference_mask(void); // Get_cache_reference_mask responds with a mask where each bit=1 corresponds to a cache that a Player is reading
+    
+    // AudioTables: chiamare nell'IRQ audio oppure con IRQ audio disabilitati.
+    uint8_t Get_tables_reference_mask(void);
 };

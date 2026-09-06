@@ -15,23 +15,25 @@ int16_t *NoclickCrossmix::get_pointer()
 
 bool NoclickCrossmix::Make(int file_id, int32_t A_Flash_sample, int32_t B_Flash_sample, uint16_t delta_Noclick)
 {
-    // Serial.print("Delta_noclick: ");
-    // Serial.println(delta_Noclick);
+    return Make(file_id, A_Flash_sample, B_Flash_sample, delta_Noclick, Noclick);
+}
 
+bool NoclickCrossmix::Make(int file_id, int32_t A_Flash_sample, int32_t B_Flash_sample, uint16_t delta_Noclick, int16_t *destination)
+{
     int16_t cache[NOCLICK_DIM];
     Read_flash(file_id, cache, A_Flash_sample, delta_Noclick);
-    Read_flash(file_id, Noclick, (B_Flash_sample - delta_Noclick + 1), delta_Noclick);
+    Read_flash(file_id, destination, (B_Flash_sample - delta_Noclick + 1), delta_Noclick);
 
     // linear snubber and sum
     float h;
 
     for (auto sample = 0; sample < delta_Noclick; ++sample)
     {
-         h = (float)sample / ((float)delta_Noclick - 1.0); // h: 0 --> 1.0
+        h = (float)sample / ((float)delta_Noclick - 1.0);
         cache[sample] = (float)cache[sample] * h;
-        Noclick[sample] = ((float)Noclick[sample] * (1.0 - h)) + cache[sample];
+        destination[sample] = ((float)destination[sample] * (1.0 - h)) + cache[sample];
     }
-    
+
     return true;
 }
 

@@ -16,6 +16,11 @@ int16_t *WavetableManager::get_pointer(void)
 
 bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick)
 {
+    return Make(file_id, mode, A_Flash_sample, B_Flash_sample, delta_Noclick, p_Noclick, Wavetable);
+}
+
+bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick, int16_t *destination)
+{
     // A------(A+d-1)(A+d)-----------------(B-d)(B-d+1)------(B)
     // ********************************************************
     int length_max = B_Flash_sample - A_Flash_sample + 1;
@@ -47,7 +52,7 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
         // B>>>>>>>>>>>>length_max>>>>>>>>>>>>>>A
         for (auto sample = 0; sample < (length_max); ++sample)
         {
-            Wavetable[sample] = cache[length_max - 1 - sample];
+            destination[sample] = cache[length_max - 1 - sample];
         }
 
         break;
@@ -58,12 +63,12 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
         length = length_mix;
 
         // (A+d)******length_min*********(B-d)
-        READ_Samples(file_id, Wavetable, (A_Flash_sample + delta_Noclick), length_min);
+        READ_Samples(file_id, destination, (A_Flash_sample + delta_Noclick), length_min);
 
         // (B-d+1)***delta_Noclick***B
         for (auto sample = 0; sample < delta_Noclick; ++sample)
         {
-            Wavetable[length_min + sample] = *(p_Noclick + sample);
+            destination[length_min + sample] = *(p_Noclick + sample);
         }
 
         // REWORK_Wavetable(1, 0.5);
@@ -75,12 +80,12 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
         length = 2 * length_max - 2;
 
         // A>>>>>>>>>>>>>length_max>>>>>>>>>>>>>B
-        READ_Samples(file_id, Wavetable, A_Flash_sample, length_max);
+        READ_Samples(file_id, destination, A_Flash_sample, length_max);
 
         // (A+1)<<<<<<<(length_max - 2)<<<<<<<(B-1)
         for (auto sample = 0; sample < (length_max - 2); ++sample)
         {
-            Wavetable[length_max + sample] = Wavetable[(length_max - 2) - sample];
+            destination[length_max + sample] = destination[(length_max - 2) - sample];
         }
 
         // REWORK_Wavetable(3);
@@ -102,7 +107,7 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
 
         for (auto sample = 0; sample < length_mix; ++sample)
         {
-            Wavetable[sample] = cache[(length_mix - 1) - sample];
+            destination[sample] = cache[(length_mix - 1) - sample];
         }
         break;
 

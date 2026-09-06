@@ -138,10 +138,13 @@
 #include "AudioPlayer.h"
 #include "AudioADSR.h"
 #include "AudioVCF.h"
+
 #include "NoclickCrossmix.h"
 #include "WaveSine.h"
 #include "WaveVibrato.h"
 #include "WavetableManager.h"
+#include "AudioTables.h"
+
 #include "WaveLFO.h"
 #include "FilterBiquadManager.h"
 #include "LillaClock.h"
@@ -188,6 +191,7 @@
 #include "PointerMidiLoop.h"
 
 #include "PatchCacheManager.h"
+
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -344,8 +348,9 @@ InfoMaster Info;     // Infos about audio files
 WaveVibrato Vibrato; // LFO for midi Vibrato effect
 float *Vibrato_array_pointer;
 uint8_t *Vibrato_array_last_element;
-NoclickCrossmix Noclick[INSTRUMENTS];    // creates n. INSTRUMENTS  Noclick objects used to mix "head + tail" snippets taken from Flash memory
-WavetableManager Wavetable[INSTRUMENTS]; // creates n. INSTRUMENTS Wavetable objects ready to copy sound snippets from Falsh memory to RAM
+NoclickCrossmix Noclick[INSTRUMENTS];    // objects used to mix "head + tail" snippets taken from Flash memory
+WavetableManager Wavetable[INSTRUMENTS]; // objects used to copy sound snippets from Falsh memory to RAM
+DMAMEM AudioTables Audio_tables;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 FilterBiquadManager Filter_Biquad_Manager;
@@ -367,7 +372,7 @@ DisplayMidiLoop Display_MidiLoop;
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
 LoopMetronomo LOOP_metronomo(Display_MidiLoop);
-PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Noclick[0], &Wavetable[0]);
+PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Noclick[0], &Wavetable[0], &Audio_tables);
 MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
 AudioADSR ADSR[PLAYERS];
@@ -12699,7 +12704,7 @@ void Startup_hardware_and_objects(void)
     }
 
     // CacheCycleFinalizer
-    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager);
+    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager, &Audio_tables);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************

@@ -15,9 +15,11 @@
 
 class WavetableManager
 {
-private:
+public:
     static constexpr int WAVETABLE_DIM = 674;
     static constexpr uint16_t FULL_WAVETABLE_DIM = 2 * WAVETABLE_DIM;
+
+private:
     void READ_Samples(int file_id, int16_t *destination, int seek_in, int samples_in);
     int16_t Wavetable[FULL_WAVETABLE_DIM] = {0};
     static int16_t cache[WAVETABLE_DIM];
@@ -32,4 +34,5 @@ public:
     int16_t* get_pointer(void);
     
     bool Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick);
+    bool Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick, int16_t *destination);
 };
