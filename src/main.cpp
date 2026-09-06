@@ -6,6 +6,7 @@
 
 #include <Arduino.h>
 #include <type_traits>
+#include <spi_interrupt.h>
 
 // **********************************************************
 // **************       VERSIONE LILLA         **************
@@ -191,7 +192,6 @@
 #include "PointerMidiLoop.h"
 
 #include "PatchCacheManager.h"
-
 
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
@@ -514,6 +514,9 @@ uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
+
+// Main only. Preserve the audio IRQ state; the caller must activate or cancel a successfully prepared bank.
+bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask);
 
 // WAVETABLES
 void S_Get_all_Wavetable_pointer(void);
@@ -1086,7 +1089,34 @@ void setup()
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Reload_system_state();
 
+    // Prepare the initial tables with audio interrupts disabled during startup.
+    AudioNoInterrupts();
+
+    Preset_struct startup_presets[INSTRUMENTS] = {};
+    uint16_t startup_tables_mask = 0;
+    bool startup_tables_ready = P_Prepare_audio_tables(Patch_id, Volume_float[volume_patch], startup_presets, startup_tables_mask);
+
+    if (startup_tables_ready)
+    {
+        startup_tables_ready = Players_Manager.Activate_prepared_presets(startup_presets);
+
+        if (!startup_tables_ready)
+        {
+            Audio_tables.Cancel_prepare();
+        }
+    }
+
     AudioInterrupts();
+
+    if (startup_tables_ready)
+    {
+        Serial.print(F("AudioTables startup ready, mask: 0x"));
+        Serial.println(startup_tables_mask, HEX);
+    }
+    else
+    {
+        Serial.println(F("AudioTables startup preparation failed"));
+    }
 }
 
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -8202,17 +8232,64 @@ bool P_Ask_if_delete_this_Patch(void)
 
 void P_Jump_to_Patch(uint8_t next_patch)
 {
+    Preset_struct next_presets[INSTRUMENTS] = {};
+    uint16_t next_tables_mask = 0;
+    const bool tables_prepared = P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask);
+    bool tables_activated = false;
+    uint8_t active_bank_mask = 0;
+
     AudioNoInterrupts();
+
     Players_Manager.Release_softly_all_players(Patch_id);
     Players_statistics.Reset_total_Players_per_instrument();
 
-    // switch
     Patch_id = next_patch;
     P_Update_all_maps_Instrument_for_notes();
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+
+    if (tables_prepared)
+    {
+        // Publish the prepared tables and their matching presets together.
+        tables_activated = Players_Manager.Activate_prepared_presets(next_presets);
+
+        if (!tables_activated)
+        {
+            Audio_tables.Cancel_prepare();
+        }
+    }
+
+    if (tables_activated)
+    {
+        // Apply volume changes received via MIDI during preparation.
+        Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+
+        for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+        {
+            active_bank_mask |= Audio_tables.Get_active_pointers(instrument_id).bank_mask;
+        }
+    }
+    else
+    {
+        // Temporary fallback while players still use the legacy tables.
+        Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    }
+
+    // Keep generating the legacy tables until player pointers are migrated.
     S_Fill_all_Noclick();
     S_Fill_all_Wavetable();
+
     AudioInterrupts();
+
+    if (tables_activated)
+    {
+        Serial.print(F("AudioTables patch activated, bank mask: 0x"));
+        Serial.print(active_bank_mask, HEX);
+        Serial.print(F(", instruments: 0x"));
+        Serial.println(next_tables_mask, HEX);
+    }
+    else
+    {
+        Serial.println(F("AudioTables patch tables not activated"));
+    }
 
     Patch_cache_P = Patch[Patch_id];
     S_Copy_all_Sound_to_Sound_cache_P();
@@ -12511,6 +12588,44 @@ void Clear_UI_events(void)
 // **************************************************************************************************************
 // *************************************            BOOTSTRAP             ***************************************
 // **************************************************************************************************************
+
+bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask)
+{
+    // Save the audio IRQ enable state before entering the critical section.
+    const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+
+    const bool preparation_started = Players_Manager.Build_presets_snapshot(patch_id, patch_volume, presets, tables_mask) && Audio_tables.Begin_prepare(tables_mask);
+
+    if (preparation_started)
+    {
+        // Register SPI use while the shared counter is protected.
+        AudioStartUsingSPI();
+    }
+
+    if (audio_interrupts_enabled)
+    {
+        AudioInterrupts();
+    }
+
+    if (!preparation_started)
+    {
+        return false;
+    }
+
+    const bool prepared = Audio_tables.Prepare_all(presets);
+
+    // Unregister SPI use while the shared counter is protected.
+    AudioNoInterrupts();
+    AudioStopUsingSPI();
+
+    if (audio_interrupts_enabled)
+    {
+        AudioInterrupts();
+    }
+
+    return prepared;
+}
 
 void Startup_mode(void)
 {

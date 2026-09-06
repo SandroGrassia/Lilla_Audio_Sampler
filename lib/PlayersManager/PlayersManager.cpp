@@ -1,9 +1,9 @@
 #include "PlayersManager.h"
 #include <algorithm>
 
-void PlayersManager::Set_ADSR_ptr(AudioADSR* ptr)
+void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
 {
-ADSR = ptr;
+    ADSR = ptr;
 }
 
 void PlayersManager::MX_multicast_change_routing(int instrument_id)
@@ -316,12 +316,12 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         {
             if (Preset[instrument_id].Filter.modulation == 4) // LFO wave "sine" modulates VCF and MIDI After touch modulates index
             {
-                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                        // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                 Player_ptr[id_player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index * after_touch_channel_value[Preset[instrument_id].midi_channel], Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
             }
             else if (Preset[instrument_id].Filter.modulation > 0) // LFO modulates VCF
             {
-                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                           // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                 Player_ptr[id_player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index, Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
             }
             else // VCF is not modulated
@@ -726,6 +726,57 @@ Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, floa
     return result;
 }
 
+bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask)
+{
+    tables_mask = 0;
+
+    if (patch_id < 0 || patch_id > PATCHES_MAX)
+    {
+        return false;
+    }
+
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        presets[instrument_id] = {};
+
+        if (!Patch[patch_id].Instrument[instrument_id].used)
+        {
+            continue;
+        }
+
+        presets[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
+
+        // Live Sampler instruments do not require AudioTables storage.
+        if (presets[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+        {
+            tables_mask |= static_cast<uint16_t>(1u << instrument_id);
+        }
+    }
+
+    return true;
+}
+
+bool PlayersManager::Activate_prepared_presets(const Preset_struct (&presets)[INSTRUMENTS])
+{
+    if (Audio_tables_ptr == nullptr)
+    {
+        return false;
+    }
+
+    if (!Audio_tables_ptr->Activate_prepared())
+    {
+        return false;
+    }
+
+    // Publish the matching presets before audio interrupts are restored.
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        Preset[instrument_id] = presets[instrument_id];
+    }
+
+    return true;
+}
+
 void PlayersManager::Update_Preset(int patch_id, int instrument_id, float volume_patch)
 {
     Preset[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
@@ -828,12 +879,12 @@ void PlayersManager::Multicast_IF_update_filter_type(int instrument_id)
             {
                 if (Preset[instrument_id].Filter.modulation == 4) // LFO wave "sine" modulates VCF and MIDI After touch modulates index
                 {
-                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                        // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                     Player_ptr[player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index * after_touch_channel_value[Preset[instrument_id].midi_channel], Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
                 }
                 else if (Preset[instrument_id].Filter.modulation > 0) // LFO modulates VCF
                 {
-                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                           // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                     Player_ptr[player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index, Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
                 }
                 else // VCF is not modulated
@@ -904,8 +955,8 @@ void PlayersManager::Update_Preset_IF(int patch_id, int instrument_id)
     Preset[instrument_id].Filter.use = Patch[patch_id].Instrument[instrument_id].Filter.use;
     Preset[instrument_id].Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type; // 0 -> 3
 
-    float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;                                     // 0 --> 100  0 --> 10
-    Preset[instrument_id].Filter.pivot = 20.0f * pow(2.0f, value);                                                    //  20 --> 20048
+    float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;                                        // 0 --> 100  0 --> 10
+    Preset[instrument_id].Filter.pivot = 20.0f * pow(2.0f, value);                                                       //  20 --> 20048
     Preset[instrument_id].Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f; // 0 --> 40
     Preset[instrument_id].Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index / 20.0f;                 // 0 --> 20 : 0 --> 1.0
     Update_Preset_IF_modulation(patch_id, instrument_id);
@@ -1912,4 +1963,3 @@ void PlayersManager::Broadcast_FIFO_mono(int16_t *LS_buffer_mono_ptr)
         Player_ptr[player].LS_buffer_mono_ptr = LS_buffer_mono_ptr;
     }
 }
-

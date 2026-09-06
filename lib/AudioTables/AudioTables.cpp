@@ -5,7 +5,6 @@
  */
 
 #include "AudioTables.h"
-#include <spi_interrupt.h>
 
 AudioTables::AudioTables() = default;
 
@@ -83,8 +82,6 @@ bool AudioTables::Prepare_instrument(uint8_t instrument_id, const Preset_struct 
 
     bool success = true;
 
-    AudioStartUsingSPI();
-
     if (noclick_samples > 0)
     {
         success = Noclick_generator.Make(preset.file, preset.A, preset.B, noclick_samples, bank.Noclick[instrument_id]);
@@ -94,8 +91,6 @@ bool AudioTables::Prepare_instrument(uint8_t instrument_id, const Preset_struct 
     {
         success = Wavetable_generator.Make(preset.file, preset.mode, preset.A, preset.B, noclick_samples, bank.Noclick[instrument_id], bank.Wavetable[instrument_id]);
     }
-
-    AudioStopUsingSPI();
 
     if (!success)
     {

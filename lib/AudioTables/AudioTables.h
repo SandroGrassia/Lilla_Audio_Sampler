@@ -58,11 +58,10 @@ public:
     // Main, con IRQ audio disabilitati: prenota un banco Free.
     bool Begin_prepare(uint16_t used_instruments_mask);
 
-    // Main, con IRQ audio abilitati: costruisce le tabelle.
+    // The caller must keep audio SPI use registered throughout Prepare_instrument() or Prepare_all().
     bool Prepare_instrument(uint8_t instrument_id, const Preset_struct &preset);
 
-    // Main, con IRQ audio abilitati, dopo Begin_prepare() riuscito.
-    // Annulla la preparazione se un Instrument segnala un errore.
+    // The caller must keep audio SPI use registered throughout Prepare_instrument() or Prepare_all().
     bool Prepare_all(const Preset_struct (&presets)[INSTRUMENTS]);
 
     // Main, con IRQ audio disabilitati: pubblica tutte le tabelle insieme.

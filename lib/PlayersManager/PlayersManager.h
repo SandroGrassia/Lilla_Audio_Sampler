@@ -155,6 +155,8 @@ public:
     void Update_all_Preset_volume(int patch_id, float volume_patch);
     
     Preset_struct Build_Preset(int patch_id, int instrument_id, float volume_patch); // Build a preset without global Preset array modifications.
+    bool Build_presets_snapshot(int patch_id, float volume_patch, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask); // Call from main.cpp with AudioNoInterrupts(). The destination must be a separate snapshot array.
+    bool Activate_prepared_presets(const Preset_struct (&presets)[INSTRUMENTS]); // Call with AudioNoInterrupts(), using the same snapshot passed to AudioTables::Prepare_all().
     void Update_Preset(int patch_id, int instrument_id, float volume_patch);
     void Update_Preset_volume(int patch_id, int instrument_id, float volume_patch); // chiamata da main e MidiReader
     void Update_Preset_pan(int patch_id, int instrument_id);
