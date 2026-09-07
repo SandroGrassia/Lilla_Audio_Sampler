@@ -34,10 +34,21 @@ private:
         Retiring
     };
 
+    struct TableSettings
+    {
+        uint16_t file = 0;
+        uint8_t mode = 0;
+        int A = 0;
+        int B = 0;
+        int Noclick = 0;
+        bool use_Wavetable = false;
+    };
+
     struct Bank
     {
         int16_t Noclick[INSTRUMENTS][NOCLICK_DIM] = {};
         int16_t Wavetable[INSTRUMENTS][WavetableManager::FULL_WAVETABLE_DIM] = {};
+        TableSettings settings[INSTRUMENTS] = {};
         uint16_t required_mask = 0;
         uint16_t prepared_mask = 0;
     };
@@ -55,24 +66,12 @@ public:
     AudioTables(const AudioTables &) = delete;
     AudioTables &operator=(const AudioTables &) = delete;
 
-    // Main, con IRQ audio disabilitati: prenota un banco Free.
-    bool Begin_prepare(uint16_t used_instruments_mask);
-
-    // The caller must keep audio SPI use registered throughout Prepare_instrument() or Prepare_all().
-    bool Prepare_instrument(uint8_t instrument_id, const Preset_struct &preset);
-
-    // The caller must keep audio SPI use registered throughout Prepare_instrument() or Prepare_all().
-    bool Prepare_all(const Preset_struct (&presets)[INSTRUMENTS]);
-
-    // Main, con IRQ audio disabilitati: pubblica tutte le tabelle insieme.
-    bool Activate_prepared(void);
-
-    // Main: abbandona una preparazione non ancora pubblicata.
-    void Cancel_prepare(void);
-
-    // Chiamata nell'IRQ audio oppure con IRQ audio disabilitati.
+    bool Begin_prepare(uint16_t used_instruments_mask); // Main, con IRQ audio disabilitati: prenota un banco Free.
+    bool Prepare_instrument(uint8_t instrument_id, const Preset_struct &preset); // The caller must keep audio SPI use registered throughout Prepare_instrument() or Prepare_all().
+    bool Prepare_all(const Preset_struct (&presets)[INSTRUMENTS]); // The caller must keep audio SPI use registered throughout Prepare_instrument() or Prepare_all().
+    bool Activate_prepared(void); // Main, con IRQ audio disabilitati: pubblica tutte le tabelle insieme.
+    void Cancel_prepare(void); // Main: abbandona una preparazione non ancora pubblicata.
     Pointers Get_active_pointers(uint8_t instrument_id);
-
-    // Chiamata dal finalizzatore dopo aver raccolto i riferimenti dei Player.
-    void Release_unreferenced_banks(uint8_t referenced_banks_mask);
+    Pointers Get_active_pointers(uint8_t instrument_id, const Preset_struct &preset); // Return pointers only when the active tables match the requested preset. Call from the audio IRQ or with audio interrupts disabled.
+    void Release_unreferenced_banks(uint8_t referenced_banks_mask); // Chiamata dal finalizzatore dopo aver raccolto i riferimenti dei Player.
 };

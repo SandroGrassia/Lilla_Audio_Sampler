@@ -529,6 +529,72 @@ void S_Get_all_Noclick_pointer(void);
 void S_Fill_all_Noclick(void);
 void S_Fill_Noclick(uint8_t instrument_id);
 
+// NOCLICK/WAVETABLE
+bool S_Fill_tables(uint8_t instrument_id); // Call after updating the instrument preset, with audio interrupts disabled.
+void S_Fill_all_legacy_tables(void);       // Generate legacy tables with audio interrupts disabled.
+bool S_Fill_all_tables(void);              // Call after updating all used presets, with audio interrupts disabled.
+bool S_Rebuild_audio_tables(void);         // Main only. Rebuild and activate tables from Preset[] with audio interrupts disabled.
+bool S_Fill_tables(uint8_t instrument_id)
+{
+    S_Fill_Noclick(instrument_id);
+    S_Fill_Wavetable(instrument_id);
+
+    return S_Rebuild_audio_tables();
+}
+void S_Fill_all_legacy_tables(void)
+{
+    S_Fill_all_Noclick();
+    S_Fill_all_Wavetable();
+}
+
+bool S_Fill_all_tables(void)
+{
+    S_Fill_all_legacy_tables();
+
+    return S_Rebuild_audio_tables();
+}
+bool S_Rebuild_audio_tables(void)
+{
+    // Require a stable preset array and a valid current patch.
+    if (NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0 || Patch_id > PATCHES_MAX)
+    {
+        return false;
+    }
+
+    uint16_t tables_mask = 0;
+
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        if (Patch[Patch_id].Instrument[instrument_id].used && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+        {
+            tables_mask |= static_cast<uint16_t>(1u << instrument_id);
+        }
+    }
+
+    if (!Audio_tables.Begin_prepare(tables_mask))
+    {
+        return false;
+    }
+
+    // The caller keeps the audio IRQ disabled throughout this operation.
+    AudioStartUsingSPI();
+    const bool prepared = Audio_tables.Prepare_all(Preset);
+    AudioStopUsingSPI();
+
+    if (!prepared)
+    {
+        return false;
+    }
+
+    if (!Audio_tables.Activate_prepared())
+    {
+        Audio_tables.Cancel_prepare();
+        return false;
+    }
+
+    return true;
+}
+
 // >>>>>>> FILE COPY TO PSRAM
 EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMPLES];
 
@@ -1397,17 +1463,38 @@ void loop()
                 switch (P_element_menu[P_pointer.element])
                 {
                 case value_P_Exit: // drop Sound changes
+                {
                     AudioNoInterrupts();
                     Patch[Patch_id] = Patch_cache_P;
                     S_Pull_all_Sound_from_Sound_cache_P();
                     P_Update_all_maps_Instrument_for_notes();
                     Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]); // Update_all_Preset(int patch_id, float volume_patch)
-                    S_Fill_all_Noclick();
-                    S_Fill_all_Wavetable();
+
+                    const bool tables_rebuilt = S_Fill_all_tables();
+                    uint8_t active_bank_mask = 0;
+
+                    // Capture the active bank mask before restoring audio interrupts.
+                    if (tables_rebuilt)
+                    {
+                        for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+                        {
+                            active_bank_mask |= Audio_tables.Get_active_pointers(instrument_id).bank_mask;
+                        }
+                    }
                     AudioInterrupts();
 
-                    Pointer_Performance.Delete_pointer();
+                    // Report the result after restoring audio interrupts.
+                    if (tables_rebuilt)
+                    {
+                        Serial.print(F("AudioTables restore activated, bank mask: 0x"));
+                        Serial.println(active_bank_mask, HEX);
+                    }
+                    else
+                    {
+                        Serial.println(F("AudioTables restore tables not activated"));
+                    }
 
+                    Pointer_Performance.Delete_pointer();
                     patch_original = true;
                     P_Select_menu_elements();
                     P_Update_line_of_all_instruments();
@@ -1421,7 +1508,8 @@ void loop()
                     Clear_UI_events();
 
                     Print_Patch(Patch_id);
-                    break;
+                }
+                break;
 
                 case value_P_Save: // Save this Patch
                     S_Save_all_Sounds_changed();
@@ -1483,8 +1571,7 @@ void loop()
                         P_Update_Patches_number();
                         P_Update_all_maps_Instrument_for_notes();
                         Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-                        S_Fill_all_Noclick();
-                        S_Fill_all_Wavetable();
+                        S_Fill_all_tables();
                     }
                     AudioInterrupts();
 
@@ -1549,8 +1636,7 @@ void loop()
                         P_Update_Patches_number();
                         P_Update_all_maps_Instrument_for_notes();
                         Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-                        S_Fill_all_Noclick();
-                        S_Fill_all_Wavetable();
+                        S_Fill_all_tables();
                     }
                     AudioInterrupts();
 
@@ -2133,8 +2219,7 @@ void loop()
                         Sound_id = Get_sound_id(Patch_id, Instrument_id);
                         Update_map_Instrument_for_notes(Patch[Patch_id].Instrument[Instrument_id].from_note, Patch[Patch_id].Instrument[Instrument_id].to_note, Instrument_id);
                         Players_Manager.Update_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                        S_Fill_Noclick(Instrument_id);
-                        S_Fill_Wavetable(Instrument_id);
+                        S_Fill_tables(Instrument_id);
                     }
                     AudioInterrupts();
 
@@ -2196,8 +2281,7 @@ void loop()
 
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                        S_Fill_Noclick(Instrument_id);   // DEVE essere preceduto da Update_Preset
-                        S_Fill_Wavetable(Instrument_id); // DEVE essere preceduto da S_Fill_Noclick
+                        S_Fill_tables(Instrument_id);
                         AudioInterrupts();
 
                         S_trim_step = S_Calc_trim_step(trim_speed);
@@ -2574,10 +2658,50 @@ void loop()
                 if (Read_encoder(EN_PB_Value, Sound[Sound_id].mode, 5, 0, 1))
                 {
                     AudioNoInterrupts();
+                    // Capture the banks referenced before preparing the edit.
+                    uint8_t player_banks_before = 0;
+                    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+                    {
+                        player_banks_before |= Player[player_id].Get_tables_reference_mask();
+                    }
                     Players_Manager.Update_Preset_mode(Patch_id, Instrument_id);
-                    S_Fill_Wavetable(Instrument_id); // changing mode, a new Wavetable is needed (using the old NoClick table because A and B are NOT changed);
+
+                    // Check the updated preset against the tables prepared before this edit.
+                    const bool tables_matched_before = Audio_tables.Get_active_pointers(Instrument_id, Preset[Instrument_id]).bank_mask != 0;
+
+                    const bool tables_rebuilt = S_Fill_tables(Instrument_id);
+                    const uint8_t active_bank_mask = tables_rebuilt ? Audio_tables.Get_active_pointers(Instrument_id, Preset[Instrument_id]).bank_mask : 0;
+
                     Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+
+                    // Capture current and pending references before audio updates resume.
+                    uint8_t player_banks_queued = 0;
+                    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+                    {
+                        player_banks_queued |= Player[player_id].Get_tables_reference_mask();
+                    }
                     AudioInterrupts();
+
+                    Serial.print(F("AudioTables player refs, before: 0x"));
+                    Serial.print(player_banks_before, HEX);
+                    Serial.print(F(", queued: 0x"));
+                    Serial.println(player_banks_queued, HEX);
+                    // Report both checks after restoring audio interrupts.
+                    Serial.print(F("AudioTables edit preset match, before: "));
+                    Serial.print(tables_matched_before);
+                    Serial.print(F(", after: "));
+                    Serial.println(active_bank_mask != 0);
+
+                    // Report the result after restoring audio interrupts.
+                    if (tables_rebuilt)
+                    {
+                        Serial.print(F("AudioTables edit activated, bank mask: 0x"));
+                        Serial.println(active_bank_mask, HEX);
+                    }
+                    else
+                    {
+                        Serial.println(F("AudioTables edit tables not activated"));
+                    }
 
                     Display_Sound.Show_Play_mode_value(Instrument_id);
 
@@ -2592,7 +2716,7 @@ void loop()
                         Display_Sound.Show_SOUND_menu();
                     }
 
-                    Serial.println("Change MODE: ");
+                    Serial.print("Change MODE: ");
                     Serial.println(Sound[Sound_id].mode);
                 }
             }
@@ -2647,8 +2771,7 @@ void loop()
                     {
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
-                        S_Fill_Noclick(Instrument_id);
-                        S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
+                        S_Fill_tables(Instrument_id);
                         Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                         AudioInterrupts();
 
@@ -2770,8 +2893,7 @@ void loop()
                     Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
                 }
                 // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_Noclick(Instrument_id);
-                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
+                S_Fill_tables(Instrument_id);
                 Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 AudioInterrupts();
 
@@ -2818,8 +2940,7 @@ void loop()
                 }
 
                 // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_Noclick(Instrument_id);
-                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
+                S_Fill_tables(Instrument_id);
                 Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 AudioInterrupts();
 
@@ -2888,8 +3009,7 @@ void loop()
                 }
 
                 // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_Noclick(Instrument_id);
-                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
+                S_Fill_tables(Instrument_id);
                 Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 AudioInterrupts();
 
@@ -8165,8 +8285,7 @@ void P_Rebuild_patch_old(void)
     P_Update_all_maps_Instrument_for_notes();
 
     Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-    S_Fill_all_Noclick();
-    S_Fill_all_Wavetable();
+    S_Fill_all_tables();
 }
 
 FLASHMEM
@@ -8272,10 +8391,7 @@ void P_Jump_to_Patch(uint8_t next_patch)
         // Temporary fallback while players still use the legacy tables.
         Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
     }
-
-    // Keep generating the legacy tables until player pointers are migrated.
-    S_Fill_all_Noclick();
-    S_Fill_all_Wavetable();
+    S_Fill_all_legacy_tables(); // Keep generating the legacy tables until player pointers are migrated.
 
     AudioInterrupts();
 
@@ -12633,8 +12749,7 @@ void Startup_mode(void)
     Lilla_state_0 = Lilla_state;
 
     Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-    S_Fill_all_Noclick();
-    S_Fill_all_Wavetable();
+    S_Fill_all_legacy_tables();
 
     Patch_id_old = Patch_id;
     Patch_cache_P = Patch[Patch_id];

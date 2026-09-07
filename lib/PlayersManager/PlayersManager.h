@@ -31,6 +31,7 @@ private:
     WavetableManager *Wavetable_ptr = nullptr; // Players_Manager.Wavetable_ptr = &Wavetable[0]
     AudioTables *Audio_tables_ptr = nullptr;
     AudioADSR *ADSR = nullptr;
+    AudioTables::Pointers Get_playback_tables(uint8_t instrument_id); // Call from the audio IRQ or with audio interrupts disabled.
 
     // statistiche
     int players_playing = 0;

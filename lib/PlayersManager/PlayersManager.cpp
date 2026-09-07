@@ -6,6 +6,37 @@ void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
     ADSR = ptr;
 }
 
+AudioTables::Pointers PlayersManager::Get_playback_tables(uint8_t instrument_id)
+{
+    AudioTables::Pointers result;
+
+    if (instrument_id >= INSTRUMENTS)
+    {
+        return result;
+    }
+
+    const Preset_struct &preset = Preset[instrument_id];
+    const bool crossfade_mode = preset.mode == LOOP_FWD || preset.mode == LOOP_REV;
+    const bool needs_tables = preset.file < FIRST_LIVE_SAMPLING_FILE && (preset.use_Wavetable || (crossfade_mode && preset.Noclick > 0));
+
+    // Use AudioTables only when the active tables match the requested preset.
+    if (needs_tables && Audio_tables_ptr != nullptr)
+    {
+        result = Audio_tables_ptr->Get_active_pointers(instrument_id, preset);
+
+        if (result.bank_mask != 0)
+        {
+            return result;
+        }
+    }
+
+    // Keep the legacy path available while the migration is incomplete.
+    result.noclick = (Noclick_ptr + instrument_id)->get_pointer();
+    result.wavetable = (Wavetable_ptr + instrument_id)->get_pointer();
+    result.bank_mask = 0;
+    return result;
+}
+
 void PlayersManager::MX_multicast_change_routing(int instrument_id)
 {
     for (auto player = 0; player < PLAYERS; ++player)
@@ -298,7 +329,9 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
         Player_ptr[id_player].Set_pan(Preset[instrument_id].pan);
         Player_ptr[id_player].Set_pitch(Preset[instrument_id].pitch);
-        Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, (Noclick_ptr + instrument_id)->get_pointer(), (Wavetable_ptr + instrument_id)->get_pointer());
+
+        const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id);
+        Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
 
         if (!Preset[instrument_id].lock)
         {
@@ -1016,6 +1049,7 @@ void PlayersManager::Multicast_IF_index(int instrument_id, float value)
 
 void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrument_id)
 {
+    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id);
     uint8_t players_to_cross_mix = 0;
     uint8_t mix_samples_for_Player[PLAYERS] = {0};
     bool cross_mix_Player[PLAYERS] = {0};
@@ -1030,7 +1064,7 @@ void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrumen
     {
         if ((Player_ptr[player].Read_local_patch() == patch_id) && (Player_ptr[player].Read_instrument() == instrument_id) && Player_ptr[player].isPlaying())
         {
-            Player_ptr[player].Main_settings_editing(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, Noclick_pointer[instrument_id], Wavetable_pointer[instrument_id]);
+            Player_ptr[player].Main_settings_editing(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
             ++players_to_cross_mix;
             cross_mix_Player[player] = true;
         }

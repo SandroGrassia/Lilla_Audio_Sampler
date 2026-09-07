@@ -97,6 +97,15 @@ bool AudioTables::Prepare_instrument(uint8_t instrument_id, const Preset_struct 
         return false;
     }
 
+    // Record the preparation parameters before marking the instrument as ready.
+    TableSettings &settings = bank.settings[instrument_id];
+    settings.file = preset.file;
+    settings.mode = preset.mode;
+    settings.A = preset.A;
+    settings.B = preset.B;
+    settings.Noclick = preset.Noclick;
+    settings.use_Wavetable = preset.use_Wavetable;
+
     bank.prepared_mask |= instrument_mask;
     return true;
 }
@@ -186,6 +195,38 @@ AudioTables::Pointers AudioTables::Get_active_pointers(uint8_t instrument_id)
 
     result.noclick = banks[bank_id].Noclick[instrument_id];
     result.wavetable = banks[bank_id].Wavetable[instrument_id];
+    result.bank_mask = static_cast<uint8_t>(1u << bank_id);
+    return result;
+}
+
+AudioTables::Pointers AudioTables::Get_active_pointers(uint8_t instrument_id, const Preset_struct &preset)
+{
+    Pointers result;
+    const int8_t bank_id = active_bank;
+
+    if (bank_id < 0 || instrument_id >= INSTRUMENTS)
+    {
+        return result;
+    }
+
+    Bank &bank = banks[bank_id];
+    const uint16_t instrument_mask = static_cast<uint16_t>(1u << instrument_id);
+
+    if ((bank.required_mask & instrument_mask) == 0 || (bank.prepared_mask & instrument_mask) == 0)
+    {
+        return result;
+    }
+
+    const TableSettings &settings = bank.settings[instrument_id];
+
+    // Reject tables prepared for different playback parameters.
+    if (settings.file != preset.file || settings.mode != preset.mode || settings.A != preset.A || settings.B != preset.B || settings.Noclick != preset.Noclick || settings.use_Wavetable != preset.use_Wavetable)
+    {
+        return result;
+    }
+
+    result.noclick = bank.Noclick[instrument_id];
+    result.wavetable = bank.Wavetable[instrument_id];
     result.bank_mask = static_cast<uint8_t>(1u << bank_id);
     return result;
 }
