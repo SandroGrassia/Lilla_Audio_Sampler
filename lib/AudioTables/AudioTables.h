@@ -72,6 +72,7 @@ public:
     bool Activate_prepared(void); // Main, con IRQ audio disabilitati: pubblica tutte le tabelle insieme.
     void Cancel_prepare(void); // Main: abbandona una preparazione non ancora pubblicata.
     Pointers Get_active_pointers(uint8_t instrument_id);
-    Pointers Get_active_pointers(uint8_t instrument_id, const Preset_struct &preset); // Return pointers only when the active tables match the requested preset. Call from the audio IRQ or with audio interrupts disabled.
+    Pointers Get_active_pointers(uint8_t instrument_id, const Preset_struct &preset); // Return pointers only when the active tables match the requested preset. Call from the audio IRQ or with audio interrupts disabled. 
+    uint8_t Get_retiring_banks_mask(void) const; // Return the mask of retiring banks waiting to be released. Call from the audio IRQ or with audio interrupts disabled.
     void Release_unreferenced_banks(uint8_t referenced_banks_mask); // Chiamata dal finalizzatore dopo aver raccolto i riferimenti dei Player.
 };

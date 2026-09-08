@@ -1195,6 +1195,39 @@ void loop()
 {
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
+    // Sample bank references every 20 ms and report changes only.
+    static uint32_t tables_trace_last_ms = 0;
+    static uint8_t tables_trace_last_mask = 0xFF;
+    const uint32_t tables_trace_now_ms = millis();
+
+    if (static_cast<uint32_t>(tables_trace_now_ms - tables_trace_last_ms) >= 20u)
+    {
+        tables_trace_last_ms = tables_trace_now_ms;
+
+        // Preserve the audio IRQ enable state while reading player references.
+        const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+        AudioNoInterrupts();
+
+        uint8_t referenced_banks_mask = 0;
+        for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+        {
+            referenced_banks_mask |= Player[player_id].Get_tables_reference_mask();
+        }
+
+        if (audio_interrupts_enabled)
+        {
+            AudioInterrupts();
+        }
+
+        // Print only after audio interrupts have been restored.
+        if (audio_interrupts_enabled && referenced_banks_mask != tables_trace_last_mask)
+        {
+            tables_trace_last_mask = referenced_banks_mask;
+            Serial.print(F("AudioTables live player refs: 0x"));
+            Serial.println(referenced_banks_mask, HEX);
+        }
+    }
+
     // Update del/i led presenti (varia in base a LILLA_STATE)
     Update_instruments_leds();
 
@@ -3009,9 +3042,29 @@ void loop()
                 }
 
                 // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_tables(Instrument_id);
+                const bool tables_rebuilt = S_Fill_tables(Instrument_id);
+                const uint8_t active_bank_mask = tables_rebuilt ? Audio_tables.Get_active_pointers(Instrument_id, Preset[Instrument_id]).bank_mask : 0;
+                const int edited_B = Preset[Instrument_id].B;
+
                 Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+
+                // Capture current and pending references before audio updates resume.
+                uint8_t player_banks_queued = 0;
+                for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+                {
+                    player_banks_queued |= Player[player_id].Get_tables_reference_mask();
+                }
                 AudioInterrupts();
+
+                // Report the trim result after restoring audio interrupts.
+                Serial.print(F("AudioTables trim B: "));
+                Serial.print(edited_B);
+                Serial.print(F(", ready: "));
+                Serial.print(tables_rebuilt && active_bank_mask != 0);
+                Serial.print(F(", bank: 0x"));
+                Serial.print(active_bank_mask, HEX);
+                Serial.print(F(", refs: 0x"));
+                Serial.println(player_banks_queued, HEX);
 
                 if (!slicing_mode)
                 {

@@ -231,6 +231,21 @@ AudioTables::Pointers AudioTables::Get_active_pointers(uint8_t instrument_id, co
     return result;
 }
 
+uint8_t AudioTables::Get_retiring_banks_mask(void) const
+{
+    uint8_t retiring_banks_mask = 0;
+
+    for (uint8_t bank_id = 0; bank_id < BANK_COUNT; ++bank_id)
+    {
+        if (states[bank_id] == Retiring)
+        {
+            retiring_banks_mask |= static_cast<uint8_t>(1u << bank_id);
+        }
+    }
+
+    return retiring_banks_mask;
+}
+
 void AudioTables::Release_unreferenced_banks(uint8_t referenced_banks_mask)
 {
     for (uint8_t bank_id = 0; bank_id < BANK_COUNT; ++bank_id)
