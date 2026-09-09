@@ -7,7 +7,8 @@ void LillaClock::update(void)
     {
         if (identity == 0)
         {
-            audio_update_time_micros = 0;            
+            audio_update_time_micros = 0;
+            ++audio_update_cycle;
             Filter_Biquad_Manager_ptr->Update();
             Delay_Manager_ptr->Update();
             Midi_reader_ptr->Update();

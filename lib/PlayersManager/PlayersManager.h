@@ -17,6 +17,7 @@
 #include "config.h"
 #include "AudioADSR.h"
 #include "AudioTables.h"
+#include "PatchCacheManager.h"
 
 class PlayersManager
 {
@@ -26,6 +27,7 @@ private:
     Router_16x3 *Router_L_ptr = nullptr;
     Router_16x3 *Router_R_ptr = nullptr;
     AudioTables *Audio_tables_ptr = nullptr;
+    PatchCacheManager *Cache_manager_ptr = nullptr;
     AudioADSR *ADSR = nullptr;
     AudioTables::Pointers Get_playback_tables(uint8_t instrument_id); // Call from the audio IRQ or with audio interrupts disabled.
 
@@ -33,6 +35,7 @@ private:
     int players_playing = 0;
     int players_using_Flash = 0;
     int players_using_Wavetable = 0;
+    int players_using_Psram = 0;
     uint8_t players_to_restart = 0; // numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
 
     // Play notes
@@ -65,7 +68,7 @@ private:
     }
 
 public:
-    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, AudioTables *AT) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Audio_tables_ptr(AT) {} // Connect players, routers and the sole table owner.
+    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, AudioTables *AT, PatchCacheManager *PC) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Audio_tables_ptr(AT), Cache_manager_ptr(PC) {} // Connect players, routers, tables and the file cache owner.
     void Set_ADSR_ptr(AudioADSR* ptr); // requires &ADSR[0] from main.cpp
 
     // chiamate da MidiReader
@@ -100,10 +103,14 @@ public:
     void Multicast_update_vibrato(int midi_channel, bool vibrato_active);
     void Multicast_stop_players_for_loop_track(int track);
 
-    void Update_players_stistics(void);
+    void Update_players_stistics(void); // Count Wavetable, Flash and PSRAM readers separately.
     int Get_players_playing(void);
     int Get_players_using_Flash(void);
-    int Get_players_using_Wavetable(void);
+    int Get_players_using_Wavetable(void); // Return the number of voices reading wavetables.
+    int Get_players_using_Psram(void); // Return the number of voices reading cached or live PSRAM samples.
+    void Refresh_cache_sources(void); // Publish ready sources and promote identical current data; call with audio interrupts disabled.
+    uint16_t Get_cache_reference_mask(void); // Combine current and queued player references; call with audio interrupts disabled.
+    uint16_t Fast_stop_players_using_cache(uint16_t mask); // Fade only readers of the cache selected for reclamation.
     void Release_Player_noteOff(uint8_t player, int track = NO_TRACK);
 
     bool Get_restart_player(int player);
@@ -149,7 +156,7 @@ public:
     void Multicast_reset_pitch_bend_effects(int instrument_id);
     void Broadcast_restore_pitch_bend_and_effects(int midi_channel, float value);
 
-    void Update_all_Preset(int patch_id, float volume_patch);
+    void Update_all_Preset(int patch_id, float volume_patch); // Publish the active instruments and refresh their pinned cache sources.
     void Update_all_Preset_volume(int patch_id, float volume_patch);
     
     Preset_struct Build_Preset(int patch_id, int instrument_id, float volume_patch); // Build a preset without global Preset array modifications.

@@ -371,12 +371,12 @@ DisplayMidiLoop Display_MidiLoop;
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
 LoopMetronomo LOOP_metronomo(Display_MidiLoop);
-PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Audio_tables);
+PatchCacheManager PatchCache_Manager;
+PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Audio_tables, &PatchCache_Manager);
 MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
 AudioADSR ADSR[PLAYERS];
 
-PatchCacheManager PatchCache_Manager;
 
 // Midi out
 MidiOut Midi_out;
@@ -500,7 +500,7 @@ S_field_description_struct S_pointer;
 
 // functions
 void S_Map_one_Instrument_for_all_notes(const int instrument_id);
-void S_Drop_Instrument(const int instrument_id);                       // drop the instrument from the patch_id ONLY IF instruments > 1
+void S_Drop_Instrument(const int instrument_id); // Drop an instrument and release its cache pin while preserving playing tails.
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument); // insert ONE new instrument BELOW instrument
 bool S_Verify_is_Sound_original(int sound_id);
 void S_Copy_all_Sound_to_Sound_cache_P(void);
@@ -525,6 +525,9 @@ bool S_Fill_tables(uint8_t instrument_id); // Prepare a Sound edit from the mode
 bool S_Fill_all_tables(void); // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete bank and preserve the previous presets if preparation fails.
 bool P_Quiesce_audio_players(void); // Stop control callbacks and drain players before replacing file or patch metadata.
+void P_Service_patch_cache(void); // Copy one bounded chunk between audio updates and publish only completed files.
+void P_Invalidate_file_cache(int file_id); // Invalidate replaced audio while retaining buffers still referenced by players.
+void P_Invalidate_recording_cache(int recording_id); // Retire both cached channels before recording data is deleted or replaced.
 bool audio_tables_error_pending = false;
 
 bool S_Fill_tables(uint8_t instrument_id)
@@ -625,8 +628,8 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Samp
 void DS_refresh_DS_page(void);
 void DS_ask_if_EXIT_from_DS(void);
 bool DS_back_to_first_DS_Recording(void); // Prepare the first remaining recording before restoring the Direct Sampler page.
-void DS_convert_file_L(int file_L_RAW, int bytes);
-void DS_convert_file_R(int file_R_RAW, int bytes);
+void DS_convert_file_L(int file_L_RAW, int bytes); // Convert the left recording channel and invalidate its previous RAW cache.
+void DS_convert_file_R(int file_R_RAW, int bytes); // Convert the right recording channel and invalidate its previous RAW cache.
 void DS_seed_all_Recordings(void);
 void DS_update_recordings(void);
 void DS_read_all_Recordings(void);
@@ -1166,6 +1169,7 @@ void setup()
 
 void loop()
 {
+    P_Service_patch_cache();
     if (audio_tables_error_pending)
     {
         audio_tables_error_pending = false;
@@ -1176,6 +1180,9 @@ void loop()
     // Sample bank references every 20 ms and report changes only.
     static uint32_t tables_trace_last_ms = 0;
     static uint8_t tables_trace_last_mask = 0xFF;
+    static uint16_t cache_trace_last_mask = 0xFFFF;
+    static int cache_trace_last_flash = -1;
+    static int cache_trace_last_psram = -1;
     const uint32_t tables_trace_now_ms = millis();
 
     if (static_cast<uint32_t>(tables_trace_now_ms - tables_trace_last_ms) >= 20u)
@@ -1191,10 +1198,27 @@ void loop()
         {
             referenced_banks_mask |= Player[player_id].Get_tables_reference_mask();
         }
+        const uint16_t referenced_caches_mask = Players_Manager.Get_cache_reference_mask();
+        Players_Manager.Update_players_stistics();
+        const int flash_voices = Players_Manager.Get_players_using_Flash();
+        const int psram_voices = Players_Manager.Get_players_using_Psram();
 
         if (audio_interrupts_enabled)
         {
             AudioInterrupts();
+        }
+
+        if (audio_interrupts_enabled && (referenced_caches_mask != cache_trace_last_mask || flash_voices != cache_trace_last_flash || psram_voices != cache_trace_last_psram))
+        {
+            cache_trace_last_mask = referenced_caches_mask;
+            cache_trace_last_flash = flash_voices;
+            cache_trace_last_psram = psram_voices;
+            Serial.print(F("PatchCache live refs: 0x"));
+            Serial.print(referenced_caches_mask, HEX);
+            Serial.print(F(", Flash voices: "));
+            Serial.print(flash_voices);
+            Serial.print(F(", PSRAM voices: "));
+            Serial.println(psram_voices);
         }
 
         // Print only after audio interrupts have been restored.
@@ -1354,11 +1378,6 @@ void loop()
         // *********************************************    Test SD save Patch   ****************************************
         // TEST_Current_Patch_SD_round_trip();
 
-        // ******************************************    Test copy .raw to PSRAM   **************************************
-        Serial.println();
-        Serial.print("Tento di copiare la patch: ");
-        Serial.println(Patch_id);
-        PatchCache_Manager.Load_patch(Patch_id);
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -5497,6 +5516,7 @@ void loop()
                     Display_Sampler.DS_advice_delete(true);
 
                     // Delete recording
+                    P_Invalidate_recording_cache(recording);
                     Recording[recording].consistent = false;
                     VFS_Clean_up_VFS();
                     VFS_Defragment();
@@ -5553,6 +5573,7 @@ void loop()
                 case 2: // Mono Rec
                 {
                     DS_state = DS_recording_state;
+                    P_Invalidate_recording_cache(recording);
 
                     Recording[recording].stereo = false;
                     Recording[recording].consistent = false;
@@ -5596,6 +5617,7 @@ void loop()
                 case 3: // Stereo Rec
                 {
                     DS_state = DS_recording_state;
+                    P_Invalidate_recording_cache(recording);
 
                     Recording[recording].stereo = true;
                     Recording[recording].consistent = false;
@@ -5885,6 +5907,7 @@ void loop()
                     // Delete recording
                     if (choice_DS_menu > 6)
                     {
+                        P_Invalidate_recording_cache(recording);
                         Recording[recording].consistent = false;
                         VFS_Clean_up_VFS();
                         VFS_Defragment();
@@ -8369,7 +8392,7 @@ bool P_Ask_if_delete_this_Patch(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
+        if (Read_encoder_inverse(EN_PB_Select, action, 1, 0, 1))
         {
             Display_Manager.P_Confirm_patch_delete_popup_frame(action);
         }
@@ -8755,6 +8778,9 @@ void S_Drop_Instrument(const int instrument_id)
     Sound[Get_sound_id(Patch_id, instrument_id)].used = false;
     Patch[Patch_id].Instrument[instrument_id].used = false;
     Patch[Patch_id].instruments--;
+    Preset[instrument_id] = {};
+    PatchCache_Manager.Set_required_files(Preset);
+    Players_Manager.Refresh_cache_sources();
 }
 
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
@@ -9123,8 +9149,9 @@ bool DS_back_to_first_DS_Recording(void)
 }
 
 FLASHMEM
-void DS_convert_file_L(int file_L_RAW, int bytes) // bytes = blocks_per_file * 256
+void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording channel into a RAW file.
 {
+    P_Invalidate_file_cache(file_L_RAW);
     Serial.println("*** Convert file_L ***");
 
     // create the file on the Flash chip and copy data
@@ -9200,8 +9227,9 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // bytes = blocks_per_file * 2
 }
 
 FLASHMEM
-void DS_convert_file_R(int file_R_RAW, int bytes) // bytes = blocks_per_file * 256
+void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording channel into a RAW file.
 {
+    P_Invalidate_file_cache(file_R_RAW);
     Serial.println("*** Convert file_R ***");
 
     // create the file on the Flash chip and copy data
@@ -12902,6 +12930,7 @@ bool P_Quiesce_audio_players(void)
     }
     const uint8_t referenced_banks = Players_Manager.Refresh_audio_table_references();
     const bool ready = !playing && Audio_tables.Reset(referenced_banks);
+    if (ready) { PatchCache_Manager.Begin(); }
     if (audio_interrupts_enabled)
     {
         AudioInterrupts();
@@ -13427,4 +13456,78 @@ bool TEST_Current_Patch_SD_round_trip(void)
     Serial.println();
 
     return true;
+}
+
+void P_Invalidate_file_cache(int file_id)
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    PatchCache_Manager.Invalidate_file(file_id);
+    Players_Manager.Refresh_cache_sources();
+    if (enabled) { AudioInterrupts(); }
+}
+
+void P_Invalidate_recording_cache(int recording_id)
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    PatchCache_Manager.Invalidate_file(FIRST_RECORDING_FILE + 2 * recording_id);
+    PatchCache_Manager.Invalidate_file(FIRST_RECORDING_FILE + 2 * recording_id + 1);
+    Players_Manager.Refresh_cache_sources();
+    if (enabled) { AudioInterrupts(); }
+}
+
+void P_Service_patch_cache(void)
+{
+    // Copy only in normal operation; recording and metadata replacement own the Flash bus.
+    if (NVIC_IS_ENABLED(IRQ_SOFTWARE) == 0 || !Trigger_0.Is_running() || (Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state)) { return; }
+    static uint32_t last_cycle = 0;
+    static uint32_t blocked_since_ms = 0;
+    static uint16_t blocked_mask = 0;
+    PatchCacheManager::CopyJob job;
+    AudioNoInterrupts();
+    const uint32_t cycle = audio_update_cycle;
+    // Leave a conservative margin for a 512-sample transfer and the next audio deadline.
+    if (cycle == last_cycle || audio_update_time_micros > 1700u)
+    {
+        AudioInterrupts();
+        return;
+    }
+    last_cycle = cycle;
+    PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask());
+    const bool copying = PatchCache_Manager.Prepare_copy(job);
+    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();
+    uint16_t stopped = 0;
+    if (reclaim_mask != blocked_mask)
+    {
+        blocked_mask = reclaim_mask;
+        blocked_since_ms = millis();
+    }
+    if (reclaim_mask != 0 && static_cast<uint32_t>(millis() - blocked_since_ms) >= 20u)
+    {
+        stopped = Players_Manager.Fast_stop_players_using_cache(reclaim_mask);
+    }
+    if (copying) { AudioStartUsingSPI(); }
+    AudioInterrupts();
+    if (stopped != 0)
+    {
+        Serial.print(F("PatchCache reclaim, cache mask: 0x"));
+        Serial.print(reclaim_mask, HEX);
+        Serial.print(F(", players: 0x"));
+        Serial.println(stopped, HEX);
+    }
+    if (!copying) { return; }
+    const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples);
+    AudioNoInterrupts();
+    AudioStopUsingSPI();
+    const bool ready = PatchCache_Manager.Complete_copy(job, success);
+    if (ready) { Players_Manager.Refresh_cache_sources(); }
+    AudioInterrupts();
+    if (ready || !success)
+    {
+        Serial.print(ready ? F("PatchCache ready, file: ") : F("PatchCache read failed, Flash fallback, file: "));
+        Serial.print(job.file_id);
+        Serial.print(F(", cache: "));
+        Serial.println(job.cache_id);
+    }
 }

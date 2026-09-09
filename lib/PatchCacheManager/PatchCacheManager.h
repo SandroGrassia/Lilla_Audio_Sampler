@@ -1,59 +1,61 @@
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
- *
  */
-
 #pragma once
 
 #include <Arduino.h>
-#include "config.h"
 #include "SharedElements.h"
-
 #include "LillaSerialFlash.h"
 
 class PatchCacheManager
 {
-private:
-    static constexpr uint32_t SAMPLES_MAX = 3000; // limitato dal max trasferimento possibile SPI/QSPI entro 2.9ms
-    static constexpr uint8_t MIN_TIME_FOR_COPY_CYCLE_MICROS = 50;
-    static constexpr uint16_t COPY_TIME_MAX = 2800;
-
-    LillaSerialFlashFile rawfile;
-
-    enum CacheState : uint8_t
+public:
+    struct CopyJob
     {
-        Free,    // Available for reuse and not accessible to readers
-        Loading, // Audio data is being copied into the cache
-        Ready,   // Audio data is complete and available to readers
-        Retiring // No longer available to new readers; released when no longer referenced
+        int8_t cache_id = -1;
+        int16_t file_id = -1;
+        uint32_t first_sample = 0;
+        uint16_t samples = 0;
+        int16_t *destination = nullptr;
     };
 
+private:
+    enum CacheState : uint8_t { Free, Loading, Ready, Retiring };
     struct CacheStruct
     {
-        CacheState state;
-        uint32_t samples;
-        int16_t file_id;
+        CacheState state = Free;
+        int16_t file_id = -1;
+        uint32_t samples = 0;
+        uint32_t copied = 0;
+        uint32_t retired_order = 0;
+        bool valid = false;
     };
-    CacheStruct Cache[PATCH_CACHE_ARRAY_COUNT];
-    int16_t *cache_pointer[PATCH_CACHE_ARRAY_COUNT];
-
-    uint16_t Get_copy_samples(uint16_t read_time_micros);
-    int8_t Get_cache_free(void);
-    int8_t Get_cache_id_from_file_id(uint16_t file_id);
-    void Retire_cache_if_unused(uint16_t file_id);
+    struct Request
+    {
+        int16_t file_id = -1;
+        uint32_t samples = 0;
+        bool failed = false;
+    };
+    CacheStruct cache[PATCH_CACHE_ARRAY_COUNT];
+    int16_t *cache_pointer[PATCH_CACHE_ARRAY_COUNT] = {};
+    Request required[INSTRUMENTS];
+    uint8_t required_count = 0;
+    uint32_t retirement_counter = 0;
+    static uint32_t File_samples(int16_t file_id); // Read the complete logical file length from metadata without copying audio.
+    int Find_required(int16_t file_id) const; // Find an active file request, including requests that fall back to Flash.
+    int Find_complete(int16_t file_id, uint32_t samples) const; // Find reusable, fully copied data that has not been invalidated.
+    void Retire(uint8_t cache_id); // Keep old audio readable until all player references disappear.
 
 public:
-    PatchCacheManager()
-    {
-        Begin();
-    };
-
-    void Set_cache_pointer(uint8_t cache_id, int16_t *pointer);
-    void Begin(void); // reset inner arrays
-    bool Load_patch(int16_t old_patch_id, uint8_t new_patch_id);
-    bool Load_patch(uint8_t new_patch_id);
-    bool Load_audio_file(int16_t file_id_old, uint16_t file_id);
-    void Release_unreferenced_caches(uint16_t referenced_cache_mask); // referenced_cache_mask rappresenta la maschera dove ciascun bit = 1 corrisponde ad una cache che un Player sta leggendo
-    int8_t PatchCacheManager::Get_cache_id_ready_from_file_id(uint16_t file_id); // called by Players
+    PatchCacheManager() = default; // Initialize metadata without accessing external RAM during static construction.
+    void Set_cache_pointer(uint8_t cache_id, int16_t *pointer); // Attach an allocated PSRAM buffer during setup.
+    void Begin(void); // Invalidate all caches after players have been drained; call with audio interrupts disabled.
+    void Set_required_files(const Preset_struct (&presets)[INSTRUMENTS]); // Pin the published patch files and queue missing data; call with audio interrupts disabled.
+    AudioFileSource Get_source(int16_t file_id) const; // Return only complete, pinned data, otherwise select Flash.
+    bool Prepare_copy(CopyJob &job); // Reserve one bounded copy operation; call from main with audio interrupts disabled.
+    bool Complete_copy(const CopyJob &job, bool success); // Publish a completed file or discard a failed copy; call with audio interrupts disabled.
+    uint16_t Get_reclaim_mask(void) const; // Select the oldest retiring cache only when a pending file has no free slot.
+    void Invalidate_file(int16_t file_id); // Prevent reuse after file replacement while preserving existing readers.
+    void Release_unreferenced_caches(uint16_t referenced_cache_mask); // Recycle retired buffers after the final audio reader releases them.
 };

@@ -8,6 +8,7 @@
 
 // PSRAM timing
 elapsedMicros audio_update_time_micros;
+volatile uint32_t audio_update_cycle = 0;
 
 // SETUP
 int key_step;

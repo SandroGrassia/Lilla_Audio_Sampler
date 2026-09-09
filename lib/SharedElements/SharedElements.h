@@ -118,6 +118,7 @@ static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
 static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
 static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
 static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
+extern volatile uint32_t audio_update_cycle; // Advances once per running audio control cycle.
 extern elapsedMicros audio_update_time_micros; // usata per calcolare il tempo disponibile per la copia
 
 
@@ -343,6 +344,8 @@ inline uint8_t Get_midi_channel(int patch_id, int instrument_id)
 // E' il the data-set sent to a Player; it's a complete description of a sound that has to be played
 struct Preset_struct
 {
+    bool active = false;
+    AudioFileSource source;
     float volume;
     int8_t pan;
     uint16_t sound_id;

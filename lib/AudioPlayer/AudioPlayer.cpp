@@ -346,7 +346,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
         // Read samples from FLASH chip
         else
         {
-            pitch_limit_wait = MAX_PITCH_FLASH[optimization];
+            pitch_limit_wait = source_wait.storage == Psram ? MAX_PITCH_PSRAM : MAX_PITCH_FLASH[optimization];
 
             switch (mode_in)
             {
@@ -546,7 +546,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
         default:
             break;
         }
-        pitch_limit_E = MAX_PITCH_FLASH[optimization];
+        pitch_limit_E = source_now.storage == Psram ? MAX_PITCH_PSRAM : MAX_PITCH_FLASH[optimization];
     }
 
     main_settings_editing_flag = true;
@@ -579,13 +579,23 @@ void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int 
 
 void AudioPlayer::Start_playing(void)
 {
-    AudioStartUsingSPI();
+    Close_source();
+    source_now = source_wait;
     file_id = file_id_wait;
+    if (source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE)
+    {
+        AudioStartUsingSPI();
+        spi_in_use = true;
+    }
     recording_flag = false;
     LS_flag = false;
 
-    // .raw file
-    if (file_id < FIRST_RECORDING_FILE)
+    // A complete cache already contains the logical samples of either a RAW or a REC file.
+    if (source_now.storage == Psram)
+    {
+        // No Flash handle is needed; edits continue to use this immutable source.
+    }
+    else if (file_id < FIRST_RECORDING_FILE)
     {
         rawfile.fast_open(file_id); // rawfile = SerialFlash.open(filename); // open file
     }
@@ -642,7 +652,7 @@ void AudioPlayer::Start_playing(void)
 
     if (!rawfile)
     {
-        AudioStopUsingSPI();
+        Close_source();
     }
 
     // Main_settings synchronization
@@ -766,6 +776,7 @@ void AudioPlayer::update(void)
             idle = true;
             power_on = false;
             state = IDLE;
+            Close_source();
             My_LED(false);
         }
     }
@@ -1437,8 +1448,7 @@ void AudioPlayer::update(void)
             state = IDLE_REQUEST;
             My_LED(false);
 
-            rawfile.close();
-            AudioStopUsingSPI();
+            Close_source();
         }
 
         // Check execution time
@@ -1458,6 +1468,7 @@ void AudioPlayer::update(void)
             idle = true;
             power_on = false;
             state = IDLE;
+            Close_source();
             My_LED(false);
         }
     }
@@ -1523,8 +1534,7 @@ void AudioPlayer::Flash_memory_harvest(void)
                 power_on = false;
                 state = IDLE_REQUEST;
 
-                rawfile.close();
-                AudioStopUsingSPI();
+                Close_source();
             }
         }
 
@@ -1544,8 +1554,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             {
                 state = IDLE_REQUEST;
 
-                rawfile.close();
-                AudioStopUsingSPI();
+                Close_source();
             }
         }
 
@@ -1561,8 +1570,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             {
                 state = IDLE_REQUEST;
 
-                rawfile.close();
-                AudioStopUsingSPI();
+                Close_source();
             }
         }
         break;
@@ -1593,8 +1601,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             {
                 state = IDLE_REQUEST;
 
-                rawfile.close();
-                AudioStopUsingSPI();
+                Close_source();
             }
         }
 
@@ -1619,8 +1626,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             {
                 state = IDLE_REQUEST;
 
-                rawfile.close();
-                AudioStopUsingSPI();
+                Close_source();
             }
         }
         break;
@@ -2087,8 +2093,7 @@ void AudioPlayer::Wavetable_harvest()
             {
                 state = IDLE_REQUEST;
 
-                rawfile.close();
-                AudioStopUsingSPI();
+                Close_source();
             }
         }
 
@@ -2128,7 +2133,58 @@ bool AudioPlayer::isPoweredOn(void)
 
 void AudioPlayer::set_file(int file_id_in)
 {
+    source_wait = {};
+    source_wait.file_id = file_id_in;
     file_id_wait = file_id_in;
+}
+
+void AudioPlayer::Set_source(const AudioFileSource &source)
+{
+    source_wait = source;
+    file_id_wait = source.file_id;
+}
+
+void AudioPlayer::Close_source(void)
+{
+    rawfile.close();
+    if (spi_in_use)
+    {
+        spi_in_use = false;
+        AudioStopUsingSPI();
+    }
+}
+
+void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
+{
+    if (source.storage != Psram || source.psram_ptr == nullptr) { return; }
+    if (state != IDLE && source_now.storage == Flash && file_id == source.file_id)
+    {
+        // The samples and indices are identical; preserve pitch and all in-flight edit geometry.
+        Close_source();
+        source_now = source;
+    }
+    if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id)
+    {
+        source_wait = source;
+        if (!use_Wavetable_wait) { pitch_limit_wait = MAX_PITCH_PSRAM; }
+    }
+}
+
+bool AudioPlayer::Uses_flash(void) const
+{
+    if (state == IDLE) { return false; }
+    const bool current = !use_Wavetable && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
+    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && source_wait.storage == Flash && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
+    const bool editing = main_settings_editing_flag && !use_Wavetable_E && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
+    return current || starting || editing;
+}
+
+bool AudioPlayer::Fast_stop_using_cache(uint16_t cache_mask)
+{
+    if (state == IDLE || state == IDLE_REQUEST || source_now.cache_id < 0 || warmup_for_play_again_flag || restart_flag || main_settings_editing_flag) { return false; }
+    if ((cache_mask & static_cast<uint16_t>(1u << source_now.cache_id)) == 0) { return false; }
+    Fast_stop();
+    return true;
 }
 
 void AudioPlayer::Set_volume(float volume_gain_value)
@@ -2480,6 +2536,20 @@ void AudioPlayer::Append(int16_t *target_ptr, uint16_t first_index, int16_t *sou
 
 void AudioPlayer::Read_flash(int16_t *destination, int first_sample, int total_samples)
 {
+    if (total_samples <= 0) { return; }
+    if (source_now.storage == Psram)
+    {
+        // The common reader preserves the existing forward, reverse and crossmix algorithms.
+        const int first_valid = first_sample < 0 ? -first_sample : 0;
+        const int available = static_cast<int>(source_now.samples) - first_sample;
+        const int end_valid = available < total_samples ? available : total_samples;
+        memset(destination, 0, static_cast<size_t>(total_samples) * sizeof(int16_t));
+        if (source_now.psram_ptr != nullptr && end_valid > first_valid)
+        {
+            memcpy(destination + first_valid, source_now.psram_ptr + first_sample + first_valid, static_cast<size_t>(end_valid - first_valid) * sizeof(int16_t));
+        }
+        return;
+    }
     int first_byte = (first_sample) * 2; // PD - 2
     int total_bytes = total_samples * 2; // 8
     byte *destination_byte = (byte *)destination;
@@ -2671,7 +2741,11 @@ void AudioPlayer::Write_time_stamp(unsigned long value)
 
 uint16_t AudioPlayer::Get_cache_reference_mask(void)
 {
-    return 0;
+    if (state == IDLE) { return 0; }
+    // An edit reads the current file until its crossmix completes; a restart can also read a different cache.
+    uint16_t mask = source_now.cache_id >= 0 ? static_cast<uint16_t>(1u << source_now.cache_id) : 0;
+    if ((warmup_for_play_again_flag || restart_flag) && source_wait.cache_id >= 0) { mask |= static_cast<uint16_t>(1u << source_wait.cache_id); }
+    return mask;
 }
 
 uint8_t AudioPlayer::Get_tables_reference_mask(void)

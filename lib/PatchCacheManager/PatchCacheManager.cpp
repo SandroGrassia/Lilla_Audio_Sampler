@@ -1,342 +1,215 @@
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
- *
  */
-
 #include "PatchCacheManager.h"
-#include "Functions.h"
-#include "GlobalInfoMaster.h"
-#include <spi_interrupt.h>
+#include "SharedLiveSampler.h"
+
+uint32_t PatchCacheManager::File_samples(int16_t file_id)
+{
+    if (file_id < 0 || file_id >= FIRST_LIVE_SAMPLING_FILE)
+    {
+        return 0;
+    }
+    if (file_id < FIRST_RECORDING_FILE)
+    {
+        return FlashFileRegisterParser::length(file_id) / sizeof(int16_t);
+    }
+    const auto &recording = Recording[(file_id - FIRST_RECORDING_FILE) / 2];
+    return recording.consistent && recording.bytes > 0 ? static_cast<uint32_t>(recording.bytes) / sizeof(int16_t) : 0;
+}
 
 void PatchCacheManager::Begin(void)
 {
-    for (auto i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
-    {
-        Cache[i].state = Free;
-        Cache[i].file_id = -1;
-    }
+    for (auto &item : cache) { item = {}; }
+    for (auto &item : required) { item = {}; }
+    required_count = 0;
+    retirement_counter = 0;
 }
 
 void PatchCacheManager::Set_cache_pointer(uint8_t cache_id, int16_t *pointer)
 {
-    cache_pointer[cache_id] = pointer;
+    if (cache_id < PATCH_CACHE_ARRAY_COUNT) { cache_pointer[cache_id] = pointer; }
 }
 
-uint16_t PatchCacheManager::Get_copy_samples(uint16_t read_time_micros)
+int PatchCacheManager::Find_required(int16_t file_id) const
 {
-    // non fornire samples_per_cycle > SAMPLES_MAX
-    return (SAMPLES_MAX * read_time_micros) / COPY_TIME_MAX;
-}
-
-int8_t PatchCacheManager::Get_cache_free(void)
-{
-    // Prefer a Free slot whose previous contents have already been invalidated.
-    for (auto i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    for (uint8_t i = 0; i < required_count; ++i)
     {
-        if (Cache[i].state == Free && Cache[i].file_id == -1)
-        {
-            return i;
-        }
-    }
-
-    // Otherwise reuse any Free slot containing an unreferenced cached file.
-    for (auto i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
-    {
-        if (Cache[i].state == Free)
-        {
-            return i;
-        }
+        if (required[i].file_id == file_id) { return i; }
     }
     return -1;
 }
 
-int8_t PatchCacheManager::Get_cache_id_from_file_id(uint16_t file_id)
+int PatchCacheManager::Find_complete(int16_t file_id, uint32_t samples) const
 {
-    for (auto cache_id = 0; cache_id < PATCH_CACHE_ARRAY_COUNT; ++cache_id)
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        if (Cache[cache_id].file_id == file_id)
-        {
-            return cache_id;
-        }
+        if (cache[i].valid && cache[i].state != Loading && cache[i].file_id == file_id && cache[i].samples == samples && cache[i].copied == samples) { return i; }
     }
     return -1;
 }
 
-int8_t PatchCacheManager::Get_cache_id_ready_from_file_id(uint16_t file_id)
+void PatchCacheManager::Retire(uint8_t cache_id)
 {
-    for (auto cache_id = 0; cache_id < PATCH_CACHE_ARRAY_COUNT; ++cache_id)
+    if (cache[cache_id].state == Ready)
     {
-        if (Cache[cache_id].file_id == file_id && Cache[cache_id].state == Ready)
-        {
-            return cache_id;
-        }
+        cache[cache_id].state = Retiring;
+        cache[cache_id].retired_order = ++retirement_counter;
     }
-    return -1;
 }
 
-bool PatchCacheManager::Load_audio_file(int16_t file_id_old, uint16_t file_id)
+void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRUMENTS])
 {
-    int8_t cache_id = -1;
-
-    if (file_id >= FIRST_RECORDING_FILE)
+    const auto previous = required_count;
+    Request old_required[INSTRUMENTS];
+    for (uint8_t i = 0; i < previous; ++i) { old_required[i] = required[i]; }
+    required_count = 0;
+    for (const auto &preset : presets)
     {
-        PRINT_ERROR(F("ERROR: PatchCacheManager supports only RAW files - "));
-        return false;
-    }
-
-    // rilascia la vecchia cache se non usata
-    if (file_id_old >= 0 && file_id_old != file_id)
-    {
-        Retire_cache_if_unused(file_id_old);
-    }
-
-    // Verifica se il file_id sia già presente
-    cache_id = Get_cache_id_from_file_id(file_id);
-    if (cache_id >= 0)
-    {
-        // A matching cache can only be Ready, Free, or Retiring because Loading is synchronous and internal.
-        Cache[cache_id].state = Ready;
-        Serial.println(F("Audio .raw file already present in PSRAM chips"));
-    }
-
-    else
-    {
-        // Initial checks are performed only once.
-        const uint32_t file_samples = Info.Raw_file_samples(file_id);
-
-        // Wait only for a cache slot to become available.
-        do
+        if (!preset.active || preset.file >= FIRST_LIVE_SAMPLING_FILE || Find_required(preset.file) >= 0) { continue; }
+        Request request;
+        request.file_id = preset.file;
+        request.samples = File_samples(preset.file);
+        request.failed = request.samples == 0 || request.samples > PATCH_CACHE_ARRAY_SAMPLES;
+        for (uint8_t i = 0; i < previous; ++i)
         {
-            cache_id = Get_cache_free();
-
-            if (cache_id < 0)
-            {
-                // Audio IRQs remain enabled and may release a Retiring cache.
-                yield();
-            }
-        } while (cache_id < 0);
-
-        // Reserve the selected slot immediately.
-        Cache[cache_id].state = Loading;
-        Cache[cache_id].file_id = file_id;
-        Cache[cache_id].samples = 0;
-
-        if (file_samples == 0)
-        {
-            // A missing or empty RAW file is represented by an empty Ready cache.
-            Cache[cache_id].state = Ready;
-
-            Serial.print(F("Audio .raw file not available; empty cache created for file: "));
-            Serial.println(file_id);
+            if (old_required[i].file_id == request.file_id && old_required[i].samples == request.samples) { request.failed |= old_required[i].failed; }
         }
-
-        else
+        required[required_count++] = request;
+    }
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    {
+        const int request = Find_required(cache[i].file_id);
+        const bool keep = request >= 0 && !required[request].failed && required[request].samples == cache[i].samples;
+        if (!keep)
         {
-            rawfile.fast_open(file_id);
-
-            // invalida cache_id
-            Cache[cache_id].state = Loading;
-            Cache[cache_id].file_id = file_id;
-            Cache[cache_id].samples = 0;
-
-            // variabili per la copia
-            int16_t *cache_p = cache_pointer[cache_id];
-            uint32_t residual_samples = file_samples;
-            uint32_t samples_copied = 0;
-            uint32_t cycle_counter = 0;
-
-            AudioStartUsingSPI();
-            while (residual_samples > 0)
-            {
-                uint32_t elapsed = audio_update_time_micros; // fissa l'istante di partenza
-
-                if (elapsed >= COPY_TIME_MAX)
-                {
-                    continue;
-                }
-
-                const uint32_t read_time = COPY_TIME_MAX - elapsed;
-
-                if (read_time < MIN_TIME_FOR_COPY_CYCLE_MICROS)
-                {
-                    continue;
-                }
-
-                uint16_t samples_to_read = Get_copy_samples(read_time);
-                samples_to_read = samples_to_read < residual_samples ? samples_to_read : residual_samples;
-                const uint32_t samples_read = rawfile.read(reinterpret_cast<byte *>(cache_p + samples_copied), 2u * samples_to_read) / 2;
-                samples_copied += samples_read;
-                residual_samples -= samples_read;
-                ++cycle_counter;
-            }
-
-            rawfile.close();
-            AudioStopUsingSPI();
-
-            Cache[cache_id].samples = samples_copied;
-            Cache[cache_id].file_id = file_id;
-            Cache[cache_id].state = Ready;
-
-            Serial.println(F("Audio .raw file copied from Flash chip to PSRAM chips"));
-            Serial.print("file: ");
-            Serial.println(file_id);
-            Serial.print("cache_id: ");
-            Serial.println(cache_id);
-            Serial.print("cycles: ");
-            Serial.println(cycle_counter);
+            if (cache[i].state == Loading) { cache[i] = {}; }
+            else { Retire(i); }
         }
     }
-    return true;
+    for (uint8_t i = 0; i < required_count; ++i)
+    {
+        if (required[i].failed) { continue; }
+        const int ready = Find_complete(required[i].file_id, required[i].samples);
+        if (ready >= 0) { cache[ready].state = Ready; }
+    }
 }
 
-bool PatchCacheManager::Load_patch(uint8_t new_patch_id)
+AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 {
-    return Load_patch(-1, new_patch_id);
+    AudioFileSource result;
+    result.file_id = file_id;
+    result.samples = File_samples(file_id);
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    {
+        if (cache[i].state == Ready && cache[i].valid && cache[i].file_id == file_id)
+        {
+            result.storage = Psram;
+            result.psram_ptr = cache_pointer[i];
+            result.samples = cache[i].samples;
+            result.cache_id = i;
+            break;
+        }
+    }
+    return result;
 }
 
-bool PatchCacheManager::Load_patch(int16_t old_patch_id, uint8_t new_patch_id)
+bool PatchCacheManager::Prepare_copy(CopyJob &job)
 {
-    if (old_patch_id < -1 || old_patch_id >= PATCHES_MAX)
+    job = {};
+    int selected = -1;
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        PRINT_ERROR(F("ERROR: PatchCacheManager invalid old patch_id - "));
-        return false;
+        if (cache[i].state == Loading) { selected = i; break; }
     }
-
-    if (new_patch_id >= PATCHES_MAX || !Patch[new_patch_id].used)
+    if (selected < 0)
     {
-        PRINT_ERROR(F("ERROR: PatchCacheManager invalid new patch_id - "));
-        return false;
-    }
-
-    uint16_t new_file_id[INSTRUMENTS]; // Stores the distinct file IDs used by the new patch; only elements below new_files are initialized.
-    uint8_t new_files = 0;
-
-    // Build the list of distinct RAW files used by the new patch.
-    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        // Skip unused instruments
-        if (!Patch[new_patch_id].Instrument[instrument_id].used)
+        for (uint8_t request = 0; request < required_count; ++request)
         {
-            continue;
-        }
-
-        const uint16_t file_id = Sound[Get_sound_id(new_patch_id, instrument_id)].file;
-
-        if (file_id >= FIRST_RECORDING_FILE)
-        {
-            PRINT_ERROR(F("ERROR: PatchCacheManager supports only RAW files - "));
-            return false;
-        }
-
-        bool already_listed = false;
-
-        // Search only the initialized portion of the array for an already listed file ID.
-        for (uint8_t i = 0; i < new_files; ++i)
-        {
-            if (new_file_id[i] == file_id)
+            if (required[request].failed || Find_complete(required[request].file_id, required[request].samples) >= 0) { continue; }
+            for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
             {
-                already_listed = true;
-                break;
-            }
-        }
-
-        if (!already_listed)
-        {
-            new_file_id[new_files++] = file_id;
-        }
-    }
-
-    if (new_files == 0)
-    {
-        PRINT_ERROR(F("ERROR: PatchCacheManager patch has no instruments - "));
-        return false;
-    }
-
-    // Leave as Ready old files used by the new patch and set a Retiring old_file_id not used in the new Patch
-    if (old_patch_id >= 0)
-    {
-        for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-        {
-            // Skip not used Instruments
-            if (!Patch[old_patch_id].Instrument[instrument_id].used)
-            {
-                continue;
-            }
-
-            // get the Instrument's file_id (old_file_id)
-            const uint16_t old_file_id = Sound[Get_sound_id(old_patch_id, instrument_id)].file;
-
-            // Scan all new files; verify if old_file_id is usefull (used_by_new_patch)
-            bool used_by_new_patch = false;
-            for (uint8_t i = 0; i < new_files; ++i)
-            {
-                if (new_file_id[i] == old_file_id)
+                if (cache[i].state == Free && cache_pointer[i] != nullptr)
                 {
-                    used_by_new_patch = true;
-
-                    // in this case Cache[cache_id].state remains as Ready;
+                    selected = i;
+                    cache[i] = {};
+                    cache[i].state = Loading;
+                    cache[i].file_id = required[request].file_id;
+                    cache[i].samples = required[request].samples;
                     break;
                 }
             }
-
-            if (!used_by_new_patch)
-            {
-                const int8_t cache_id = Get_cache_id_from_file_id(old_file_id);
-                if (cache_id >= 0 && Cache[cache_id].state == Ready)
-                {
-                    Cache[cache_id].state = Retiring;
-                }
-            }
+            break;
         }
     }
-
-    // Load each distinct file.
-    for (uint8_t i = 0; i < new_files; ++i)
-    {
-        Load_audio_file(-1, new_file_id[i]);
-    }
-
+    if (selected < 0) { return false; }
+    const auto &item = cache[selected];
+    job.cache_id = selected;
+    job.file_id = item.file_id;
+    job.first_sample = item.copied;
+    const uint32_t remaining = item.samples - item.copied;
+    job.samples = remaining < 512u ? remaining : 512u;
+    job.destination = cache_pointer[selected] + item.copied;
     return true;
 }
 
-void PatchCacheManager::Retire_cache_if_unused(uint16_t file_id)
+bool PatchCacheManager::Complete_copy(const CopyJob &job, bool success)
 {
-    int8_t cache_id = Get_cache_id_from_file_id(file_id);
-    if (cache_id >= 0)
+    if (job.cache_id < 0 || job.cache_id >= PATCH_CACHE_ARRAY_COUNT) { return false; }
+    auto &item = cache[job.cache_id];
+    if (item.state != Loading || item.file_id != job.file_id || item.copied != job.first_sample) { return false; }
+    if (!success)
     {
-
-        uint8_t instrument_counter = 0;
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-        {
-            // Skip unused instruments
-            if (!Patch[Patch_id].Instrument[instrument_id].used)
-            {
-                continue;
-            }
-
-            if (Sound[Get_sound_id(Patch_id, instrument_id)].file == file_id)
-            {
-                ++instrument_counter;
-            }
-        }
-
-        if (instrument_counter == 0)
-        {
-            Cache[cache_id].state = Retiring;
-        }
+        const int request = Find_required(item.file_id);
+        if (request >= 0) { required[request].failed = true; }
+        item = {};
+        return false;
     }
+    item.copied += job.samples;
+    if (item.copied == item.samples)
+    {
+        item.valid = true;
+        item.state = Ready;
+        return true;
+    }
+    return false;
+}
+
+uint16_t PatchCacheManager::Get_reclaim_mask(void) const
+{
+    bool missing = false;
+    for (uint8_t i = 0; i < required_count; ++i)
+    {
+        missing |= !required[i].failed && Find_complete(required[i].file_id, required[i].samples) < 0;
+    }
+    if (!missing) { return 0; }
+    int oldest = -1;
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    {
+        if (cache[i].state == Free || cache[i].state == Loading) { return 0; }
+        if (cache[i].state == Retiring && (oldest < 0 || static_cast<int32_t>(cache[i].retired_order - cache[oldest].retired_order) < 0)) { oldest = i; }
+    }
+    return oldest < 0 ? 0 : static_cast<uint16_t>(1u << oldest);
+}
+
+void PatchCacheManager::Invalidate_file(int16_t file_id)
+{
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    {
+        if (cache[i].file_id != file_id) { continue; }
+        cache[i].valid = false;
+        if (cache[i].state == Loading || cache[i].state == Free) { cache[i] = {}; }
+        else { Retire(i); }
+    }
+    const int request = Find_required(file_id);
+    if (request >= 0) { required[request].samples = 0; required[request].failed = true; }
 }
 
 void PatchCacheManager::Release_unreferenced_caches(uint16_t referenced_cache_mask)
 {
-    for (uint8_t cache_id = 0; cache_id < PATCH_CACHE_ARRAY_COUNT; ++cache_id)
+    for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        const uint16_t cache_mask = static_cast<uint16_t>(1u << cache_id); // prepara la maschera di lettura: 00000000 00000001, 00000000 00000010 ... fino a 000000001 00000000
-
-        if (Cache[cache_id].state == Retiring && (referenced_cache_mask & cache_mask) == 0) // and bit per bit
-        {
-            Cache[cache_id].state = Free;
-        }
+        if (cache[i].state == Retiring && (referenced_cache_mask & static_cast<uint16_t>(1u << i)) == 0) { cache[i].state = Free; }
     }
 }

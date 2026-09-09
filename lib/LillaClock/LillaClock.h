@@ -29,5 +29,5 @@ public:
     bool Is_running(void) const { return !stop_flag; } // Read the callback state with audio interrupts disabled.
     void Start(void); // Enable control callbacks without changing MIDI keyboard state.
     void Stop(void); // Pause control callbacks while players and the finalizer continue processing audio.
-    virtual void update(void);
+    virtual void update(void); // Advance the copy scheduler and run the enabled audio control callbacks.
 };

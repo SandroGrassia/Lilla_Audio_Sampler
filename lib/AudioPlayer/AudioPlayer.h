@@ -204,7 +204,9 @@ private:
 
     // PSRAM operation
     AudioFileSource source_now;
-    uint16_t referenced_cache_mask = 0;
+    AudioFileSource source_wait;
+    bool spi_in_use = false;
+    void Close_source(void); // Close the current Flash handle and release its SPI lease exactly once.
 
     // wait variables
     int file_id_wait;
@@ -269,11 +271,11 @@ private:
     void Update_pitch(void);
     void Update_volume_gain(void);
     void Update_pan_gain(void);
-    void Start_playing(void);
+    void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
     void Flash_memory_harvest(void);
     void Wavetable_harvest(void);
-    void Read_flash(int16_t *destination, int first_sample, int total_samples);
+    void Read_flash(int16_t *destination, int first_sample, int total_samples); // Read logical samples from Flash, a complete cache or the live circular buffer.
 
     float Mirror(float pivot, float value);
     void Append_reversed(int16_t *target_ptr, uint16_t first_index, int16_t *source_ptr, uint16_t N);
@@ -317,7 +319,11 @@ public:
 
     bool isPlaying(void);
     bool isPoweredOn(void);
-    void set_file(int file_id_in);
+    void set_file(int file_id_in); // Select a Flash or Live Sampler file for the next note.
+    void Set_source(const AudioFileSource &source); // Attach the prepared source before configuring the next note.
+    void Refresh_cached_source(const AudioFileSource &source); // Promote identical Flash data without moving the playhead; call with audio interrupts disabled.
+    bool Uses_flash(void) const; // Reserve Flash capacity for current playback and queued starts or edits.
+    bool Fast_stop_using_cache(uint16_t cache_mask); // Fade a current cache reader after pending edits and restarts complete.
 
     void Set_volume(float volume_gain_value);
     void Update_volume(float volume_gain_value);
@@ -375,7 +381,7 @@ public:
     void Write_time_stamp(unsigned long value);
 
     // PSRAM cache management
-    uint16_t Get_cache_reference_mask(void); // Get_cache_reference_mask responds with a mask where each bit=1 corresponds to a cache that a Player is reading
+    uint16_t Get_cache_reference_mask(void); // Protect current audio, queued starts and edits that keep using the current source.
     
     // AudioTables: chiamare nell'IRQ audio oppure con IRQ audio disabilitati.
     uint8_t Get_tables_reference_mask(void); // Include current playback, pending starts and pending edits.
