@@ -534,10 +534,15 @@ bool S_Fill_all_tables(void);              // Call after updating all used prese
 bool S_Rebuild_audio_tables(void);         // Main only. Rebuild and activate tables from Preset[] with audio interrupts disabled.
 bool S_Fill_tables(uint8_t instrument_id)
 {
+    if (S_Rebuild_audio_tables())
+    {
+        return true;
+    }
+
+    // Generate legacy tables when AudioTables could not be activated.
     S_Fill_Noclick(instrument_id);
     S_Fill_Wavetable(instrument_id);
-
-    return S_Rebuild_audio_tables();
+    return false;
 }
 void S_Fill_all_legacy_tables(void)
 {
@@ -547,10 +552,16 @@ void S_Fill_all_legacy_tables(void)
 
 bool S_Fill_all_tables(void)
 {
-    S_Fill_all_legacy_tables();
+    if (S_Rebuild_audio_tables())
+    {
+        return true;
+    }
 
-    return S_Rebuild_audio_tables();
+    // Generate legacy tables when AudioTables could not be activated.
+    S_Fill_all_legacy_tables();
+    return false;
 }
+
 bool S_Rebuild_audio_tables(void)
 {
     // Require a stable preset array and a valid current patch.
@@ -8436,12 +8447,12 @@ void P_Jump_to_Patch(uint8_t next_patch)
             active_bank_mask |= Audio_tables.Get_active_pointers(instrument_id).bank_mask;
         }
     }
-    else
+        else
     {
-        // Temporary fallback while players still use the legacy tables.
+        // Generate matching legacy tables when AudioTables activation fails.
         Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+        S_Fill_all_legacy_tables();
     }
-    S_Fill_all_legacy_tables(); // Keep generating the legacy tables until player pointers are migrated.
     AudioInterrupts();
 
     if (tables_activated)
