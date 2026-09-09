@@ -844,24 +844,29 @@ void DisplayManager::P_Confirm_patch_change_popup(void)
 FLASHMEM
 void DisplayManager::P_Confirm_patch_change_popup_frame(int value)
 {
-    P_Confirm_frame(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    P_Confirm_frame(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, false);
-    P_Confirm_frame(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, false);
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, false);
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
     case 0: // exit
-        P_Confirm_frame(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, true);
         break;
     case 1: // no
-        P_Confirm_frame(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 2: // yes
-        P_Confirm_frame(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;
     }
+}
+
+void DisplayManager::P_Confirm_frame_on_RED(int X, int Y, int chars, bool print)
+{
+    Frame_by_pixels_on_RED(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
 }
 
 void DisplayManager::P_Confirm_frame(int X, int Y, int chars, bool print)
@@ -893,16 +898,16 @@ void DisplayManager::P_Confirm_patch_delete_popup(void)
 FLASHMEM
 void DisplayManager::P_Confirm_patch_delete_popup_frame(int value)
 {
-    P_Confirm_frame(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    P_Confirm_frame(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, false);
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
     case 0: // NO
-        P_Confirm_frame(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 1: // YES
-        P_Confirm_frame(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;

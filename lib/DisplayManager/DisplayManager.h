@@ -128,6 +128,7 @@ public:
     void P_Confirm_patch_change_popup(void);
     void P_Confirm_patch_change_popup_frame(int value);
     void P_Confirm_frame(int X, int Y, int chars, bool print);
+    void P_Confirm_frame_on_RED(int X, int Y, int chars, bool print);
     void P_Confirm_patch_delete_popup(void);
     void P_Confirm_patch_delete_popup_frame(int value);
     // Instrument

@@ -8392,7 +8392,7 @@ bool P_Ask_if_delete_this_Patch(void)
     {
         Shifters_manager.Update();
 
-        if (Read_encoder_inverse(EN_PB_Select, action, 1, 0, 1))
+        if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
             Display_Manager.P_Confirm_patch_delete_popup_frame(action);
         }
