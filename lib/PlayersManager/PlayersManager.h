@@ -133,6 +133,7 @@ public:
     void Release_all_players(void);
     void Release_softly_all_players(int patch_id);
     void Stop_all_players(void); // BROADCAST_stop_all_Players()
+    uint16_t Fast_stop_players_using_tables(uint8_t banks_mask); // Return a player bitmask identifying newly requested stops. Call from the audio IRQ or with audio interrupts disabled.
 
     void Release_player(int player, int track);
     void Release_all_players_loop(void);

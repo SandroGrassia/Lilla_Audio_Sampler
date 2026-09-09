@@ -18,7 +18,6 @@
 class NoclickCrossmix
 {
 private:
-    void Read_flash(int file_id, int16_t *destination, int seek_in, int samples_in);
     int16_t Noclick[NOCLICK_DIM];
 
 public:

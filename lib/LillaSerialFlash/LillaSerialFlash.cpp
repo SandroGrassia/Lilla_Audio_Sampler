@@ -5,6 +5,7 @@
  */
 
 #include "LillaSerialFlash.h"
+#include "SharedLiveSampler.h"
 
 void LillaSerialFlashFile::fast_open(int id_file)
 {
@@ -22,6 +23,117 @@ void LillaSerialFlashFile::packet_fast_open(int id_packet)
   this->length = FlashFileRegisterParser::length(id_packet + RAW_FILES);
   this->offset = 0;
   this->dirindex = FlashFileRegisterParser::dirindex(id_packet + RAW_FILES);
+}
+
+bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count)
+{
+    if (file_id < 0 || file_id >= FIRST_LIVE_SAMPLING_FILE || first_sample < 0 || samples_count < 0)
+    {
+        return false;
+    }
+
+    if (samples_count == 0)
+    {
+        return true;
+    }
+
+    if (destination == nullptr)
+    {
+        return false;
+    }
+
+    const uint32_t first_byte = static_cast<uint32_t>(first_sample) * 2u;
+    const uint32_t total_bytes = static_cast<uint32_t>(samples_count) * 2u;
+    uint8_t *destination_bytes = reinterpret_cast<uint8_t *>(destination);
+    LillaSerialFlashFile rawfile;
+
+    if (file_id < FIRST_RECORDING_FILE)
+    {
+        rawfile.fast_open(file_id);
+        const uint32_t file_bytes = rawfile.size();
+
+        if (!rawfile || first_byte > file_bytes || total_bytes > file_bytes - first_byte)
+        {
+            rawfile.close();
+            return false;
+        }
+
+        rawfile.seek(first_byte);
+        const bool complete = rawfile.read(destination_bytes, total_bytes) == total_bytes;
+        rawfile.close();
+        return complete;
+    }
+
+    const int recording_id = (file_id - FIRST_RECORDING_FILE) / 2;
+
+    if (recording_id >= RECORDINGS)
+    {
+        return false;
+    }
+
+    const VFS_Recording &source = Recording[recording_id];
+
+    if (source.first_packet < 0 || source.first_packet >= PACKETS || source.packets <= 0 || source.bytes <= 0)
+    {
+        return false;
+    }
+
+    const uint32_t recording_bytes = static_cast<uint32_t>(source.bytes);
+
+    if (first_byte > recording_bytes || total_bytes > recording_bytes - first_byte)
+    {
+        return false;
+    }
+
+    const uint32_t packet_stride = source.stereo ? 2u : 1u;
+    const uint32_t channel_offset = source.stereo ? static_cast<uint32_t>((file_id - FIRST_RECORDING_FILE) % 2) : 0u;
+    const uint32_t first_packet = static_cast<uint32_t>(source.first_packet) + channel_offset;
+    uint32_t packet_index = first_byte / static_cast<uint32_t>(PACKET_DIM);
+    uint32_t packet_offset = first_byte % static_cast<uint32_t>(PACKET_DIM);
+    uint32_t remaining_bytes = total_bytes;
+
+    while (remaining_bytes > 0)
+    {
+        if (packet_index >= static_cast<uint32_t>(source.packets))
+        {
+            return false;
+        }
+
+        const uint32_t packet_id = first_packet + packet_index * packet_stride;
+
+        if (packet_id >= static_cast<uint32_t>(PACKETS))
+        {
+            return false;
+        }
+
+        const uint32_t packet_space = static_cast<uint32_t>(PACKET_DIM) - packet_offset;
+        const uint32_t chunk_bytes = remaining_bytes < packet_space ? remaining_bytes : packet_space;
+
+        rawfile.packet_fast_open(static_cast<int>(packet_id));
+        const uint32_t file_bytes = rawfile.size();
+
+        if (!rawfile || packet_offset > file_bytes || chunk_bytes > file_bytes - packet_offset)
+        {
+            rawfile.close();
+            return false;
+        }
+
+        rawfile.seek(packet_offset);
+        const bool complete = rawfile.read(destination_bytes, chunk_bytes) == chunk_bytes;
+        rawfile.close();
+
+        if (!complete)
+        {
+            return false;
+        }
+
+        destination_bytes += chunk_bytes;
+        remaining_bytes -= chunk_bytes;
+        ++packet_index;
+        packet_offset = 0;
+    }
+
+    return true;
 }
 
 void FlashFileRegisterParser::Read_all_file_data(void)

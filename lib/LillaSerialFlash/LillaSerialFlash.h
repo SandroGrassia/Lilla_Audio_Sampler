@@ -27,6 +27,7 @@ public:
     // funzione di apertura da usare al posto di SerialFlash.open(nome_file)
     void fast_open(int id_file);
     void packet_fast_open(int id_packet);
+    static bool Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count); // Read the requested Flash samples completely; the caller provides buffer capacity and protects shared SPI access.
 };
 
 class FlashFileRegisterParser

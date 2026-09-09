@@ -514,9 +514,7 @@ uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
-
-// Main only. Preserve the audio IRQ state; the caller must activate or cancel a successfully prepared bank.
-bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask);
+bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade = false); // Main only. Preserve the audio IRQ state; activate or cancel a successfully prepared bank. Retiring-bank fading requires global interrupts to be enabled by the caller.
 
 // WAVETABLES
 void S_Get_all_Wavetable_pointer(void);
@@ -8406,12 +8404,11 @@ void P_Jump_to_Patch(uint8_t next_patch)
 {
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t next_tables_mask = 0;
-    const bool tables_prepared = P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask);
+    const bool tables_prepared = P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask, true);
     bool tables_activated = false;
     uint8_t active_bank_mask = 0;
 
     AudioNoInterrupts();
-
     Players_Manager.Release_softly_all_players(Patch_id);
     Players_statistics.Reset_total_Players_per_instrument();
 
@@ -8445,7 +8442,6 @@ void P_Jump_to_Patch(uint8_t next_patch)
         Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
     }
     S_Fill_all_legacy_tables(); // Keep generating the legacy tables until player pointers are migrated.
-
     AudioInterrupts();
 
     if (tables_activated)
@@ -12758,13 +12754,45 @@ void Clear_UI_events(void)
 // *************************************            BOOTSTRAP             ***************************************
 // **************************************************************************************************************
 
-bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask)
+bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade)
 {
     // Save the audio IRQ enable state before entering the critical section.
     const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
 
-    const bool preparation_started = Players_Manager.Build_presets_snapshot(patch_id, patch_volume, presets, tables_mask) && Audio_tables.Begin_prepare(tables_mask);
+    const bool snapshot_ready = Players_Manager.Build_presets_snapshot(patch_id, patch_volume, presets, tables_mask);
+    bool preparation_started = snapshot_ready && Audio_tables.Begin_prepare(tables_mask);
+
+    uint8_t retiring_banks_mask = 0;
+    uint16_t stopped_players_mask = 0;
+    uint32_t bank_wait_us = 0;
+
+    if (snapshot_ready && !preparation_started && allow_retiring_fade && audio_interrupts_enabled)
+    {
+        retiring_banks_mask = Audio_tables.Get_retiring_banks_mask();
+
+        if (retiring_banks_mask != 0)
+        {
+            constexpr uint32_t bank_wait_limit_us = 20000u;
+            const uint32_t wait_started_us = micros();
+
+            while (!preparation_started && Audio_tables.Get_retiring_banks_mask() != 0 && static_cast<uint32_t>(micros() - wait_started_us) < bank_wait_limit_us)
+            {
+                // Retry requests deferred by pending note or editing changes.
+                stopped_players_mask |= Players_Manager.Fast_stop_players_using_tables(retiring_banks_mask);
+
+                // Let players finish their stop and the finalizer release the bank.
+                AudioInterrupts();
+                delayMicroseconds(50);
+                AudioNoInterrupts();
+
+                // Begin_prepare() can reserve only a bank already marked Free.
+                preparation_started = Audio_tables.Begin_prepare(tables_mask);
+            }
+
+            bank_wait_us = static_cast<uint32_t>(micros() - wait_started_us);
+        }
+    }
 
     if (preparation_started)
     {
@@ -12775,6 +12803,19 @@ bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&pr
     if (audio_interrupts_enabled)
     {
         AudioInterrupts();
+    }
+
+    if (retiring_banks_mask != 0)
+    {
+        // Report the result after restoring audio interrupts.
+        Serial.print(F("AudioTables bank reclaim, banks: 0x"));
+        Serial.print(retiring_banks_mask, HEX);
+        Serial.print(F(", stopped players: 0x"));
+        Serial.print(stopped_players_mask, HEX);
+        Serial.print(F(", reserved: "));
+        Serial.print(preparation_started ? 1 : 0);
+        Serial.print(F(", wait us: "));
+        Serial.println(bank_wait_us);
     }
 
     if (!preparation_started)

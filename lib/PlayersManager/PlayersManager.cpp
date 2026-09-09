@@ -1503,6 +1503,24 @@ void PlayersManager::Stop_all_players(void) // meglio Fast_stop...
     }
 }
 
+uint16_t PlayersManager::Fast_stop_players_using_tables(uint8_t banks_mask)
+{
+    static_assert(PLAYERS <= 16);
+
+    uint16_t stopped_players_mask = 0;
+
+    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+    {
+        if (Player_ptr[player_id].Fast_stop_using_tables(banks_mask))
+        {
+            Player_ptr[player_id].Write_time_stamp(millis());
+            stopped_players_mask |= static_cast<uint16_t>(1u << player_id);
+        }
+    }
+
+    return stopped_players_mask;
+}
+
 void PlayersManager::Release_all_players_loop(void)
 {
     for (auto player = 0; player < PLAYERS; ++player)
