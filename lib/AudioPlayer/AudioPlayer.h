@@ -335,8 +335,6 @@ public:
     /*
     Main_settings
     chiamata da PlayersManager
-
-    Compiti:
     - setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
     */
     void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);
@@ -344,8 +342,6 @@ public:
     /*
    Get_ready_to_play
    chiamata da PlayersManager
-
-   Compiti:
    - setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
    */
     void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint8_t sound_id_in, uint8_t note_in); // chiamata da Playermanager per suonare
@@ -353,13 +349,12 @@ public:
     /*
     Main_settings_editing
     chiamata da PlayersManager
-
-    Compiti:
     - setta una serie di valori e flag, individuati col suffisso "E", utilizzati al successivo update()
     */
     void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);
     void Release_note(void); // release note, fires ADSR "release"
-    void Fast_stop(void);
+    void Fast_stop(void); 
+    bool Fast_stop_using_tables(uint8_t banks_mask); // Request a fast stop when current playback uses one of the specified banks. Call from the audio IRQ or with audio interrupts disabled.
 
     float Read_pitch(void);
     int Read_loop_track(void);

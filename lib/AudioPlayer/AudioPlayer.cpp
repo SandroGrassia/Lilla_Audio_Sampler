@@ -2190,6 +2190,23 @@ void AudioPlayer::Fast_stop(void)
     state = IDLE_REQUEST;
 }
 
+bool AudioPlayer::Fast_stop_using_tables(uint8_t banks_mask)
+{
+    if (state == IDLE || state == IDLE_REQUEST || (tables_bank_mask & banks_mask) == 0)
+    {
+        return false;
+    }
+
+    // Let pending playback changes complete before selecting the voice to stop.
+    if (warmup_for_play_again_flag || restart_flag || main_settings_editing_flag)
+    {
+        return false;
+    }
+
+    Fast_stop();
+    return true;
+}
+
 void AudioPlayer::Update_pan(float pan_int_value)
 {
     pan_int_wait = pan_int_value;
