@@ -258,3 +258,64 @@ void AudioTables::Release_unreferenced_banks(uint8_t referenced_banks_mask)
         }
     }
 }
+
+bool AudioTables::Needs_tables(const Preset_struct &preset)
+{
+    return preset.file < FIRST_LIVE_SAMPLING_FILE && (preset.use_Wavetable || ((preset.mode == LOOP_FWD || preset.mode == LOOP_REV) && preset.Noclick > 0));
+}
+
+AudioTables::Pointers AudioTables::Get_replacement_pointers(const Pointers &previous)
+{
+    if (active_bank < 0 || previous.bank_mask == 0)
+    {
+        return previous;
+    }
+
+    const Bank &active = banks[active_bank];
+    for (uint8_t old_bank = 0; old_bank < BANK_COUNT; ++old_bank)
+    {
+        if (previous.bank_mask != static_cast<uint8_t>(1u << old_bank) || states[old_bank] != Retiring)
+        {
+            continue;
+        }
+        for (uint8_t old_id = 0; old_id < INSTRUMENTS; ++old_id)
+        {
+            if (previous.noclick != banks[old_bank].Noclick[old_id] || previous.wavetable != banks[old_bank].Wavetable[old_id])
+            {
+                continue;
+            }
+            const TableSettings &old = banks[old_bank].settings[old_id];
+            for (uint8_t new_id = 0; new_id < INSTRUMENTS; ++new_id)
+            {
+                if ((active.prepared_mask & static_cast<uint16_t>(1u << new_id)) == 0)
+                {
+                    continue;
+                }
+                const TableSettings &next = active.settings[new_id];
+                // Match the generator inputs, not the player's normalized playback mode.
+                if (old.file == next.file && old.mode == next.mode && old.A == next.A && old.B == next.B && old.Noclick == next.Noclick && old.use_Wavetable == next.use_Wavetable)
+                {
+                    return Get_active_pointers(new_id);
+                }
+            }
+            return previous;
+        }
+    }
+    return previous;
+}
+
+bool AudioTables::Reset(uint8_t referenced_banks_mask)
+{
+    if (referenced_banks_mask != 0 || preparing_bank >= 0)
+    {
+        return false;
+    }
+    active_bank = -1;
+    for (uint8_t bank_id = 0; bank_id < BANK_COUNT; ++bank_id)
+    {
+        states[bank_id] = Free;
+        banks[bank_id].required_mask = 0;
+        banks[bank_id].prepared_mask = 0;
+    }
+    return true;
+}

@@ -323,7 +323,6 @@ void DelayManager::Update(void)
             {
                 Serial.print(F("Delay_values.loop_gain: "));
                 Serial.println(Delay_values.loop_gain);
-                Serial.println();
             }
             run_flag = true;
         }

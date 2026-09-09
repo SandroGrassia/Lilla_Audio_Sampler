@@ -399,7 +399,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     tables_bank_mask_E = tables_bank_mask_in;
 
     // Read samples from PSRAM chip
-    if (file_id_wait >= FIRST_LIVE_SAMPLING_FILE)
+    if (file_id >= FIRST_LIVE_SAMPLING_FILE)
     {
         mode_player_E = mode_in;
         pitch_limit_E = MAX_PITCH_PSRAM;
@@ -2694,4 +2694,44 @@ uint8_t AudioPlayer::Get_tables_reference_mask(void)
     }
 
     return referenced_banks_mask;
+}
+
+void AudioPlayer::Refresh_audio_table_references(AudioTables &tables)
+{
+    if (state != IDLE && tables_bank_mask != 0)
+    {
+        const AudioTables::Pointers replacement = tables.Get_replacement_pointers({Noclick_ptr, Wavetable_ptr, tables_bank_mask});
+        Noclick_ptr = replacement.noclick;
+        Wavetable_ptr = replacement.wavetable;
+        tables_bank_mask = replacement.bank_mask;
+    }
+    if ((warmup_for_play_again_flag || restart_flag) && tables_bank_mask_wait != 0)
+    {
+        const AudioTables::Pointers replacement = tables.Get_replacement_pointers({Noclick_wait_ptr, Wavetable_wait_ptr, tables_bank_mask_wait});
+        Noclick_wait_ptr = replacement.noclick;
+        Wavetable_wait_ptr = replacement.wavetable;
+        tables_bank_mask_wait = replacement.bank_mask;
+    }
+    if (main_settings_editing_flag && tables_bank_mask_E != 0)
+    {
+        const AudioTables::Pointers replacement = tables.Get_replacement_pointers({Noclick_E_ptr, Wavetable_E_ptr, tables_bank_mask_E});
+        Noclick_E_ptr = replacement.noclick;
+        Wavetable_E_ptr = replacement.wavetable;
+        tables_bank_mask_E = replacement.bank_mask;
+    }
+}
+
+bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_struct &preset, const AudioTables::Pointers &tables)
+{
+    // A restart consumes the wait parameters and can discard an edit queued for the old note.
+    if ((warmup_for_play_again_flag || restart_flag) && patch_id_wait == patch && instrument_id_wait == instrument && file_id_wait == preset.file)
+    {
+        Main_settings(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
+    }
+    if (state == IDLE || local_patch != patch || instrument_id != instrument || file_id != preset.file)
+    {
+        return false;
+    }
+    Main_settings_editing(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
+    return true;
 }

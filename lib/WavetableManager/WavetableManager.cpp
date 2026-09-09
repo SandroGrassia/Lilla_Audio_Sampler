@@ -8,16 +8,6 @@
 
 int16_t WavetableManager::cache[WavetableManager::WAVETABLE_DIM] = {0};
 
-int16_t *WavetableManager::get_pointer(void)
-{
-    return Wavetable;
-}
-
-bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick)
-{
-    return Make(file_id, mode, A_Flash_sample, B_Flash_sample, delta_Noclick, p_Noclick, Wavetable);
-}
-
 bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick, int16_t *destination)
 {
     if (destination == nullptr)
@@ -67,7 +57,6 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
     {
     case ONCE_REV: // mode 1: B-->A than STOP
 
-        length = length_max;
 
         // A>>>>>>>>>>>>>length_max>>>>>>>>>>>>>B
         if (!LillaSerialFlashFile::Read_audio_samples(file_id, cache, A_Flash_sample, length_max))
@@ -86,7 +75,6 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
     case LOOP_FWD: // mode 2: loop A-->B A-->B.
 
         // forward play from (A_Flash_sample + delta_Noclick) to B_Flash_sample
-        length = length_mix;
 
         // (A+d)******length_min*********(B-d)
         if (!LillaSerialFlashFile::Read_audio_samples(file_id, destination, A_Flash_sample + delta_Noclick, length_min))
@@ -106,7 +94,6 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
     case LOOP_FWD_REV: // mode 3: loop A-->B-->A
 
         // play forward from A_Flash_sample to B_Flash_sample and reverse
-        length = 2 * length_max - 2;
 
         // A>>>>>>>>>>>>>length_max>>>>>>>>>>>>>B
         if (!LillaSerialFlashFile::Read_audio_samples(file_id, destination, A_Flash_sample, length_max))
@@ -126,7 +113,6 @@ bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_
     case LOOP_REV: // mode 5: B-->A B-->A
 
         // reverse play from (A_Flash_sample) to (B_Flash_sample - delta_Noclick)
-        length = length_mix;
 
         // (A)>>>>delta>>>>(A+d-1)
         for (auto sample = 0; sample < delta_Noclick; ++sample)

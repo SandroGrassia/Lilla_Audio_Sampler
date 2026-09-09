@@ -8,16 +8,6 @@
 
 #include "NoclickCrossmix.h"
 
-int16_t *NoclickCrossmix::get_pointer()
-{
-    return Noclick; // &NoClick[0];
-}
-
-bool NoclickCrossmix::Make(int file_id, int32_t A_Flash_sample, int32_t B_Flash_sample, uint16_t delta_Noclick)
-{
-    return Make(file_id, A_Flash_sample, B_Flash_sample, delta_Noclick, Noclick);
-}
-
 bool NoclickCrossmix::Make(int file_id, int32_t A_Flash_sample, int32_t B_Flash_sample, uint16_t delta_Noclick, int16_t *destination)
 {
     if (delta_Noclick == 0)

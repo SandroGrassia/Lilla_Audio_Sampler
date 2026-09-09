@@ -9,7 +9,7 @@
 #include <Arduino.h> 
 
 // Firmware version
-constexpr char FIRMWARE_VERSION[] = "7.1.0 23/08/2026";
+constexpr char FIRMWARE_VERSION[] = "7.2.0 23/08/2026";
 
 // Hardware versions
 /*

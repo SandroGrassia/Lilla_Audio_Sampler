@@ -14,8 +14,6 @@
 #include "LoopLedSet.h"
 #include "PlayersStatistics.h"
 #include "Router_16x3.h"
-#include "NoclickCrossmix.h"
-#include "WavetableManager.h"
 #include "config.h"
 #include "AudioADSR.h"
 #include "AudioTables.h"
@@ -27,8 +25,6 @@ private:
     AudioPlayer *Player_ptr = nullptr;
     Router_16x3 *Router_L_ptr = nullptr;
     Router_16x3 *Router_R_ptr = nullptr;
-    NoclickCrossmix *Noclick_ptr = nullptr;    // Players_Manager.Noclick_ptr = &Noclick[0]
-    WavetableManager *Wavetable_ptr = nullptr; // Players_Manager.Wavetable_ptr = &Wavetable[0]
     AudioTables *Audio_tables_ptr = nullptr;
     AudioADSR *ADSR = nullptr;
     AudioTables::Pointers Get_playback_tables(uint8_t instrument_id); // Call from the audio IRQ or with audio interrupts disabled.
@@ -69,7 +65,7 @@ private:
     }
 
 public:
-    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, NoclickCrossmix *NC, WavetableManager *WT, AudioTables *AT) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Noclick_ptr(NC), Wavetable_ptr(WT), Audio_tables_ptr(AT) {}
+    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, AudioTables *AT) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Audio_tables_ptr(AT) {} // Connect players, routers and the sole table owner.
     void Set_ADSR_ptr(AudioADSR* ptr); // requires &ADSR[0] from main.cpp
 
     // chiamate da MidiReader
@@ -158,6 +154,7 @@ public:
     
     Preset_struct Build_Preset(int patch_id, int instrument_id, float volume_patch); // Build a preset without global Preset array modifications.
     bool Build_presets_snapshot(int patch_id, float volume_patch, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask); // Call from main.cpp with AudioNoInterrupts(). The destination must be a separate snapshot array.
+    uint8_t Refresh_audio_table_references(void); // Move equivalent current and pending references, then return all referenced banks; call with audio interrupts disabled.
     bool Activate_prepared_presets(const Preset_struct (&presets)[INSTRUMENTS]); // Call with AudioNoInterrupts(), using the same snapshot passed to AudioTables::Prepare_all().
     void Update_Preset(int patch_id, int instrument_id, float volume_patch);
     void Update_Preset_volume(int patch_id, int instrument_id, float volume_patch); // chiamata da main e MidiReader

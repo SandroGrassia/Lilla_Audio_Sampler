@@ -367,8 +367,6 @@ extern Preset_struct Preset[INSTRUMENTS];
 
 // AUDIOPLAYER
 extern elapsedMicros security_timer;            // Protezione Audiostream update()
-extern int16_t *Noclick_pointer[INSTRUMENTS];   // each Noclick instance contains 2 arrays
-extern int16_t *Wavetable_pointer[INSTRUMENTS]; // each Wavetable instance contains 2 arrays
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id); // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative

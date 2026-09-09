@@ -69,8 +69,6 @@ Preset_struct Preset[INSTRUMENTS];
 
 // PLAYER
 elapsedMicros security_timer = 0;
-int16_t *Noclick_pointer[INSTRUMENTS] = {0};   // each Noclick instance contains 2 arrays
-int16_t *Wavetable_pointer[INSTRUMENTS] = {0}; // each Wavetable instance contains 2 arrays
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id) // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative

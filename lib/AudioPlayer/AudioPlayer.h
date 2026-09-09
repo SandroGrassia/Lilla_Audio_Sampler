@@ -22,6 +22,7 @@
 #include "PlayersStatistics.h"
 #include "Functions.h"
 #include "AudioADSR.h"
+#include "AudioTables.h"
 
 class AudioPlayer : public AudioStream
 {
@@ -337,7 +338,7 @@ public:
     chiamata da PlayersManager
     - setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
     */
-    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);
+    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Prepare the next start from precomputed preset parameters and table references.
 
     /*
    Get_ready_to_play
@@ -351,7 +352,7 @@ public:
     chiamata da PlayersManager
     - setta una serie di valori e flag, individuati col suffisso "E", utilizzati al successivo update()
     */
-    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);
+    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.
     void Release_note(void); // release note, fires ADSR "release"
     void Fast_stop(void); 
     bool Fast_stop_using_tables(uint8_t banks_mask); // Request a fast stop when current playback uses one of the specified banks. Call from the audio IRQ or with audio interrupts disabled.
@@ -377,5 +378,7 @@ public:
     uint16_t Get_cache_reference_mask(void); // Get_cache_reference_mask responds with a mask where each bit=1 corresponds to a cache that a Player is reading
     
     // AudioTables: chiamare nell'IRQ audio oppure con IRQ audio disabilitati.
-    uint8_t Get_tables_reference_mask(void);
+    uint8_t Get_tables_reference_mask(void); // Include current playback, pending starts and pending edits.
+    void Refresh_audio_table_references(AudioTables &tables); // Move equivalent table references without restarting playback; call with audio interrupts disabled.
+    bool Apply_preset_edit(int patch, int instrument, const Preset_struct &preset, const AudioTables::Pointers &tables); // Update matching current and pending notes; return whether the current note needs a crossmix.
 };
