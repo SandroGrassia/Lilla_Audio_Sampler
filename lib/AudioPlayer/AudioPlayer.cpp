@@ -579,6 +579,7 @@ void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int 
 
 void AudioPlayer::Start_playing(void)
 {
+    patch_release_pending = false; // A replacement note must not inherit the previous patch deadline.
     Close_source();
     source_now = source_wait;
     file_id = file_id_wait;
@@ -724,6 +725,28 @@ void AudioPlayer::Release_note(void) // release note, fires ADSR "release"
     My_LED(false);
 }
 
+void AudioPlayer::Release_patch(int patch_id) // Apply one non-renewable deadline to the outgoing voice and discard its queued restart.
+{
+    if ((warmup_for_play_again_flag || restart_flag) && patch_id_wait == patch_id)
+    {
+        warmup_for_play_again_flag = false;
+        restart_flag = false;
+    }
+    if (state == IDLE || local_patch != patch_id || patch_release_pending)
+    {
+        return;
+    }
+    patch_release_started = millis();
+    patch_release_pending = true;
+    ADSR->Limit_release((QUICK_RELEASE_TIME - 2u * PATCH_RELEASE_BLOCK_MS) / 1000.0f); // Leave two audio blocks of margin for envelope completion and voice cleanup.
+    power_on = false;
+    if (state != IDLE_REQUEST)
+    {
+        state = FADING;
+    }
+    My_LED(false);
+}
+
 void AudioPlayer::Update_pitch(void)
 {
     pitch = constrain(pitch_note * pitch_bend * pitch_tune * pitch_vibrato, MIN_PITCH, pitch_limit);
@@ -734,6 +757,27 @@ void AudioPlayer::Update_pitch(void)
 
 void AudioPlayer::update(void)
 {
+    if (patch_release_pending && static_cast<uint32_t>(millis() - patch_release_started) >= QUICK_RELEASE_TIME - PATCH_RELEASE_BLOCK_MS)
+    {
+        patch_release_pending = false;
+        if (warmup_for_play_again_flag || restart_flag)
+        {
+            Start_playing(); // Preserve a replacement note queued after the patch change.
+            warmup_for_play_again_flag = false;
+            restart_flag = false;
+            main_settings_editing_flag = false;
+            power_on = true;
+        }
+        else
+        {
+            idle = true;
+            power_on = false;
+            state = IDLE;
+            main_settings_editing_flag = false;
+            Close_source(); // Release Flash ownership before allocation, even when audio buffers are exhausted.
+            My_LED(false);
+        }
+    }
     // Reset security_timer timer
     if (identity == 0)
     {

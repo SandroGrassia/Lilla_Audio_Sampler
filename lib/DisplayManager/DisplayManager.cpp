@@ -989,19 +989,16 @@ void DisplayManager::SETUP_show_First_octave_value(void)
 FLASHMEM
 void DisplayManager::SETUP_show_Optimization_value(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(13), display_coordinate_y(4), 38);
+    Cancel_text_reset_cursor(display_coordinate_x(13), display_coordinate_y(4), 24);
     tft.setTextColor(ILI9341_ORANGE);
     tft.print("VOICES ");
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(OPTIMIZATION_VOICES[optimization]);
     tft.setTextColor(ILI9341_ORANGE);
-    tft.print("  PSRAM x");
+    tft.print("  MAX PITCH ");
     tft.setTextColor(ILI9341_YELLOW);
+    tft.print("x");
     tft.print(MAX_PITCH_CACHE[optimization], 0);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("  FLASH x");
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(MAX_PITCH_FLASH[optimization], 2);
 }
 
 FLASHMEM
@@ -1009,7 +1006,7 @@ void DisplayManager::SETUP_show_frame(int8_t value)
 {
     Frame_by_col_row(9, 2, 5, false);   // First octave
     Frame_by_col_row(13, 3, 2, false);  // First octave
-    Frame_by_col_row(13, 4, 38, false); // SETUP_Optimization
+    Frame_by_col_row(13, 4, 24, false); // Optimization
     Frame_by_col_row(0, 5, 25, false);  // Control Change Assignment
     Frame_by_col_row(0, 6, 31, false);  // Import raw files
     Frame_by_col_row(0, 7, 45, false);  // Import configuration from
@@ -1025,7 +1022,7 @@ void DisplayManager::SETUP_show_frame(int8_t value)
         Frame_by_col_row(13, 3, 2, true); // First octave
         break;
     case 2:
-        Frame_by_col_row(13, 4, 38, true); // SETUP_Optimization
+        Frame_by_col_row(13, 4, 24, true); // SETUP_Optimization
         break;
     case 3:
         Frame_by_col_row(0, 5, 25, true); // Control Change
