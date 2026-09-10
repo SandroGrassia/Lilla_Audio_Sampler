@@ -51,6 +51,7 @@ private:
 
     bool gain_flag = false;
     float gain_runtime = 0.5f;
+    float gain_target = 0.5f;
     float gain_runtime_0 = 0.5f;
     float gain_delta = 0;
     int gain_step = 0;
@@ -59,14 +60,14 @@ private:
     int32_t mult_2 = 0;
 
     void applyGain(int16_t *data, int32_t mult);
-    void Get_mults(void);
+    void Get_mults(void); // Advance two samples and settle the final multiplier exactly.
 
 public:
     // The first parameter is the number of inputs your object will support. The second is an array of audio block pointers used for the inputs
     AudioGain(void) : AudioStream(1, inputQueueArray) {} 
 
     virtual void update(void);
-    void Set_gain(float value);
-    void Mute(void);
-    void Unmute(void);
+    void Set_gain(float value); // Smoothly reach the exact requested gain, including zero feedback.
+    void Mute(void); // Save the current gain and ramp to exact silence.
+    void Unmute(void); // Ramp back to the saved gain.
 };

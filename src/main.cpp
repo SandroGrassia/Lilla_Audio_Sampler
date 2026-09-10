@@ -377,7 +377,6 @@ MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
 AudioADSR ADSR[PLAYERS];
 
-
 // Midi out
 MidiOut Midi_out;
 
@@ -500,9 +499,10 @@ S_field_description_struct S_pointer;
 
 // functions
 void S_Map_one_Instrument_for_all_notes(const int instrument_id);
-void S_Drop_Instrument(const int instrument_id); // Drop an instrument and release its cache pin while preserving playing tails.
+void S_Drop_Instrument(const int instrument_id);                       // Drop an instrument and release its cache pin while preserving playing tails.
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument); // insert ONE new instrument BELOW instrument
 bool S_Verify_is_Sound_original(int sound_id);
+void S_Refresh_source_limits(bool force); // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
 void S_Copy_all_Sound_to_Sound_cache_P(void);
 void S_Pull_all_Sound_from_Sound_cache_P(void);
 uint8_t S_Get_sounds_free(void);
@@ -521,13 +521,13 @@ bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&pr
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);
 
 // AudioTables publication is coordinated here, outside the audio objects.
-bool S_Fill_tables(uint8_t instrument_id); // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
-bool S_Fill_all_tables(void); // Prepare all used instruments from the model with audio interrupts disabled.
+bool S_Fill_tables(uint8_t instrument_id);                            // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
+bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete bank and preserve the previous presets if preparation fails.
-bool P_Quiesce_audio_players(void); // Stop control callbacks and drain players before replacing file or patch metadata.
-void P_Service_patch_cache(void); // Copy one bounded chunk between audio updates and publish only completed files.
-void P_Invalidate_file_cache(int file_id); // Invalidate replaced audio while retaining buffers still referenced by players.
-void P_Invalidate_recording_cache(int recording_id); // Retire both cached channels before recording data is deleted or replaced.
+bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
+void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
+void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
+void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
 bool audio_tables_error_pending = false;
 
 bool S_Fill_tables(uint8_t instrument_id)
@@ -595,6 +595,9 @@ uint8_t delay_instrument_routing; // indica un instrument_id se <=7; se 8 indica
 // pointer
 DELAY_element_name DELAY_local_pointer;
 
+void D_Set_value(int item, int value); // Publish one UI request through the same parameter owner used by patch changes.
+bool D_Read_value(int item);
+
 // >>>>>>> DIRECT_SAMPLING
 // menu
 DS_pointer_struct DS_local_pointer;
@@ -627,7 +630,7 @@ int DS_Last_packet = 0;
 bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Sampler model and tables with audio interrupts disabled.
 void DS_refresh_DS_page(void);
 void DS_ask_if_EXIT_from_DS(void);
-bool DS_back_to_first_DS_Recording(void); // Prepare the first remaining recording before restoring the Direct Sampler page.
+bool DS_back_to_first_DS_Recording(void);          // Prepare the first remaining recording before restoring the Direct Sampler page.
 void DS_convert_file_L(int file_L_RAW, int bytes); // Convert the left recording channel and invalidate its previous RAW cache.
 void DS_convert_file_R(int file_R_RAW, int bytes); // Convert the right recording channel and invalidate its previous RAW cache.
 void DS_seed_all_Recordings(void);
@@ -765,8 +768,8 @@ constexpr int headphones_pwm_volume_max = 40;
 // >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
 bool P_Jump_to_Patch(uint8_t next_patch); // Publish the destination patch only after its presets and tables are ready.
-bool P_Save_current_patch_as_new(void); // Prepare the cloned patch before saving its sounds and metadata.
-bool P_Rebuild_patch_old(void); // Restore the previous performance patch only after its tables are ready; call with audio interrupts disabled.
+bool P_Save_current_patch_as_new(void);   // Prepare the cloned patch before saving its sounds and metadata.
+bool P_Rebuild_patch_old(void);           // Restore the previous performance patch only after its tables are ready; call with audio interrupts disabled.
 void Golive_with_PERFORMANCE(int patch_id);
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void);       // si fermano i track
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);   // si ripristina Patch_id_old
@@ -779,9 +782,9 @@ void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void);       // si fermano i track e
 void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void); // si passa alla LS_patch
 void Golive_DIRECT_SAMPLING(void);
 bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording); // Prepare the selected recording before updating its playback presets and display.
-void Switch_to_DIRECT_SAMPLING(void);                    // si passa alla DS_patch
-void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);     // si fermano i track e si passa alla DS_patch
-void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void); // si ferma la registrazione e si passa alla DS_patch
+void Switch_to_DIRECT_SAMPLING(void);                      // si passa alla DS_patch
+void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);       // si fermano i track e si passa alla DS_patch
+void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void);   // si ferma la registrazione e si passa alla DS_patch
 void Golive_MIDI_MONITOR(void);
 void Switch_from_MIDI_LOOP_to_MIDI_MONITOR(void);    // si fermano i track
 void Golive_with_MIDI_LOOP(bool restart = false);    // passaggio e visualizzazione; restart == false non interrompe i track running
@@ -1006,12 +1009,6 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
 }
 
-// *************************************************************
-// *************************************************************
-// ********************      SETUP     *************************
-// *************************************************************
-// *************************************************************
-
 struct PatchEditSnapshot
 {
     const int patch_id = Patch_id;
@@ -1044,6 +1041,12 @@ struct PatchEditSnapshot
         }
     }
 };
+
+// *************************************************************
+// *************************************************************
+// ********************      SETUP     *************************
+// *************************************************************
+// *************************************************************
 
 void setup()
 {
@@ -1158,7 +1161,6 @@ void setup()
     Reload_system_state();
 
     AudioInterrupts();
-
 }
 
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -1169,87 +1171,14 @@ void setup()
 
 void loop()
 {
+
+#pragma region Area_Comune [rgba(118,110,2,0.1)]
+
     P_Service_patch_cache();
     if (audio_tables_error_pending)
     {
         audio_tables_error_pending = false;
         Serial.println(F("AudioTables preparation failed; previous playback presets retained"));
-    }
-#pragma region Area_Comune [rgba(118,110,2,0.1)]
-
-    // Sample bank references every 20 ms and report changes only.
-    static uint32_t tables_trace_last_ms = 0;
-    static uint8_t tables_trace_last_mask = 0xFF;
-    static uint16_t cache_trace_last_mask = 0xFFFF;
-    static int cache_trace_last_flash = -1;
-    static int cache_trace_last_psram = -1;
-    const uint32_t tables_trace_now_ms = millis();
-
-    if (static_cast<uint32_t>(tables_trace_now_ms - tables_trace_last_ms) >= 20u)
-    {
-        tables_trace_last_ms = tables_trace_now_ms;
-
-        // Preserve the audio IRQ enable state while reading player references.
-        const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-        AudioNoInterrupts();
-
-        uint8_t referenced_banks_mask = 0;
-        for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
-        {
-            referenced_banks_mask |= Player[player_id].Get_tables_reference_mask();
-        }
-        const uint16_t referenced_caches_mask = Players_Manager.Get_cache_reference_mask();
-        Players_Manager.Update_players_stistics();
-        const int flash_voices = Players_Manager.Get_players_using_Flash();
-        const int psram_voices = Players_Manager.Get_players_using_Psram();
-
-        if (audio_interrupts_enabled)
-        {
-            AudioInterrupts();
-        }
-
-        if (audio_interrupts_enabled && (referenced_caches_mask != cache_trace_last_mask || flash_voices != cache_trace_last_flash || psram_voices != cache_trace_last_psram))
-        {
-            cache_trace_last_mask = referenced_caches_mask;
-            cache_trace_last_flash = flash_voices;
-            cache_trace_last_psram = psram_voices;
-            Serial.print(F("PatchCache live refs: 0x"));
-            Serial.print(referenced_caches_mask, HEX);
-            Serial.print(F(", Flash voices: "));
-            Serial.print(flash_voices);
-            Serial.print(F(", PSRAM voices: "));
-            Serial.println(psram_voices);
-        }
-
-        // Refresh source-dependent Sound limits from main, never while publishing an audio source.
-        static int displayed_instrument = -1;
-        static int displayed_file = -1;
-        static float displayed_pitch_limit = -1.0f;
-        static int displayed_voices = -1;
-        if (Lilla_state == SOUND_EDIT)
-        {
-            const auto &preset = Preset[Instrument_id];
-            const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
-            const float limit = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
-            const int voices = live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization];
-            if (displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
-            {
-                Display_Sound.Show_players_Pitch_max_value(Instrument_id);
-                displayed_instrument = Instrument_id;
-                displayed_file = preset.file;
-                displayed_pitch_limit = limit;
-                displayed_voices = voices;
-            }
-        }
-        else { displayed_instrument = -1; }
-
-        // Print only after audio interrupts have been restored.
-        if (audio_interrupts_enabled && referenced_banks_mask != tables_trace_last_mask)
-        {
-            tables_trace_last_mask = referenced_banks_mask;
-            Serial.print(F("AudioTables live player refs: 0x"));
-            Serial.println(referenced_banks_mask, HEX);
-        }
     }
 
     // Update del/i led presenti (varia in base a LILLA_STATE)
@@ -1399,7 +1328,6 @@ void loop()
 
         // *********************************************    Test SD save Patch   ****************************************
         // TEST_Current_Patch_SD_round_trip();
-
 
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
@@ -1868,7 +1796,13 @@ void loop()
             break;
 
             case value_P_RootKey: // Root key
-                if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[instrument_id].root_key, 127, 0, 1))
+                changed = Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[instrument_id].root_key, 127, 0, 1);
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    changed = (changed || Patch[Patch_id].Instrument[instrument_id].root_key != 60);
+                    Patch[Patch_id].Instrument[instrument_id].root_key = 60; // Restore middle C; use the normal edit path to retune active players.
+                }
+                if (changed)
                 {
                     AudioNoInterrupts();
                     Players_Manager.Multicast_change_players_notes(Patch_id, instrument_id);
@@ -1882,10 +1816,16 @@ void loop()
             case value_P_FromKey: // From Key
             {
                 result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0)
+                const bool reset_key = Read_pushbutton(EN_PB_Value); // Consume the click even when rotation occurs in the same loop.
+                if (result != 0 || reset_key)
                 {
                     changed = false;
-                    if (result == 1 && Patch[Patch_id].Instrument[instrument_id].from_note < Patch[Patch_id].Instrument[instrument_id].to_note)
+                    if (reset_key)
+                    {
+                        from_key_change = 0; // Extend the lower note boundary through the existing mapping update.
+                        changed = Patch[Patch_id].Instrument[instrument_id].from_note != from_key_change;
+                    }
+                    else if (result == 1 && Patch[Patch_id].Instrument[instrument_id].from_note < Patch[Patch_id].Instrument[instrument_id].to_note)
                     {
                         from_key_change = Patch[Patch_id].Instrument[instrument_id].from_note + 1;
                         changed = true;
@@ -1909,11 +1849,18 @@ void loop()
             break;
 
             case value_P_ToKey: // To key
+            {
                 result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0)
+                const bool reset_key = Read_pushbutton(EN_PB_Value); // Consume the click even when rotation occurs in the same loop.
+                if (result != 0 || reset_key)
                 {
                     changed = false;
-                    if (result == 1 && Patch[Patch_id].Instrument[instrument_id].to_note < 127)
+                    if (reset_key)
+                    {
+                        to_key_change = 127; // Extend the upper note boundary through the existing mapping update.
+                        changed = Patch[Patch_id].Instrument[instrument_id].to_note != to_key_change;
+                    }
+                    else if (result == 1 && Patch[Patch_id].Instrument[instrument_id].to_note < 127)
                     {
                         to_key_change = Patch[Patch_id].Instrument[instrument_id].to_note + 1;
                         changed = true;
@@ -1935,7 +1882,8 @@ void loop()
                         P_UpdatePatchOriginalAndMenu();
                     }
                 }
-                break;
+            }
+            break;
 
             case value_P_Pan: // Pan
                 if (Read_encoder(EN_PB_Value, Sound[sound_id].pan, 16, -16, 1))
@@ -2122,8 +2070,12 @@ void loop()
     // ********************    SOUND EDIT   ************************
     // *************************************************************
 
+    static bool sound_edit_was_active = false;
+    const bool entering_sound_edit = !sound_edit_was_active && Lilla_state == SOUND_EDIT;
+    sound_edit_was_active = Lilla_state == SOUND_EDIT;
     if (Lilla_state == SOUND_EDIT)
     {
+        S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
         const Sound_struct sound_before_edit = Sound[Sound_id];
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
@@ -2803,8 +2755,8 @@ void loop()
             Display_Sound.Show_Trim_step_value();
         }
 
-        // Change slicing mode: true:FIRST/LAST    false:FIRST/WINDOW
-        if (Read_pushbutton(EN_PB_To))
+        // Toggle TO/SLICE mode with the step encoder button; rotation still changes trim speed.
+        if (Read_pushbutton(EN_PB_Step))
         {
             slicing_mode = !slicing_mode;
             if (!slicing_mode)
@@ -2812,14 +2764,6 @@ void loop()
                 S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
             }
             Display_Sound.Show_wave(Instrument_id);
-        }
-
-        // Set Default trim speed
-        if (Read_pushbutton(EN_PB_Step))
-        {
-            trim_speed = 5;
-            S_trim_step = S_Calc_trim_step(trim_speed);
-            Display_Sound.Show_Trim_step_value();
         }
 
         // Change A
@@ -2967,12 +2911,17 @@ void loop()
             }
         }
 
-        // Change B
+        // Change B by rotation or jump to the last file sample with the encoder button.
         result = Read_encoder_simple(EN_PB_To);
-        if (result != 0)
+        const bool trim_to_end = Read_pushbutton(EN_PB_To);
+        if (result != 0 || trim_to_end)
         {
             uint32_t So_B_change;
-            if (result == 1)
+            if (trim_to_end)
+            {
+                So_B_change = samples_in_file - 1; // Reuse the normal B edit path to rebuild tables and update playback and display.
+            }
+            else if (result == 1)
             {
                 if ((Sound[Sound_id].B + 1 + S_trim_step) <= samples_in_file)
                 {
@@ -4201,226 +4150,75 @@ void loop()
         switch (DELAY_local_pointer)
         {
         case value_DELAY_Feedback:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
+            if (D_Read_value(LOOP_GAIN))
             {
-                Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-                Serial.println(Delay_values.loop_gain);
-
-                AudioNoInterrupts();
-                D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-                D_gain_R_n.Set_gain(Delay_values.loop_gain);
-                AudioInterrupts();
-
                 Display_Delay.D_feedback();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Delay_time:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.samples, 99, 0, 1))
+            if (D_Read_value(SAMPLES))
             {
-                Delay_values.samples = Calc_delay_samples(Delay_data.samples);
-
-                AudioNoInterrupts();
-                if (Delay_values.samples_LR >= 0) // Left channel
-                {
-                    Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                    Delay_R.Set_delay_central_value(Delay_values.samples);
-                }
-                else
-                {
-                    Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                    Delay_L.Set_delay_central_value(Delay_values.samples);
-                }
-                AudioInterrupts();
-
                 Display_Delay.D_delay_time();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Delay_time_LR:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.samples_LR, 10, -10, 1))
+            if (D_Read_value(SAMPLES_LR))
             {
-                Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
-
-                AudioNoInterrupts();
-                if (Delay_values.samples_LR >= 0) // Left channel
-                {
-                    Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                }
-                else
-                {
-                    Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                }
-                AudioInterrupts();
-
                 Display_Delay.D_delay_time_LR();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_source:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_source, 2, 0, 1))
+            if (D_Read_value(MODULATION_SOURCE))
             {
-                Delay_values.modulation_source = Delay_data.modulation_source;
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-                Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_source();
             }
-
-            // Change delay_modulation_source = NONE
             else if (Read_pushbutton(EN_PB_Value))
             {
-                Delay_data.modulation_source = 0;
-                Delay_values.modulation_source = Delay_data.modulation_source;
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-                Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-                AudioInterrupts();
-
+                D_Set_value(MODULATION_SOURCE, 0); // Cancel any pending source selection before displaying NONE.
                 Display_Delay.D_modulation_source();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_frequency:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_frequency, 90, 0, 1))
+            if (D_Read_value(MODULATION_FREQUENCY))
             {
-                Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
-
-                AudioNoInterrupts();
-                LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
-                LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_frequency();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_depth:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_depth, 39, 0, 1))
+            if (D_Read_value(MODULATION_DEPTH))
             {
-                Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_depth();
             }
-
-            // Set delay_modulation_depth = 0
             else if (Read_pushbutton(EN_PB_Value))
             {
-                Delay_data.modulation_depth = 0;
-
-                Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                AudioInterrupts();
-
+                D_Set_value(MODULATION_DEPTH, 0); // Fade toward zero depth through the shared transition manager.
                 Display_Delay.D_modulation_depth();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_phase_LR:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
+            if (D_Read_value(MODULATION_PHASE_LR))
             {
-                Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-                AudioNoInterrupts();
-                LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_phase_LR();
             }
-
-            // Change delay_modulation_phase_LR = 0
             else if (Read_pushbutton(EN_PB_Value))
             {
-                Delay_data.modulation_phase_LR = 0;
-                Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-                AudioNoInterrupts();
-                LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-                AudioInterrupts();
-
+                D_Set_value(MODULATION_PHASE_LR, 0);
                 Display_Delay.D_modulation_phase_LR();
             }
-        }
-        break;
-
+            break;
         default:
             break;
         }
 
-        // Configure Instrument routing
+        // Toggle requested routing bits; the audio callback updates every affected voice.
         for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
             if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                if (Lilla_state_0 != LIVE_SAMPLING)
-                {
-                    Delay_values.instrument_route[Inst_id] = !Delay_values.instrument_route[Inst_id];
-                    bitWrite(Delay_data.instrument_route, Inst_id, (Delay_values.instrument_route[Inst_id] ? 1 : 0));
-                    delay_instrument_routing = Inst_id;
-
-                    AudioNoInterrupts();
-
-                    if (delay_instrument_routing < INSTRUMENTS)
-                    {
-                        Players_Manager.MX_multicast_change_routing(delay_instrument_routing);
-                    }
-                    else
-                    {
-                        Players_Manager.MX_multicast_change_routing(0);
-                        Players_Manager.MX_multicast_change_routing(1);
-                    }
-                    AudioInterrupts();
-
-                    Display_Delay.D_sounds();
-                }
-                else
-                {
-                    Delay_values.instrument_route[0] = !Delay_values.instrument_route[0];
-                    Delay_values.instrument_route[1] = !Delay_values.instrument_route[1];
-                    bitWrite(Delay_data.instrument_route, 0, (Delay_values.instrument_route[0] ? 1 : 0));
-                    bitWrite(Delay_data.instrument_route, 1, (Delay_values.instrument_route[1] ? 1 : 0));
-
-                    delay_instrument_routing = 10; // indica un instrument se <=7; se 10 indica instrument 0 e 1
-
-                    AudioNoInterrupts();
-                    if (delay_instrument_routing <= 7)
-                    {
-                        Players_Manager.MX_multicast_change_routing(delay_instrument_routing);
-                    }
-                    else
-                    {
-                        Players_Manager.MX_multicast_change_routing(0);
-                        Players_Manager.MX_multicast_change_routing(1);
-                    }
-                    AudioInterrupts();
-
-                    Display_Delay.D_sounds();
-                }
+                const int route = Delay_manager.Get_value(INSTRUMENT_ROUTE);
+                const int next_route = Lilla_state_0 == LIVE_SAMPLING ? ((route & 3) != 0 ? route & ~3 : route | 3) : route ^ (1 << Inst_id);
+                D_Set_value(INSTRUMENT_ROUTE, next_route); // Live sampling enables or disables both channels together, even when the stored bits differ.
+                Display_Delay.D_sounds();
             }
         }
 
@@ -8652,6 +8450,30 @@ void P_Select_menu_elements(void)
 // **********************************           SOUND, INSTRUMENT              ***********************************
 // ***************************************************************************************************************
 
+void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with the preset source without scanning players or blocking audio.
+{
+    static uint32_t last_ms = 0;
+    static int displayed_instrument = -1;
+    static int displayed_file = -1;
+    static float displayed_pitch_limit = -1.0f;
+    static int displayed_voices = -1;
+    const uint32_t now_ms = millis();
+    if (!force && static_cast<uint32_t>(now_ms - last_ms) < 20u) { return; }
+    last_ms = now_ms;
+    const auto &preset = Preset[Instrument_id];
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const float limit = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
+    const int voices = live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization];
+    if (force || displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
+    {
+        Display_Sound.Show_players_Pitch_max_value(Instrument_id); // Redraw only changed limits, except when a new page entry requires a fresh display.
+        displayed_instrument = Instrument_id;
+        displayed_file = preset.file;
+        displayed_pitch_limit = limit;
+        displayed_voices = voices;
+    }
+}
+
 bool S_Verify_is_Sound_original(const int sound_id)
 {
     return Sound[sound_id] == S_Sound_cache_P[sound_id];
@@ -10353,6 +10175,34 @@ void Golive_SETUP(void)
     Clear_UI_events();
 
     Display_Manager.SETUP_show_frame(SET_menu);
+}
+
+// ***************************************************************************************************************
+// **********************************                  DELAY                    **********************************
+// ***************************************************************************************************************
+
+void D_Set_value(int item, int value) // Publish one UI request through the same parameter owner used by patch changes.
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    Delay_manager.Set_value(item, value); // Retarget only this parameter; the audio callback applies the change.
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+}
+
+bool D_Read_value(int item) // Edit a requested value locally so the encoder never writes intermediate DSP state.
+{
+    int value = Delay_manager.Get_value(item);
+    const int lowest = item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0;
+    const int highest = item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2;
+    if (!Read_encoder(EN_PB_Value, value, highest, lowest, 1))
+    {
+        return false;
+    }
+    D_Set_value(item, value); // Submit the encoder result with audio interrupts disabled.
+    return true;
 }
 
 // ***************************************************************************************************************
@@ -12952,7 +12802,10 @@ bool P_Quiesce_audio_players(void)
     }
     const uint8_t referenced_banks = Players_Manager.Refresh_audio_table_references();
     const bool ready = !playing && Audio_tables.Reset(referenced_banks);
-    if (ready) { PatchCache_Manager.Begin(); }
+    if (ready)
+    {
+        PatchCache_Manager.Begin();
+    }
     if (audio_interrupts_enabled)
     {
         AudioInterrupts();
@@ -13058,7 +12911,6 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //   ***********    INIZIALIZZAZIONE OGGETTI    *************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
     // Get Vibrato pointers
     Vibrato_array_pointer = Vibrato.Get_vibrato_array_pointer();
@@ -13334,10 +13186,10 @@ void Reload_system_state(void)
     Calc_Delay_values(Delay_data);
 
     // Transmits data to Delay objects
-    Delay_L.Setup_delay(Delay_values.samples);                           // Right channel 0<= value[sample] <= DELAY_PIPELINE - AUDIO_BLOCK_SAMPLES
-    Delay_R.Setup_delay(Delay_values.samples + Delay_values.samples_LR); // channel 0<= value[sample] <= DELAY_PIPELINE - AUDIO_BLOCK_SAMPLES
-    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // 0:none 1:LFO  2:input_1
-    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // 0:none 1:LFO  2:input_1
+    Delay_L.Setup_delay(Delay_values.samples + (Delay_values.samples_LR > 0 ? Delay_values.samples_LR : 0)); // Restore the same signed left offset used by runtime parameter changes.
+    Delay_R.Setup_delay(Delay_values.samples - (Delay_values.samples_LR < 0 ? Delay_values.samples_LR : 0)); // Restore the same signed right offset used by runtime parameter changes.
+    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source);                                     // 0:none 1:LFO  2:input_1
+    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source);                                     // 0:none 1:LFO  2:input_1
     Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
     Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
     D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
@@ -13486,7 +13338,10 @@ void P_Invalidate_file_cache(int file_id)
     AudioNoInterrupts();
     PatchCache_Manager.Invalidate_file(file_id);
     Players_Manager.Refresh_cache_sources();
-    if (enabled) { AudioInterrupts(); }
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
 }
 
 void P_Invalidate_recording_cache(int recording_id)
@@ -13496,60 +13351,16 @@ void P_Invalidate_recording_cache(int recording_id)
     PatchCache_Manager.Invalidate_file(FIRST_RECORDING_FILE + 2 * recording_id);
     PatchCache_Manager.Invalidate_file(FIRST_RECORDING_FILE + 2 * recording_id + 1);
     Players_Manager.Refresh_cache_sources();
-    if (enabled) { AudioInterrupts(); }
-}
-
-void P_Service_patch_cache(void)
-{
-    // Copy only in normal operation; recording and metadata replacement own the Flash bus.
-    if (NVIC_IS_ENABLED(IRQ_SOFTWARE) == 0 || !Trigger_0.Is_running() || (Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state)) { return; }
-    static uint32_t last_cycle = 0;
-    static uint32_t blocked_since_ms = 0;
-    static uint16_t blocked_mask = 0;
-    PatchCacheManager::CopyJob job;
-    AudioNoInterrupts();
-    const uint32_t cycle = audio_update_cycle;
-    // Leave a conservative margin for a 512-sample transfer and the next audio deadline.
-    if (cycle == last_cycle || audio_update_time_micros > 1700u)
+    if (enabled)
     {
         AudioInterrupts();
-        return;
     }
-    last_cycle = cycle;
-    PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask());
-    const bool copying = PatchCache_Manager.Prepare_copy(job);
-    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();
-    uint16_t stopped = 0;
-    if (reclaim_mask != blocked_mask)
-    {
-        blocked_mask = reclaim_mask;
-        blocked_since_ms = millis();
-    }
-    if (reclaim_mask != 0 && static_cast<uint32_t>(millis() - blocked_since_ms) >= 20u)
-    {
-        stopped = Players_Manager.Fast_stop_players_using_cache(reclaim_mask);
-    }
-    if (copying) { AudioStartUsingSPI(); }
-    AudioInterrupts();
-    if (stopped != 0)
-    {
-        Serial.print(F("PatchCache reclaim, cache mask: 0x"));
-        Serial.print(reclaim_mask, HEX);
-        Serial.print(F(", players: 0x"));
-        Serial.println(stopped, HEX);
-    }
-    if (!copying) { return; }
-    const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples);
-    AudioNoInterrupts();
-    AudioStopUsingSPI();
-    const bool ready = PatchCache_Manager.Complete_copy(job, success);
-    if (ready) { Players_Manager.Refresh_cache_sources(); }
-    AudioInterrupts();
-    if (ready || !success)
-    {
-        Serial.print(ready ? F("PatchCache ready, file: ") : F("PatchCache read failed, Flash fallback, file: "));
-        Serial.print(job.file_id);
-        Serial.print(F(", cache: "));
-        Serial.println(job.cache_id);
-    }
+}
+
+void P_Service_patch_cache(void) // Translate main-loop operating state into permission for background cache loading.
+{
+    // Paused control callbacks indicate metadata replacement; Direct Sampling owns Flash while recording or converting.
+    const bool copying_allowed = Trigger_0.Is_running() && !(Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state);
+    // Keep UI state here; the manager schedules chunks, reclaims buffers and publishes completed sources outside the audio IRQ.
+    PatchCache_Manager.Process_pending_loads(Players_Manager, copying_allowed);
 }

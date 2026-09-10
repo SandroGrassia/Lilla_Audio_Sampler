@@ -55,10 +55,10 @@ public:
     // execution:
     // normal: 6micros @600MHz
     // delay_flag: 14.5micros @600MHz
-    virtual void update(void);
+    virtual void update(void); // Process one block, dropping inputs safely if output allocation fails.
 
-    void Setup_delay(int value);             // value e' espresso in Samples
-    void Set_delay_central_value(int value); // value e' espresso in Samples
+    void Setup_delay(int value); // Initialize the delay in samples and reset any pending ramp.
+    void Set_delay_central_value(int value); // Set the final time target in samples; the audio callback owns the only time ramp.
 
     // La variazione della sorgente di modulazione del delay va applicata immediatamente
     void Set_delay_modulation_source(int value); // 0:none 1:LFO 2:input_1

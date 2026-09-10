@@ -43,7 +43,10 @@ void PlayersManager::MX_multicast_change_routing(int instrument_id)
 int PlayersManager::Count_sample_voices(void) const
 {
     int count = 0;
-    for (int player = 0; player < PLAYERS; ++player) { count += Player_ptr[player].Uses_sample_voice(); }
+    for (int player = 0; player < PLAYERS; ++player)
+    {
+        count += Player_ptr[player].Uses_sample_voice();
+    }
     return count;
 }
 
@@ -68,7 +71,10 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
     const int voice_limit = OPTIMIZATION_VOICES[optimization];
     // A reduced profile takes effect after the old voices finish their fast release.
-    if (needs_sample && Count_sample_voices() > voice_limit) { return; }
+    if (needs_sample && Count_sample_voices() > voice_limit)
+    {
+        return;
+    }
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
     for (auto player = 0; player < PLAYERS; ++player)
@@ -109,7 +115,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
                     {
                         id_player = player;
                         finished = true;
-                        PRINT("Play from Flash - case 1", "Found available Player:", id_player);
+                        // PRINT("Play from Flash - case 1", "Found available Player:", id_player);
                         break;
                     }
                 }
@@ -168,7 +174,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
                 {
                     id_player = player;
                     finished = true;
-                    PRINT("Play from Flash - case 6", "Found available Player:", id_player);
+                    // PRINT("Play from Flash - case 6", "Found available Player:", id_player);
                     break;
                 }
             }
@@ -293,7 +299,10 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         if (Count_sample_voices() >= voice_limit)
         {
             id_player = Simplefind_oldest_sample_player(false, true);
-            if (id_player < 0) { id_player = Simplefind_oldest_sample_player(true, true); }
+            if (id_player < 0)
+            {
+                id_player = Simplefind_oldest_sample_player(true, true);
+            }
             finished = id_player >= 0;
         }
     }
@@ -704,7 +713,10 @@ void PlayersManager::Update_all_Preset(int patch_id, float volume_patch)
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         Preset[instrument_id] = {};
-        if (Patch[patch_id].Instrument[instrument_id].used) { Update_Preset(patch_id, instrument_id, volume_patch); }
+        if (Patch[patch_id].Instrument[instrument_id].used)
+        {
+            Update_Preset(patch_id, instrument_id, volume_patch);
+        }
     }
     Cache_manager_ptr->Set_required_files(Preset);
     Refresh_cache_sources();
@@ -2058,17 +2070,29 @@ void PlayersManager::Refresh_cache_sources(void)
 {
     for (auto &preset : Preset)
     {
-        if (!preset.active) { continue; }
+        if (!preset.active)
+        {
+            continue;
+        }
         preset.source = Cache_manager_ptr->Get_source(preset.file);
-        if (preset.source.storage != Psram) { continue; }
-        for (uint8_t player = 0; player < PLAYERS; ++player) { Player_ptr[player].Refresh_cached_source(preset.source); }
+        if (preset.source.storage != Psram)
+        {
+            continue;
+        }
+        for (uint8_t player = 0; player < PLAYERS; ++player)
+        {
+            Player_ptr[player].Refresh_cached_source(preset.source);
+        }
     }
 }
 
 uint16_t PlayersManager::Get_cache_reference_mask(void)
 {
     uint16_t mask = 0;
-    for (uint8_t player = 0; player < PLAYERS; ++player) { mask |= Player_ptr[player].Get_cache_reference_mask(); }
+    for (uint8_t player = 0; player < PLAYERS; ++player)
+    {
+        mask |= Player_ptr[player].Get_cache_reference_mask();
+    }
     return mask;
 }
 
@@ -2077,7 +2101,10 @@ uint16_t PlayersManager::Fast_stop_players_using_cache(uint16_t mask)
     uint16_t stopped = 0;
     for (uint8_t player = 0; player < PLAYERS; ++player)
     {
-        if (Player_ptr[player].Fast_stop_using_cache(mask)) { stopped |= static_cast<uint16_t>(1u << player); }
+        if (Player_ptr[player].Fast_stop_using_cache(mask))
+        {
+            stopped |= static_cast<uint16_t>(1u << player);
+        }
     }
     return stopped;
 }

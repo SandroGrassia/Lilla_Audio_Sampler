@@ -12,47 +12,47 @@ void DisplayDelay::D_show_page()
     tft.fillScreen(ILI9341_BLACK);
     switch (Lilla_state_0)
     {
-        case PERFORMANCE:
-        {
-            Backgorund_red(0, 0, 17); // DISPLAY_board(float col, float row, int chars)
-            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("PERFORMANCE ");
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("DELAY");
-        }
-        break;
+    case PERFORMANCE:
+    {
+        Backgorund_red(0, 0, 17); // DISPLAY_board(float col, float row, int chars)
+        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("PERFORMANCE ");
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("DELAY");
+    }
+    break;
 
-        case LIVE_SAMPLING:
-        {
-            Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
-            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("LIVE SAMPLER ");
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("DELAY");
-        }
-        break;
+    case LIVE_SAMPLING:
+    {
+        Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
+        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("LIVE SAMPLER ");
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("DELAY");
+    }
+    break;
 
-        case MIDI_LOOP:
-        {
-            Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
-            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("MIDI LOOP ");
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("DELAY");
-        }
-        break;
+    case MIDI_LOOP:
+    {
+        Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
+        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("MIDI LOOP ");
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("DELAY");
+    }
+    break;
 
-        default:
-        {
-            Backgorund_red(0, 0, 5); // DISPLAY_board(float col, float row, int chars)
-            tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-            tft.setTextColor(ILI9341_WHITE);
-            tft.print("DELAY");
-        }
-        break;
+    default:
+    {
+        Backgorund_red(0, 0, 5); // DISPLAY_board(float col, float row, int chars)
+        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("DELAY");
+    }
+    break;
     }
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_VOLUME[0]), display_coordinate_y(DELAY_column_row_VOLUME[1]));
@@ -104,14 +104,14 @@ void DisplayDelay::D_show_page()
 }
 
 FLASHMEM
-void DisplayDelay::D_sounds(void)
+void DisplayDelay::D_sounds(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_sounds[0]), display_coordinate_y(DELAY_column_row_sounds[1]), DELAY_chars_sounds); // DISPLAY_text(int X, int Y, int N)
     if (Lilla_state_0 == LIVE_SAMPLING)
     {
         tft.setTextColor(ILI9341_YELLOW);
 
-        if (Delay_values.instrument_route[0])
+        if ((Delay_data.instrument_route & 3) != 0)
         {
             tft.print("RECORDED AUDIO");
         }
@@ -124,7 +124,7 @@ void DisplayDelay::D_sounds(void)
 
     for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
-        if (Delay_values.instrument_route[instrument_id])
+        if (bitRead(Delay_data.instrument_route, instrument_id))
         {
             tft.setTextColor(ILI9341_YELLOW);
             tft.print("S");
@@ -151,63 +151,63 @@ void DisplayDelay::D_feedback(void)
 }
 
 FLASHMEM
-void DisplayDelay::D_delay_time(void)
+void DisplayDelay::D_delay_time(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time[0]), display_coordinate_y(DELAY_column_row_delay_time[1]), DELAY_chars_delay_time);
     tft.setTextColor(ILI9341_YELLOW);
 
-    if (Delay_values.samples < AUDIO_SAMPLE_RATE)
+    if (static_cast<float>(Calc_delay_samples(Delay_data.samples)) < AUDIO_SAMPLE_RATE)
     {
-        tft.print(1000 * Delay_values.samples / AUDIO_SAMPLE_RATE, 1);
+        tft.print(1000 * static_cast<float>(Calc_delay_samples(Delay_data.samples)) / AUDIO_SAMPLE_RATE, 1);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms");
     }
     else
     {
-        tft.print(Delay_values.samples / AUDIO_SAMPLE_RATE, 2);
+        tft.print(static_cast<float>(Calc_delay_samples(Delay_data.samples)) / AUDIO_SAMPLE_RATE, 2);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("sec");
     }
 }
 
 FLASHMEM
-void DisplayDelay::D_delay_time_LR(void)
+void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time_LR[0]), display_coordinate_y(DELAY_column_row_delay_time_LR[1]), DELAY_chars_delay_time_LR);
     tft.setTextColor(ILI9341_YELLOW);
 
-    if (Delay_values.samples_LR == 0)
+    if (static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) == 0)
     {
         tft.print(0);
         tft.setTextColor(ILI9341_ORANGE);
-        tft.print("ms L");
+        tft.print("ms R");
     }
-    else if (Delay_values.samples_LR > 0)
+    else if (static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) > 0)
     {
         tft.print("+");
-        tft.print(1000 * Delay_values.samples_LR / AUDIO_SAMPLE_RATE);
+        tft.print(1000 * static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) / AUDIO_SAMPLE_RATE);
         tft.setTextColor(ILI9341_ORANGE);
-        tft.print("ms R");
+        tft.print("ms L");
     }
     else
     {
         tft.print("+");
-        tft.print(- 1000 * Delay_values.samples_LR / AUDIO_SAMPLE_RATE);
+        tft.print(-1000 * static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) / AUDIO_SAMPLE_RATE);
         tft.setTextColor(ILI9341_ORANGE);
-        tft.print("ms L");
+        tft.print("ms R");
     }
 }
 
 FLASHMEM
-void DisplayDelay::D_modulation_source(void)
+void DisplayDelay::D_modulation_source(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_source[0]), display_coordinate_y(DELAY_column_row_modulation_source[1]), DELAY_chars_modulation_source);
     tft.setTextColor(ILI9341_YELLOW);
-    if (Delay_values.modulation_source == 0) // nessuna modulazione
+    if (Delay_data.modulation_source == 0) // nessuna modulazione
     {
         tft.print("NONE");
     }
-    else if (Delay_values.modulation_source == 1) // LFO
+    else if (Delay_data.modulation_source == 1) // LFO
     {
         tft.print("LFO");
     }
@@ -218,37 +218,37 @@ void DisplayDelay::D_modulation_source(void)
 }
 
 FLASHMEM
-void DisplayDelay::D_modulation_frequency(void)
+void DisplayDelay::D_modulation_frequency(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_frequency[0]), display_coordinate_y(DELAY_column_row_modulation_frequency[1]), DELAY_chars_modulation_frequency);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Delay_values.modulation_frequency);
+    tft.print(Calc_delay_frequency(Delay_data.modulation_frequency));
     tft.setTextColor(ILI9341_ORANGE);
     tft.print("Hz");
 }
 
 FLASHMEM
-void DisplayDelay::D_modulation_depth(void) // depth
+void DisplayDelay::D_modulation_depth(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_depth[0]), display_coordinate_y(DELAY_column_row_modulation_depth[1]), DELAY_chars_modulation_depth);
     tft.setTextColor(ILI9341_YELLOW);
-    if (Delay_values.modulation_depth <= 1.0f)
+    if (Calc_delay_depth(Delay_data.modulation_depth) <= 1.0f)
     {
-        tft.print(Delay_values.modulation_depth * 100, 1);
+        tft.print(Calc_delay_depth(Delay_data.modulation_depth) * 100, 1);
     }
     else
     {
-        tft.print(Delay_values.modulation_depth * 100, 0);
+        tft.print(Calc_delay_depth(Delay_data.modulation_depth) * 100, 0);
     }
     tft.print("%");
 }
 
 FLASHMEM
-void DisplayDelay::D_modulation_phase_LR(void)
+void DisplayDelay::D_modulation_phase_LR(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_phase_LR[0]), display_coordinate_y(DELAY_column_row_modulation_phase_LR[1]), DELAY_chars_modulation_phase_LR);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Delay_values.modulation_phase_LR);
+    tft.print(Delay_data.modulation_phase_LR);
     tft.setTextColor(ILI9341_ORANGE);
     tft.print("deg");
 }

@@ -14,7 +14,7 @@ Delay_data_struct Delay_data;
 float Delay_feedback(int8_t value) // feedback
 {
     const float answer[] = {0, -0.07, -0.18, -0.4, -0.6, -0.65, -0.71, -0.80, -0.92, -0.98};
-    value = constrain(value, 0, 10);
+    value = constrain(value, 0, 9); // The feedback table has ten entries, indexed from zero through nine.
     return answer[value];
 }
 

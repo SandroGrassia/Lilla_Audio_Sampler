@@ -7,7 +7,7 @@
 #include "StereoDelay.h"
 
 // value e' espresso in Samples
-void StereoDelay::Setup_delay(int value)
+void StereoDelay::Setup_delay(int value) // Initialize both read positions and discard any previous time ramp.
 {
     value = constrain(value, 0, DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
@@ -16,6 +16,8 @@ void StereoDelay::Setup_delay(int value)
     sample_read = 0;
     delay_central_value = delay_value;
     delay_central_value_target = delay_value;
+    delay_central_value_step = 0;
+    J_delay_central_value_counter = 0;
 }
 
 /*
@@ -37,7 +39,7 @@ void StereoDelay::Setup_delay(int value)
 
 */
 
-void StereoDelay::Set_delay_central_value(int value) // value = numero di campioni
+void StereoDelay::Set_delay_central_value(int value) // Retarget the single delay-time ramp from its current position, in samples.
 {
     value = constrain(value, 0, DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES);
     delay_central_value_target = value;
@@ -106,7 +108,7 @@ void StereoDelay::Set_delay_modulation_gain(float value) // 0.0 --> 4.0
 // execution:
 // normal: 6micros @600MHz
 // delay_flag: 14.5micros @600MHz
-void StereoDelay::update(void)
+void StereoDelay::update(void) // Advance the delay reader safely and preserve the pitch change caused by moving its read position.
 {
     double D_sample_read;
     int delay_modulation;
@@ -129,6 +131,21 @@ void StereoDelay::update(void)
     // Set output data structure
     audio_block_t *out_block = NULL;
     out_block = allocate(); // al contratio di in_block, inizializzato da receiveXXOnly(ch), un block inizialmente vuoto va allocato
+    if (out_block == nullptr)
+    {
+        for (uint8_t channel = 0; channel < 2; ++channel)
+        {
+            in_block = receiveReadOnly(channel); // Discard queued inputs when no output buffer is available.
+            if (in_block != nullptr) { release(in_block); }
+        }
+        return; // Keep the FIFO positions and time ramp unchanged until audio storage is available.
+    }
+    if (delay_modulation_source != 2)
+    {
+        in_block = receiveReadOnly(1); // Release an unused modulation input instead of retaining an audio block.
+        if (in_block != nullptr) { release(in_block); }
+        in_block = nullptr;
+    }
 
     // Write in_block to delay_Main_Array; execution: 1,5micros @600MHz
     // ***** spostato ****
@@ -188,7 +205,7 @@ void StereoDelay::update(void)
 
     // Se non c'e' alcuna modulazione del delay e non varia delay_central_value, deve essere: delay_value == delay_central_value.
     // potrebbero non coincidere per via di una modulazione precedente, in ogni caso occorre correggere
-    if (delay_modulation_source == 0 && J_delay_central_value_counter == 0)
+    if (delay_modulation_source == 0 && J_delay_central_value_counter == 0 && delay_delta == 0)
     {
         // si calcola l'eventuale differenza e la si limita a +/- 1 per ciascun update()
         delay_delta = delay_central_value - delay_value;
