@@ -27,7 +27,7 @@ private:
     static constexpr int LOCATION_PATCH = 0;           // location in EEPROM of Patch[0]   --> 24 patches_number x 90 bytes = 2160 byte
     static constexpr int LOCATION_RECORDING = 2160;    // location in EEPROM of Recording[0] --> 30 recordings x 4 bytes = 120 byte
     static constexpr int LOCATION_SOUND = 2280;        // location in EEPROM of Sound[0]     --> 85 sounds x 22 bytes = 2200 byte
-    static constexpr int LOCATION_OPTIMIZATION = 4235; // extension and voices in Flash mode: 0 --> x3, 8 voices   1 --> x1.5, 12 voices
+    static constexpr int LOCATION_OPTIMIZATION = 4235; // Profile index 0..2: 16, 12 or 10 file voices, with source-dependent pitch limits.
     static constexpr int LOCATION_FIRST_OCTAVE = 4236; // 1 byte   int8_t -2 --> 0
     static constexpr int LOCATION_DELAY = 4237;        // 17 byte
     static constexpr int LOCATION_CC_SETTINGS = 4254;  // 31 byte

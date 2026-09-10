@@ -28,6 +28,7 @@ private:
     Router_16x3 *Router_R_ptr = nullptr;
     AudioTables *Audio_tables_ptr = nullptr;
     PatchCacheManager *Cache_manager_ptr = nullptr;
+    int Count_sample_voices(void) const; // Count each current or reserved Flash/cache player once, including release tails.
     AudioADSR *ADSR = nullptr;
     AudioTables::Pointers Get_playback_tables(uint8_t instrument_id); // Call from the audio IRQ or with audio interrupts disabled.
 
@@ -121,7 +122,7 @@ public:
 
     int Smartfind_oldest_player(uint8_t instrument_id, bool power_on, bool playing);
     int Simplefind_oldest_player(bool power_on);                     // "precedence" instruments are EXCLUDED
-    int Simplefind_oldest_player_flash(bool power_on, bool playing); // "precedence" instruments are EXCLUDED
+    int Simplefind_oldest_sample_player(bool power_on, bool playing); // Reuse a shared Flash/cache slot; protected and booked players are excluded.
 
     void Change_from_key(int patch_id, int instrument_id, int from_key_new);
     void Change_to_key(int patch_id, int instrument_id, int to_key_new);
@@ -134,7 +135,7 @@ public:
     void Release_all_players_for_instrument(int instrument_id);
     void Release_all_players_for_instrument_solo(int instrument_id);
     void Release_all_players(void);
-    void Release_softly_all_players(int patch_id);
+    void Release_softly_all_players(int patch_id); // Stop outgoing patch voices within QUICK_RELEASE_TIME, including existing release tails.
     void Stop_all_players(void); // BROADCAST_stop_all_Players()
     uint16_t Fast_stop_players_using_tables(uint8_t banks_mask); // Return a player bitmask identifying newly requested stops. Call from the audio IRQ or with audio interrupts disabled.
 

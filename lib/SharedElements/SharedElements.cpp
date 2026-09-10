@@ -12,7 +12,7 @@ volatile uint32_t audio_update_cycle = 0;
 
 // SETUP
 int key_step;
-uint8_t optimization;
+uint8_t optimization = DEFAULT_OPTIMIZATION;
 int8_t first_octave;
 
 // GESTIONE DELLA MEMORIA FLASH ESTERNA

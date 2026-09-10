@@ -52,6 +52,7 @@ public:
     void Set_parametrs(void);
     float Get_gain(void);
     void Release_note(void);
+    void Limit_release(float seconds); // Shorten the remaining release without restarting an existing fade or changing its current gain.
     void Fast_stop(void);
     uint8_t Get_phase(void);
     

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <Arduino.h> 
+#include "PlaybackProfile.h"
 
 // Firmware version
 constexpr char FIRMWARE_VERSION[] = "7.2.0 09/09/2026";
@@ -41,7 +42,7 @@ void Setup_GATE_pins(void);
 static constexpr int PLAYERS = 16;
 static constexpr int INSTRUMENTS = 8;   // mux number of Instruments per Patch
 static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari
-static constexpr int BLOCK_MIN = 674;       // (at least AUDIO_BLOCK_SAMPLES * MAX_PITCH_FLASH) ; below this lenght, samples are copied from flash to RAM and tune is tracked with inner_tune
+static constexpr int BLOCK_MIN = 674;       // Maximum span stored in AudioTables as a wavetable; longer loops are read in bounded segments.
 static constexpr int NOCLICK_DIM = 300;     // max number of samples included in cross-fade time in NoClick array creation
 static constexpr int PATCHES_MAX = 24;      // max number of Patchs stored in EEPROM
 static constexpr int SOUNDS_MAX = 85;       // max number of Sounds stored in EEPROM
@@ -49,10 +50,6 @@ static constexpr int NOTE_NUMBERS = 128;
 
 // POLYPHONY AND MAX-PITCH
 static constexpr double MIN_PITCH = 0.01;                     // minimum value for pitch
-static constexpr int POLYPHONY_FLASH[4] = {16, 12, 8, 4};     // [optimization]
-static constexpr float MAX_PITCH_FLASH[4] = {1.65, 3, 4, 10}; // [optimization]
-static constexpr float MAX_PITCH_WAVETABLE = 24.0;            // maximum value for pitch when playing from RAM
-static constexpr float MAX_PITCH_PSRAM = 12.0;                // maximum value for pitch when playing from PSRAM
 
 // MIDI_LOOP
 static constexpr int TRACKS = 4; // MIDI Loop encoders and pushbuttons 

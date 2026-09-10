@@ -346,7 +346,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
         // Read samples from FLASH chip
         else
         {
-            pitch_limit_wait = source_wait.storage == Psram ? MAX_PITCH_PSRAM : MAX_PITCH_FLASH[optimization];
+            pitch_limit_wait = Sample_pitch_limit(optimization, source_wait.storage == Psram);
 
             switch (mode_in)
             {
@@ -546,7 +546,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
         default:
             break;
         }
-        pitch_limit_E = source_now.storage == Psram ? MAX_PITCH_PSRAM : MAX_PITCH_FLASH[optimization];
+        pitch_limit_E = Sample_pitch_limit(optimization, source_now.storage == Psram);
     }
 
     main_settings_editing_flag = true;
@@ -1501,6 +1501,11 @@ void AudioPlayer::Update_pan_gain(void)
 
 void AudioPlayer::Flash_memory_harvest(void)
 {
+    if (!LS_flag && (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || mode_player == LOOP_REV))
+    {
+        Loop_memory_harvest(); // Assemble repeated loop segments before audio interpolation.
+        return;
+    }
     int samples_to_read, samples_to_read_1, samples_to_read_2, samples_to_read_3; // int16_t
     int16_t samples_basket_local[BASKET_DIM];
     int16_t samples_basket_local_2[BASKET_DIM];
@@ -1525,7 +1530,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         // --A-------a*******b-----B------
         if (INT_b_Flash_sample <= B_Flash_sample)
         {
-            Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             a_first_sample = b_sample + pitch;
             if (ceil(a_first_sample) >= B_Flash_sample && !warmup_for_play_again_flag)
@@ -1543,7 +1548,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         {
             samples_to_read_1 = B_Flash_sample - INT_a_Flash_sample + 1;
 
-            Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             for (auto sample = samples_to_read_1; sample < samples_to_read; ++sample)
             {
@@ -1587,7 +1592,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         //  ----------A----b'*********a'----B--------------------C
         if (INT_b_Flash_sample >= A_Flash_sample)
         {
-            Read_flash(samples_basket_local, INT_b_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, INT_b_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             for (auto sample = 0; sample < samples_to_read; ++sample)
             {
@@ -1610,7 +1615,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         {
             samples_to_read_1 = INT_a_Flash_sample - A_Flash_sample + 1;
 
-            Read_flash(samples_basket_local, A_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, A_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             for (auto sample = 0; sample < samples_to_read_1; ++sample)
             {
@@ -1650,7 +1655,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         if (ceil(b_sample) <= (B_Flash_sample - delta_Noclick))
         {
 
-            Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             a_first_sample = b_sample + pitch;
 
@@ -1667,7 +1672,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // read from flash
             samples_to_read_1 = (B_Flash_sample - delta_Noclick) - INT_a_Flash_sample + 1;
 
-            Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             // read from RAM and merge
             samples_to_read_2 = INT_b_Flash_sample - (B_Flash_sample - delta_Noclick + 1) + 1;
@@ -1715,7 +1720,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // read again from flash and merge
             samples_to_read_2 = samples_to_read - samples_to_read_1;
 
-            Read_flash(samples_basket_local, (A_Flash_sample + delta_Noclick), samples_to_read_2); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, (A_Flash_sample + delta_Noclick), samples_to_read_2); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             Append(samples_basket, samples_to_read_1, samples_basket_local, samples_to_read_2);
 
@@ -1729,7 +1734,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // read from flash
             samples_to_read_1 = (B_Flash_sample - delta_Noclick) - INT_a_Flash_sample + 1;
 
-            Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             // read from RAM and merge
             samples_to_read_2 = delta_Noclick;
@@ -1741,7 +1746,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // read again from flash and merge
             samples_to_read_3 = samples_to_read - samples_to_read_1 - samples_to_read_2;
 
-            Read_flash(samples_basket_local, (A_Flash_sample + delta_Noclick), samples_to_read_3); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, (A_Flash_sample + delta_Noclick), samples_to_read_3); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             Append(samples_basket, samples_to_read_1 + samples_to_read_2, samples_basket_local, samples_to_read_3);
 
@@ -1775,7 +1780,7 @@ void AudioPlayer::Flash_memory_harvest(void)
                     Serial.println();
                 }
 
-                Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+                Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
                 a_first_sample = b_sample + pitch;
             }
@@ -1785,7 +1790,7 @@ void AudioPlayer::Flash_memory_harvest(void)
                 // read from INT_a_Flash_sample to B_Flash_sample (included)
                 samples_to_read_1 = B_Flash_sample - INT_a_Flash_sample + 1;
 
-                Read_flash(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+                Read_samples(samples_basket, INT_a_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
                 // read from INT_b_Flash_sample to (B_Flash_sample - 1)
                 b_Flash_sample = Mirror(B_Flash_sample, b_sample);
@@ -1801,7 +1806,7 @@ void AudioPlayer::Flash_memory_harvest(void)
                     Serial.println();
                 }
 
-                Read_flash(samples_basket_local, INT_b_Flash_sample, samples_to_read_2); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+                Read_samples(samples_basket_local, INT_b_Flash_sample, samples_to_read_2); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
                 // merge arrays transposing sample_basket_local
                 Append_reversed(samples_basket, samples_to_read_1, samples_basket_local, samples_to_read_2);
@@ -1830,7 +1835,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             {
                 samples_to_read = INT_a_Flash_sample - INT_b_Flash_sample + 1;
 
-                Read_flash(samples_basket_local, INT_b_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+                Read_samples(samples_basket_local, INT_b_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
                 // transpose samples
                 Append_reversed(samples_basket, 0, samples_basket_local, samples_to_read);
@@ -1852,7 +1857,7 @@ void AudioPlayer::Flash_memory_harvest(void)
                 // Serial.print("samples_to_read: ");
                 // Serial.print(samples_to_read);
 
-                Read_flash(samples_basket_local, A_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+                Read_samples(samples_basket_local, A_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
                 // swap samples
                 Append_reversed(samples_basket, 0, samples_basket_local, samples_to_read);
@@ -1866,7 +1871,7 @@ void AudioPlayer::Flash_memory_harvest(void)
                 // Serial.print(" samples_to_read_1: ");
                 // Serial.println(samples_to_read_1);
 
-                Read_flash(samples_basket_local, (A_Flash_sample + 1), samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+                Read_samples(samples_basket_local, (A_Flash_sample + 1), samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
                 // merge arrays
                 Append(samples_basket, samples_to_read, samples_basket_local, samples_to_read_1);
@@ -1891,7 +1896,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         if ((INT_b_Flash_sample >= (A_Flash_sample + delta_Noclick)))
         {
             // read from flash and transpose
-            Read_flash(samples_basket_local, INT_b_Flash_sample, samples_to_read); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, INT_b_Flash_sample, samples_to_read); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             for (auto sample = 0; sample < samples_to_read; ++sample)
             {
@@ -1921,7 +1926,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // from flash
             samples_to_read_2 = INT_a_Flash_sample - (A_Flash_sample + delta_Noclick) + 1;
 
-            Read_flash(samples_basket_local_2, (A_Flash_sample + delta_Noclick), samples_to_read_2); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local_2, (A_Flash_sample + delta_Noclick), samples_to_read_2); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             // Append
             for (auto sample = 0; sample < samples_to_read_2; ++sample)
@@ -1953,7 +1958,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // from flash - last
             samples_to_read_1 = B_Flash_sample_shifted - INT_b_Flash_sample + 1;
 
-            Read_flash(samples_basket_local, INT_b_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, INT_b_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             // from RAM
             samples_to_read_2 = delta_Noclick;
@@ -1968,7 +1973,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // from flash - first
             samples_to_read_3 = INT_a_Flash_sample - (A_Flash_sample + delta_Noclick) + 1;
 
-            Read_flash(samples_basket_local_2, (A_Flash_sample + delta_Noclick), samples_to_read_3); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local_2, (A_Flash_sample + delta_Noclick), samples_to_read_3); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             // Append
             for (auto sample = 0; sample < samples_to_read_3; ++sample)
@@ -2019,7 +2024,7 @@ void AudioPlayer::Flash_memory_harvest(void)
 
             // from flash
             samples_to_read_1 = B_Flash_sample_shifted - INT_b_Flash_sample + 1;
-            Read_flash(samples_basket_local, INT_b_Flash_sample, samples_to_read_1); // Read_flash (int16_t *destination, int seek_in, int samples_in)
+            Read_samples(samples_basket_local, INT_b_Flash_sample, samples_to_read_1); // Read_samples (int16_t *destination, int seek_in, int samples_in)
 
             // from RAM
             samples_to_read_2 = INT_a_Flash_sample - A_Flash_sample + 1;
@@ -2042,6 +2047,115 @@ void AudioPlayer::Flash_memory_harvest(void)
         }
         break;
     }
+}
+
+int AudioPlayer::Loop_period(int first, int last, int crossfade, uint8_t mode) const // Return the sample period for forward, reverse or ping-pong loops.
+{
+    const int span = last - first + 1;
+    if (first < 0 || span < 2 || crossfade < 0 || crossfade > span / 2)
+    {
+        return 0;
+    }
+    if (mode == LOOP_FWD_REV)
+    {
+        return 2 * (span - 1);
+    }
+    return mode == LOOP_FWD || mode == LOOP_REV ? span - crossfade : 0;
+}
+
+bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick) // Fill repeated loop segments without crossing source or NoClick boundaries.
+{
+    const int period = Loop_period(first, last, crossfade, mode);
+    if (period == 0 || count < 0 || destination == nullptr || (mode != LOOP_FWD_REV && crossfade > 0 && noclick == nullptr))
+    {
+        return false;
+    }
+    phase %= period;
+    if (phase < 0)
+    {
+        phase += period;
+    }
+    const int span = last - first + 1;
+    const int raw_count = span - 2 * crossfade;
+    while (count > 0)
+    {
+        int available;
+        int source_first = 0;
+        bool reverse = false;
+        bool from_noclick = false;
+        if (mode == LOOP_FWD_REV)
+        {
+            reverse = phase >= span;
+            available = (reverse ? period : span) - phase;
+            source_first = reverse ? first + period - phase : first + phase;
+        }
+        else if (phase < raw_count)
+        {
+            reverse = mode == LOOP_REV;
+            available = raw_count - phase;
+            source_first = reverse ? last - crossfade - phase : first + crossfade + phase;
+        }
+        else
+        {
+            from_noclick = true;
+            available = period - phase;
+        }
+        const int chunk = count < available ? count : available;
+        if (from_noclick)
+        {
+            for (int i = 0; i < chunk; ++i)
+            {
+                destination[i] = noclick[mode == LOOP_REV ? crossfade - 1 - (phase - raw_count) - i : phase - raw_count + i];
+            }
+        }
+        else
+        {
+            Read_samples(destination, reverse ? source_first - chunk + 1 : source_first, chunk); // Read the bounded segment from the active Flash or PSRAM source.
+            if (reverse)
+            {
+                for (int i = 0; i < chunk / 2; ++i)
+                {
+                    const int16_t value = destination[i];
+                    destination[i] = destination[chunk - 1 - i];
+                    destination[chunk - 1 - i] = value;
+                }
+            }
+        }
+        destination += chunk;
+        count -= chunk;
+        phase = (phase + chunk) % period;
+    }
+    return true;
+}
+
+void AudioPlayer::Loop_memory_harvest(void) // Assemble loop samples and preserve the fractional playback position.
+{
+    const int crossfade = mode_player == LOOP_FWD_REV ? 0 : delta_Noclick;
+    const int period = Loop_period(A_Flash_sample, B_Flash_sample, crossfade, mode_player);
+    const int base = mode_player == LOOP_REV ? B_Flash_sample_shifted : A_Flash_sample + crossfade;
+    const float distance = b_sample - a_sample;
+    if (period <= 0)
+    {
+        memset(samples_basket, 0, sizeof(samples_basket)); // Clear the sample buffer to silence before stopping playback for an invalid loop period.
+        Fast_stop();
+        return;
+    }
+    // Forward crossfade loops start after the part already merged into NoClick.
+    float phase = mode_player == LOOP_FWD && a_sample < base ? 0.0f : fmodf(a_sample - base, static_cast<float>(period));
+    if (phase < 0.0f)
+    {
+        phase += period;
+    }
+    const int first = static_cast<int>(floorf(phase));
+    const int count = static_cast<int>(ceilf(phase + distance)) - first + 1;
+    initial_index_offset = phase - first;
+    if (count <= 0 || count > BASKET_DIM || !Fill_loop_samples(samples_basket, count, first, A_Flash_sample, B_Flash_sample, crossfade, mode_player, Noclick_ptr))
+    {
+        memset(samples_basket, 0, sizeof(samples_basket)); // Clear the sample buffer to silence when the requested count is invalid or loop assembly fails.
+        Fast_stop();
+        return;
+    }
+    a_first_sample = base + fmodf(phase + distance + pitch, static_cast<float>(period));
 }
 
 void AudioPlayer::Wavetable_harvest()
@@ -2156,23 +2270,43 @@ void AudioPlayer::Close_source(void)
 
 void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
 {
-    if (source.storage != Psram || source.psram_ptr == nullptr) { return; }
     if (state != IDLE && source_now.storage == Flash && file_id == source.file_id)
     {
-        // The samples and indices are identical; preserve pitch and all in-flight edit geometry.
+        // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
         source_now = source;
+        pitch_limit = Playback_pitch_limit(optimization, use_Wavetable, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
+        if (main_settings_editing_flag)
+        {
+            pitch_limit_E = Playback_pitch_limit(optimization, use_Wavetable_E, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
+        }
+        Update_pitch();
     }
     if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id)
     {
         source_wait = source;
-        if (!use_Wavetable_wait) { pitch_limit_wait = MAX_PITCH_PSRAM; }
+        pitch_limit_wait = Playback_pitch_limit(optimization, use_Wavetable_wait, true, file_id_wait >= FIRST_LIVE_SAMPLING_FILE);
     }
+}
+
+bool AudioPlayer::Uses_sample_voice(void) const
+{
+    if (state == IDLE)
+    {
+        return false;
+    }
+    const bool current = !use_Wavetable && file_id >= 0 && file_id < FIRST_LIVE_SAMPLING_FILE;
+    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && file_id_wait >= 0 && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
+    const bool editing = main_settings_editing_flag && !use_Wavetable_E && file_id >= 0 && file_id < FIRST_LIVE_SAMPLING_FILE;
+    return current || starting || editing;
 }
 
 bool AudioPlayer::Uses_flash(void) const
 {
-    if (state == IDLE) { return false; }
+    if (state == IDLE)
+    {
+        return false;
+    }
     const bool current = !use_Wavetable && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
     const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && source_wait.storage == Flash && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
     const bool editing = main_settings_editing_flag && !use_Wavetable_E && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
@@ -2181,8 +2315,14 @@ bool AudioPlayer::Uses_flash(void) const
 
 bool AudioPlayer::Fast_stop_using_cache(uint16_t cache_mask)
 {
-    if (state == IDLE || state == IDLE_REQUEST || source_now.cache_id < 0 || warmup_for_play_again_flag || restart_flag || main_settings_editing_flag) { return false; }
-    if ((cache_mask & static_cast<uint16_t>(1u << source_now.cache_id)) == 0) { return false; }
+    if (state == IDLE || state == IDLE_REQUEST || source_now.cache_id < 0 || warmup_for_play_again_flag || restart_flag || main_settings_editing_flag)
+    {
+        return false;
+    }
+    if ((cache_mask & static_cast<uint16_t>(1u << source_now.cache_id)) == 0)
+    {
+        return false;
+    }
     Fast_stop();
     return true;
 }
@@ -2534,16 +2674,19 @@ void AudioPlayer::Append(int16_t *target_ptr, uint16_t first_index, int16_t *sou
     }
 }
 
-void AudioPlayer::Read_flash(int16_t *destination, int first_sample, int total_samples)
+void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total_samples)
 {
-    if (total_samples <= 0) { return; }
+    if (total_samples <= 0)
+    {
+        return;
+    }
     if (source_now.storage == Psram)
     {
         // The common reader preserves the existing forward, reverse and crossmix algorithms.
         const int first_valid = first_sample < 0 ? -first_sample : 0;
         const int available = static_cast<int>(source_now.samples) - first_sample;
         const int end_valid = available < total_samples ? available : total_samples;
-        memset(destination, 0, static_cast<size_t>(total_samples) * sizeof(int16_t));
+        memset(destination, 0, static_cast<size_t>(total_samples) * sizeof(int16_t)); // Initialize the requested range to silence so unavailable PSRAM samples remain zero after copying valid data.
         if (source_now.psram_ptr != nullptr && end_valid > first_valid)
         {
             memcpy(destination + first_valid, source_now.psram_ptr + first_sample + first_valid, static_cast<size_t>(end_valid - first_valid) * sizeof(int16_t));
@@ -2741,10 +2884,16 @@ void AudioPlayer::Write_time_stamp(unsigned long value)
 
 uint16_t AudioPlayer::Get_cache_reference_mask(void)
 {
-    if (state == IDLE) { return 0; }
+    if (state == IDLE)
+    {
+        return 0;
+    }
     // An edit reads the current file until its crossmix completes; a restart can also read a different cache.
     uint16_t mask = source_now.cache_id >= 0 ? static_cast<uint16_t>(1u << source_now.cache_id) : 0;
-    if ((warmup_for_play_again_flag || restart_flag) && source_wait.cache_id >= 0) { mask |= static_cast<uint16_t>(1u << source_wait.cache_id); }
+    if ((warmup_for_play_again_flag || restart_flag) && source_wait.cache_id >= 0)
+    {
+        mask |= static_cast<uint16_t>(1u << source_wait.cache_id);
+    }
     return mask;
 }
 

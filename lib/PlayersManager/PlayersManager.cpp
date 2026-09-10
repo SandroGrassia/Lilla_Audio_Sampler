@@ -40,6 +40,13 @@ void PlayersManager::MX_multicast_change_routing(int instrument_id)
     }
 }
 
+int PlayersManager::Count_sample_voices(void) const
+{
+    int count = 0;
+    for (int player = 0; player < PLAYERS; ++player) { count += Player_ptr[player].Uses_sample_voice(); }
+    return count;
+}
+
 void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track) // after receiving a NoteOn command
 {
     if (instrument_id >= INSTRUMENTS || !Preset[instrument_id].active)
@@ -58,7 +65,10 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
 
     int8_t id_player = -1;
     bool finished = false;
-    const bool needs_flash = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].source.storage == Flash && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
+    const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
+    const int voice_limit = OPTIMIZATION_VOICES[optimization];
+    // A reduced profile takes effect after the old voices finish their fast release.
+    if (needs_sample && Count_sample_voices() > voice_limit) { return; }
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
     for (auto player = 0; player < PLAYERS; ++player)
@@ -72,11 +82,11 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
     }
 
-    if (!finished && needs_flash) // Apply the Flash voice limit only to actual Flash readers.
+    if (!finished && needs_sample) // File voices share the profile budget regardless of their current storage.
     {
         Update_players_stistics();
 
-        if (players_using_Flash < POLYPHONY_FLASH[optimization]) // a Player can be used
+        if (Count_sample_voices() < voice_limit) // a Player can be used
         {
             // 1) if there is a Player !isPlaying, it can be used
             for (auto player = 0; player < PLAYERS; ++player)
@@ -148,13 +158,13 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
             }
         }
 
-        // only a Player flash_mode can be reused
+        // Only an existing Flash/cache slot can be reused at the profile limit.
         else
         {
             // 5A) there is a Player flash_mode from a different Patch and playing
             for (auto player = 0; player < PLAYERS; ++player)
             {
-                if ((Player_ptr[player].Read_patch_wait() != Patch_id) && Player_ptr[player].Uses_flash() && Player_ptr[player].State() > 0)
+                if ((Player_ptr[player].Read_patch_wait() != Patch_id) && Player_ptr[player].Uses_sample_voice() && Player_ptr[player].State() > 0)
                 {
                     id_player = player;
                     finished = true;
@@ -177,7 +187,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
             if (!finished)
             {
                 // 7)  there is a Player fading (state = 2) ANY INSTRUMENT NOT protected flash_mode: choose the OLDEST
-                id_player = Simplefind_oldest_player_flash(false, true); // SIMPLEFIND_oldest_player_flash(bool power_on, bool playing)
+                id_player = Simplefind_oldest_sample_player(false, true);
                 if (id_player >= 0)
                 {
                     finished = true;
@@ -188,7 +198,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
             if (!finished)
             {
                 // 8)  there is a Player playing (state = 1) ANY INSTRUMENT NOT protected flash_mode: choose the OLDEST
-                id_player = Simplefind_oldest_player_flash(true, true); // SIMPLEFIND_oldest_player_flash(bool power_on, bool playing)
+                id_player = Simplefind_oldest_sample_player(true, true);
                 if (id_player >= 0)
                 {
                     finished = true;
@@ -198,7 +208,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
     }
 
-    if (!finished && !needs_flash) // Wavetables and PSRAM sources use the memory playback allocation path.
+    if (!finished && !needs_sample) // AudioTables wavetables and Live Sampler keep the independent memory allocation path.
     {
         // 1) look for a Player NOT used
         Update_players_stistics();
@@ -276,14 +286,14 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
     }
 
-    // A same-note or same-instrument candidate may be reading PSRAM while all Flash slots are reserved.
-    if (finished && needs_flash && !Player_ptr[id_player].Uses_flash())
+    // A same-note candidate may be a wavetable while all file slots are reserved.
+    if (finished && needs_sample && !Player_ptr[id_player].Uses_sample_voice())
     {
         Update_players_stistics();
-        if (players_using_Flash >= POLYPHONY_FLASH[optimization])
+        if (Count_sample_voices() >= voice_limit)
         {
-            id_player = Simplefind_oldest_player_flash(false, true);
-            if (id_player < 0) { id_player = Simplefind_oldest_player_flash(true, true); }
+            id_player = Simplefind_oldest_sample_player(false, true);
+            if (id_player < 0) { id_player = Simplefind_oldest_sample_player(true, true); }
             finished = id_player >= 0;
         }
     }
@@ -534,20 +544,20 @@ int PlayersManager::Simplefind_oldest_player(bool power_on) // "precedence" inst
     return result;
 }
 
-int PlayersManager::Simplefind_oldest_player_flash(bool power_on, bool playing) // "precedence" instruments are EXCLUDED
+int PlayersManager::Simplefind_oldest_sample_player(bool power_on, bool playing) // "precedence" instruments are EXCLUDED
 {
     unsigned long time_min = 0;
     int8_t result = -1;
 
     for (auto player_ext = 0; player_ext < PLAYERS; ++player_ext)
     {
-        if (Player_ptr[player_ext].Uses_flash() && !Player_ptr[player_ext].Read_precedence() && (Player_ptr[player_ext].isPlaying() == playing) && (Player_ptr[player_ext].isPoweredOn() == power_on) && !Player_booked[player_ext])
+        if (Player_ptr[player_ext].Uses_sample_voice() && !Player_ptr[player_ext].Read_precedence() && (Player_ptr[player_ext].isPlaying() == playing) && (Player_ptr[player_ext].isPoweredOn() == power_on) && !Player_booked[player_ext])
         {
             time_min = Player_ptr[player_ext].Read_time_stamp();
             result = player_ext;
             for (auto player = 0; player < PLAYERS; ++player) // look for the player playing for the longest time
             {
-                if ((Player_ptr + player)->Uses_flash() && !(Player_ptr + player)->Read_precedence() && ((Player_ptr + player)->isPlaying() == playing) && ((Player_ptr + player)->isPoweredOn() == power_on) && ((Player_ptr + player)->Read_time_stamp() < time_min) && !Player_booked[player])
+                if ((Player_ptr + player)->Uses_sample_voice() && !(Player_ptr + player)->Read_precedence() && ((Player_ptr + player)->isPlaying() == playing) && ((Player_ptr + player)->isPoweredOn() == power_on) && ((Player_ptr + player)->Read_time_stamp() < time_min) && !Player_booked[player])
                 {
                     time_min = (Player_ptr + player)->Read_time_stamp();
                     result = player;
@@ -1397,20 +1407,20 @@ bool PlayersManager::Verify_if_stop_players(int patch_id, int instrument_id) // 
     uint8_t players_to_stop = 0;
     int8_t index = 0;
 
-    if ((POLYPHONY_FLASH[optimization] < PLAYERS) && Preset[instrument_id].use_Wavetable && Cache_manager_ptr->Get_source(Sound[Get_sound_id(patch_id, instrument_id)].file).storage == Flash && !Get_use_Wavetable(Get_sound_id(patch_id, instrument_id))) // Sound passes from use_Wavetable to !use_Wavetable
+    if ((OPTIMIZATION_VOICES[optimization] < PLAYERS) && Preset[instrument_id].use_Wavetable && Sound[Get_sound_id(patch_id, instrument_id)].file < FIRST_LIVE_SAMPLING_FILE && !Get_use_Wavetable(Get_sound_id(patch_id, instrument_id))) // A wavetable edit starts sharing the file voice budget, whether cached or not.
     {
-        // players_critical  = how many Player ARE GOING to !use_Wavetable (those playing "instrument_id") + how many Player are ALREDY !use_Wavetable
+        // Count file voices plus this patch/instrument's voices that will leave AudioTables.
         for (auto player = 0; player < PLAYERS; ++player)
         {
-            if ((Player_ptr + player)->isPlaying() && ((Player_ptr + player)->Read_instrument() == instrument_id || (Player_ptr + player)->Uses_flash())) // if player is playing instrument_id or is playing in Flash mode -> counter increase
+            if ((Player_ptr + player)->isPlaying() && (((Player_ptr + player)->Read_local_patch() == patch_id && (Player_ptr + player)->Read_instrument() == instrument_id) || (Player_ptr + player)->Uses_sample_voice()))
             {
                 players_critical++;
             }
         }
 
-        if (players_critical > POLYPHONY_FLASH[optimization]) // players in excess MUST be stopped BEFORE UPDATING A and B
+        if (players_critical > OPTIMIZATION_VOICES[optimization]) // players in excess MUST be stopped BEFORE UPDATING A and B
         {
-            players_to_stop = players_critical - POLYPHONY_FLASH[optimization];
+            players_to_stop = players_critical - OPTIMIZATION_VOICES[optimization];
 
             // 1) look for a Player !power_on and playing "instrument_id": choose the OLDEST
             while (players_to_stop > 0)
@@ -1490,14 +1500,11 @@ void PlayersManager::Release_all_players(void)
     }
 }
 
-void PlayersManager::Release_softly_all_players(int patch_id)
+void PlayersManager::Release_softly_all_players(int patch_id) // Bound every outgoing voice and queued restart by QUICK_RELEASE_TIME.
 {
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if ((Player_ptr + player)->isPoweredOn() && (Player_ptr + player)->Read_local_patch() == patch_id)
-        {
-            Release_player(player); // avvio del Release stabilito per il Sound
-        }
+        Player_ptr[player].Release_patch(patch_id); // Include existing release tails and cancel pending notes belonging to the outgoing patch.
     }
 }
 

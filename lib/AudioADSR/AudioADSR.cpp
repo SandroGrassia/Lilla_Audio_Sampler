@@ -107,6 +107,16 @@ void AudioADSR::Release_note(void)
     */
 }
 
+void AudioADSR::Limit_release(float seconds) // Bound the remaining envelope duration while preserving shorter releases.
+{
+    if (phase == STOP) { return; }
+    if (phase != RELEASE) { Release_note(); } // Begin the normal release before applying the patch-change limit.
+    const float samples = seconds * AUDIO_SAMPLE_RATE;
+    const float remaining = 10.0f - ADSR_point_0;
+    const float minimum_step = remaining / (samples > 1.0f ? samples : 1.0f);
+    if (K_Release_step < minimum_step) { K_Release_step = minimum_step; }
+}
+
 void AudioADSR::Fast_stop(void)
 {
     K_Release_delta = ADSR_gain; // [gain]

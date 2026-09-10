@@ -49,12 +49,19 @@ void ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
 
 void ArchivingManager::Save_optimization(const uint8_t optimization)
 {
-    Eeprom_writeAnything(LOCATION_OPTIMIZATION, optimization);
+    const uint8_t valid = Normalize_optimization(optimization);
+    Eeprom_writeAnything(LOCATION_OPTIMIZATION, valid);
 }
 
 void ArchivingManager::Read_optimization(uint8_t &optimization)
 {
     Eeprom_readAnything(LOCATION_OPTIMIZATION, optimization);
+    const uint8_t valid = Normalize_optimization(optimization);
+    if (valid != optimization)
+    {
+        optimization = valid;
+        Save_optimization(optimization);
+    }
 }
 
 void ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument)

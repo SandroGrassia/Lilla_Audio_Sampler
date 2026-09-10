@@ -549,7 +549,7 @@ bool S_Rebuild_audio_tables(uint8_t edited_instrument)
         audio_tables_error_pending = true;
         return false;
     }
-    // The old preset is still published while the Flash polyphony limit is checked.
+    // The old preset is still published while the shared Flash/cache voice limit is checked.
     if (edited_instrument < INSTRUMENTS)
     {
         Players_Manager.Verify_if_stop_players(Patch_id, edited_instrument);
@@ -1220,6 +1220,28 @@ void loop()
             Serial.print(F(", PSRAM voices: "));
             Serial.println(psram_voices);
         }
+
+        // Refresh source-dependent Sound limits from main, never while publishing an audio source.
+        static int displayed_instrument = -1;
+        static int displayed_file = -1;
+        static float displayed_pitch_limit = -1.0f;
+        static int displayed_voices = -1;
+        if (Lilla_state == SOUND_EDIT)
+        {
+            const auto &preset = Preset[Instrument_id];
+            const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+            const float limit = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
+            const int voices = live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization];
+            if (displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
+            {
+                Display_Sound.Show_players_Pitch_max_value(Instrument_id);
+                displayed_instrument = Instrument_id;
+                displayed_file = preset.file;
+                displayed_pitch_limit = limit;
+                displayed_voices = voices;
+            }
+        }
+        else { displayed_instrument = -1; }
 
         // Print only after audio interrupts have been restored.
         if (audio_interrupts_enabled && referenced_banks_mask != tables_trace_last_mask)
@@ -7614,7 +7636,7 @@ void loop()
 
         // SETUP_Optimization
         optimization_cache = optimization;
-        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, optimization_cache, 3, 0, 1))
+        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, optimization_cache, OPTIMIZATION_OPTIONS - 1, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Stop_all_players();
@@ -11789,8 +11811,8 @@ void Factory_setup_Eeprom(void)
     // salva su EEPROM l'ottava del NoteNumber 0 (prima ottava)
     Archive.Save_first_octave(-2);
 
-    // salva su EEPROM l'opzione 1 per optimization
-    Archive.Save_optimization(1); // 0: extension  1: polyphony
+    // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
+    Archive.Save_optimization(DEFAULT_OPTIMIZATION);
 
     // assegna i parametri per il Delay al solo scopo di salvarli su EEPROM
     Delay_data.samples = 20;                  // value ; 0 --> 99

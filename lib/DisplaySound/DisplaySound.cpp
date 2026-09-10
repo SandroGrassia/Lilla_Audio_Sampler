@@ -312,37 +312,11 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
     Cancel_text_reset_cursor(display_coordinate_x(44.5), display_coordinate_y(15), 8);
     tft.setTextColor(ILI9341_WHITE);
 
-    if (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
-    {
-        if (Preset[instrument_id].use_Wavetable)
-        {
-            tft.print(MAX_PITCH_WAVETABLE);
-        }
-        else
-        {
-            tft.print(MAX_PITCH_FLASH[optimization]);
-        }
-    }
-    else
-    {
-        tft.print(MAX_PITCH_PSRAM);
-    }
-
+    const auto &preset = Preset[instrument_id];
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    tft.print(Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live));
     tft.print("/");
-
-    if (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
-    {
-        if (Preset[instrument_id].use_Wavetable)
-        {
-            tft.print("16");
-        }
-        else
-        {
-            tft.print(POLYPHONY_FLASH[optimization]);
-        }
-    }
-    else
-        tft.print("16");
+    tft.print(live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization]);
 }
 
 void DisplaySound::Show_wave(int instrument_id)
