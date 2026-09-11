@@ -1,376 +1,198 @@
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
- *
  */
 
 #include "DelayManager.h"
 
-void DelayManager::Stop(void)
+int DelayManager::Get_value(int item) const // Keep requested values separate from the effective DSP values.
 {
-    if (run_flag)
+    switch (item)
     {
-        Delay_data = Delay_data_required; // forza l'attribuzione immediata dei valori finali
-        run_flag = false;
+    case SAMPLES:
+        return Delay_data.samples;
+    case SAMPLES_LR:
+        return Delay_data.samples_LR;
+    case MODULATION_DEPTH:
+        return Delay_data.modulation_depth;
+    case MODULATION_FREQUENCY:
+        return Delay_data.modulation_frequency;
+    case MODULATION_PHASE_LR:
+        return Delay_data.modulation_phase_LR;
+    case LOOP_GAIN:
+        return Delay_data.loop_gain;
+    case INSTRUMENT_ROUTE:
+        return Delay_data.instrument_route;
+    case MODULATION_SOURCE:
+        return Delay_data.modulation_source;
+    default:
+        return 0;
     }
 }
 
-bool DelayManager::New_values(const Delay_data_struct *data)
+bool DelayManager::Set_value(int item, int value) // The latest request wins for this parameter while unrelated ramps continue.
 {
-    run_flag = false;
-    Delay_data_required = *data;
-
-    if (Delay_data_required.instrument_route != Delay_data.instrument_route)
+    if (item < 0 || item >= DELAY_ITEMS)
     {
-        if (true)
-        {
-            Serial.print(Delay_data.instrument_route);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.instrument_route);
-            Serial.println(" old-new instrument_route");
-        }
-
-        flag[INSTRUMENT_ROUTE] = true;
-        run_flag = true;
-    }
-    if (Delay_data_required.modulation_source != Delay_data.modulation_source)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.modulation_source);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.modulation_source);
-            Serial.println(" old-new modulation_source");
-        }
-
-        flag[MODULATION_SOURCE] = true;
-        run_flag = true;
-    }
-
-    if (Delay_data_required.samples != Delay_data.samples)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.samples);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.samples);
-            Serial.println(" old-new samples");
-        }
-
-        Start_LPF(SAMPLES, Delay_values.samples, Calc_delay_samples(Delay_data_required.samples));
-
-        // assegna subito il nuovo valore di regime
-        Delay_data.samples = Delay_data_required.samples;
-
-        flag[SAMPLES] = true;
-        run_flag = true;
-    }
-    if (Delay_data_required.samples_LR != Delay_data.samples_LR)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.samples_LR);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.samples_LR);
-            Serial.println(" old-new samples_LR");
-        }
-
-        Start_LPF(SAMPLES_LR, Delay_data.samples_LR, Delay_data_required.samples_LR);
-        flag[SAMPLES_LR] = true;
-        run_flag = true;
-    }
-    if (Delay_data_required.modulation_depth != Delay_data.modulation_depth)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.modulation_depth);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.modulation_depth);
-            Serial.println(" old-new modulation_depth");
-        }
-
-        Start_LPF(MODULATION_DEPTH, Delay_data.modulation_depth, Delay_data_required.modulation_depth);
-        flag[MODULATION_DEPTH] = true;
-        run_flag = true;
-    }
-    if (Delay_data_required.modulation_frequency != Delay_data.modulation_frequency)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.modulation_frequency);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.modulation_frequency);
-            Serial.println(" old-new modulation_frequency");
-        }
-
-        Start_LPF(MODULATION_FREQUENCY, Delay_data.modulation_frequency, Delay_data_required.modulation_frequency);
-        flag[MODULATION_FREQUENCY] = true;
-        run_flag = true;
-    }
-    if (Delay_data_required.modulation_phase_LR != Delay_data.modulation_phase_LR)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.modulation_phase_LR);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.modulation_phase_LR);
-            Serial.println(" old-new modulation_phase_LR");
-        }
-
-        Start_LPF(MODULATION_PHASE_LR, Delay_data.modulation_phase_LR, Delay_data_required.modulation_phase_LR);
-        flag[MODULATION_PHASE_LR] = true;
-        run_flag = true;
-    }
-    if (Delay_data_required.loop_gain != Delay_data.loop_gain)
-    {
-        if (false)
-        {
-            Serial.print(Delay_data.loop_gain);
-            Serial.print(" - ");
-            Serial.print(Delay_data_required.loop_gain);
-            Serial.println(" old-new loop_gain");
-        }
-
-        Start_LPF(LOOP_GAIN, Delay_values.loop_gain, Delay_feedback(Delay_data_required.loop_gain));
-
-        // assegna subito il nuovo valore di regime
-        Delay_data.loop_gain = Delay_data_required.loop_gain;
-
-        flag[LOOP_GAIN] = true;
-        run_flag = true;
-    }
-
-    if (run_flag)
-    {
-        step = steps;
-    }
-
-    // Serial.print("DelayManager::New_values? :");
-    // Serial.println(run_flag);
-
-    return run_flag;
-}
-
-void DelayManager::Update(void)
-{
-    if (run_flag)
-    {
-        if (flag[INSTRUMENT_ROUTE])
-        {
-            // Change immediato
-            Delay_data.instrument_route = Delay_data_required.instrument_route;
-
-            // Calcola i nuovi valori
-            Calc_delay_routing(Delay_data.instrument_route);
-
-            for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-            {
-                // trasmetti i nuovi valori
-                Players_Manager_ptr->MX_multicast_change_routing(Delay_values.instrument_route[instrument_id]);
-            }
-
-            flag[INSTRUMENT_ROUTE] = false;
-            run_flag = false;
-        }
-
-        if (flag[MODULATION_SOURCE])
-        {
-
-            // Change immediato
-            Delay_data.modulation_source = Delay_data_required.modulation_source;
-
-            // calcola nuovo valore
-            Delay_values.modulation_source = Delay_data.modulation_source;
-
-            // trasmetti nuovo valore
-            Delay_L_ptr->Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-            Delay_R_ptr->Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-
-            flag[MODULATION_SOURCE] = false;
-            run_flag = false;
-        }
-
-        if (flag[SAMPLES])
-        {
-            Delay_values.samples = New_value(SAMPLES);
-
-            if(Delay_values.samples < 0)
-            {
-               Delay_values.samples = 0; 
-            }
-
-            // trasmetti nuovo valore
-            if (Delay_values.samples_LR >= 0) // Left channel
-            {
-                Delay_L_ptr->Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                Delay_R_ptr->Set_delay_central_value(Delay_values.samples);
-            }
-            else
-            {
-                Delay_R_ptr->Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                Delay_L_ptr->Set_delay_central_value(Delay_values.samples);
-            }
-
-            if (false)
-            {
-                Serial.print(F("Delay_values.samples: "));
-                Serial.println(Delay_values.samples);
-            }
-
-            run_flag = true;
-        }
-
-        if (flag[SAMPLES_LR])
-        {
-            Delay_data.samples_LR = round(New_value(SAMPLES_LR));
-            Delay_data.samples_LR = constrain(Delay_data.samples_LR, Delay_data_limits[SAMPLES_LR][0], Delay_data_limits[SAMPLES_LR][1]);
-
-            // calcola nuovo valore
-            Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
-
-            // trasmetti nuovo valore
-            if (Delay_values.samples_LR >= 0) // Left channel
-            {
-                Delay_L_ptr->Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-            }
-            else
-            {
-                Delay_R_ptr->Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-            }
-
-            if (false)
-            {
-                Serial.print(F("Delay_values.samples_LR: "));
-                Serial.println(Delay_values.samples_LR);
-            }
-
-            run_flag = true;
-        }
-
-        if (flag[MODULATION_DEPTH])
-        {
-            Delay_data.modulation_depth = round(New_value(MODULATION_DEPTH));
-            Delay_data.modulation_depth = constrain(Delay_data.modulation_depth, Delay_data_limits[MODULATION_DEPTH][0], Delay_data_limits[MODULATION_DEPTH][1]);
-
-            // calcola nuovo valore
-            Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-            // trasmetti nuovo valore
-            Delay_L_ptr->Set_delay_modulation_gain(Delay_values.modulation_depth);
-            Delay_R_ptr->Set_delay_modulation_gain(Delay_values.modulation_depth);
-
-            if (false)
-            {
-                Serial.print(F("Delay_values.modulation_depth: "));
-                Serial.println(Delay_values.modulation_depth);
-            }
-
-            run_flag = true;
-        }
-
-        if (flag[MODULATION_FREQUENCY])
-        {
-            Delay_data.modulation_frequency = round(New_value(MODULATION_FREQUENCY));
-            Delay_data.modulation_frequency = constrain(Delay_data.modulation_frequency, Delay_data_limits[MODULATION_FREQUENCY][0], Delay_data_limits[MODULATION_FREQUENCY][1]);
-
-            // calcola nuovo valore
-            Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
-
-            // trasmetti nuovo valore
-            LFO_D_ptr[0]->Set_frequency(Delay_values.modulation_frequency);
-            LFO_D_ptr[1]->Set_frequency(Delay_values.modulation_frequency);
-
-            if (false)
-            {
-                Serial.print(F("Delay_values.modulation_frequency: "));
-                Serial.println(Delay_values.modulation_frequency);
-                Serial.println();
-            }
-
-            run_flag = true;
-        }
-
-        if (flag[MODULATION_PHASE_LR])
-        {
-            Delay_data.modulation_phase_LR = round(New_value(MODULATION_PHASE_LR));
-            Delay_data.modulation_phase_LR = constrain(Delay_data.modulation_phase_LR, Delay_data_limits[MODULATION_PHASE_LR][0], Delay_data_limits[MODULATION_PHASE_LR][1]);
-
-            // calcola nuovo valore
-            Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-            // trasmetti nuovo valore
-            LFO_D_ptr[0]->Set_phase(Delay_values.modulation_phase_LR);
-
-            if (false)
-            {
-                Serial.print(F("Delay_values.modulation_phase_LR: "));
-                Serial.println(Delay_values.modulation_phase_LR);
-                Serial.println();
-            }
-
-            run_flag = true;
-        }
-
-        if (flag[LOOP_GAIN])
-        {
-            Delay_values.loop_gain = New_value(LOOP_GAIN);
-
-            // trasmetti nuovo valore
-            D_gain_L_feedback_ptr->Set_gain(Delay_values.loop_gain);
-            D_gain_R_feedback_ptr->Set_gain(Delay_values.loop_gain);
-
-            if (true)
-            {
-                Serial.print(F("Delay_values.loop_gain: "));
-                Serial.println(Delay_values.loop_gain);
-                Serial.println();
-            }
-            run_flag = true;
-        }
-
-        if (!run_flag)
-        {
-            return;
-        }
-
-        --step;
-        if (step == 0)
-        {
-            run_flag = false;
-            Serial.print(F("DelayManager::Update(void) - Update done."));
-        }
-    }
-}
-
-// private
-bool DelayManager::Start_LPF(int item, double v_0, double v_1) // v_0: valore di partenza   v_1: valore desiderato
-{
-    if (item >= DELAY_LPF_ITEMS)
-    {
-        Serial.println(F("DelayManager::Start_LPF - errata inizializzazione!"));
         return false;
     }
-
-    y_1[item] = v_0;
-    y_2[item] = v_0;
-    x_1[item] = v_0;
-    x[item] = v_1;
-
+    if (item < DELAY_LPF_ITEMS)
+    {
+        value = constrain(value, Delay_data_limits[item][0], Delay_data_limits[item][1]);
+    }
+    else
+    {
+        value = constrain(value, 0, item == INSTRUMENT_ROUTE ? 255 : 2);
+    }
+    if (value == Get_value(item))
+    {
+        return flag[item];
+    }
+    switch (item)
+    {
+    case SAMPLES:
+        Delay_data.samples = value;
+        break;
+    case SAMPLES_LR:
+        Delay_data.samples_LR = value;
+        break;
+    case MODULATION_DEPTH:
+        Delay_data.modulation_depth = value;
+        Start_LPF(item, Delay_values.modulation_depth, Calc_delay_depth(value)); // Smooth the effective modulation depth, not its nonlinear UI index.
+        break;
+    case MODULATION_FREQUENCY:
+        Delay_data.modulation_frequency = value;
+        Start_LPF(item, Delay_values.modulation_frequency, Calc_delay_frequency(value));
+        break;
+    case MODULATION_PHASE_LR:
+        Delay_data.modulation_phase_LR = value;
+        Start_LPF(item, Delay_values.modulation_phase_LR, value);
+        break;
+    case LOOP_GAIN:
+        Delay_data.loop_gain = value;
+        Start_LPF(item, Delay_values.loop_gain, Delay_feedback(value)); // Retarget feedback from the last value delivered to AudioGain.
+        break;
+    case INSTRUMENT_ROUTE:
+        Delay_data.instrument_route = value;
+        break;
+    case MODULATION_SOURCE:
+        Delay_data.modulation_source = value;
+        break;
+    }
+    flag[item] = true;
     return true;
 }
 
-double DelayManager::New_value(int item)
+bool DelayManager::New_values(const Delay_data_struct *data) // Publish a stable patch snapshot through the same setters used by the UI.
 {
-    if (item >= DELAY_LPF_ITEMS)
+    if (data == nullptr)
     {
-        Serial.println(F("DelayManager::New_value - item inesistente!"));
-        return 0;
+        return false;
     }
+    const Delay_data_struct target = *data;
+    bool pending = false;
+    pending |= Set_value(SAMPLES, target.samples);
+    pending |= Set_value(SAMPLES_LR, target.samples_LR);
+    pending |= Set_value(MODULATION_DEPTH, target.modulation_depth);
+    pending |= Set_value(MODULATION_FREQUENCY, target.modulation_frequency);
+    pending |= Set_value(MODULATION_PHASE_LR, target.modulation_phase_LR);
+    pending |= Set_value(LOOP_GAIN, target.loop_gain);
+    pending |= Set_value(INSTRUMENT_ROUTE, target.instrument_route);
+    pending |= Set_value(MODULATION_SOURCE, target.modulation_source);
+    return pending;
+}
 
-    double result = d1 * y_1[item] + d2 * y_2[item] + n0 * x[item] + n1 * x_1[item];
+void DelayManager::Apply_delay_times(void) // Restore the unshifted channel whenever the signed stereo offset changes.
+{
+    Delay_values.samples = Calc_delay_samples(Delay_data.samples);
+    Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
+    const int left = Delay_values.samples + (Delay_values.samples_LR > 0 ? Delay_values.samples_LR : 0);
+    const int right = Delay_values.samples - (Delay_values.samples_LR < 0 ? Delay_values.samples_LR : 0);
+    Delay_L_ptr->Set_delay_central_value(left);  // Let the audio reader ramp toward the final target without an upstream time filter.
+    Delay_R_ptr->Set_delay_central_value(right); // Always restore the other channel as well, including at zero offset.
+}
+
+void DelayManager::Update(void) // Apply independent transitions once per audio block and clear completed flags.
+{
+    if (flag[INSTRUMENT_ROUTE])
+    {
+        Calc_delay_routing(Delay_data.instrument_route);
+        for (int instrument = 0; instrument < INSTRUMENTS; ++instrument)
+        {
+            Players_Manager_ptr->MX_multicast_change_routing(instrument); // Pass the instrument index; the routing function reads its enable flag itself.
+        }
+        flag[INSTRUMENT_ROUTE] = false;
+    }
+    if (flag[MODULATION_SOURCE])
+    {
+        Delay_values.modulation_source = Delay_data.modulation_source;
+        Delay_L_ptr->Set_delay_modulation_source(Delay_values.modulation_source);
+        Delay_R_ptr->Set_delay_modulation_source(Delay_values.modulation_source);
+        flag[MODULATION_SOURCE] = false;
+    }
+    if (flag[SAMPLES] || flag[SAMPLES_LR])
+    {
+        Apply_delay_times(); // Publish the combined base time and stereo offset only once.
+        flag[SAMPLES] = false;
+        flag[SAMPLES_LR] = false;
+    }
+    if (flag[MODULATION_DEPTH])
+    {
+        Delay_values.modulation_depth = New_value(MODULATION_DEPTH);
+        Delay_L_ptr->Set_delay_modulation_gain(Delay_values.modulation_depth);
+        Delay_R_ptr->Set_delay_modulation_gain(Delay_values.modulation_depth);
+    }
+    if (flag[MODULATION_FREQUENCY])
+    {
+        Delay_values.modulation_frequency = New_value(MODULATION_FREQUENCY);
+        LFO_D_ptr[0]->Set_frequency(Delay_values.modulation_frequency);
+        LFO_D_ptr[1]->Set_frequency(Delay_values.modulation_frequency);
+    }
+    if (flag[MODULATION_PHASE_LR])
+    {
+        Delay_values.modulation_phase_LR = lround(New_value(MODULATION_PHASE_LR));
+        LFO_D_ptr[0]->Set_phase(Delay_values.modulation_phase_LR);
+    }
+    if (flag[LOOP_GAIN])
+    {
+        Delay_values.loop_gain = New_value(LOOP_GAIN);
+        D_gain_L_feedback_ptr->Set_gain(Delay_values.loop_gain);
+        D_gain_R_feedback_ptr->Set_gain(Delay_values.loop_gain);
+    }
+}
+
+void DelayManager::Stop(void) // Complete pending manager targets without bypassing the audio objects' own ramps.
+{
+    for (int item = 0; item < DELAY_LPF_ITEMS; ++item)
+    {
+        remaining[item] = 0;
+    }
+    Update(); // Apply exact targets and clear all pending flags.
+}
+
+void DelayManager::Start_LPF(int item, double current, double target) // Initialize a bounded 30-block transition from the current applied value.
+{
+    y_1[item] = current;
+    y_2[item] = current;
+    x_1[item] = current;
+    x[item] = target;
+    lower[item] = current < target ? current : target;
+    upper[item] = current > target ? current : target;
+    remaining[item] = steps;
+}
+
+double DelayManager::New_value(int item) // Prevent overshoot and explicitly settle the last step at the requested target.
+{
+    if (remaining[item] <= 1)
+    {
+        remaining[item] = 0;
+        flag[item] = false;
+        return x[item];
+    }
+    --remaining[item];
+    const double result = constrain(d1 * y_1[item] + d2 * y_2[item] + n0 * x[item] + n1 * x_1[item], lower[item], upper[item]);
     x_1[item] = x[item];
     y_2[item] = y_1[item];
     y_1[item] = result;
-
     return result;
 }

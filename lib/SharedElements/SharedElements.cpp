@@ -6,9 +6,13 @@
 
 #include "SharedElements.h"
 
+// PSRAM timing
+elapsedMicros audio_update_time_micros;
+volatile uint32_t audio_update_cycle = 0;
+
 // SETUP
 int key_step;
-uint8_t optimization;
+uint8_t optimization = DEFAULT_OPTIMIZATION;
 int8_t first_octave;
 
 // GESTIONE DELLA MEMORIA FLASH ESTERNA
@@ -31,6 +35,8 @@ int8_t P_line_of_instrument[INSTRUMENTS];
 float pitch_from_note[NOTE_NUMBERS] = {0};
 bool display_instrument_volume_flag = false;
 uint8_t instrument_volume_changed = 0;
+
+
 
 uint8_t P_choice_menu;
 bool Menu_P[5];
@@ -58,20 +64,12 @@ float m_release_table[10];
 float pan_gain_L_table[33];
 float pan_gain_R_table[33];
 
-// funzioni
-uint8_t Get_midi_channel(int patch_id, int instrument_id)
-{
-    // .data contains midi channel in its bits: 7 6 5 M I D I 0
-    return ((Sound[Patch[patch_id].Instrument[instrument_id].sound_id].data & 30) >> 1);
-}
 
 // PRESET
 Preset_struct Preset[INSTRUMENTS];
 
 // PLAYER
 elapsedMicros security_timer = 0;
-int16_t *Noclick_pointer[INSTRUMENTS] = {0};   // each Noclick instance contains 2 arrays
-int16_t *Wavetable_pointer[INSTRUMENTS] = {0}; // each Wavetable instance contains 2 arrays
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id) // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative

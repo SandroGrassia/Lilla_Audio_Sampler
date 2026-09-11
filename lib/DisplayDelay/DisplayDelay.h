@@ -62,7 +62,7 @@ private:
     static constexpr int DELAY_chars_modulation_frequency = 7;
     static constexpr int DELAY_chars_modulation_depth = 6;
     static constexpr int DELAY_chars_modulation_phase_LR = 6;
-    
+
     // pointer
     static constexpr float DELAY_column_row_element[DELAY_element_names][2] = {
         {DELAY_column_row_feedback[0], DELAY_column_row_feedback[1]},
@@ -87,15 +87,15 @@ public:
 
     void D_disabled(void);
     void D_show_page(void);
-    void D_sounds(void);
+    void D_sounds(void); // Display the requested setting, independently of intermediate DSP values.
 
-    void D_feedback(void); // feedback
-    void D_delay_time(void);
-    void D_delay_time_LR(void);
-    void D_modulation_source(void);
-    void D_modulation_frequency(void);
-    void D_modulation_depth(void); // index
-    void D_modulation_phase_LR(void);
+    void D_feedback(void);             // feedback
+    void D_delay_time(void);           // Display the requested setting, independently of intermediate DSP values.
+    void D_delay_time_LR(void);        // Display the requested setting, independently of intermediate DSP values.
+    void D_modulation_source(void);    // Display the requested setting, independently of intermediate DSP values.
+    void D_modulation_frequency(void); // Display the requested setting, independently of intermediate DSP values.
+    void D_modulation_depth(void);     // Display the requested setting, independently of intermediate DSP values.
+    void D_modulation_phase_LR(void);  // Display the requested setting, independently of intermediate DSP values.
 
     // pointer
     void DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show);

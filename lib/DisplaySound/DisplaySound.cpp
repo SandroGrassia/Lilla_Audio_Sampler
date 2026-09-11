@@ -5,6 +5,7 @@
 */
 
 #include "DisplaySound.h"
+#include <math.h>
 
 FLASHMEM
 void DisplaySound::Show_pointer_frame(S_field_description_struct description, bool show)
@@ -35,16 +36,21 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
         Display_Manager.P_show_PERFORMANCE_title();
     }
 
-    Display_Manager.P_show_Patch_number(false);
+    tft.setCursor(display_coordinate_x(29), display_coordinate_y(0));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("PATCH");
+    tft.setCursor(display_coordinate_x(S_column_row_Patch[0]), display_coordinate_y(S_column_row_Patch[1]));
+    tft.setTextColor(ILI9341_WHITE);
+    tft.print(Patch_id);
 
-    tft.setCursor(display_coordinate_x(23), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(19), display_coordinate_y(0));// 23 -4
     tft.setTextColor(TEXT_COLOR);
     tft.print("SOUND");
-    tft.setCursor(display_coordinate_x(28.5), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(S_column_row_Sound[0]), display_coordinate_y(S_column_row_Sound[1]));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(instrument_id + 1);
 
-    tft.setCursor(display_coordinate_x(38), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(39), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FILE");
     Show_File_value(instrument_id);
@@ -106,7 +112,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.print("TRIM STEP");
     Show_Trim_step_value();
 
-    tft.setCursor(display_coordinate_x(28), display_coordinate_y(15));
+    tft.setCursor(display_coordinate_x(27), display_coordinate_y(15));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MAX PITCH/VOICES");
     Show_players_Pitch_max_value(instrument_id);
@@ -207,11 +213,6 @@ void DisplaySound::Show_Release_value(int instrument_id)
     Show_measure_unit("sec", 3);
 }
 
-inline int DisplaySound::Sound_Id(int patch_id, int instrument_id)
-{
-    return Patch[patch_id].Instrument[instrument_id].sound_id;
-}
-
 FLASHMEM
 void DisplaySound::Show_File_value(int instrument_id)
 {
@@ -240,7 +241,7 @@ void DisplaySound::Show_Gain_value(int patch_id, int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Gain][0]), display_coordinate_y(S_column_row_value_element[value_S_Gain][1]), S_chars_Gain);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Sound[Sound_Id(patch_id, instrument_id)].gain / 20.0);
+    tft.print(Sound[Get_sound_id(patch_id, instrument_id)].gain / 20.0);
 }
 
 FLASHMEM
@@ -314,45 +315,25 @@ void DisplaySound::Show_Trim_step_value(void)
 FLASHMEM
 void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
 {
-    Cancel_text_reset_cursor(display_coordinate_x(44.5), display_coordinate_y(15), 8);
+    Cancel_text_reset_cursor(display_coordinate_x(43.5), display_coordinate_y(15), 8);
     tft.setTextColor(ILI9341_WHITE);
 
-    if (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+    const auto &preset = Preset[instrument_id];
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const float max_pitch = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
+    const int max_pitch_semitones = static_cast<int>(floorf(12.0f * log2f(max_pitch)));
+    if (max_pitch_semitones >= 0)
     {
-        if (Preset[instrument_id].use_Wavetable)
-        {
-            tft.print(MAX_PITCH_WAVETABLE);
-        }
-        else
-        {
-            tft.print(MAX_PITCH_FLASH[optimization]);
-        }
+        tft.print("+");
     }
-    else
-    {
-        tft.print(MAX_PITCH_PSRAM);
-    }
-
-    tft.print("/");
-
-    if (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
-    {
-        if (Preset[instrument_id].use_Wavetable)
-        {
-            tft.print("16");
-        }
-        else
-        {
-            tft.print(POLYPHONY_FLASH[optimization]);
-        }
-    }
-    else
-        tft.print("16");
+    tft.print(max_pitch_semitones);
+    tft.print("st/");
+    tft.print(live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization]);
 }
 
 void DisplaySound::Show_wave(int instrument_id)
 {
-    auto sound_id_local = Patch[Patch_id].Instrument[instrument_id].sound_id;                                                // Active sound routed to the selected instrument.
+    auto sound_id_local = Get_sound_id(Patch_id, instrument_id);                                                // Active sound routed to the selected instrument.
     int yp, yn, y0;                                                                                                          // Upper sample, lower sample, and previous Y position on the canvas.
     int NC_A;                                                                                                                // Width of the no-click curtain drawn at both waveform edges.
     int16_t *X = Info.Sound_620_samples_array(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B); // Two 620-sample envelopes used for waveform rendering.

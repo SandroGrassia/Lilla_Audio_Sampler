@@ -1,9 +1,18 @@
 #include "PlayersManager.h"
 #include <algorithm>
 
-void PlayersManager::Set_ADSR_ptr(AudioADSR* ptr)
+void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
 {
-ADSR = ptr;
+    ADSR = ptr;
+}
+
+AudioTables::Pointers PlayersManager::Get_playback_tables(uint8_t instrument_id)
+{
+    if (instrument_id >= INSTRUMENTS || Audio_tables_ptr == nullptr || !AudioTables::Needs_tables(Preset[instrument_id]))
+    {
+        return {};
+    }
+    return Audio_tables_ptr->Get_active_pointers(instrument_id, Preset[instrument_id]);
 }
 
 void PlayersManager::MX_multicast_change_routing(int instrument_id)
@@ -31,14 +40,41 @@ void PlayersManager::MX_multicast_change_routing(int instrument_id)
     }
 }
 
+int PlayersManager::Count_sample_voices(void) const
+{
+    int count = 0;
+    for (int player = 0; player < PLAYERS; ++player)
+    {
+        count += Player_ptr[player].Uses_sample_voice();
+    }
+    return count;
+}
+
 void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track) // after receiving a NoteOn command
 {
+    if (instrument_id >= INSTRUMENTS || !Preset[instrument_id].active)
+    {
+        return;
+    }
+    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id);
+    // Reject an unavailable sound before allocating a voice or changing its envelope.
+    if (AudioTables::Needs_tables(Preset[instrument_id]) && table_pointers.bank_mask == 0)
+    {
+        return;
+    }
+
     // Se e' una nota appartenente ad un track: track >= -1
     // Altrimenti: track = NO_TRACK
 
     int8_t id_player = -1;
     bool finished = false;
-    bool use_Wavetable = Preset[instrument_id].use_Wavetable; // NON valido se LIVE_SAMPLER
+    const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
+    const int voice_limit = OPTIMIZATION_VOICES[optimization];
+    // A reduced profile takes effect after the old voices finish their fast release.
+    if (needs_sample && Count_sample_voices() > voice_limit)
+    {
+        return;
+    }
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
     for (auto player = 0; player < PLAYERS; ++player)
@@ -52,11 +88,11 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
     }
 
-    if (!finished && !use_Wavetable) // Flash memory will be used --> LIMITED use of players WITHIN the SAME instrument_id range
+    if (!finished && needs_sample) // File voices share the profile budget regardless of their current storage.
     {
         Update_players_stistics();
 
-        if (players_using_Flash < POLYPHONY_FLASH[optimization]) // a Player can be used
+        if (Count_sample_voices() < voice_limit) // a Player can be used
         {
             // 1) if there is a Player !isPlaying, it can be used
             for (auto player = 0; player < PLAYERS; ++player)
@@ -79,7 +115,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
                     {
                         id_player = player;
                         finished = true;
-                        PRINT("Play from Flash - case 1", "Found available Player:", id_player);
+                        // PRINT("Play from Flash - case 1", "Found available Player:", id_player);
                         break;
                     }
                 }
@@ -128,17 +164,17 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
             }
         }
 
-        // only a Player flash_mode can be reused
+        // Only an existing Flash/cache slot can be reused at the profile limit.
         else
         {
             // 5A) there is a Player flash_mode from a different Patch and playing
             for (auto player = 0; player < PLAYERS; ++player)
             {
-                if ((Player_ptr[player].Read_patch_wait() != Patch_id) && !Player_ptr[player].Read_use_Wavetable() && Player_ptr[player].State() > 0)
+                if ((Player_ptr[player].Read_patch_wait() != Patch_id) && Player_ptr[player].Uses_sample_voice() && Player_ptr[player].State() > 0)
                 {
                     id_player = player;
                     finished = true;
-                    PRINT("Play from Flash - case 6", "Found available Player:", id_player);
+                    // PRINT("Play from Flash - case 6", "Found available Player:", id_player);
                     break;
                 }
             }
@@ -157,7 +193,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
             if (!finished)
             {
                 // 7)  there is a Player fading (state = 2) ANY INSTRUMENT NOT protected flash_mode: choose the OLDEST
-                id_player = Simplefind_oldest_player_flash(false, true); // SIMPLEFIND_oldest_player_flash(bool power_on, bool playing)
+                id_player = Simplefind_oldest_sample_player(false, true);
                 if (id_player >= 0)
                 {
                     finished = true;
@@ -168,7 +204,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
             if (!finished)
             {
                 // 8)  there is a Player playing (state = 1) ANY INSTRUMENT NOT protected flash_mode: choose the OLDEST
-                id_player = Simplefind_oldest_player_flash(true, true); // SIMPLEFIND_oldest_player_flash(bool power_on, bool playing)
+                id_player = Simplefind_oldest_sample_player(true, true);
                 if (id_player >= 0)
                 {
                     finished = true;
@@ -178,7 +214,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
     }
 
-    if (!finished && use_Wavetable) // NO LIMIT to use players but playing the SAME instrument_id
+    if (!finished && !needs_sample) // AudioTables wavetables and Live Sampler keep the independent memory allocation path.
     {
         // 1) look for a Player NOT used
         Update_players_stistics();
@@ -256,6 +292,20 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
     }
 
+    // A same-note candidate may be a wavetable while all file slots are reserved.
+    if (finished && needs_sample && !Player_ptr[id_player].Uses_sample_voice())
+    {
+        Update_players_stistics();
+        if (Count_sample_voices() >= voice_limit)
+        {
+            id_player = Simplefind_oldest_sample_player(false, true);
+            if (id_player < 0)
+            {
+                id_player = Simplefind_oldest_sample_player(true, true);
+            }
+            finished = id_player >= 0;
+        }
+    }
     if (finished)
     {
         Player_booked[id_player] = true;
@@ -268,7 +318,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
 
         Player_ptr[id_player].Write_precedence(Preset[instrument_id].precedence);
         Player_ptr[id_player].Write_midi_channel(Preset[instrument_id].midi_channel);
-        Player_ptr[id_player].set_file(Preset[instrument_id].file);
+        Player_ptr[id_player].Set_source(Preset[instrument_id].source);
 
         ADSR[id_player].Setup(Preset[instrument_id].attack, Preset[instrument_id].decay, Preset[instrument_id].sustain, Preset[instrument_id].release, Preset[instrument_id].attack_type);
 
@@ -298,7 +348,8 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         }
         Player_ptr[id_player].Set_pan(Preset[instrument_id].pan);
         Player_ptr[id_player].Set_pitch(Preset[instrument_id].pitch);
-        Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, (Noclick_ptr + instrument_id)->get_pointer(), (Wavetable_ptr + instrument_id)->get_pointer());
+
+        Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
 
         if (!Preset[instrument_id].lock)
         {
@@ -316,12 +367,12 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         {
             if (Preset[instrument_id].Filter.modulation == 4) // LFO wave "sine" modulates VCF and MIDI After touch modulates index
             {
-                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                        // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                 Player_ptr[id_player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index * after_touch_channel_value[Preset[instrument_id].midi_channel], Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
             }
             else if (Preset[instrument_id].Filter.modulation > 0) // LFO modulates VCF
             {
-                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                           // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                Player_ptr[id_player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                 Player_ptr[id_player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index, Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
             }
             else // VCF is not modulated
@@ -502,20 +553,20 @@ int PlayersManager::Simplefind_oldest_player(bool power_on) // "precedence" inst
     return result;
 }
 
-int PlayersManager::Simplefind_oldest_player_flash(bool power_on, bool playing) // "precedence" instruments are EXCLUDED
+int PlayersManager::Simplefind_oldest_sample_player(bool power_on, bool playing) // "precedence" instruments are EXCLUDED
 {
     unsigned long time_min = 0;
     int8_t result = -1;
 
     for (auto player_ext = 0; player_ext < PLAYERS; ++player_ext)
     {
-        if (!Player_ptr[player_ext].Read_use_Wavetable() && !Player_ptr[player_ext].Read_precedence() && (Player_ptr[player_ext].isPlaying() == playing) && (Player_ptr[player_ext].isPoweredOn() == power_on) && !Player_booked[player_ext])
+        if (Player_ptr[player_ext].Uses_sample_voice() && !Player_ptr[player_ext].Read_precedence() && (Player_ptr[player_ext].isPlaying() == playing) && (Player_ptr[player_ext].isPoweredOn() == power_on) && !Player_booked[player_ext])
         {
             time_min = Player_ptr[player_ext].Read_time_stamp();
             result = player_ext;
             for (auto player = 0; player < PLAYERS; ++player) // look for the player playing for the longest time
             {
-                if (!(Player_ptr + player)->Read_use_Wavetable() && !(Player_ptr + player)->Read_precedence() && ((Player_ptr + player)->isPlaying() == playing) && ((Player_ptr + player)->isPoweredOn() == power_on) && ((Player_ptr + player)->Read_time_stamp() < time_min) && !Player_booked[player])
+                if ((Player_ptr + player)->Uses_sample_voice() && !(Player_ptr + player)->Read_precedence() && ((Player_ptr + player)->isPlaying() == playing) && ((Player_ptr + player)->isPoweredOn() == power_on) && ((Player_ptr + player)->Read_time_stamp() < time_min) && !Player_booked[player])
                 {
                     time_min = (Player_ptr + player)->Read_time_stamp();
                     result = player;
@@ -659,13 +710,16 @@ void PlayersManager::Broadcast_reset_effect(float resolution, uint8_t downsampli
 
 void PlayersManager::Update_all_Preset(int patch_id, float volume_patch)
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
+        Preset[instrument_id] = {};
         if (Patch[patch_id].Instrument[instrument_id].used)
         {
             Update_Preset(patch_id, instrument_id, volume_patch);
         }
     }
+    Cache_manager_ptr->Set_required_files(Preset);
+    Refresh_cache_sources();
 }
 
 void PlayersManager::Update_all_Preset_volume(int patch_id, float volume_patch)
@@ -679,27 +733,111 @@ void PlayersManager::Update_all_Preset_volume(int patch_id, float volume_patch)
     }
 }
 
+Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, float volume_patch)
+{
+    Preset_struct result = {};
+    result.active = true;
+    const uint16_t sound_id = Get_sound_id(patch_id, instrument_id);
+
+    result.volume = MX_mute[instrument_id] ? 0.0f : volume_patch * Volume_float[Sound[sound_id].gain];
+    result.pan = Sound[sound_id].pan;
+    result.sound_id = sound_id;
+    result.file = Sound[sound_id].file;
+    result.source = Cache_manager_ptr->Get_source(result.file);
+    result.midi_channel = Get_midi_channel(patch_id, instrument_id);
+    result.pitch = Calc_pitch(Sound[sound_id].pitch);
+    result.mode = Sound[sound_id].mode;
+    result.A = Sound[sound_id].A;
+    result.B = Sound[sound_id].B;
+    result.use_Wavetable = (result.B - result.A + 1) <= BLOCK_MIN;
+    result.Noclick = Sound[sound_id].Noclick;
+    result.attack_type = bitRead(Sound[sound_id].data, 0);
+    result.attack = Calc_attack(Sound[sound_id].attack);
+    result.decay = Calc_decay(Sound[sound_id].decay);
+    result.sustain = Calc_sustain(Sound[sound_id].sustain);
+    result.release = Calc_release(Sound[sound_id].release);
+    result.precedence = Patch[patch_id].Instrument[instrument_id].precedence;
+    result.lock = Patch[patch_id].Instrument[instrument_id].lock;
+
+    result.Filter.use = Patch[patch_id].Instrument[instrument_id].Filter.use;
+    result.Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type;
+
+    const float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;
+    result.Filter.pivot = 20.0f * pow(2.0f, value);
+    result.Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f;
+    result.Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index / 20.0f;
+    result.Filter.modulation = Patch[patch_id].Instrument[instrument_id].Filter.modulation;
+
+    if (result.Filter.modulation == 3 || result.Filter.modulation == 4)
+    {
+        result.Filter.periodic = 1;
+        result.Filter.frequency_time = Patch[patch_id].Instrument[instrument_id].Filter.frequency_time * Patch[patch_id].Instrument[instrument_id].Filter.frequency_time / 40.0f;
+    }
+    else
+    {
+        result.Filter.periodic = 0;
+        result.Filter.frequency_time = Patch[patch_id].Instrument[instrument_id].Filter.frequency_time / 8.0f;
+    }
+
+    return result;
+}
+
+bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask)
+{
+    tables_mask = 0;
+
+    if (patch_id < 0 || patch_id > PATCHES_MAX)
+    {
+        return false;
+    }
+
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        presets[instrument_id] = {};
+
+        if (!Patch[patch_id].Instrument[instrument_id].used)
+        {
+            continue;
+        }
+
+        presets[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
+
+        // Live Sampler instruments do not require AudioTables storage.
+        if (presets[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+        {
+            tables_mask |= static_cast<uint16_t>(1u << instrument_id);
+        }
+    }
+
+    return true;
+}
+
+bool PlayersManager::Activate_prepared_presets(const Preset_struct (&presets)[INSTRUMENTS])
+{
+    if (Audio_tables_ptr == nullptr)
+    {
+        return false;
+    }
+
+    if (!Audio_tables_ptr->Activate_prepared())
+    {
+        return false;
+    }
+
+    // Publish the matching presets before audio interrupts are restored.
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        Preset[instrument_id] = presets[instrument_id];
+    }
+    Cache_manager_ptr->Set_required_files(Preset);
+    Refresh_cache_sources();
+    Refresh_audio_table_references();
+    return true;
+}
+
 void PlayersManager::Update_Preset(int patch_id, int instrument_id, float volume_patch)
 {
-    Update_Preset_volume(patch_id, instrument_id, volume_patch);
-    Preset[instrument_id].pan = Sound[Sound_Id(patch_id, instrument_id)].pan;
-    Preset[instrument_id].sound_id = Sound_Id(patch_id, instrument_id);
-    Preset[instrument_id].file = Sound[Sound_Id(patch_id, instrument_id)].file;
-    Preset[instrument_id].midi_channel = Get_midi_channel(patch_id, instrument_id);
-    Preset[instrument_id].pitch = Calc_pitch(Sound[Sound_Id(patch_id, instrument_id)].pitch);
-    Preset[instrument_id].mode = Sound[Sound_Id(patch_id, instrument_id)].mode;
-    Preset[instrument_id].A = Sound[Sound_Id(patch_id, instrument_id)].A;
-    Preset[instrument_id].B = Sound[Sound_Id(patch_id, instrument_id)].B;
-    Preset[instrument_id].use_Wavetable = (Preset[instrument_id].B - Preset[instrument_id].A + 1) <= BLOCK_MIN;
-    Preset[instrument_id].Noclick = Sound[Sound_Id(patch_id, instrument_id)].Noclick;
-    Preset[instrument_id].attack_type = bitRead(Sound[Sound_Id(patch_id, instrument_id)].data, 0);
-    Preset[instrument_id].attack = Calc_attack(Sound[Sound_Id(patch_id, instrument_id)].attack);
-    Preset[instrument_id].decay = Calc_decay(Sound[Sound_Id(patch_id, instrument_id)].decay);
-    Preset[instrument_id].sustain = Calc_sustain(Sound[Sound_Id(patch_id, instrument_id)].sustain);
-    Preset[instrument_id].release = Calc_release(Sound[Sound_Id(patch_id, instrument_id)].release);
-    Preset[instrument_id].precedence = Patch[patch_id].Instrument[instrument_id].precedence; // Preset[I].precedence = bitRead(Patch[patch_id].Instrument[I].info, 0);
-    Preset[instrument_id].lock = Patch[patch_id].Instrument[instrument_id].lock;             // Preset[I].lock = bitRead(Patch[patch_id].Instrument[I].info, 1)
-    Update_Preset_IF(patch_id, instrument_id);
+    Preset[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
 }
 
 void PlayersManager::Update_Preset_volume(int patch_id, int instrument_id, float volume_patch)
@@ -709,22 +847,23 @@ void PlayersManager::Update_Preset_volume(int patch_id, int instrument_id, float
         Preset[instrument_id].volume = 0.0;
     }
     else
-        Preset[instrument_id].volume = volume_patch * Volume_float[Sound[Sound_Id(patch_id, instrument_id)].gain];
+        Preset[instrument_id].volume = volume_patch * Volume_float[Sound[Get_sound_id(patch_id, instrument_id)].gain];
 }
 
 void PlayersManager::Update_Preset_pan(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].pan = Sound[Sound_Id(patch_id, instrument_id)].pan;
+    Preset[instrument_id].pan = Sound[Get_sound_id(patch_id, instrument_id)].pan;
 }
 
 void PlayersManager::Update_Preset_sound_id(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].sound_id = Sound_Id(patch_id, instrument_id);
+    Preset[instrument_id].sound_id = Get_sound_id(patch_id, instrument_id);
 }
 
 void PlayersManager::Update_Preset_file(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].file = Sound[Sound_Id(patch_id, instrument_id)].file;
+    Preset[instrument_id].file = Sound[Get_sound_id(patch_id, instrument_id)].file;
+    Preset[instrument_id].source = Cache_manager_ptr->Get_source(Preset[instrument_id].file);
 }
 
 void PlayersManager::Update_Preset_midi_channel(int patch_id, int instrument_id)
@@ -734,49 +873,49 @@ void PlayersManager::Update_Preset_midi_channel(int patch_id, int instrument_id)
 
 void PlayersManager::Update_Preset_pitch(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].pitch = Calc_pitch(Sound[Sound_Id(patch_id, instrument_id)].pitch);
+    Preset[instrument_id].pitch = Calc_pitch(Sound[Get_sound_id(patch_id, instrument_id)].pitch);
 }
 
 void PlayersManager::Update_Preset_mode(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].mode = Sound[Sound_Id(patch_id, instrument_id)].mode;
+    Preset[instrument_id].mode = Sound[Get_sound_id(patch_id, instrument_id)].mode;
 }
 
 void PlayersManager::Update_Preset_A_B_Wavetable(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].A = Sound[Sound_Id(patch_id, instrument_id)].A;
-    Preset[instrument_id].B = Sound[Sound_Id(patch_id, instrument_id)].B;
+    Preset[instrument_id].A = Sound[Get_sound_id(patch_id, instrument_id)].A;
+    Preset[instrument_id].B = Sound[Get_sound_id(patch_id, instrument_id)].B;
     Preset[instrument_id].use_Wavetable = (Preset[instrument_id].B - Preset[instrument_id].A + 1) <= BLOCK_MIN;
 }
 
 void PlayersManager::Update_Preset_Noclick(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].Noclick = Sound[Sound_Id(patch_id, instrument_id)].Noclick;
+    Preset[instrument_id].Noclick = Sound[Get_sound_id(patch_id, instrument_id)].Noclick;
 }
 
 void PlayersManager::Update_Preset_attack_type(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].attack_type = bitRead(Sound[Sound_Id(patch_id, instrument_id)].data, 0);
+    Preset[instrument_id].attack_type = bitRead(Sound[Get_sound_id(patch_id, instrument_id)].data, 0);
 }
 
 void PlayersManager::Update_Preset_attack(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].attack = Calc_attack(Sound[Sound_Id(patch_id, instrument_id)].attack);
+    Preset[instrument_id].attack = Calc_attack(Sound[Get_sound_id(patch_id, instrument_id)].attack);
 }
 
 void PlayersManager::Update_Preset_decay(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].decay = Calc_decay(Sound[Sound_Id(patch_id, instrument_id)].decay);
+    Preset[instrument_id].decay = Calc_decay(Sound[Get_sound_id(patch_id, instrument_id)].decay);
 }
 
 void PlayersManager::Update_Preset_sustain(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].sustain = Calc_sustain(Sound[Sound_Id(patch_id, instrument_id)].sustain);
+    Preset[instrument_id].sustain = Calc_sustain(Sound[Get_sound_id(patch_id, instrument_id)].sustain);
 }
 
 void PlayersManager::Update_Preset_release(int patch_id, int instrument_id)
 {
-    Preset[instrument_id].release = Calc_release(Sound[Sound_Id(patch_id, instrument_id)].release);
+    Preset[instrument_id].release = Calc_release(Sound[Get_sound_id(patch_id, instrument_id)].release);
 }
 
 void PlayersManager::Update_Preset_precedence(int patch_id, int instrument_id)
@@ -799,12 +938,12 @@ void PlayersManager::Multicast_IF_update_filter_type(int instrument_id)
             {
                 if (Preset[instrument_id].Filter.modulation == 4) // LFO wave "sine" modulates VCF and MIDI After touch modulates index
                 {
-                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                        // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                                                                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                     Player_ptr[player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index * after_touch_channel_value[Preset[instrument_id].midi_channel], Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
                 }
                 else if (Preset[instrument_id].Filter.modulation > 0) // LFO modulates VCF
                 {
-                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                           // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
+                    Player_ptr[player].Connect_VCF(true, Preset[instrument_id].Filter.type, Preset[instrument_id].Filter.pivot, Preset[instrument_id].Filter.resonance, true);                                              // void Connect_VCF(bool use, int type, float pivot, float resonance, bool modulated)
                     Player_ptr[player].Connect_LFO_TO_VCF(Preset[instrument_id].Filter.modulation, Preset[instrument_id].Filter.index, Preset[instrument_id].Filter.periodic, Preset[instrument_id].Filter.frequency_time); // Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t periodic, float frequency_time)
                 }
                 else // VCF is not modulated
@@ -875,8 +1014,8 @@ void PlayersManager::Update_Preset_IF(int patch_id, int instrument_id)
     Preset[instrument_id].Filter.use = Patch[patch_id].Instrument[instrument_id].Filter.use;
     Preset[instrument_id].Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type; // 0 -> 3
 
-    float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;                                     // 0 --> 100  0 --> 10
-    Preset[instrument_id].Filter.pivot = 20.0f * pow(2.0f, value);                                                    //  20 --> 20048
+    float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;                                        // 0 --> 100  0 --> 10
+    Preset[instrument_id].Filter.pivot = 20.0f * pow(2.0f, value);                                                       //  20 --> 20048
     Preset[instrument_id].Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f; // 0 --> 40
     Preset[instrument_id].Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index / 20.0f;                 // 0 --> 20 : 0 --> 1.0
     Update_Preset_IF_modulation(patch_id, instrument_id);
@@ -936,6 +1075,11 @@ void PlayersManager::Multicast_IF_index(int instrument_id, float value)
 
 void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrument_id)
 {
+    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id);
+    if (AudioTables::Needs_tables(Preset[instrument_id]) && table_pointers.bank_mask == 0)
+    {
+        return;
+    }
     uint8_t players_to_cross_mix = 0;
     uint8_t mix_samples_for_Player[PLAYERS] = {0};
     bool cross_mix_Player[PLAYERS] = {0};
@@ -948,9 +1092,8 @@ void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrumen
 
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if ((Player_ptr[player].Read_local_patch() == patch_id) && (Player_ptr[player].Read_instrument() == instrument_id) && Player_ptr[player].isPlaying())
+        if (Player_ptr[player].Apply_preset_edit(patch_id, instrument_id, Preset[instrument_id], table_pointers))
         {
-            Player_ptr[player].Main_settings_editing(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, Noclick_pointer[instrument_id], Wavetable_pointer[instrument_id]);
             ++players_to_cross_mix;
             cross_mix_Player[player] = true;
         }
@@ -1276,20 +1419,20 @@ bool PlayersManager::Verify_if_stop_players(int patch_id, int instrument_id) // 
     uint8_t players_to_stop = 0;
     int8_t index = 0;
 
-    if ((POLYPHONY_FLASH[optimization] < PLAYERS) && Preset[instrument_id].use_Wavetable && !Get_use_Wavetable(Sound_Id(patch_id, instrument_id))) // Sound passes from use_Wavetable to !use_Wavetable
+    if ((OPTIMIZATION_VOICES[optimization] < PLAYERS) && Preset[instrument_id].use_Wavetable && Sound[Get_sound_id(patch_id, instrument_id)].file < FIRST_LIVE_SAMPLING_FILE && !Get_use_Wavetable(Get_sound_id(patch_id, instrument_id))) // A wavetable edit starts sharing the file voice budget, whether cached or not.
     {
-        // players_critical  = how many Player ARE GOING to !use_Wavetable (those playing "instrument_id") + how many Player are ALREDY !use_Wavetable
+        // Count file voices plus this patch/instrument's voices that will leave AudioTables.
         for (auto player = 0; player < PLAYERS; ++player)
         {
-            if ((Player_ptr + player)->isPlaying() && ((Player_ptr + player)->Read_instrument() == instrument_id || !(Player_ptr + player)->Read_use_Wavetable())) // if player is playing instrument_id or is playing in Flash mode -> counter increase
+            if ((Player_ptr + player)->isPlaying() && (((Player_ptr + player)->Read_local_patch() == patch_id && (Player_ptr + player)->Read_instrument() == instrument_id) || (Player_ptr + player)->Uses_sample_voice()))
             {
                 players_critical++;
             }
         }
 
-        if (players_critical > POLYPHONY_FLASH[optimization]) // players in excess MUST be stopped BEFORE UPDATING A and B
+        if (players_critical > OPTIMIZATION_VOICES[optimization]) // players in excess MUST be stopped BEFORE UPDATING A and B
         {
-            players_to_stop = players_critical - POLYPHONY_FLASH[optimization];
+            players_to_stop = players_critical - OPTIMIZATION_VOICES[optimization];
 
             // 1) look for a Player !power_on and playing "instrument_id": choose the OLDEST
             while (players_to_stop > 0)
@@ -1369,14 +1512,11 @@ void PlayersManager::Release_all_players(void)
     }
 }
 
-void PlayersManager::Release_softly_all_players(int patch_id)
+void PlayersManager::Release_softly_all_players(int patch_id) // Bound every outgoing voice and queued restart by QUICK_RELEASE_TIME.
 {
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if ((Player_ptr + player)->isPoweredOn() && (Player_ptr + player)->Read_local_patch() == patch_id)
-        {
-            Release_player(player); // avvio del Release stabilito per il Sound
-        }
+        Player_ptr[player].Release_patch(patch_id); // Include existing release tails and cancel pending notes belonging to the outgoing patch.
     }
 }
 
@@ -1387,6 +1527,24 @@ void PlayersManager::Stop_all_players(void) // meglio Fast_stop...
         (Player_ptr + player)->Fast_stop(); // Attiva il Release (ADSR) con tempo di caduta pari a 10 samples
         (Player_ptr + player)->Write_time_stamp(millis());
     }
+}
+
+uint16_t PlayersManager::Fast_stop_players_using_tables(uint8_t banks_mask)
+{
+    static_assert(PLAYERS <= 16);
+
+    uint16_t stopped_players_mask = 0;
+
+    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+    {
+        if (Player_ptr[player_id].Fast_stop_using_tables(banks_mask))
+        {
+            Player_ptr[player_id].Write_time_stamp(millis());
+            stopped_players_mask |= static_cast<uint16_t>(1u << player_id);
+        }
+    }
+
+    return stopped_players_mask;
 }
 
 void PlayersManager::Release_all_players_loop(void)
@@ -1486,22 +1644,27 @@ void PlayersManager::Update_players_stistics(void)
 {
     players_using_Wavetable = 0;
     players_using_Flash = 0;
+    players_using_Psram = 0;
 
     for (auto player = 0; player < PLAYERS; ++player)
     {
         if (Player_ptr[player].isPlaying())
         {
-            if (Player_ptr[player].Read_use_Wavetable())
+            if (Player_ptr[player].Uses_flash())
+            {
+                ++players_using_Flash;
+            }
+            else if (Player_ptr[player].Read_use_Wavetable())
             {
                 ++players_using_Wavetable;
             }
             else
             {
-                ++players_using_Flash;
+                ++players_using_Psram;
             }
         }
     }
-    players_playing = players_using_Wavetable + players_using_Flash;
+    players_playing = players_using_Wavetable + players_using_Flash + players_using_Psram;
 }
 
 int PlayersManager::Get_players_playing(void)
@@ -1884,3 +2047,64 @@ void PlayersManager::Broadcast_FIFO_mono(int16_t *LS_buffer_mono_ptr)
     }
 }
 
+uint8_t PlayersManager::Refresh_audio_table_references(void)
+{
+    uint8_t referenced_banks = 0;
+    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+    {
+        if (Audio_tables_ptr != nullptr)
+        {
+            Player_ptr[player_id].Refresh_audio_table_references(*Audio_tables_ptr);
+        }
+        referenced_banks |= Player_ptr[player_id].Get_tables_reference_mask();
+    }
+    return referenced_banks;
+}
+
+int PlayersManager::Get_players_using_Psram(void)
+{
+    return players_using_Psram;
+}
+
+void PlayersManager::Refresh_cache_sources(void)
+{
+    for (auto &preset : Preset)
+    {
+        if (!preset.active)
+        {
+            continue;
+        }
+        preset.source = Cache_manager_ptr->Get_source(preset.file);
+        if (preset.source.storage != Psram)
+        {
+            continue;
+        }
+        for (uint8_t player = 0; player < PLAYERS; ++player)
+        {
+            Player_ptr[player].Refresh_cached_source(preset.source);
+        }
+    }
+}
+
+uint16_t PlayersManager::Get_cache_reference_mask(void)
+{
+    uint16_t mask = 0;
+    for (uint8_t player = 0; player < PLAYERS; ++player)
+    {
+        mask |= Player_ptr[player].Get_cache_reference_mask();
+    }
+    return mask;
+}
+
+uint16_t PlayersManager::Fast_stop_players_using_cache(uint16_t mask)
+{
+    uint16_t stopped = 0;
+    for (uint8_t player = 0; player < PLAYERS; ++player)
+    {
+        if (Player_ptr[player].Fast_stop_using_cache(mask))
+        {
+            stopped |= static_cast<uint16_t>(1u << player);
+        }
+    }
+    return stopped;
+}

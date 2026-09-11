@@ -26,8 +26,8 @@ The firmware is written for a hardware platform built around:
 - Teensy 4.1
 - Teensy Audio Adaptor Rev D
 - 64 MB SPI flash memory
-- 16 MB total QSPI PSRAM
-- 1-4 FRAM chips
+- 32 MB total QSPI PSRAM
+- 2 FRAM chips
 - ILI9341 SPI display
 
 - MIDI input and output

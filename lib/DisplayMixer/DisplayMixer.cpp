@@ -120,7 +120,7 @@ void DisplayMixer::MX_source_values_write(const int source, const bool bright)
 
     else
     {
-        local_sound_id = Patch[Patch_id].Instrument[source].sound_id;
+        local_sound_id = Get_sound_id(Patch_id, source);
 
         tft.setTextColor((bright ? TEXT_COLOR : 0x6300));
         tft.setCursor(display_coordinate_x(MX_column_Sound + source * 5), display_coordinate_y(MX_row_Sound));

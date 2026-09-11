@@ -104,11 +104,11 @@ void DisplayManager::Led_SOUND_EDIT_instrument(int instrument_id, bool on)
 {
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
     }
     else
     {
-        tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
     }
     return;
 }
@@ -678,16 +678,18 @@ void DisplayManager::P_show_Pan_value(int patch_id, int instrument_id, bool edit
     auto x_display = display_coordinate_x(P_column_instrument_element[6]);
     tft.setTextColor((editing ? ILI9341_YELLOW : ILI9341_WHITE));
 
+    const uint16_t sound_id = Get_sound_id(patch_id, instrument_id);
+
     Cancel_text_reset_cursor(x_display, y_display, 2);
-    if (Sound[Patch[patch_id].Instrument[instrument_id].sound_id].pan < 0)
+    if (Sound[sound_id].pan < 0)
     {
         tft.print("L");
     }
-    else if (Sound[Patch[patch_id].Instrument[instrument_id].sound_id].pan > 0)
+    else if (Sound[sound_id].pan > 0)
     {
         tft.print("R");
     }
-    tft.print(abs(Sound[Patch[patch_id].Instrument[instrument_id].sound_id].pan));
+    tft.print(abs(Sound[sound_id].pan));
 }
 
 FLASHMEM
@@ -700,7 +702,7 @@ void DisplayManager::P_show_Gain_value(int patch_id, int instrument_id, bool edi
     tft.setTextColor((editing ? ILI9341_YELLOW : ILI9341_WHITE));
 
     Cancel_text_reset_cursor(x_display, y_display, 4);
-    tft.print(Sound[Patch[patch_id].Instrument[instrument_id].sound_id].gain / 20.0f, 2);
+    tft.print(Sound[Get_sound_id(patch_id, instrument_id)].gain / 20.0f, 2);
 }
 
 FLASHMEM
@@ -807,7 +809,7 @@ void DisplayManager::P_show_Performance_menu(void)
             }
 
             P_row_menu_element[position] = 1;
-            P_element_menu[position] = element;
+            P_element_menu[position] = static_cast<P_menu_elements_name>(element);
             P_position_Menu[element] = position;
             tft.setCursor(display_coordinate_x(P_column_menu_element[position]), display_coordinate_y(P_row_menu_element[position]));
             tft.print(P_menu_char[element]);
@@ -842,24 +844,29 @@ void DisplayManager::P_Confirm_patch_change_popup(void)
 FLASHMEM
 void DisplayManager::P_Confirm_patch_change_popup_frame(int value)
 {
-    P_Confirm_frame(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    P_Confirm_frame(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, false);
-    P_Confirm_frame(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, false);
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, false);
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
     case 0: // exit
-        P_Confirm_frame(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, true);
         break;
     case 1: // no
-        P_Confirm_frame(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 2: // yes
-        P_Confirm_frame(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;
     }
+}
+
+void DisplayManager::P_Confirm_frame_on_RED(int X, int Y, int chars, bool print)
+{
+    Frame_by_pixels_on_RED(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
 }
 
 void DisplayManager::P_Confirm_frame(int X, int Y, int chars, bool print)
@@ -891,16 +898,16 @@ void DisplayManager::P_Confirm_patch_delete_popup(void)
 FLASHMEM
 void DisplayManager::P_Confirm_patch_delete_popup_frame(int value)
 {
-    P_Confirm_frame(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    P_Confirm_frame(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, false);
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
     case 0: // NO
-        P_Confirm_frame(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(5.5), Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 1: // YES
-        P_Confirm_frame(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame_on_RED(X_POPUP + display_coordinate_x(9.5), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;
@@ -982,15 +989,16 @@ void DisplayManager::SETUP_show_First_octave_value(void)
 FLASHMEM
 void DisplayManager::SETUP_show_Optimization_value(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(13), display_coordinate_y(4), 29);
+    Cancel_text_reset_cursor(display_coordinate_x(13), display_coordinate_y(4), 24);
     tft.setTextColor(ILI9341_ORANGE);
-    tft.print("POLYPHONY ");
+    tft.print("VOICES ");
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(POLYPHONY_FLASH[optimization]);
+    tft.print(OPTIMIZATION_VOICES[optimization]);
     tft.setTextColor(ILI9341_ORANGE);
-    tft.print(",  MAX PITCH ");
+    tft.print("  MAX PITCH ");
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(MAX_PITCH_FLASH[optimization]);
+    tft.print("x");
+    tft.print(MAX_PITCH_CACHE[optimization], 0);
 }
 
 FLASHMEM
@@ -998,7 +1006,7 @@ void DisplayManager::SETUP_show_frame(int8_t value)
 {
     Frame_by_col_row(9, 2, 5, false);   // First octave
     Frame_by_col_row(13, 3, 2, false);  // First octave
-    Frame_by_col_row(13, 4, 29, false); // SETUP_Optimization
+    Frame_by_col_row(13, 4, 24, false); // Optimization
     Frame_by_col_row(0, 5, 25, false);  // Control Change Assignment
     Frame_by_col_row(0, 6, 31, false);  // Import raw files
     Frame_by_col_row(0, 7, 45, false);  // Import configuration from
@@ -1014,7 +1022,7 @@ void DisplayManager::SETUP_show_frame(int8_t value)
         Frame_by_col_row(13, 3, 2, true); // First octave
         break;
     case 2:
-        Frame_by_col_row(13, 4, 29, true); // SETUP_Optimization
+        Frame_by_col_row(13, 4, 24, true); // SETUP_Optimization
         break;
     case 3:
         Frame_by_col_row(0, 5, 25, true); // Control Change
@@ -1639,24 +1647,38 @@ void DisplayManager::Copy_raw_files_SD_to_Flash_chip_job_start(void)
 }
 
 FLASHMEM
-void DisplayManager::Copy_raw_files_SD_to_Flash_chip_initial_percentage(void)
+void DisplayManager::Update_raw_copy_progress(int percentage)
 {
-    tft.drawLine(display_coordinate_x(0), BAR_POS_Y, display_coordinate_x(0), BAR_POS_Y + 5, ILI9341_YELLOW);
-    tft.setCursor(display_coordinate_x(0) + 10, BAR_POS_Y);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print("0%");
-}
+    const int raw_copy_progress_Y = 225; // display_coordinate_y(15)
+    const int chars_to_cancel = (percentage == 101) ? 11 : 3;
+    
+    if (percentage > 101)
+    {
+        return;
+    }
 
-FLASHMEM
-void DisplayManager::Copy_raw_files_SD_to_Flash_chip_progress(unsigned char barcount)
-{
-    tft.drawLine(display_coordinate_x(0) + barcount, BAR_POS_Y, display_coordinate_x(0) + barcount, BAR_POS_Y + 5, ILI9341_YELLOW);
-    tft.setCursor(display_coordinate_x(0) + barcount + 10, BAR_POS_Y);
+    const auto x_coordinate = display_coordinate_x(0);
+
+    // Da 1 in poi cancella la percentuale precedente.
+    if (percentage > 0)
+    {
+        Cancel_text(x_coordinate + percentage - 1 + 10, raw_copy_progress_Y, chars_to_cancel);
+    }
+
+    // A 101 cancella il 100%, senza disegnare altro.
+    if (percentage > 100)
+    {
+        return;
+    }
+
+    tft.drawLine(x_coordinate + percentage, raw_copy_progress_Y, x_coordinate + percentage, raw_copy_progress_Y + 5, ILI9341_YELLOW);
+    tft.setCursor(x_coordinate + percentage + 10, raw_copy_progress_Y);
+
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(barcount);
+    tft.print(percentage);
     tft.print("%");
 
-    if (barcount == 100)
+    if (percentage == 100)
     {
         tft.print(" *DONE*");
     }

@@ -9,28 +9,20 @@
 #include <Arduino.h>
 #include <SerialFlash.h>
 #include "SharedLiveSampler.h"
-#include "StereoLiveSampler.h"
 #include "LillaSerialFlash.h"
 #include "config.h"
 
 class WavetableManager
 {
-private:
+public:
     static constexpr int WAVETABLE_DIM = 674;
     static constexpr uint16_t FULL_WAVETABLE_DIM = 2 * WAVETABLE_DIM;
-    void READ_Samples(int file_id, int16_t *destination, int seek_in, int samples_in);
-    int16_t Wavetable[FULL_WAVETABLE_DIM] = {0};
-    int16_t cache_1[WAVETABLE_DIM] = {0};
-    int16_t cache_2[WAVETABLE_DIM] = {0};
-    int length = 0;  
-    
+
+private:
+    static int16_t cache[WAVETABLE_DIM];
+
 public:
-    WavetableManager(void) {}
+    WavetableManager(void) = default; // Keep generation state independent of destination storage.
 
-    //puntatori esterni
-    StereoLiveSampler* LiveSampler_ptr; // Wavetable[i]._LiveSampler = &LiveSampler;
-
-    int16_t* get_pointer(void);
-    
-    bool Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick);
+    bool Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick, int16_t *destination); // Generate directly into the caller-owned destination; return false if a source read fails.
 };

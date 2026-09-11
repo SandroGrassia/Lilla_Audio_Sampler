@@ -13,7 +13,7 @@
 // 16-bit ('565') color settings http://www.barth-dev.de/online/rgb565-color-picker/ and https://ee-programming-notepad.blogspot.com/2016/10/16-bit-color-generator-picker.html
 static constexpr uint16_t TEXT_COLOR = 0x07DA;
 static constexpr uint16_t TEXT_OFF_COLOR = 0x02AA;
-static constexpr uint16_t FRAME_COLOR = 0xF800; // red
+static constexpr uint16_t FRAME_COLOR = 0xFFFF; // red
 static constexpr uint16_t MENU_COLOR = 0xFFE0;  // yellow
 static constexpr uint16_t WAVE_COLOR = 0xE08A;
 static constexpr uint16_t WAVE_FRAME_COLOR = 0x926C;

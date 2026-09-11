@@ -14,10 +14,10 @@
 #include "LoopLedSet.h"
 #include "PlayersStatistics.h"
 #include "Router_16x3.h"
-#include "NoclickCrossmix.h"
-#include "WavetableManager.h"
 #include "config.h"
 #include "AudioADSR.h"
+#include "AudioTables.h"
+#include "PatchCacheManager.h"
 
 class PlayersManager
 {
@@ -26,24 +26,22 @@ private:
     AudioPlayer *Player_ptr = nullptr;
     Router_16x3 *Router_L_ptr = nullptr;
     Router_16x3 *Router_R_ptr = nullptr;
-    NoclickCrossmix *Noclick_ptr = nullptr;    // Players_Manager.Noclick_ptr = &Noclick[0]
-    WavetableManager *Wavetable_ptr = nullptr; // Players_Manager.Wavetable_ptr = &Wavetable[0]
+    AudioTables *Audio_tables_ptr = nullptr;
+    PatchCacheManager *Cache_manager_ptr = nullptr;
+    int Count_sample_voices(void) const; // Count each current or reserved Flash/cache player once, including release tails.
     AudioADSR *ADSR = nullptr;
+    AudioTables::Pointers Get_playback_tables(uint8_t instrument_id); // Call from the audio IRQ or with audio interrupts disabled.
 
     // statistiche
     int players_playing = 0;
     int players_using_Flash = 0;
     int players_using_Wavetable = 0;
+    int players_using_Psram = 0;
     uint8_t players_to_restart = 0; // numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
 
     // Play notes
     bool Player_booked[PLAYERS] = {false};
     bool restart_Player[PLAYERS] = {false}; // questo array serve per contare, ad ogni ciclo, il numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
-
-    static inline uint8_t Sound_Id(int patch_id, int instrument_id)
-    {
-        return Patch[patch_id].Instrument[instrument_id].sound_id;
-    }
 
     static inline float Calc_pitch(float value)
     {
@@ -71,8 +69,7 @@ private:
     }
 
 public:
-    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, NoclickCrossmix *NC, WavetableManager *WT) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Noclick_ptr(NC), Wavetable_ptr(WT) {}
-    
+    PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, AudioTables *AT, PatchCacheManager *PC) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Audio_tables_ptr(AT), Cache_manager_ptr(PC) {} // Connect players, routers, tables and the file cache owner.
     void Set_ADSR_ptr(AudioADSR* ptr); // requires &ADSR[0] from main.cpp
 
     // chiamate da MidiReader
@@ -107,10 +104,14 @@ public:
     void Multicast_update_vibrato(int midi_channel, bool vibrato_active);
     void Multicast_stop_players_for_loop_track(int track);
 
-    void Update_players_stistics(void);
+    void Update_players_stistics(void); // Count Wavetable, Flash and PSRAM readers separately.
     int Get_players_playing(void);
     int Get_players_using_Flash(void);
-    int Get_players_using_Wavetable(void);
+    int Get_players_using_Wavetable(void); // Return the number of voices reading wavetables.
+    int Get_players_using_Psram(void); // Return the number of voices reading cached or live PSRAM samples.
+    void Refresh_cache_sources(void); // Publish ready sources and promote identical current data; call with audio interrupts disabled.
+    uint16_t Get_cache_reference_mask(void); // Combine current and queued player references; call with audio interrupts disabled.
+    uint16_t Fast_stop_players_using_cache(uint16_t mask); // Fade only readers of the cache selected for reclamation.
     void Release_Player_noteOff(uint8_t player, int track = NO_TRACK);
 
     bool Get_restart_player(int player);
@@ -121,7 +122,7 @@ public:
 
     int Smartfind_oldest_player(uint8_t instrument_id, bool power_on, bool playing);
     int Simplefind_oldest_player(bool power_on);                     // "precedence" instruments are EXCLUDED
-    int Simplefind_oldest_player_flash(bool power_on, bool playing); // "precedence" instruments are EXCLUDED
+    int Simplefind_oldest_sample_player(bool power_on, bool playing); // Reuse a shared Flash/cache slot; protected and booked players are excluded.
 
     void Change_from_key(int patch_id, int instrument_id, int from_key_new);
     void Change_to_key(int patch_id, int instrument_id, int to_key_new);
@@ -134,8 +135,9 @@ public:
     void Release_all_players_for_instrument(int instrument_id);
     void Release_all_players_for_instrument_solo(int instrument_id);
     void Release_all_players(void);
-    void Release_softly_all_players(int patch_id);
+    void Release_softly_all_players(int patch_id); // Stop outgoing patch voices within QUICK_RELEASE_TIME, including existing release tails.
     void Stop_all_players(void); // BROADCAST_stop_all_Players()
+    uint16_t Fast_stop_players_using_tables(uint8_t banks_mask); // Return a player bitmask identifying newly requested stops. Call from the audio IRQ or with audio interrupts disabled.
 
     void Release_player(int player, int track);
     void Release_all_players_loop(void);
@@ -155,8 +157,13 @@ public:
     void Multicast_reset_pitch_bend_effects(int instrument_id);
     void Broadcast_restore_pitch_bend_and_effects(int midi_channel, float value);
 
-    void Update_all_Preset(int patch_id, float volume_patch);
+    void Update_all_Preset(int patch_id, float volume_patch); // Publish the active instruments and refresh their pinned cache sources.
     void Update_all_Preset_volume(int patch_id, float volume_patch);
+    
+    Preset_struct Build_Preset(int patch_id, int instrument_id, float volume_patch); // Build a preset without global Preset array modifications.
+    bool Build_presets_snapshot(int patch_id, float volume_patch, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask); // Call from main.cpp with AudioNoInterrupts(). The destination must be a separate snapshot array.
+    uint8_t Refresh_audio_table_references(void); // Move equivalent current and pending references, then return all referenced banks; call with audio interrupts disabled.
+    bool Activate_prepared_presets(const Preset_struct (&presets)[INSTRUMENTS]); // Call with AudioNoInterrupts(), using the same snapshot passed to AudioTables::Prepare_all().
     void Update_Preset(int patch_id, int instrument_id, float volume_patch);
     void Update_Preset_volume(int patch_id, int instrument_id, float volume_patch); // chiamata da main e MidiReader
     void Update_Preset_pan(int patch_id, int instrument_id);

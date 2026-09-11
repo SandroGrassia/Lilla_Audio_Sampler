@@ -7,15 +7,17 @@
 #include "StereoDelay.h"
 
 // value e' espresso in Samples
-void StereoDelay::Setup_delay(int value)
+void StereoDelay::Setup_delay(int value) // Initialize both read positions and discard any previous time ramp.
 {
-    value = constrain(value, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+    value = constrain(value, 0, DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
     delay_value = value;
     sample_write = delay_value;
     sample_read = 0;
     delay_central_value = delay_value;
     delay_central_value_target = delay_value;
+    delay_central_value_step = 0;
+    J_delay_central_value_counter = 0;
 }
 
 /*
@@ -37,9 +39,9 @@ void StereoDelay::Setup_delay(int value)
 
 */
 
-void StereoDelay::Set_delay_central_value(int value) // value = numero di campioni
+void StereoDelay::Set_delay_central_value(int value) // Retarget the single delay-time ramp from its current position, in samples.
 {
-    value = constrain(value, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+    value = constrain(value, 0, DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES);
     delay_central_value_target = value;
 
     const int delta = delay_central_value_target - delay_central_value;
@@ -106,7 +108,7 @@ void StereoDelay::Set_delay_modulation_gain(float value) // 0.0 --> 4.0
 // execution:
 // normal: 6micros @600MHz
 // delay_flag: 14.5micros @600MHz
-void StereoDelay::update(void)
+void StereoDelay::update(void) // Advance the delay reader safely and preserve the pitch change caused by moving its read position.
 {
     double D_sample_read;
     int delay_modulation;
@@ -129,6 +131,21 @@ void StereoDelay::update(void)
     // Set output data structure
     audio_block_t *out_block = NULL;
     out_block = allocate(); // al contratio di in_block, inizializzato da receiveXXOnly(ch), un block inizialmente vuoto va allocato
+    if (out_block == nullptr)
+    {
+        for (uint8_t channel = 0; channel < 2; ++channel)
+        {
+            in_block = receiveReadOnly(channel); // Discard queued inputs when no output buffer is available.
+            if (in_block != nullptr) { release(in_block); }
+        }
+        return; // Keep the FIFO positions and time ramp unchanged until audio storage is available.
+    }
+    if (delay_modulation_source != 2)
+    {
+        in_block = receiveReadOnly(1); // Release an unused modulation input instead of retaining an audio block.
+        if (in_block != nullptr) { release(in_block); }
+        in_block = nullptr;
+    }
 
     // Write in_block to delay_Main_Array; execution: 1,5micros @600MHz
     // ***** spostato ****
@@ -159,7 +176,7 @@ void StereoDelay::update(void)
         LFO_ptr->Update();                                                  // 1: periodic (sinus)
         delay_modulation = delay_modulation_gain_value * LFO_ptr->block[0]; // read only the first value
         delay_by_modulation = delay_central_value + delay_modulation;
-        delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+        delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
         delay_delta = delay_by_modulation - delay_value;
         delay_delta = constrain(delay_delta, -(AUDIO_BLOCK_SAMPLES - 10), AUDIO_BLOCK_SAMPLES - 10);
@@ -173,7 +190,7 @@ void StereoDelay::update(void)
         {
             delay_modulation = delay_modulation_gain_value * in_block->data[0]; // read only the first value
             delay_by_modulation = delay_central_value + delay_modulation;
-            delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+            delay_by_modulation = constrain(delay_by_modulation, 0, DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES);
 
             delay_delta = delay_by_modulation - delay_value;
             delay_delta = constrain(delay_delta, -(AUDIO_BLOCK_SAMPLES - 10), AUDIO_BLOCK_SAMPLES - 10);
@@ -188,7 +205,7 @@ void StereoDelay::update(void)
 
     // Se non c'e' alcuna modulazione del delay e non varia delay_central_value, deve essere: delay_value == delay_central_value.
     // potrebbero non coincidere per via di una modulazione precedente, in ogni caso occorre correggere
-    if (delay_modulation_source == 0 && J_delay_central_value_counter == 0)
+    if (delay_modulation_source == 0 && J_delay_central_value_counter == 0 && delay_delta == 0)
     {
         // si calcola l'eventuale differenza e la si limita a +/- 1 per ciascun update()
         delay_delta = delay_central_value - delay_value;
@@ -220,19 +237,19 @@ void StereoDelay::update(void)
             }
             else
             {
-                cache = *(DELAY_fifo + DELAY_CACHE_SAMPLES - 1) + (*(DELAY_fifo + 0) - *(DELAY_fifo + DELAY_CACHE_SAMPLES - 1)) * (D_sample_read - (-1));
+                cache = *(DELAY_fifo + DELAY_CACHE_CHANNEL_SAMPLES - 1) + (*(DELAY_fifo + 0) - *(DELAY_fifo + DELAY_CACHE_CHANNEL_SAMPLES - 1)) * (D_sample_read - (-1));
                 out_block->data[sample] = Lilla_saturate16(cache);
             }
 
             D_sample_read += delay_pitch;
 
-            if (D_sample_read > (double)(DELAY_CACHE_SAMPLES - 1))
+            if (D_sample_read > (double)(DELAY_CACHE_CHANNEL_SAMPLES - 1))
             {
-                D_sample_read -= (DELAY_CACHE_SAMPLES);
+                D_sample_read -= (DELAY_CACHE_CHANNEL_SAMPLES);
                 // D_sample_read potrebbe essere NEGATIVO; look at this case:
-                // (-1)oooooooooooooooooooooooooo(0)-------------------------------------------------------------(DELAY_CACHE_SAMPLES - 1)ooooooo(D_sample_read)ooo(DELAY_CACHE_SAMPLES)
+                // (-1)oooooooooooooooooooooooooo(0)-------------------------------------------------------------(DELAY_CACHE_CHANNEL_SAMPLES - 1)ooooooo(D_sample_read)ooo(DELAY_CACHE_CHANNEL_SAMPLES)
                 // the new situation is:
-                // (-1)ooo(D_sample_read)oooooooo(0)-------------------------------------------------------------(DELAY_CACHE_SAMPLES - 1)ooooooooooooooooooooooooo(DELAY_CACHE_SAMPLES)
+                // (-1)ooo(D_sample_read)oooooooo(0)-------------------------------------------------------------(DELAY_CACHE_CHANNEL_SAMPLES - 1)ooooooooooooooooooooooooo(DELAY_CACHE_CHANNEL_SAMPLES)
             }
         }
         delay_value += delay_delta;
@@ -254,7 +271,7 @@ void StereoDelay::update(void)
             out_block->data[sample] = *(DELAY_fifo + sample_read);
             ++sample_read;
 
-            if (sample_read == DELAY_CACHE_SAMPLES)
+            if (sample_read == DELAY_CACHE_CHANNEL_SAMPLES)
             {
                 sample_read = 0;
             }
@@ -279,7 +296,7 @@ void StereoDelay::update(void)
         }
 
         ++sample_write;
-        if (sample_write == DELAY_CACHE_SAMPLES)
+        if (sample_write == DELAY_CACHE_CHANNEL_SAMPLES)
             sample_write = 0;
     }
 
@@ -298,19 +315,19 @@ void StereoDelay::update(void)
     */
 }
 
-// **  delay_Main_Array[DELAY_CACHE_SAMPLES]  **
+// **  delay_Main_Array[DELAY_CACHE_CHANNEL_SAMPLES]  **
 //
 // Start
 // read_sample        write_sample
 // R------------------W----------------------------------------------------|
-// 0<-  delay_value ->                                           (DELAY_CACHE_SAMPLES - 1)
+// 0<-  delay_value ->                                           (DELAY_CACHE_CHANNEL_SAMPLES - 1)
 //
 // Running
 //            read_sample       write_sample
 // rrrrrrrrrrrR-------wwwwwwwwwwW------------------------------------------|
-// 0          <-  delay_value ->                                 (DELAY_CACHE_SAMPLES - 1)
+// 0          <-  delay_value ->                                 (DELAY_CACHE_CHANNEL_SAMPLES - 1)
 //
 // Running
 //                       read_sample       write_sample
 // rrrrrrrrrrrrrrrrrrrrrrRwwwwwwwwwwwwwwwwwW-------------------------------|
-// 0                     <-  delay_value ->                      (DELAY_CACHE_SAMPLES - 1)
+// 0                     <-  delay_value ->                      (DELAY_CACHE_CHANNEL_SAMPLES - 1)

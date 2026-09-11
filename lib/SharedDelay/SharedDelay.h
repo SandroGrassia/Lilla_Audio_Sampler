@@ -67,30 +67,18 @@ struct Delay_values_struct
 };
 
 extern Delay_values_struct Delay_values;
-static constexpr int PROGMEM delay_samples_table[100] =
-    {0, 11, 22, 33, 44, 55, 66, 77, 88, 110, 132, 154, 176, 221,
-     265, 309, 353, 397, 485, 573, 662, 750, 838, 1058, 1279, 1499,
-     1720, 1940, 2381, 2822, 3263, 3704, 4145, 4586, 5027, 5468, 5909,
-     6350, 7232, 8114, 8996, 9878, 10760, 11642, 12524, 13406, 14876,
-     16346, 17816, 19286, 20756, 22226, 23696, 25166, 26636, 28106,
-     29576, 31046, 32516, 34721, 36926, 39131, 41336, 43541, 45746,
-     47951, 50156, 52361, 54566, 56771, 58976, 61181, 63386, 65591,
-     67796, 70001, 72206, 74411, 76616, 81026, 85436, 89846, 94256,
-     98666, 103076, 107486, 111896, 116306, 120716, 125126, 132476,
-     139826, 147176, 154526, 161876, 169226, 176576, 183926, 196000, 220500};
-
 extern Delay_data_struct Delay_data;
 
 float Delay_feedback(int8_t value);
 void Calc_Delay_values(const Delay_data_struct data);
-void Turn_ON_Delay(const bool ON);
-void Calc_delay_routing(const uint8_t value);
-float Calc_delay_samples(const int value);
-float Calc_delay_samples_LR(int value);
-float Calc_delay_depth (const int value);
-float Calc_delay_frequency(const int value);
+void Turn_ON_Delay(bool ON);
+void Calc_delay_routing(uint8_t value);
+int Calc_delay_samples(int value);
+int Calc_delay_samples_LR(int value);
+float Calc_delay_depth (int value);
+float Calc_delay_frequency(int value);
 void Print_Delay_data(const Delay_data_struct &data);
-void Print_Delay_values(const Delay_values_struct Delay_values);
+void Print_Delay_values(Delay_values_struct Delay_values);
 
 // Pointer
 static constexpr int DELAY_element_names = 7;

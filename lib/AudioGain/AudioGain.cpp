@@ -25,62 +25,43 @@ void AudioGain::update(void)
     }
 }
 
-void AudioGain::Set_gain(float value)
+void AudioGain::Set_gain(float value) // Ramp to the exact target, including changes smaller than the previous dead band.
 {
-    float gain_diff = value - gain_runtime;
-
-    if (abs(gain_diff) > 0.002f)
+    if (gain_flag && value == gain_target)
     {
-        gain_flag = true;
-        gain_samples = abs(gain_diff) / 0.001f;
-        
-        if (gain_samples % 2 != 0)
-        {
-            gain_samples -= 1;
-        }
-
-        gain_delta = (gain_diff > 0 ? 0.001f : -0.001f);
-        gain_step = gain_samples;
+        return;
     }
+    gain_target = value;
+    const float difference = gain_target - gain_runtime;
+    if (difference == 0.0f)
+    {
+        gain_flag = false;
+        multiplier = gain_target * 65536.0f;
+        return;
+    }
+    gain_samples = static_cast<int>(ceilf(fabsf(difference) / 0.001f));
+    if (gain_samples < 2)
+    {
+        gain_samples = 2;
+    }
+    if (gain_samples % 2 != 0)
+    {
+        ++gain_samples;
+    }
+    gain_delta = difference / gain_samples;
+    gain_step = gain_samples;
+    gain_flag = true;
 }
 
-void AudioGain::Mute(void)
+void AudioGain::Mute(void) // Remember the current gain and use the same exact-target ramp to reach silence.
 {
     gain_runtime_0 = gain_runtime;
-    float gain_diff = -gain_runtime;
-
-    if (abs(gain_diff) > 0.002f)
-    {
-        gain_flag = true;
-        gain_samples = abs(gain_diff) / 0.001f;
-
-        if (gain_samples % 2 != 0)
-        {
-            gain_samples -= 1;
-        }
-
-        gain_delta = (gain_diff > 0 ? 0.001f : -0.001f);
-        gain_step = gain_samples;
-    }
+    Set_gain(0.0f); // Avoid leaving a small residual feedback signal after muting.
 }
 
-void AudioGain::Unmute(void)
+void AudioGain::Unmute(void) // Restore the saved gain through the common ramp.
 {
-    float gain_diff = gain_runtime_0 - gain_runtime;
-
-    if (abs(gain_diff) > 0.002f)
-    {
-        gain_flag = true;
-        gain_samples = abs(gain_diff) / 0.001f;
-
-        if (gain_samples % 2 != 0)
-        {
-            gain_samples -= 1;
-        }
-
-        gain_delta = (gain_diff > 0 ? 0.001f : -0.001f);
-        gain_step = gain_samples;
-    }
+    Set_gain(gain_runtime_0);
 }
 
 void AudioGain::applyGain(int16_t *data, int32_t mult)
@@ -124,7 +105,7 @@ void AudioGain::applyGain(int16_t *data, int32_t mult)
     } while (p < end);
 }
 
-void AudioGain::Get_mults(void)
+void AudioGain::Get_mults(void) // Advance two samples and snap the final multiplier to the requested gain.
 {
     gain_runtime += gain_delta;
     multiplier = gain_runtime * 65536.0f;
@@ -136,6 +117,9 @@ void AudioGain::Get_mults(void)
 
     if (gain_step <= 0)
     {
+        gain_runtime = gain_target;
+        multiplier = gain_target * 65536.0f;
+        mult_2 = multiplier;
         gain_flag = false;
     }
 }

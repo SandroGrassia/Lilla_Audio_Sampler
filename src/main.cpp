@@ -5,24 +5,27 @@
 */
 
 #include <Arduino.h>
+#include <util/atomic.h>
 #include <type_traits>
+#include <spi_interrupt.h>
 
 // **********************************************************
 // **************       VERSIONE LILLA         **************
 // **********************************************************
 /*
-    PCB: LILLA_2026_R2 - 2 PCBs
+    PCB: LILLA_2026_R2 - august 2026
 
     Hardware
-    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes); clock 600MHz
+    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes)
     - Audio Adaptor Rev.D
     - display: SPI ILI9341 240x320
     - n.1 Mic amplifier (AD828A) module
     - n.1 SPI Flash memory chip 64MB (W25Q512JVFIM)
-    - n.2 QSPI PSRAM chips 8MB (APS6404L-3SQR or ESP-PSRAM64H) tot: 16MB
-    - n.4 FRAM chips
+    - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
+    - n.2 FRAM chips 64Mbyte tot: 128MByte
     - n.5 Shift registers chips (MCP23S17)
 
+    Microcontrolleer
     RAM1 (fast): 512KB (16 blocks x 32KB)
     RAM2 (4 times slower): 512KB
 
@@ -46,19 +49,20 @@
     - GATE out
 
      (Direct) Sampler
-    - Sampler stores audio files into the 64MB Flash memory chip
+    - Sampler stores audio files into the external 64MB Flash memory chip
     - Sampler exports audio files into the micro SD card
 
     Live Sampler
-    - Live Sampler stores audio into 2 x 8MB PSRAM chips
+    - Live Sampler stores audio into the PSRAM chips
 
     Midi Loop
-    - Midi Loope stores loops data into the micro SD card
+    - Midi Loop stores loops data into the micro SD card
 
     Notes from: https://gist.github.com/somebox/d969f8a97e5a4362af5049ed554a9e69
     - Fact (Voltage Levels): Teensy 4.1 operates at 3.3V logic levels. Its I/O pins are NOT 5V tolerant. Applying more than 3.3V to any general-purpose I/O pin will cause permanent damage.
     - Best Practice (External Power): The VIN pin accepts an external voltage, with an official maximum of 6V, though staying at 5V is safest.
-    - Best Practice (Library Management): The Arduino IDE prioritizes libraries in Documents/Arduino/libraries. An older or incompatible library here can override the correct version bundled with Teensyduino, causing compilation errors. If you encounter unexpected library-related errors, check this folder for duplicates and remove them.
+    - Best Practice (Library Management): The Arduino IDE prioritizes libraries in Documents/Arduino/libraries. An older or incompatible library here can override the correct version bundled with Teensyduino, causing compilation errors.
+      If you encounter unexpected library-related errors, check this folder for duplicates and remove them.
     - Critical Warning (VUSB/VIN Separation): If using an external power source on VIN, you must cut the trace between the VUSB and VIN pads on the bottom of the board. Failure to do so can back-feed voltage to your computer's USB port, causing damage.
     - Fact (USB Host Power): The Teensy 4.1's USB Host port (VHST pin) provides a software-controllable 5V rail with built-in current limiting (~850mA hardware limit, but practically limited by the main 0.5A fuse if USB-powered). This is a feature unique to the T4.1.
 
@@ -66,7 +70,8 @@
     - Synchronization: Sequential digitalWriteFast() calls to multiple pins are not perfectly simultaneous. For true atomic, multi-pin state changes, direct port register manipulation is required.
     - Audio Library: The Audio library can conflict with other DMA-based libraries (like FastLED/ObjectFLED). This is often a low-level hardware resource contention, which can sometimes be mitigated by adjusting timing parameters in the conflicting library.
 
-    - Known Issue (USB Serial Output): Initial data sent via Serial.println() may be lost or jumbled. This is often a host-side issue. Best Practice: Use while(!Serial && millis() < 5000) {} to wait for the connection to be established without blocking indefinitely. Adding a small extra delay(2) after this loop can also improve reliability.
+    - Known Issue (USB Serial Output): Initial data sent via Serial.println() may be lost or jumbled. This is often a host-side issue. Best Practice: Use while(!Serial && millis() < 5000) {} to wait for the connection to be established without blocking indefinitely.
+      Adding a small extra delay(2) after this loop can also improve reliability.
 
     - External QSPI Flash: The pads on the bottom of the T4.1 can also be used for an external QSPI Flash chip (up to 256MB). This memory must be accessed via a filesystem like LittleFS. It cannot be used to extend the program memory.
 
@@ -90,7 +95,6 @@
 // ****************         LIBRARIES          *****************
 // *************************************************************
 
-// Standard classes
 #include <control_sgtl5000.h>
 #include <filter_biquad.h>
 #include <input_i2s.h>
@@ -136,10 +140,13 @@
 #include "AudioPlayer.h"
 #include "AudioADSR.h"
 #include "AudioVCF.h"
+
 #include "NoclickCrossmix.h"
 #include "WaveSine.h"
 #include "WaveVibrato.h"
 #include "WavetableManager.h"
+#include "AudioTables.h"
+
 #include "WaveLFO.h"
 #include "FilterBiquadManager.h"
 #include "LillaClock.h"
@@ -157,10 +164,10 @@
 #include "AudioFeedback.h"
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
+#include "CacheCycleFinalizer.h"
 
 #include "ArchivingManager.h"
-#include "PsramManager.h"
-#include "LillaFRAM_2x256.h"
+#include "LillaFRAM_2x512.h"
 
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
@@ -185,6 +192,8 @@
 #include "PointerSampler.h"
 #include "PointerMidiLoop.h"
 
+#include "PatchCacheManager.h"
+
 // *************************************************************
 // ****************   AUDIOSTREAM OBJECTS      *****************
 // *************************************************************
@@ -195,6 +204,7 @@ AudioPlayer Player[PLAYERS];
 Router_16x3 Router_L;
 Router_16x3 Router_R;
 LillaClock Trigger_1; // 2a Lettura midi
+CacheCycleFinalizer CacheCycle_finalizer;
 AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
 AudioPeakDetector PeakTracking_L; // Track the signal peak amplitude.
@@ -339,8 +349,7 @@ InfoMaster Info;     // Infos about audio files
 WaveVibrato Vibrato; // LFO for midi Vibrato effect
 float *Vibrato_array_pointer;
 uint8_t *Vibrato_array_last_element;
-NoclickCrossmix Noclick[INSTRUMENTS];    // creates n. INSTRUMENTS  Noclick objects used to mix "head + tail" snippets taken from Flash memory
-WavetableManager Wavetable[INSTRUMENTS]; // creates n. INSTRUMENTS Wavetable objects ready to copy sound snippets from Falsh memory to RAM
+DMAMEM AudioTables Audio_tables;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 FilterBiquadManager Filter_Biquad_Manager;
@@ -349,7 +358,6 @@ WaveLFO LFO_P0[PLAYERS];
 WaveLFO LFO_D[2];
 PlayersStatistics Players_statistics;
 FlashFileRegisterParser File_scanner;
-PsramManager PSRAM_Manager;
 
 DisplayManager Display_Manager;
 DisplaySound Display_Sound;
@@ -363,7 +371,8 @@ DisplayMidiLoop Display_MidiLoop;
 LoopLedSet Loop_led_set;
 PerformanceLedSet Performance_led_set;
 LoopMetronomo LOOP_metronomo(Display_MidiLoop);
-PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Noclick[0], &Wavetable[0]);
+PatchCacheManager PatchCache_Manager;
+PlayersManager Players_Manager(&Player[0], &Router_L, &Router_R, &Audio_tables, &PatchCache_Manager);
 MidiReader Midi_reader(LOOP_metronomo);
 DelayManager Delay_manager;
 AudioADSR ADSR[PLAYERS];
@@ -388,7 +397,7 @@ Switches Switches_manager;
 ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager, Switches_manager);
 
 // FRAM
-LillaFRAM_2x256 LillaFram;
+LillaFRAM_2x512 LillaFram;
 
 // Pointers
 PointerPerformance Pointer_Performance;
@@ -490,9 +499,10 @@ S_field_description_struct S_pointer;
 
 // functions
 void S_Map_one_Instrument_for_all_notes(const int instrument_id);
-void S_Drop_Instrument(const int instrument_id);                       // drop the instrument from the patch_id ONLY IF instruments > 1
+void S_Drop_Instrument(const int instrument_id);                       // Drop an instrument and release its cache pin while preserving playing tails.
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument); // insert ONE new instrument BELOW instrument
 bool S_Verify_is_Sound_original(int sound_id);
+void S_Refresh_source_limits(bool force); // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
 void S_Copy_all_Sound_to_Sound_cache_P(void);
 void S_Pull_all_Sound_from_Sound_cache_P(void);
 uint8_t S_Get_sounds_free(void);
@@ -503,17 +513,58 @@ uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
+bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade = false); // Main only. Preserve the audio IRQ state; activate or cancel a successfully prepared bank. Retiring-bank fading requires global interrupts to be enabled by the caller.
 
 // WAVETABLES
-void S_Get_all_Wavetable_pointer(void);
-void S_Fill_all_Wavetable(void);
-void S_Fill_Wavetable(int instrument_id);
 
 // NOCLICK
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);
-void S_Get_all_Noclick_pointer(void);
-void S_Fill_all_Noclick(void);
-void S_Fill_Noclick(uint8_t instrument_id);
+
+// AudioTables publication is coordinated here, outside the audio objects.
+bool S_Fill_tables(uint8_t instrument_id);                            // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
+bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
+bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete bank and preserve the previous presets if preparation fails.
+bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
+void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
+void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
+void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
+bool audio_tables_error_pending = false;
+
+bool S_Fill_tables(uint8_t instrument_id)
+{
+    return S_Rebuild_audio_tables(instrument_id);
+}
+
+bool S_Fill_all_tables(void)
+{
+    return S_Rebuild_audio_tables();
+}
+
+bool S_Rebuild_audio_tables(uint8_t edited_instrument)
+{
+    Preset_struct next_presets[INSTRUMENTS] = {};
+    uint16_t tables_mask = 0;
+    if (!P_Prepare_audio_tables(Patch_id, Volume_float[volume_patch], next_presets, tables_mask, true))
+    {
+        audio_tables_error_pending = true;
+        return false;
+    }
+    // The old preset is still published while the shared Flash/cache voice limit is checked.
+    if (edited_instrument < INSTRUMENTS)
+    {
+        Players_Manager.Verify_if_stop_players(Patch_id, edited_instrument);
+    }
+    if (!Players_Manager.Activate_prepared_presets(next_presets))
+    {
+        Audio_tables.Cancel_prepare();
+        audio_tables_error_pending = true;
+        return false;
+    }
+    return true;
+}
+
+// >>>>>>> FILE COPY TO PSRAM
+EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMPLES];
 
 // >>>>>>> SETTINGS
 int8_t SET_menu;
@@ -537,12 +588,15 @@ void CC_Save_settings(void);
 void CC_Read_all_Sound_gain(void);
 
 // >>>>>>> DELAY
-int16_t *DELAY_fifo_L = NULL;
-int16_t *DELAY_fifo_R = NULL;
+EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES];
+EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES];
 uint8_t delay_instrument_routing; // indica un instrument_id se <=7; se 8 indica instrument_id 0 e 1
 
 // pointer
 DELAY_element_name DELAY_local_pointer;
+
+void D_Set_value(int item, int value); // Publish one UI request through the same parameter owner used by patch changes.
+bool D_Read_value(int item);
 
 // >>>>>>> DIRECT_SAMPLING
 // menu
@@ -573,12 +627,12 @@ int DS_First_packet = 0;
 int DS_Last_packet = 0;
 
 // functions
-void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // to be called inside AudioNoInterrupt()
+bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Sampler model and tables with audio interrupts disabled.
 void DS_refresh_DS_page(void);
 void DS_ask_if_EXIT_from_DS(void);
-void DS_back_to_first_DS_Recording(void);
-void DS_convert_file_L(int file_L_RAW, int bytes);
-void DS_convert_file_R(int file_R_RAW, int bytes);
+bool DS_back_to_first_DS_Recording(void);          // Prepare the first remaining recording before restoring the Direct Sampler page.
+void DS_convert_file_L(int file_L_RAW, int bytes); // Convert the left recording channel and invalidate its previous RAW cache.
+void DS_convert_file_R(int file_R_RAW, int bytes); // Convert the right recording channel and invalidate its previous RAW cache.
 void DS_seed_all_Recordings(void);
 void DS_update_recordings(void);
 void DS_read_all_Recordings(void);
@@ -635,9 +689,11 @@ int LS_instrument;
 int LS_COMB = 64;
 int LS_window_step;
 const int LS_XY_DELTA_MIN = 4 * AUDIO_BLOCK_SAMPLES; // 5000
-int16_t *LS_buffer_mono_ptr = nullptr;
-int16_t *LS_buffer_L_ptr = nullptr;
-int16_t *LS_buffer_R_ptr = nullptr;
+
+EXTMEM int16_t LS_buffer_storage[LS_CACHE_TOTAL_SAMPLES];
+int16_t *const LS_buffer_mono_ptr = LS_buffer_storage;
+int16_t *const LS_buffer_L_ptr = LS_buffer_storage;
+int16_t *const LS_buffer_R_ptr = LS_buffer_storage + LS_CACHE_CHANNEL_SAMPLES;
 const int LS_REFRESH = 200; // tempo di refresh 160 ms
 elapsedMillis LS_wave_refresh_timer;
 
@@ -649,8 +705,7 @@ int LS_constrain_position(int value);
 void LS_lock_X_sample(void);
 void LS_update_both_X_Y_samples(void);
 void LS_update_Q_sample(void);
-void LS_erase_FIFO_array(int16_t *Array, int stereo);
-void LS_Setup_buffers(bool stereo, bool first);
+void LS_Reset_buffer(void);
 void LS_setup_LS_Patch(bool stereo);
 
 // >>>>>>> MIDI_LOOP
@@ -712,8 +767,9 @@ constexpr int headphones_pwm_volume_max = 40;
 
 // >>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
-void P_Jump_to_Patch(uint8_t next_patch);
-void P_Rebuild_patch_old(void);
+bool P_Jump_to_Patch(uint8_t next_patch); // Publish the destination patch only after its presets and tables are ready.
+bool P_Save_current_patch_as_new(void);   // Prepare the cloned patch before saving its sounds and metadata.
+bool P_Rebuild_patch_old(void);           // Restore the previous performance patch only after its tables are ready; call with audio interrupts disabled.
 void Golive_with_PERFORMANCE(int patch_id);
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void);       // si fermano i track
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);   // si ripristina Patch_id_old
@@ -725,10 +781,10 @@ void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void);     // si memorizza la patc
 void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void);       // si fermano i track e si passa alla LS_patch
 void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void); // si passa alla LS_patch
 void Golive_DIRECT_SAMPLING(void);
-void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording);
-void Switch_to_DIRECT_SAMPLING(void);                    // si passa alla DS_patch
-void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);     // si fermano i track e si passa alla DS_patch
-void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void); // si ferma la registrazione e si passa alla DS_patch
+bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording); // Prepare the selected recording before updating its playback presets and display.
+void Switch_to_DIRECT_SAMPLING(void);                      // si passa alla DS_patch
+void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);       // si fermano i track e si passa alla DS_patch
+void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void);   // si ferma la registrazione e si passa alla DS_patch
 void Golive_MIDI_MONITOR(void);
 void Switch_from_MIDI_LOOP_to_MIDI_MONITOR(void);    // si fermano i track
 void Golive_with_MIDI_LOOP(bool restart = false);    // passaggio e visualizzazione; restart == false non interrompe i track running
@@ -777,7 +833,7 @@ static inline void P_UpdatePatchOriginalAndMenu(void)
 }
 
 // >>>>>>>>>>> STARTUP
-void Startup_mode(void);
+bool Startup_mode(void); // Prepare tables for the selected startup mode before enabling MIDI callbacks.
 void Startup_hardware_and_objects(void);
 void Compile_tables(void);
 void Reload_system_state(void);
@@ -953,6 +1009,39 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
 }
 
+struct PatchEditSnapshot
+{
+    const int patch_id = Patch_id;
+    Patch_struct patch;
+    Sound_struct sounds[SOUNDS_MAX + 2];
+
+    PatchEditSnapshot(void) // Capture the editable model while preserving the caller's audio IRQ state.
+    {
+        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+        AudioNoInterrupts();
+        patch = Patch[patch_id];
+        memcpy(sounds, Sound, sizeof(sounds));
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+    }
+
+    void Restore(void) const // Restore the model and note maps after a failed preparation; published presets remain unchanged.
+    {
+        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+        AudioNoInterrupts();
+        Patch_id = patch_id;
+        Patch[patch_id] = patch;
+        memcpy(Sound, sounds, sizeof(sounds));
+        P_Update_all_maps_Instrument_for_notes();
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+    }
+};
+
 // *************************************************************
 // *************************************************************
 // ********************      SETUP     *************************
@@ -1082,7 +1171,15 @@ void setup()
 
 void loop()
 {
+
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
+
+    P_Service_patch_cache();
+    if (audio_tables_error_pending)
+    {
+        audio_tables_error_pending = false;
+        Serial.println(F("AudioTables preparation failed; previous playback presets retained"));
+    }
 
     // Update del/i led presenti (varia in base a LILLA_STATE)
     Update_instruments_leds();
@@ -1341,22 +1438,47 @@ void loop()
         {
             if (Read_pushbutton(EN_PB_Select))
             {
-                int8_t new_patch;
-
                 switch (P_element_menu[P_pointer.element])
                 {
                 case value_P_Exit: // drop Sound changes
+                {
                     AudioNoInterrupts();
+                    const PatchEditSnapshot previous;
                     Patch[Patch_id] = Patch_cache_P;
                     S_Pull_all_Sound_from_Sound_cache_P();
                     P_Update_all_maps_Instrument_for_notes();
-                    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]); // Update_all_Preset(int patch_id, float volume_patch)
-                    S_Fill_all_Noclick();
-                    S_Fill_all_Wavetable();
+
+                    const bool tables_rebuilt = S_Fill_all_tables();
+                    if (!tables_rebuilt)
+                    {
+                        previous.Restore();
+                        AudioInterrupts();
+                        break;
+                    }
+                    uint8_t active_bank_mask = 0;
+
+                    // Capture the active bank mask before restoring audio interrupts.
+                    if (tables_rebuilt)
+                    {
+                        for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+                        {
+                            active_bank_mask |= Audio_tables.Get_active_pointers(instrument_id).bank_mask;
+                        }
+                    }
                     AudioInterrupts();
 
-                    Pointer_Performance.Delete_pointer();
+                    // Report the result after restoring audio interrupts.
+                    if (tables_rebuilt)
+                    {
+                        Serial.print(F("AudioTables restore activated, bank mask: 0x"));
+                        Serial.println(active_bank_mask, HEX);
+                    }
+                    else
+                    {
+                        Serial.println(F("AudioTables restore tables not activated"));
+                    }
 
+                    Pointer_Performance.Delete_pointer();
                     patch_original = true;
                     P_Select_menu_elements();
                     P_Update_line_of_all_instruments();
@@ -1370,7 +1492,8 @@ void loop()
                     Clear_UI_events();
 
                     Print_Patch(Patch_id);
-                    break;
+                }
+                break;
 
                 case value_P_Save: // Save this Patch
                     S_Save_all_Sounds_changed();
@@ -1385,131 +1508,12 @@ void loop()
                     Golive_with_PERFORMANCE(Patch_id);
                     break;
 
-                case value_P_Clone: // and SAVE changes in the new Patch
-                    AudioNoInterrupts();
-                    Players_statistics.Reset_total_Players_per_instrument();
-
-                    // 1: copy all Instrument in the new patch_id, with same sound_id
-                    new_patch = S_Get_Patch_id_free();
-                    if (new_patch >= 0)
-                    {
-                        Sound_struct Sound_NEW[8];
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-                        {
-                            if (Patch[Patch_id].Instrument[instrument_id].used)
-                                Sound_NEW[instrument_id] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
-                        }
-                        S_Pull_all_Sound_from_Sound_cache_P(); // 3: restore all original Sound
-                        Patch[new_patch] = Patch[Patch_id];
-                        Patch[Patch_id] = Patch_cache_P; // 4: ora patch_id è ripristinata, anche i relativi Sound sono stati ripristinati
-
-                        // 5: Per ciascun Instrument utilizzato dalla Patch_NEW creo un nuovo Sound
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-                        {
-                            if (Patch[new_patch].Instrument[instrument_id].used)
-                            {
-                                int S = S_Get_sound_free();
-                                if (S >= 0)
-                                {
-                                    Sound[S] = Sound_NEW[instrument_id];
-                                    Patch[new_patch].Instrument[instrument_id].sound_id = S;
-                                }
-                                else
-                                    Patch[new_patch].Instrument[instrument_id].used = false;
-                            }
-                        }
-
-                        S_Save_all_Sounds_changed();
-                        Patch_id = new_patch;
-                        Archive.Save_Patch(Patch_id);
-                        Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
-
-                        // Save Delay_data in delay_<patch_id>.txt in SD
-                        Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
-
-                        P_Read_all_Patches();
-                        S_Read_all_Sounds();
-                        P_Update_Patches_number();
-                        P_Update_all_maps_Instrument_for_notes();
-                        Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-                        S_Fill_all_Noclick();
-                        S_Fill_all_Wavetable();
-                    }
-                    AudioInterrupts();
-
-                    Patch_cache_P = Patch[Patch_id];
-                    S_Copy_all_Sound_to_Sound_cache_P();
-
-                    Golive_with_PERFORMANCE(Patch_id);
-
-                    Print_Patch(Patch_id);
-                    break;
-
+                case value_P_Clone:
                 case value_P_SaveAsNew:
-                    AudioNoInterrupts();
-                    Players_statistics.Reset_total_Players_per_instrument();
-
-                    // 0: hunt some "instruments" sound_id free
-                    // 1: copy all Instrument in the new patch_id, with same sound_id
-                    new_patch = S_Get_Patch_id_free();
-                    if (new_patch >= 0)
+                    if (!P_Save_current_patch_as_new())
                     {
-                        Sound_struct Sound_NEW[INSTRUMENTS];
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-                        {
-                            if (Patch[Patch_id].Instrument[instrument_id].used)
-                            {
-                                Sound_NEW[instrument_id] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
-                            }
-                        }
-
-                        // 3: restore all original Sound
-                        S_Pull_all_Sound_from_Sound_cache_P();
-                        Patch[new_patch] = Patch[Patch_id];
-                        Patch[Patch_id] = Patch_cache_P;
-
-                        // 4: ora patch_id è ripristinata, anche i relativi Sound sono stati ripristinati
-                        // 5: Create a new Sound for each Instrument in new_patch
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-                        {
-                            if (Patch[new_patch].Instrument[instrument_id].used)
-                            {
-                                int sound_id = S_Get_sound_free();
-                                if (sound_id >= 0)
-                                {
-                                    Sound[sound_id] = Sound_NEW[instrument_id];
-                                    Patch[new_patch].Instrument[instrument_id].sound_id = sound_id;
-                                }
-                                else
-                                    Patch[new_patch].Instrument[instrument_id].used = false;
-                            }
-                        }
-
-                        S_Save_all_Sounds_changed();
-                        Patch_id = new_patch;
-                        Archive.Save_Patch(Patch_id);
-                        Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
-
-                        // Save Delay_data in delay_<patch_id>.txt in SD
-                        Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
-
-                        P_Read_all_Patches();
-                        S_Read_all_Sounds();
-                        P_Update_Patches_number();
-                        P_Update_all_maps_Instrument_for_notes();
-                        Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-                        S_Fill_all_Noclick();
-                        S_Fill_all_Wavetable();
+                        Serial.println(F("AudioTables clone not activated; current patch retained"));
                     }
-                    AudioInterrupts();
-
-                    Patch_cache_P = Patch[Patch_id];
-                    S_Copy_all_Sound_to_Sound_cache_P();
-                    P_Update_line_of_all_instruments();
-
-                    Golive_with_PERFORMANCE(Patch_id);
-
-                    Print_Patch(Patch_id);
                     break;
 
                 case value_P_DropPatch:
@@ -1518,33 +1522,43 @@ void loop()
                     // YES, drop
                     if (P_Ask_if_delete_this_Patch())
                     {
+                        const uint8_t deleted_patch = Patch_id;
+                        int next_patch = -1;
+                        for (int candidate = 0; candidate < PATCHES_MAX; ++candidate)
+                        {
+                            if (candidate != deleted_patch && Patch[candidate].used)
+                            {
+                                next_patch = candidate;
+                                break;
+                            }
+                        }
+                        if (next_patch < 0 || !P_Jump_to_Patch(next_patch))
+                        {
+                            break;
+                        }
                         Lilla_state = PERFORMANCE;
 
-                        AudioNoInterrupts();
-                        Players_Manager.Release_all_players();
-                        AudioInterrupts();
-
-                        Patch[Patch_id].used = false;
+                        Patch[deleted_patch].used = false;
                         for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
                         {
-                            if (Patch[Patch_id].Instrument[instrument_id].used)
+                            if (Patch[deleted_patch].Instrument[instrument_id].used)
                             {
-                                Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].used = false;
+                                Sound[Get_sound_id(deleted_patch, instrument_id)].used = false;
                             }
                         }
 
                         S_Save_all_Sounds_changed();
-                        Archive.Save_Patch(Patch_id);
-                        Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
+                        Archive.Save_Patch(deleted_patch);
+                        Archive.Copy_Patch_from_RAM_to_SD(deleted_patch);
 
                         // Delete delay_<patch_id>.txt file
-                        Archive.Delete_patch_Delay_data_in_SD(Patch_id);
+                        Archive.Delete_patch_Delay_data_in_SD(deleted_patch);
 
                         P_Read_all_Patches();
                         P_Update_Patches_number();
                         S_Read_all_Sounds();
 
-                        P_Jump_to_Patch(P_Get_first_Patch_id_existing());
+                        S_Copy_all_Sound_to_Sound_cache_P();
                     }
 
                     // NO, don't drop the patch
@@ -1593,6 +1607,7 @@ void loop()
 
                         else // change patch_id
                         {
+                            const PatchEditSnapshot previous;
                             if (action == 1) // No: discharge changings and switch patch_id
                             {
                                 Patch[Patch_id] = Patch_cache_P;
@@ -1607,7 +1622,11 @@ void loop()
                                 S_Read_all_Sounds();
                             }
 
-                            P_Jump_to_Patch(patch_change);
+                            if (!P_Jump_to_Patch(patch_change))
+                            {
+                                previous.Restore();
+                                return;
+                            }
 
                             if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id)) // Patch Delay: look for delay_<patch_id> in SD
                             {
@@ -1627,7 +1646,10 @@ void loop()
 
                     else // Patch_id IS original
                     {
-                        P_Jump_to_Patch(patch_change);
+                        if (!P_Jump_to_Patch(patch_change))
+                        {
+                            return;
+                        }
 
                         // Patch Delay: look for delay_<patch_id> in SD
                         if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id))
@@ -1666,7 +1688,7 @@ void loop()
         {
             const int instrument_id = static_cast<int>(P_pointer.instrument_id); // static_cast<int>(Pointer_Performance.Get_pointer().instrument_id);
             const int element = P_pointer.element;
-            const int sound_id = Patch[Patch_id].Instrument[instrument_id].sound_id;
+            const int sound_id = Get_sound_id(Patch_id, instrument_id);
 
             // Exit from Instrument_inside area
             if (Read_pushbutton(EN_PB_Select))
@@ -1774,7 +1796,13 @@ void loop()
             break;
 
             case value_P_RootKey: // Root key
-                if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[instrument_id].root_key, 127, 0, 1))
+                changed = Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[instrument_id].root_key, 127, 0, 1);
+                if (Read_pushbutton(EN_PB_Value))
+                {
+                    changed = (changed || Patch[Patch_id].Instrument[instrument_id].root_key != 60);
+                    Patch[Patch_id].Instrument[instrument_id].root_key = 60; // Restore middle C; use the normal edit path to retune active players.
+                }
+                if (changed)
                 {
                     AudioNoInterrupts();
                     Players_Manager.Multicast_change_players_notes(Patch_id, instrument_id);
@@ -1788,10 +1816,16 @@ void loop()
             case value_P_FromKey: // From Key
             {
                 result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0)
+                const bool reset_key = Read_pushbutton(EN_PB_Value); // Consume the click even when rotation occurs in the same loop.
+                if (result != 0 || reset_key)
                 {
                     changed = false;
-                    if (result == 1 && Patch[Patch_id].Instrument[instrument_id].from_note < Patch[Patch_id].Instrument[instrument_id].to_note)
+                    if (reset_key)
+                    {
+                        from_key_change = 0; // Extend the lower note boundary through the existing mapping update.
+                        changed = Patch[Patch_id].Instrument[instrument_id].from_note != from_key_change;
+                    }
+                    else if (result == 1 && Patch[Patch_id].Instrument[instrument_id].from_note < Patch[Patch_id].Instrument[instrument_id].to_note)
                     {
                         from_key_change = Patch[Patch_id].Instrument[instrument_id].from_note + 1;
                         changed = true;
@@ -1815,11 +1849,18 @@ void loop()
             break;
 
             case value_P_ToKey: // To key
+            {
                 result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0)
+                const bool reset_key = Read_pushbutton(EN_PB_Value); // Consume the click even when rotation occurs in the same loop.
+                if (result != 0 || reset_key)
                 {
                     changed = false;
-                    if (result == 1 && Patch[Patch_id].Instrument[instrument_id].to_note < 127)
+                    if (reset_key)
+                    {
+                        to_key_change = 127; // Extend the upper note boundary through the existing mapping update.
+                        changed = Patch[Patch_id].Instrument[instrument_id].to_note != to_key_change;
+                    }
+                    else if (result == 1 && Patch[Patch_id].Instrument[instrument_id].to_note < 127)
                     {
                         to_key_change = Patch[Patch_id].Instrument[instrument_id].to_note + 1;
                         changed = true;
@@ -1841,7 +1882,8 @@ void loop()
                         P_UpdatePatchOriginalAndMenu();
                     }
                 }
-                break;
+            }
+            break;
 
             case value_P_Pan: // Pan
                 if (Read_encoder(EN_PB_Value, Sound[sound_id].pan, 16, -16, 1))
@@ -1917,7 +1959,7 @@ void loop()
                     Lilla_state_0 = PERFORMANCE;
                     Lilla_state = SOUND_EDIT;
 
-                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -2028,8 +2070,13 @@ void loop()
     // ********************    SOUND EDIT   ************************
     // *************************************************************
 
+    static bool sound_edit_was_active = false;
+    const bool entering_sound_edit = !sound_edit_was_active && Lilla_state == SOUND_EDIT;
+    sound_edit_was_active = Lilla_state == SOUND_EDIT;
     if (Lilla_state == SOUND_EDIT)
     {
+        S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
+        const Sound_struct sound_before_edit = Sound[Sound_id];
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
@@ -2076,14 +2123,22 @@ void loop()
                 case value_S_Clone:
                 {
                     AudioNoInterrupts();
+                    const PatchEditSnapshot previous;
                     int new_instrument = 0;
-                    if (S_Clone_Instrument(Instrument_id, new_instrument)) // if true, also increments instruments
+                    if (S_Clone_Instrument(Instrument_id, new_instrument))
                     {
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
-                        Update_map_Instrument_for_notes(Patch[Patch_id].Instrument[Instrument_id].from_note, Patch[Patch_id].Instrument[Instrument_id].to_note, Instrument_id);
-                        Players_Manager.Update_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                        S_Fill_Noclick(Instrument_id);
-                        S_Fill_Wavetable(Instrument_id);
+                        if (S_Fill_tables(new_instrument))
+                        {
+                            P_Update_all_maps_Instrument_for_notes();
+                        }
+                        else
+                        {
+                            previous.Restore();
+                        }
+                    }
+                    else
+                    {
+                        previous.Restore();
                     }
                     AudioInterrupts();
 
@@ -2138,14 +2193,28 @@ void loop()
                         Sound[Sound_id].A = 0;
                         Sound[Sound_id].B = (samples_in_file > 0 ? samples_in_file - 1 : 0);
                         if (!slicing_mode)
+                        {
                             S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
-                        // A_value = Sound[sound_id].A;
-                        Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                        }
+                        Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
+                        if (Sound[Sound_id].Noclick > Noclick_max)
+                        {
+                            Sound[Sound_id].Noclick = Noclick_max;
+                        }
 
                         AudioNoInterrupts();
-                        Players_Manager.Update_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
-                        S_Fill_Noclick(Instrument_id);   // DEVE essere preceduto da Update_Preset
-                        S_Fill_Wavetable(Instrument_id); // DEVE essere preceduto da S_Fill_Noclick
+
+                        if (!S_Fill_tables(Instrument_id))
+                        {
+                            Sound[Sound_id] = sound_before_edit;
+                            Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                            samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+                            if (!slicing_mode)
+                            {
+                                S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
+                            }
+                            Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
+                        }
                         AudioInterrupts();
 
                         S_trim_step = S_Calc_trim_step(trim_speed);
@@ -2522,10 +2591,59 @@ void loop()
                 if (Read_encoder(EN_PB_Value, Sound[Sound_id].mode, 5, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Players_Manager.Update_Preset_mode(Patch_id, Instrument_id);
-                    S_Fill_Wavetable(Instrument_id); // changing mode, a new Wavetable is needed (using the old NoClick table because A and B are NOT changed);
-                    Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                    // Capture the banks referenced before preparing the edit.
+                    uint8_t player_banks_before = 0;
+                    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+                    {
+                        player_banks_before |= Player[player_id].Get_tables_reference_mask();
+                    }
+
+                    // Check the updated preset against the tables prepared before this edit.
+                    const Preset_struct candidate = Players_Manager.Build_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                    const bool tables_matched_before = Audio_tables.Get_active_pointers(Instrument_id, candidate).bank_mask != 0;
+
+                    const bool tables_rebuilt = S_Fill_tables(Instrument_id);
+
+                    if (!tables_rebuilt)
+                    {
+                        Sound[Sound_id] = sound_before_edit;
+                        Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                    }
+                    const uint8_t active_bank_mask = tables_rebuilt ? Audio_tables.Get_active_pointers(Instrument_id, Preset[Instrument_id]).bank_mask : 0;
+
+                    if (tables_rebuilt)
+                    {
+                        Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                    }
+
+                    // Capture current and pending references before audio updates resume.
+                    uint8_t player_banks_queued = 0;
+                    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+                    {
+                        player_banks_queued |= Player[player_id].Get_tables_reference_mask();
+                    }
                     AudioInterrupts();
+
+                    Serial.print(F("AudioTables player refs, before: 0x"));
+                    Serial.print(player_banks_before, HEX);
+                    Serial.print(F(", queued: 0x"));
+                    Serial.println(player_banks_queued, HEX);
+                    // Report both checks after restoring audio interrupts.
+                    Serial.print(F("AudioTables edit preset match, before: "));
+                    Serial.print(tables_matched_before);
+                    Serial.print(F(", after: "));
+                    Serial.println(active_bank_mask != 0);
+
+                    // Report the result after restoring audio interrupts.
+                    if (tables_rebuilt)
+                    {
+                        Serial.print(F("AudioTables edit activated, bank mask: 0x"));
+                        Serial.println(active_bank_mask, HEX);
+                    }
+                    else
+                    {
+                        Serial.println(F("AudioTables edit tables not activated"));
+                    }
 
                     Display_Sound.Show_Play_mode_value(Instrument_id);
 
@@ -2540,7 +2658,7 @@ void loop()
                         Display_Sound.Show_SOUND_menu();
                     }
 
-                    Serial.println("Change MODE: ");
+                    Serial.print("Change MODE: ");
                     Serial.println(Sound[Sound_id].mode);
                 }
             }
@@ -2594,10 +2712,16 @@ void loop()
                     if (changed)
                     {
                         AudioNoInterrupts();
-                        Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
-                        S_Fill_Noclick(Instrument_id);
-                        S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
-                        Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+
+                        if (!S_Fill_tables(Instrument_id))
+                        {
+                            Sound[Sound_id] = sound_before_edit;
+                            Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                        }
+                        else
+                        {
+                            Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                        }
                         AudioInterrupts();
 
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2631,8 +2755,8 @@ void loop()
             Display_Sound.Show_Trim_step_value();
         }
 
-        // Change slicing mode: true:FIRST/LAST    false:FIRST/WINDOW
-        if (Read_pushbutton(EN_PB_To))
+        // Toggle TO/SLICE mode with the step encoder button; rotation still changes trim speed.
+        if (Read_pushbutton(EN_PB_Step))
         {
             slicing_mode = !slicing_mode;
             if (!slicing_mode)
@@ -2640,14 +2764,6 @@ void loop()
                 S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
             }
             Display_Sound.Show_wave(Instrument_id);
-        }
-
-        // Set Default trim speed
-        if (Read_pushbutton(EN_PB_Step))
-        {
-            trim_speed = 5;
-            S_trim_step = S_Calc_trim_step(trim_speed);
-            Display_Sound.Show_Trim_step_value();
         }
 
         // Change A
@@ -2708,19 +2824,23 @@ void loop()
                 {
                     S_trim_step = S_Calc_trim_step(5);
                 }
-                // verify if stop players: it can happend if use_Wavetable switches to "false". Than update Preset[I].A (DO NOT invert the sequence)
-                Players_Manager.Verify_if_stop_players(Patch_id, Instrument_id);
-                Players_Manager.Update_Preset_A_B_Wavetable(Patch_id, Instrument_id);
-                Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                // Clamp the candidate crossfade before preparing the replacement bank.
+
+                Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
                 if (Sound[Sound_id].Noclick > Noclick_max)
                 {
                     Sound[Sound_id].Noclick = Noclick_max;
-                    Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
                 }
-                // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_Noclick(Instrument_id);
-                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
-                Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                // Publish the replacement tables before queuing the live edit.
+                if (!S_Fill_tables(Instrument_id))
+                {
+                    Sound[Sound_id] = sound_before_edit;
+                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                }
+                else
+                {
+                    Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                }
                 AudioInterrupts();
 
                 Display_Sound.Show_players_Pitch_max_value(Instrument_id);
@@ -2755,20 +2875,24 @@ void loop()
                 {
                     S_trim_step = S_Calc_trim_step(5);
                 }
-                // verify if stop players: it can happend if use_Wavetable switches to "false". Than update Preset[I].A (DO NOT invert the sequence)
-                Players_Manager.Verify_if_stop_players(Patch_id, Instrument_id);
-                Players_Manager.Update_Preset_A_B_Wavetable(Patch_id, Instrument_id);
-                Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                // Clamp the candidate crossfade before preparing the replacement bank.
+
+                Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
                 if (Sound[Sound_id].Noclick > Noclick_max)
                 {
                     Sound[Sound_id].Noclick = Noclick_max;
-                    Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
                 }
 
-                // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_Noclick(Instrument_id);
-                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
-                Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                // Publish the replacement tables before queuing the live edit.
+                if (!S_Fill_tables(Instrument_id))
+                {
+                    Sound[Sound_id] = sound_before_edit;
+                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                }
+                else
+                {
+                    Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                }
                 AudioInterrupts();
 
                 Display_Sound.Show_players_Pitch_max_value(Instrument_id);
@@ -2787,12 +2911,17 @@ void loop()
             }
         }
 
-        // Change B
+        // Change B by rotation or jump to the last file sample with the encoder button.
         result = Read_encoder_simple(EN_PB_To);
-        if (result != 0)
+        const bool trim_to_end = Read_pushbutton(EN_PB_To);
+        if (result != 0 || trim_to_end)
         {
             uint32_t So_B_change;
-            if (result == 1)
+            if (trim_to_end)
+            {
+                So_B_change = samples_in_file - 1; // Reuse the normal B edit path to rebuild tables and update playback and display.
+            }
+            else if (result == 1)
             {
                 if ((Sound[Sound_id].B + 1 + S_trim_step) <= samples_in_file)
                 {
@@ -2825,21 +2954,46 @@ void loop()
                     S_trim_step = S_Calc_trim_step(5);
                 }
 
-                // verify if stop players: it can happend if use_Wavetable switches to "false". Than update Preset[I].A (DO NOT invert the sequence)
-                Players_Manager.Verify_if_stop_players(Patch_id, Instrument_id); // MUST be done BEFORE updating Preset
-                Players_Manager.Update_Preset_A_B_Wavetable(Patch_id, Instrument_id);
-                Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                // Clamp the candidate crossfade before preparing the replacement bank.
+
+                Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
                 if (Sound[Sound_id].Noclick > Noclick_max)
                 {
                     Sound[Sound_id].Noclick = Noclick_max;
-                    Players_Manager.Update_Preset_Noclick(Patch_id, Instrument_id);
                 }
 
-                // create new Noclick and Wavetable wavetables, than communicate the new references to the Players
-                S_Fill_Noclick(Instrument_id);
-                S_Fill_Wavetable(Instrument_id); // MUST be preceded by "S_Fill_Noclick(Instrument_id)"
-                Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                // Publish the replacement tables before queuing the live edit.
+                const bool tables_rebuilt = S_Fill_tables(Instrument_id);
+                if (!tables_rebuilt)
+                {
+                    Sound[Sound_id] = sound_before_edit;
+                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                }
+                const uint8_t active_bank_mask = tables_rebuilt ? Audio_tables.Get_active_pointers(Instrument_id, Preset[Instrument_id]).bank_mask : 0;
+                const int edited_B = Preset[Instrument_id].B;
+
+                if (tables_rebuilt)
+                {
+                    Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                }
+
+                // Capture current and pending references before audio updates resume.
+                uint8_t player_banks_queued = 0;
+                for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+                {
+                    player_banks_queued |= Player[player_id].Get_tables_reference_mask();
+                }
                 AudioInterrupts();
+
+                // Report the trim result after restoring audio interrupts.
+                Serial.print(F("AudioTables trim B: "));
+                Serial.print(edited_B);
+                Serial.print(F(", ready: "));
+                Serial.print(tables_rebuilt && active_bank_mask != 0);
+                Serial.print(F(", bank: 0x"));
+                Serial.print(active_bank_mask, HEX);
+                Serial.print(F(", refs: 0x"));
+                Serial.println(player_banks_queued, HEX);
 
                 if (!slicing_mode)
                 {
@@ -2893,10 +3047,10 @@ void loop()
 
                     Instrument_id = Inst_id;
 
-                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
-                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                    Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
@@ -3302,7 +3456,7 @@ void loop()
 
                         Lilla_state = SOUND_EDIT;
 
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                        Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -3416,7 +3570,7 @@ void loop()
 
                         Lilla_state = SOUND_EDIT;
 
-                        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                        Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -3576,7 +3730,7 @@ void loop()
             Clear_UI_events();
 
             Instrument_id = (MX_local_pointer.source < LINE_IN_source ? MX_local_pointer.source : 0);
-            Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+            Sound_id = Get_sound_id(Patch_id, Instrument_id);
         }
 
         // Change values
@@ -3996,226 +4150,75 @@ void loop()
         switch (DELAY_local_pointer)
         {
         case value_DELAY_Feedback:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.loop_gain, Delay_data_limits[LOOP_GAIN][1], Delay_data_limits[LOOP_GAIN][0], 1))
+            if (D_Read_value(LOOP_GAIN))
             {
-                Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-                Serial.println(Delay_values.loop_gain);
-
-                AudioNoInterrupts();
-                D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-                D_gain_R_n.Set_gain(Delay_values.loop_gain);
-                AudioInterrupts();
-
                 Display_Delay.D_feedback();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Delay_time:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.samples, 99, 0, 1))
+            if (D_Read_value(SAMPLES))
             {
-                Delay_values.samples = Calc_delay_samples(Delay_data.samples);
-
-                AudioNoInterrupts();
-                if (Delay_values.samples_LR >= 0) // Left channel
-                {
-                    Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                    Delay_R.Set_delay_central_value(Delay_values.samples);
-                }
-                else
-                {
-                    Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                    Delay_L.Set_delay_central_value(Delay_values.samples);
-                }
-                AudioInterrupts();
-
                 Display_Delay.D_delay_time();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Delay_time_LR:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.samples_LR, 10, -10, 1))
+            if (D_Read_value(SAMPLES_LR))
             {
-                Delay_values.samples_LR = Calc_delay_samples_LR(Delay_data.samples_LR);
-
-                AudioNoInterrupts();
-                if (Delay_values.samples_LR >= 0) // Left channel
-                {
-                    Delay_L.Set_delay_central_value(Delay_values.samples + Delay_values.samples_LR);
-                }
-                else
-                {
-                    Delay_R.Set_delay_central_value(Delay_values.samples - Delay_values.samples_LR);
-                }
-                AudioInterrupts();
-
                 Display_Delay.D_delay_time_LR();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_source:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_source, 2, 0, 1))
+            if (D_Read_value(MODULATION_SOURCE))
             {
-                Delay_values.modulation_source = Delay_data.modulation_source;
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-                Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_source();
             }
-
-            // Change delay_modulation_source = NONE
             else if (Read_pushbutton(EN_PB_Value))
             {
-                Delay_data.modulation_source = 0;
-                Delay_values.modulation_source = Delay_data.modulation_source;
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // Left channel
-                Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // Right channel
-                AudioInterrupts();
-
+                D_Set_value(MODULATION_SOURCE, 0); // Cancel any pending source selection before displaying NONE.
                 Display_Delay.D_modulation_source();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_frequency:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_frequency, 90, 0, 1))
+            if (D_Read_value(MODULATION_FREQUENCY))
             {
-                Delay_values.modulation_frequency = Calc_delay_frequency(Delay_data.modulation_frequency);
-
-                AudioNoInterrupts();
-                LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
-                LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_frequency();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_depth:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_depth, 39, 0, 1))
+            if (D_Read_value(MODULATION_DEPTH))
             {
-                Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_depth();
             }
-
-            // Set delay_modulation_depth = 0
             else if (Read_pushbutton(EN_PB_Value))
             {
-                Delay_data.modulation_depth = 0;
-
-                Delay_values.modulation_depth = Calc_delay_depth(Delay_data.modulation_depth);
-
-                AudioNoInterrupts();
-                Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
-                AudioInterrupts();
-
+                D_Set_value(MODULATION_DEPTH, 0); // Fade toward zero depth through the shared transition manager.
                 Display_Delay.D_modulation_depth();
             }
-        }
-        break;
-
+            break;
         case value_DELAY_Modulation_phase_LR:
-        {
-            if (Read_encoder(EN_PB_Value, Delay_data.modulation_phase_LR, 359, 0, 1))
+            if (D_Read_value(MODULATION_PHASE_LR))
             {
-                Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-                AudioNoInterrupts();
-                LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-                AudioInterrupts();
-
                 Display_Delay.D_modulation_phase_LR();
             }
-
-            // Change delay_modulation_phase_LR = 0
             else if (Read_pushbutton(EN_PB_Value))
             {
-                Delay_data.modulation_phase_LR = 0;
-                Delay_values.modulation_phase_LR = Delay_data.modulation_phase_LR;
-
-                AudioNoInterrupts();
-                LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
-                AudioInterrupts();
-
+                D_Set_value(MODULATION_PHASE_LR, 0);
                 Display_Delay.D_modulation_phase_LR();
             }
-        }
-        break;
-
+            break;
         default:
             break;
         }
 
-        // Configure Instrument routing
+        // Toggle requested routing bits; the audio callback updates every affected voice.
         for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
             if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                if (Lilla_state_0 != LIVE_SAMPLING)
-                {
-                    Delay_values.instrument_route[Inst_id] = !Delay_values.instrument_route[Inst_id];
-                    bitWrite(Delay_data.instrument_route, Inst_id, (Delay_values.instrument_route[Inst_id] ? 1 : 0));
-                    delay_instrument_routing = Inst_id;
-
-                    AudioNoInterrupts();
-
-                    if (delay_instrument_routing < INSTRUMENTS)
-                    {
-                        Players_Manager.MX_multicast_change_routing(delay_instrument_routing);
-                    }
-                    else
-                    {
-                        Players_Manager.MX_multicast_change_routing(0);
-                        Players_Manager.MX_multicast_change_routing(1);
-                    }
-                    AudioInterrupts();
-
-                    Display_Delay.D_sounds();
-                }
-                else
-                {
-                    Delay_values.instrument_route[0] = !Delay_values.instrument_route[0];
-                    Delay_values.instrument_route[1] = !Delay_values.instrument_route[1];
-                    bitWrite(Delay_data.instrument_route, 0, (Delay_values.instrument_route[0] ? 1 : 0));
-                    bitWrite(Delay_data.instrument_route, 1, (Delay_values.instrument_route[1] ? 1 : 0));
-
-                    delay_instrument_routing = 10; // indica un instrument se <=7; se 10 indica instrument 0 e 1
-
-                    AudioNoInterrupts();
-                    if (delay_instrument_routing <= 7)
-                    {
-                        Players_Manager.MX_multicast_change_routing(delay_instrument_routing);
-                    }
-                    else
-                    {
-                        Players_Manager.MX_multicast_change_routing(0);
-                        Players_Manager.MX_multicast_change_routing(1);
-                    }
-                    AudioInterrupts();
-
-                    Display_Delay.D_sounds();
-                }
+                const int route = Delay_manager.Get_value(INSTRUMENT_ROUTE);
+                const int next_route = Lilla_state_0 == LIVE_SAMPLING ? ((route & 3) != 0 ? route & ~3 : route | 3) : route ^ (1 << Inst_id);
+                D_Set_value(INSTRUMENT_ROUTE, next_route); // Live sampling enables or disables both channels together, even when the stored bits differ.
+                Display_Delay.D_sounds();
             }
         }
 
@@ -4589,11 +4592,16 @@ void loop()
                 {
                     Midi_reader.Stop(); // NON sostituire con AudioNoInterrupts!
 
+                    AudioNoInterrupts();
+                    Players_Manager.Stop_all_players();
+                    AudioInterrupts();
+
                     LS_stereo = !LS_stereo;
                     LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
                     LS_window_width = LS_buffer_dim;
                     LS_window_step = LS_window_width / 8;
-                    LS_Setup_buffers(LS_stereo, false); // LS_Setup_buffers(bool stereo, bool first)
+                    LS_Reset_buffer();
+                    LS_state = EMPTY;
                     LS_setup_LS_Patch(LS_stereo);
 
                     AudioNoInterrupts();
@@ -4606,7 +4614,7 @@ void loop()
                     LS_instrument = 0;
                     LS_X_delta = 0;
                     LS_X_sample = 0;
-                    LS_XY_delta = 44100;
+                    LS_XY_delta = AUDIO_SAMPLE_RATE;
                     LS_Y_sample = LS_X_sample + LS_XY_delta;
                     LS_X_step = LS_window_width / LS_COMB;
 
@@ -4626,17 +4634,7 @@ void loop()
                     Players_Manager.Stop_all_players();
                     AudioInterrupts();
 
-                    if (LS_stereo)
-                    {
-                        LS_erase_FIFO_array(LS_buffer_L_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                        LS_erase_FIFO_array(LS_buffer_R_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-                    }
-                    else
-                        LS_erase_FIFO_array(LS_buffer_mono_ptr, LS_stereo); // LS_erase_FIFO_array(const int16_t* Array, int stereo)
-
-                    Serial.println("Live Samplier buffer(s) erased!");
-
-                    LiveSampler.Reset(); // reset Q_sample and P_sample
+                    LS_Reset_buffer();
                     LS_state = EMPTY;
                     LS_sound_id = SOUNDS_MAX; // mostra sempre il primo Sound
                     LS_instrument = 0;
@@ -4644,7 +4642,7 @@ void loop()
                     LS_window_step = LS_window_width / 8;
                     LS_X_sample = 0;
                     LS_X_delta = 0;
-                    LS_XY_delta = 44100;
+                    LS_XY_delta = AUDIO_SAMPLE_RATE;
                     LS_Y_sample = LS_X_sample + LS_XY_delta;
                     LS_X_step = LS_window_width / LS_COMB;
 
@@ -5292,7 +5290,10 @@ void loop()
 
                 VFS_Print_FAT();
 
-                DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+                if (!DS_Jump_to_DIRECT_SAMPLING_recording(recording))
+                {
+                    return;
+                }
 
                 // Reporting
                 P_Recording(recording);
@@ -5335,6 +5336,7 @@ void loop()
                     Display_Sampler.DS_advice_delete(true);
 
                     // Delete recording
+                    P_Invalidate_recording_cache(recording);
                     Recording[recording].consistent = false;
                     VFS_Clean_up_VFS();
                     VFS_Defragment();
@@ -5343,7 +5345,10 @@ void loop()
 
                     // restart from first recording (if exist)
                     recording = DS_get_next_Recording(-1);
-                    DS_back_to_first_DS_Recording();
+                    if (!DS_back_to_first_DS_Recording())
+                    {
+                        return;
+                    }
                     Display_Sampler.DS_available_memory();
                 }
                 break;
@@ -5388,6 +5393,7 @@ void loop()
                 case 2: // Mono Rec
                 {
                     DS_state = DS_recording_state;
+                    P_Invalidate_recording_cache(recording);
 
                     Recording[recording].stereo = false;
                     Recording[recording].consistent = false;
@@ -5431,6 +5437,7 @@ void loop()
                 case 3: // Stereo Rec
                 {
                     DS_state = DS_recording_state;
+                    P_Invalidate_recording_cache(recording);
 
                     Recording[recording].stereo = true;
                     Recording[recording].consistent = false;
@@ -5523,7 +5530,10 @@ void loop()
                     // VFS_Print_FAT();
                     P_Recording(recording);
 
-                    DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+                    if (!DS_Jump_to_DIRECT_SAMPLING_recording(recording))
+                    {
+                        return;
+                    }
                     Midi_reader.Start();
                 }
                 break;
@@ -5717,6 +5727,7 @@ void loop()
                     // Delete recording
                     if (choice_DS_menu > 6)
                     {
+                        P_Invalidate_recording_cache(recording);
                         Recording[recording].consistent = false;
                         VFS_Clean_up_VFS();
                         VFS_Defragment();
@@ -5725,7 +5736,10 @@ void loop()
 
                         // Load first recording (if exist)
                         recording = DS_get_next_Recording(-1);
-                        DS_back_to_first_DS_Recording();
+                        if (!DS_back_to_first_DS_Recording())
+                        {
+                            return;
+                        }
                     }
 
                     Print_flash_file_list();
@@ -6182,7 +6196,10 @@ void loop()
                         AudioInterrupts();
 
                         recording = DS_recording_change;
-                        DS_Jump_to_DIRECT_SAMPLING_recording(recording);
+                        if (!DS_Jump_to_DIRECT_SAMPLING_recording(recording))
+                        {
+                            return;
+                        }
 
                         // Recording
                         P_Recording(recording);
@@ -7353,7 +7370,7 @@ void loop()
                     Lilla_state = SOUND_EDIT;
 
                     Instrument_id = Inst_id;
-                    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+                    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 
                     samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
@@ -7417,7 +7434,7 @@ void loop()
 
         // SETUP_Optimization
         optimization_cache = optimization;
-        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, optimization_cache, 3, 0, 1))
+        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, optimization_cache, OPTIMIZATION_OPTIONS - 1, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Stop_all_players();
@@ -7467,18 +7484,33 @@ void loop()
                 // break;
 
             case 4: // import RAW files from SD
-                AudioNoInterrupts();
-                Players_Manager.Stop_all_players();
-                AudioInterrupts();
+                if (!P_Quiesce_audio_players())
+                {
+                    break;
+                }
 
                 if (SET_Copy_raw_files_from_SD_to_Flash())
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
+
+                    // switch off Tools LED
+                    TOOLS_pushbutton = false;
+                    Shifters_manager.Switch_led(LED_Tools, false);
+
                     Reload_system_state();
                 }
                 else
                 {
+                    AudioNoInterrupts();
+                    const bool ready = S_Fill_all_tables();
+                    if (ready)
+                    {
+                        Midi_reader.Start();
+                        Trigger_0.Start();
+                        Trigger_1.Start();
+                    }
+                    AudioInterrupts();
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                 }
@@ -7524,8 +7556,17 @@ void loop()
                         Serial.println("Lilla setup has been copied from lilla.txt to EEPROM");
                     }
 
-                    // eventually imported Recordings MUST be deleted
+                    if (!P_Quiesce_audio_players())
+                    {
+                        break;
+                    }
+                    // Imported recording metadata replaces the previous inventory only after players stop.
                     DS_seed_all_Recordings();
+
+                    // switch off Tools LED
+                    TOOLS_pushbutton = false;
+                    Shifters_manager.Switch_led(LED_Tools, false);
+
                     Reload_system_state();
                 }
                 break;
@@ -7599,6 +7640,15 @@ void loop()
                 Display_Manager.Factory_reset_wait_popup();
 
                 delay(3000); // per ripensamenti last minute!
+
+                // switch off Tools LED
+                TOOLS_pushbutton = false;
+                Shifters_manager.Switch_led(LED_Tools, false);
+
+                if (!P_Quiesce_audio_players())
+                {
+                    break;
+                }
                 Factory_setup_Eeprom();
                 Reload_system_state();
                 break;
@@ -8089,23 +8139,30 @@ bool P_Verify_if_Instrument_original(const int instrument_id)
         return true;
     }
 
-    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) &&
-           S_Verify_is_Sound_original(Patch[Patch_id].Instrument[instrument_id].sound_id);
+    return (Patch[Patch_id].Instrument[instrument_id] == Patch_cache_P.Instrument[instrument_id]) && S_Verify_is_Sound_original(Get_sound_id(Patch_id, instrument_id));
 }
 
-void P_Rebuild_patch_old(void)
+bool P_Rebuild_patch_old(void)
 {
+    Preset_struct next_presets[INSTRUMENTS] = {};
+    uint16_t tables_mask = 0;
+    if (!P_Prepare_audio_tables(Patch_id_old, Volume_float[volume_patch], next_presets, tables_mask, true))
+    {
+        audio_tables_error_pending = true;
+        return false;
+    }
+    if (!Players_Manager.Activate_prepared_presets(next_presets))
+    {
+        Audio_tables.Cancel_prepare();
+        audio_tables_error_pending = true;
+        return false;
+    }
     Players_Manager.Release_softly_all_players(Patch_id);
     Players_statistics.Reset_total_Players_per_instrument();
-
     Patch_id = Patch_id_old;
-
     P_Update_line_of_all_instruments();
     P_Update_all_maps_Instrument_for_notes();
-
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-    S_Fill_all_Noclick();
-    S_Fill_all_Wavetable();
+    return true;
 }
 
 FLASHMEM
@@ -8169,24 +8226,115 @@ bool P_Ask_if_delete_this_Patch(void)
     return (action == 1 ? true : false);
 }
 
-void P_Jump_to_Patch(uint8_t next_patch)
+bool P_Jump_to_Patch(uint8_t next_patch)
 {
+    Preset_struct next_presets[INSTRUMENTS] = {};
+    uint16_t next_tables_mask = 0;
+    if (!P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask, true))
+    {
+        audio_tables_error_pending = true;
+        return false;
+    }
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
+    if (!Players_Manager.Activate_prepared_presets(next_presets))
+    {
+        Audio_tables.Cancel_prepare();
+        audio_tables_error_pending = true;
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+        return false;
+    }
     Players_Manager.Release_softly_all_players(Patch_id);
     Players_statistics.Reset_total_Players_per_instrument();
-
-    // switch
     Patch_id = next_patch;
     P_Update_all_maps_Instrument_for_notes();
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-    S_Fill_all_Noclick();
-    S_Fill_all_Wavetable();
-    AudioInterrupts();
-
+    Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+    uint8_t active_bank_mask = 0;
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        active_bank_mask |= Audio_tables.Get_active_pointers(instrument_id).bank_mask;
+    }
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+    Serial.print(F("AudioTables patch activated, bank mask: 0x"));
+    Serial.print(active_bank_mask, HEX);
+    Serial.print(F(", instruments: 0x"));
+    Serial.println(next_tables_mask, HEX);
     Patch_cache_P = Patch[Patch_id];
     S_Copy_all_Sound_to_Sound_cache_P();
-
     Golive_with_PERFORMANCE(Patch_id);
+    return true;
+}
+
+bool P_Save_current_patch_as_new(void)
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    const PatchEditSnapshot previous;
+    const int new_patch = S_Get_Patch_id_free();
+    if (new_patch < 0)
+    {
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+        return false;
+    }
+    const Patch_struct unused_patch = Patch[new_patch];
+    S_Pull_all_Sound_from_Sound_cache_P();
+    Patch[previous.patch_id] = Patch_cache_P;
+    Patch[new_patch] = previous.patch;
+    bool complete = true;
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        if (!Patch[new_patch].Instrument[instrument_id].used)
+        {
+            continue;
+        }
+        const int sound_id = S_Get_sound_free();
+        if (sound_id < 0)
+        {
+            complete = false;
+            break;
+        }
+        Sound[sound_id] = previous.sounds[previous.patch.Instrument[instrument_id].sound_id];
+        Patch[new_patch].Instrument[instrument_id].sound_id = sound_id;
+    }
+    Patch_id = new_patch;
+    if (!complete || !S_Fill_all_tables())
+    {
+        Patch[new_patch] = unused_patch;
+        previous.Restore();
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+        return false;
+    }
+    Players_Manager.Release_softly_all_players(previous.patch_id);
+    Players_statistics.Reset_total_Players_per_instrument();
+    P_Update_all_maps_Instrument_for_notes();
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+    // Persistent writes follow successful publication, so a table error cannot save a half-applied clone.
+    S_Save_all_Sounds_changed();
+    Archive.Save_Patch(Patch_id);
+    Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
+    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
+    P_Update_Patches_number();
+    Patch_cache_P = Patch[Patch_id];
+    S_Copy_all_Sound_to_Sound_cache_P();
+    P_Update_line_of_all_instruments();
+    Golive_with_PERFORMANCE(Patch_id);
+    Print_Patch(Patch_id);
+    return true;
 }
 
 void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, const int element)
@@ -8298,14 +8446,33 @@ void P_Select_menu_elements(void)
     P_menu_max = Menu_P[value_P_Exit] + Menu_P[value_P_Save] + Menu_P[value_P_Clone] + Menu_P[value_P_SaveAsNew] + Menu_P[value_P_DropPatch] - 1;
 }
 
-int P_sound_id_from_instrument_id(const int instrument_id)
-{
-    return Patch[Patch_id].Instrument[instrument_id].sound_id;
-}
-
 // ***************************************************************************************************************
 // **********************************           SOUND, INSTRUMENT              ***********************************
 // ***************************************************************************************************************
+
+void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with the preset source without scanning players or blocking audio.
+{
+    static uint32_t last_ms = 0;
+    static int displayed_instrument = -1;
+    static int displayed_file = -1;
+    static float displayed_pitch_limit = -1.0f;
+    static int displayed_voices = -1;
+    const uint32_t now_ms = millis();
+    if (!force && static_cast<uint32_t>(now_ms - last_ms) < 20u) { return; }
+    last_ms = now_ms;
+    const auto &preset = Preset[Instrument_id];
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const float limit = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
+    const int voices = live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization];
+    if (force || displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
+    {
+        Display_Sound.Show_players_Pitch_max_value(Instrument_id); // Redraw only changed limits, except when a new page entry requires a fresh display.
+        displayed_instrument = Instrument_id;
+        displayed_file = preset.file;
+        displayed_pitch_limit = limit;
+        displayed_voices = voices;
+    }
+}
 
 bool S_Verify_is_Sound_original(const int sound_id)
 {
@@ -8452,9 +8619,12 @@ uint32_t S_Calc_trim_step(int value)
 
 void S_Drop_Instrument(const int instrument_id)
 {
-    Sound[Patch[Patch_id].Instrument[instrument_id].sound_id].used = false;
+    Sound[Get_sound_id(Patch_id, instrument_id)].used = false;
     Patch[Patch_id].Instrument[instrument_id].used = false;
     Patch[Patch_id].instruments--;
+    Preset[instrument_id] = {};
+    PatchCache_Manager.Set_required_files(Preset);
+    Players_Manager.Refresh_cache_sources();
 }
 
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
@@ -8464,12 +8634,12 @@ bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
         if (!Patch[Patch_id].Instrument[new_instrument].used)
         {
             Patch[Patch_id].Instrument[new_instrument] = Patch[Patch_id].Instrument[instrument_id];
-            int S = S_Get_sound_free();
-            if (S >= 0)
+            int sound_id_new = S_Get_sound_free();
+            if (sound_id_new >= 0)
             {
-                Sound[S] = Sound[Patch[Patch_id].Instrument[instrument_id].sound_id];
-                Sound[S].gain = 0;
-                Patch[Patch_id].Instrument[new_instrument].sound_id = S;
+                Sound[sound_id_new] = Sound[Get_sound_id(Patch_id, instrument_id)];
+                Sound[sound_id_new].gain = 0;
+                Patch[Patch_id].Instrument[new_instrument].sound_id = sound_id_new;
                 Patch[Patch_id].instruments++;
                 return true;
             }
@@ -8637,12 +8807,13 @@ void Update_instruments_leds()
 // ******************************************       DIRECT_SAMPLING       ****************************************
 // ***************************************************************************************************************
 
-void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
+bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
 {
+    const PatchEditSnapshot previous;
+    const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
+    const int previous_recording = recording;
     DS_set_DS_Sampling_Patch();
     Patch_id = PATCHES_MAX;
-    P_Update_all_maps_Instrument_for_notes();
-    Turn_ON_Delay(false); // switch on/off Delay (using Instrument routing)
     recording = DS_get_last_Recording();
 
     PRINT_CONTROL_POINT(recording);
@@ -8665,7 +8836,16 @@ void DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
         Sound[SOUNDS_MAX + 1].file = 0;
         Sound[SOUNDS_MAX + 1].B = 100000;
     }
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    if (!S_Fill_all_tables())
+    {
+        Patch[PATCHES_MAX] = previous_sampler_patch;
+        previous.Restore();
+        recording = previous_recording;
+        return false;
+    }
+    P_Update_all_maps_Instrument_for_notes();
+    Turn_ON_Delay(false);
+    return true;
 }
 
 void DS_refresh_DS_page(void)
@@ -8715,8 +8895,11 @@ void DS_ask_if_EXIT_from_DS(void)
     Clear_UI_events();
 }
 
-void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
+bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
 {
+    const Sound_struct previous_left = Sound[SOUNDS_MAX];
+    const Sound_struct previous_right = Sound[SOUNDS_MAX + 1];
+    const int previous_recording = Preset[0].file >= FIRST_RECORDING_FILE && Preset[0].file < FIRST_LIVE_SAMPLING_FILE ? (Preset[0].file - FIRST_RECORDING_FILE) / 2 : -1;
     if (recording >= 0)
     {
         Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
@@ -8734,7 +8917,14 @@ void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
     }
 
     AudioNoInterrupts();
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    if (!S_Fill_all_tables())
+    {
+        Sound[SOUNDS_MAX] = previous_left;
+        Sound[SOUNDS_MAX + 1] = previous_right;
+        recording = previous_recording;
+        AudioInterrupts();
+        return false;
+    }
     AudioInterrupts();
 
     Display_Sampler.DS_hide_recording();
@@ -8746,10 +8936,14 @@ void DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
     // Report
     Print_Sound(SOUNDS_MAX);
     Print_Sound(SOUNDS_MAX + 1);
+    return true;
 }
 
-void DS_back_to_first_DS_Recording(void)
+bool DS_back_to_first_DS_Recording(void)
 {
+    const Sound_struct previous_left = Sound[SOUNDS_MAX];
+    const Sound_struct previous_right = Sound[SOUNDS_MAX + 1];
+    const int previous_recording = Preset[0].file >= FIRST_RECORDING_FILE && Preset[0].file < FIRST_LIVE_SAMPLING_FILE ? (Preset[0].file - FIRST_RECORDING_FILE) / 2 : -1;
     if (recording >= 0)
     {
         Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
@@ -8767,7 +8961,14 @@ void DS_back_to_first_DS_Recording(void)
     }
 
     AudioNoInterrupts();
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    if (!S_Fill_all_tables())
+    {
+        Sound[SOUNDS_MAX] = previous_left;
+        Sound[SOUNDS_MAX + 1] = previous_right;
+        recording = previous_recording;
+        AudioInterrupts();
+        return false;
+    }
     AudioInterrupts();
 
     Print_Sound(SOUNDS_MAX);
@@ -8788,11 +8989,13 @@ void DS_back_to_first_DS_Recording(void)
 
     // restore LEDs
     Performance_led_set.Restore_all_LED();
+    return true;
 }
 
 FLASHMEM
-void DS_convert_file_L(int file_L_RAW, int bytes) // bytes = blocks_per_file * 256
+void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording channel into a RAW file.
 {
+    P_Invalidate_file_cache(file_L_RAW);
     Serial.println("*** Convert file_L ***");
 
     // create the file on the Flash chip and copy data
@@ -8868,8 +9071,9 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // bytes = blocks_per_file * 2
 }
 
 FLASHMEM
-void DS_convert_file_R(int file_R_RAW, int bytes) // bytes = blocks_per_file * 256
+void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording channel into a RAW file.
 {
+    P_Invalidate_file_cache(file_R_RAW);
     Serial.println("*** Convert file_R ***");
 
     // create the file on the Flash chip and copy data
@@ -9453,7 +9657,11 @@ void Switch_to_DIRECT_SAMPLING(void)
 {
     AudioNoInterrupts();
     Players_Manager.Stop_all_players();
-    DS_setup_DIRECT_SAMPLING_Patch_and_Preset();
+    if (!DS_setup_DIRECT_SAMPLING_Patch_and_Preset())
+    {
+        AudioInterrupts();
+        return;
+    }
     AudioInterrupts();
     Golive_DIRECT_SAMPLING();
 }
@@ -9462,7 +9670,11 @@ void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void)
 {
     AudioNoInterrupts();
     LOOP_stop_all_midi_tracks();
-    DS_setup_DIRECT_SAMPLING_Patch_and_Preset();
+    if (!DS_setup_DIRECT_SAMPLING_Patch_and_Preset())
+    {
+        AudioInterrupts();
+        return;
+    }
     AudioInterrupts();
     Golive_DIRECT_SAMPLING();
 }
@@ -9521,7 +9733,11 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
     {
     case DS_waiting_state: // no activity
         AudioNoInterrupts();
-        P_Rebuild_patch_old();
+        if (!P_Rebuild_patch_old())
+        {
+            AudioInterrupts();
+            return;
+        }
         Turn_ON_Delay(true);
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
@@ -9534,7 +9750,11 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         DS_blink_ON = false;
 
         AudioNoInterrupts();
-        P_Rebuild_patch_old();
+        if (!P_Rebuild_patch_old())
+        {
+            AudioInterrupts();
+            return;
+        }
         Turn_ON_Delay(true);
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
@@ -9569,7 +9789,11 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             DS_blink_ON = false;
 
             AudioNoInterrupts();
-            P_Rebuild_patch_old();
+            if (!P_Rebuild_patch_old())
+            {
+                AudioInterrupts();
+                return;
+            }
             Turn_ON_Delay(true);
             AudioInterrupts();
             Switch_from_PERFORMANCE_to_MIDI_LOOP();
@@ -9577,7 +9801,11 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         break;
     case DS_convert_state: // convert REC --> RAW
         AudioNoInterrupts();
-        P_Rebuild_patch_old();
+        if (!P_Rebuild_patch_old())
+        {
+            AudioInterrupts();
+            return;
+        }
         Turn_ON_Delay(true);
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
@@ -9613,7 +9841,11 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
             LiveSampler.Stop();
 
             AudioNoInterrupts();
-            P_Rebuild_patch_old();
+            if (!P_Rebuild_patch_old())
+            {
+                AudioInterrupts();
+                return;
+            }
             AudioInterrupts();
             Switch_from_PERFORMANCE_to_MIDI_LOOP();
         }
@@ -9621,7 +9853,11 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
     else // true: stop and exit
     {
         AudioNoInterrupts();
-        P_Rebuild_patch_old();
+        if (!P_Rebuild_patch_old())
+        {
+            AudioInterrupts();
+            return;
+        }
         AudioInterrupts();
         Switch_from_PERFORMANCE_to_MIDI_LOOP();
     }
@@ -9738,7 +9974,11 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 void Switch_to_PERFORMANCE_patch_old(void)
 {
     AudioNoInterrupts();
-    P_Rebuild_patch_old();
+    if (!P_Rebuild_patch_old())
+    {
+        AudioInterrupts();
+        return;
+    }
     AudioInterrupts();
     Golive_with_PERFORMANCE(Patch_id);
 }
@@ -9935,6 +10175,34 @@ void Golive_SETUP(void)
     Clear_UI_events();
 
     Display_Manager.SETUP_show_frame(SET_menu);
+}
+
+// ***************************************************************************************************************
+// **********************************                  DELAY                    **********************************
+// ***************************************************************************************************************
+
+void D_Set_value(int item, int value) // Publish one UI request through the same parameter owner used by patch changes.
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    Delay_manager.Set_value(item, value); // Retarget only this parameter; the audio callback applies the change.
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+}
+
+bool D_Read_value(int item) // Edit a requested value locally so the encoder never writes intermediate DSP state.
+{
+    int value = Delay_manager.Get_value(item);
+    const int lowest = item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0;
+    const int highest = item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2;
+    if (!Read_encoder(EN_PB_Value, value, highest, lowest, 1))
+    {
+        return false;
+    }
+    D_Set_value(item, value); // Submit the encoder result with audio interrupts disabled.
+    return true;
 }
 
 // ***************************************************************************************************************
@@ -11326,60 +11594,9 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
     }
 }
 
-void S_Get_all_Noclick_pointer(void) // initialization of *Noclick_pointer[] array
-{
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        Noclick_pointer[instrument_id] = Noclick[instrument_id].get_pointer();
-    }
-}
-
-void S_Fill_all_Noclick(void)
-{
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        if (Patch[Patch_id].Instrument[instrument_id].used) // S_Fill_Noclick(instrument)
-        {
-            Noclick[instrument_id].Make(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick);
-        }
-    }
-}
-
-void S_Fill_Noclick(uint8_t instrument_id)
-{
-    Noclick[instrument_id].Make(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick);
-}
-
 // ***************************************************************************************************************
 // **********************************                WAVETABLE                  **********************************
 // ***************************************************************************************************************
-void S_Get_all_Wavetable_pointer(void) // initialization of *Wavetable_pointer[] array
-{
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        Wavetable_pointer[instrument_id] = Wavetable[instrument_id].get_pointer();
-    }
-}
-
-void S_Fill_all_Wavetable(void) // DELETE
-{
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        if (Patch[Patch_id].Instrument[instrument_id].used)
-        {
-            S_Fill_Wavetable(instrument_id);
-        }
-    }
-}
-
-void S_Fill_Wavetable(int instrument_id) // fill Wavetable with a sound
-{
-    if (Preset[instrument_id].use_Wavetable)
-    {
-        Wavetable[instrument_id].Make(Preset[instrument_id].file, Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Noclick_pointer[instrument_id]);
-    }
-}
-
 // ***************************************************************************************************************
 // **********************************               FACTORY SETUP               **********************************
 // ***************************************************************************************************************
@@ -11444,8 +11661,8 @@ void Factory_setup_Eeprom(void)
     // salva su EEPROM l'ottava del NoteNumber 0 (prima ottava)
     Archive.Save_first_octave(-2);
 
-    // salva su EEPROM l'opzione 1 per optimization
-    Archive.Save_optimization(1); // 0: extension  1: polyphony
+    // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
+    Archive.Save_optimization(DEFAULT_OPTIMIZATION);
 
     // assegna i parametri per il Delay al solo scopo di salvarli su EEPROM
     Delay_data.samples = 20;                  // value ; 0 --> 99
@@ -11496,9 +11713,9 @@ FLASHMEM
 void Print_Instrument(int patch_id, int instrument_id)
 {
     Serial.print(" sound_id:");
-    Serial.print(Patch[patch_id].Instrument[instrument_id].sound_id);
+    Serial.print(Get_sound_id(patch_id, instrument_id));
     Serial.print(" file:");
-    Serial.print(Sound[Patch[patch_id].Instrument[instrument_id].sound_id].file);
+    Serial.print(Sound[Get_sound_id(patch_id, instrument_id)].file);
     Serial.print(".raw");
     Serial.print(" root_key:");
     Serial.print(Patch[patch_id].Instrument[instrument_id].root_key);
@@ -11801,107 +12018,23 @@ void LS_update_Q_sample(void)
 }
 
 FLASHMEM
-void LS_Setup_buffers(bool stereo, bool first)
+void LS_Reset_buffer(void)
 {
-    /*
-    DELAY
-    indirizzo DELAY_fifo_L: 7000000C
-    decimale: 1879048204
-    indirizzo DELAY_fifo_R: 7006BC28
-    decimale: 1879489576
+    memset(LS_buffer_storage, 0, sizeof(LS_buffer_storage));
 
-    MONO
-    *** LS_Setup_buffers - indirizzo _LS_buffer_mono: 700D7844
-    decimale: 1879930948
+    LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
+    LiveSampler.LS_buffer_L_ptr = LS_buffer_L_ptr;
+    LiveSampler.LS_buffer_R_ptr = LS_buffer_R_ptr;
 
-    STEREO
-    *** LS_Setup_buffers - indirizzo _LS_buffer_L tx: 700D7844
-    decimale: 1879930948
-    indirizzo LS_buffer_R_ptr tx: 7086BA64
-    decimale: 1887877732
+    Info.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
+    Info.LS_buffer_L_ptr = LS_buffer_L_ptr;
+    Info.LS_buffer_R_ptr = LS_buffer_R_ptr;
 
-    */
+    Players_Manager.Broadcast_FIFO_mono(LS_buffer_mono_ptr);
+    Players_Manager.Broadcast_FIFO_stereo(LS_buffer_L_ptr, LS_buffer_R_ptr);
 
-    if (stereo)
-    {
-        Serial.println(F("*** LS_Setup_buffers() as Stereo ***"));
-
-        if (!first)
-        {
-            PSRAM_Manager.Remove_samples_array(LS_buffer_mono_ptr);
-        }
-
-        // Inizializza PSRAM
-        LS_buffer_L_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
-        LS_buffer_R_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_STEREO_BYTES);
-
-        // Aggiorna oggetti
-        LiveSampler.LS_buffer_L_ptr = LS_buffer_L_ptr;
-        LiveSampler.LS_buffer_R_ptr = LS_buffer_R_ptr;
-        Info.LS_buffer_L_ptr = LS_buffer_L_ptr;
-        Info.LS_buffer_R_ptr = LS_buffer_R_ptr;
-
-        Players_Manager.Broadcast_FIFO_stereo(LS_buffer_L_ptr, LS_buffer_R_ptr);
-
-        Serial.print("*** LS_Setup_buffers - indirizzo _LS_buffer_L tx: ");
-        Serial.println((unsigned long)LS_buffer_L_ptr, HEX);
-        Serial.print("decimale: ");
-        Serial.println((unsigned long)LS_buffer_L_ptr);
-        Serial.print("indirizzo LS_buffer_R_ptr tx: ");
-        Serial.println((unsigned long)LS_buffer_R_ptr, HEX);
-        Serial.print("decimale: ");
-        Serial.println((unsigned long)LS_buffer_R_ptr);
-    }
-
-    else
-    {
-        Serial.println(F("*** LS_Setup_buffers() as Mono ***"));
-        if (!first)
-        {
-            // Libera la PSRAM
-            PSRAM_Manager.Remove_samples_array(LS_buffer_L_ptr);
-            PSRAM_Manager.Remove_samples_array(LS_buffer_R_ptr);
-        }
-
-        // Inizializza PSRAM
-        LS_buffer_mono_ptr = PSRAM_Manager.New_samples_array(LS_CACHE_MONO_BYTES);
-
-        // Aggiorna oggetti
-        LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
-        Info.LS_buffer_mono_ptr = LS_buffer_mono_ptr;
-        Players_Manager.Broadcast_FIFO_mono(LS_buffer_mono_ptr);
-
-        Serial.print("*** LS_Setup_buffers - indirizzo _LS_buffer_mono: ");
-        Serial.println((unsigned long)LS_buffer_mono_ptr, HEX);
-        Serial.print("decimale: ");
-        Serial.println((unsigned long)LS_buffer_mono_ptr);
-    }
-}
-
-void LS_erase_FIFO_array(int16_t *Array, int stereo)
-{
-    // richiede 620.4 ms
-    // elapsedMicros T = 0;
-    // int time;
-
-    if (stereo)
-    {
-        for (auto i = 0; i < LS_CACHE_STEREO_SAMPLES; ++i)
-        {
-            *(Array + i) = 0;
-        }
-    }
-    else
-    {
-        for (auto i = 0; i < LS_CACHE_MONO_SAMPLES; ++i)
-        {
-            *(Array + i) = 0;
-        }
-    }
-
-    // time = T;
-    // Serial.println(F("*** LS_erase_FIFO_array() richiede us: "));
-    // Serial.println (time);
+    LiveSampler.Reset();
+    LS_Q_sample = -1;
 }
 
 FLASHMEM
@@ -12054,13 +12187,13 @@ void Switch_to_MIXER()
                 break;
             }
         }
-        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+        Sound_id = Get_sound_id(Patch_id, Instrument_id);
     }
 
     else if (Lilla_state == LIVE_SAMPLING)
     {
         Instrument_id = LS_instrument;
-        Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+        Sound_id = Get_sound_id(Patch_id, Instrument_id);
     }
 
     Golive_MIXER();
@@ -12083,7 +12216,7 @@ void Golive_MIXER(void)
     MX_local_pointer = Pointer_Mixer.Get_pointer();
 
     Instrument_id = 0;
-    Sound_id = Patch[Patch_id].Instrument[Instrument_id].sound_id;
+    Sound_id = Get_sound_id(Patch_id, Instrument_id);
 }
 
 // ***************************************************************************************************************
@@ -12316,22 +12449,17 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
 
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);
     elapsedMillis dotMillis = 0;
-    unsigned char barcount = 0;
+    int percentage = 0;
 
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_initial_percentage();
+    Display_Manager.Update_raw_copy_progress(percentage);
 
     while (SerialFlash.ready() == false)
     {
         if (dotMillis > erasing_time_ms_step)
         {
-            auto x_coordinate = display_coordinate_x(0);
-            Cancel_text(x_coordinate + barcount + 10, BAR_POS_Y, 3);
             dotMillis = 0;
-            barcount = barcount + 1;
-            if (barcount <= 100)
-            {
-                Display_Manager.Copy_raw_files_SD_to_Flash_chip_progress(barcount);
-            }
+            ++percentage;
+            Display_Manager.Update_raw_copy_progress(percentage);
         }
     }
 
@@ -12575,51 +12703,184 @@ void Clear_UI_events(void)
 // *************************************            BOOTSTRAP             ***************************************
 // **************************************************************************************************************
 
-void Startup_mode(void)
+bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade)
 {
+    const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    const bool trigger_0_running = Trigger_0.Is_running();
+    const bool trigger_1_running = Trigger_1.Is_running();
+    Trigger_0.Stop();
+    Trigger_1.Stop();
+
+    // Players and the finalizer may run while the model is being prepared; MIDI, filter and delay control callbacks must see only committed state.
+    const bool snapshot_ready = Players_Manager.Build_presets_snapshot(patch_id, patch_volume, presets, tables_mask);
+    Audio_tables.Release_unreferenced_banks(Players_Manager.Refresh_audio_table_references());
+    bool preparation_started = snapshot_ready && Audio_tables.Begin_prepare(tables_mask);
+    const uint32_t wait_started_us = micros();
+    uint8_t reclaimed_banks = 0;
+    uint16_t stopped_players = 0;
+
+    // Allow pending edits and restarts to finish before fading any remaining old-bank voices.
+    while (snapshot_ready && !preparation_started && __get_primask() == 0 && static_cast<uint32_t>(micros() - wait_started_us) < 20000u)
+    {
+        const uint8_t retiring_banks = Audio_tables.Get_retiring_banks_mask();
+        if (retiring_banks == 0)
+        {
+            break;
+        }
+        if (allow_retiring_fade && static_cast<uint32_t>(micros() - wait_started_us) >= 6000u)
+        {
+            reclaimed_banks |= retiring_banks;
+            stopped_players |= Players_Manager.Fast_stop_players_using_tables(retiring_banks);
+        }
+        AudioInterrupts();
+        delayMicroseconds(50);
+        AudioNoInterrupts();
+        Audio_tables.Release_unreferenced_banks(Players_Manager.Refresh_audio_table_references());
+        preparation_started = Audio_tables.Begin_prepare(tables_mask);
+    }
+
+    bool prepared = false;
+    if (preparation_started)
+    {
+        // Protect the shared SPI-use counter, then leave audio processing enabled during Flash reads.
+        AudioStartUsingSPI();
+        AudioInterrupts();
+        prepared = Audio_tables.Prepare_all(presets);
+        AudioNoInterrupts();
+        AudioStopUsingSPI();
+    }
+    if (trigger_0_running)
+    {
+        Trigger_0.Start();
+    }
+    if (trigger_1_running)
+    {
+        Trigger_1.Start();
+    }
+    if (audio_interrupts_enabled)
+    {
+        AudioInterrupts();
+        if (reclaimed_banks != 0)
+        {
+            Serial.print(F("AudioTables bank reclaim, banks: 0x"));
+            Serial.print(reclaimed_banks, HEX);
+            Serial.print(F(", stopped players: 0x"));
+            Serial.print(stopped_players, HEX);
+            Serial.print(F(", ready: "));
+            Serial.println(prepared);
+        }
+    }
+    return prepared;
+}
+
+bool P_Quiesce_audio_players(void)
+{
+    const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    Trigger_0.Stop();
+    Trigger_1.Stop();
+    Midi_reader.Stop();
+    const uint32_t wait_started_us = micros();
+    // At first startup all players are idle and delay buffers are not connected yet: do not enable audio just to discover that nothing needs draining.
+    bool playing = false;
+    for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+    {
+        playing |= Player[player_id].isPlaying();
+    }
+    while (playing && __get_primask() == 0 && static_cast<uint32_t>(micros() - wait_started_us) < 20000u)
+    {
+        Players_Manager.Stop_all_players();
+        AudioInterrupts();
+        delayMicroseconds(50);
+        AudioNoInterrupts();
+        playing = false;
+        for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
+        {
+            playing |= Player[player_id].isPlaying();
+        }
+    }
+    const uint8_t referenced_banks = Players_Manager.Refresh_audio_table_references();
+    const bool ready = !playing && Audio_tables.Reset(referenced_banks);
+    if (ready)
+    {
+        PatchCache_Manager.Begin();
+    }
+    if (audio_interrupts_enabled)
+    {
+        AudioInterrupts();
+    }
+    return ready;
+}
+
+bool Startup_mode(void)
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
     Lilla_state = PERFORMANCE;
     Lilla_state_0 = Lilla_state;
-
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-    S_Fill_all_Noclick();
-    S_Fill_all_Wavetable();
-
     Patch_id_old = Patch_id;
     Patch_cache_P = Patch[Patch_id];
+    const auto startup_mode = Switches_manager.Get_value(SwitchModes);
+    bool ready = false;
 
-    P_Update_all_maps_Instrument_for_notes();
-
-    switch (Switches_manager.Get_value(SwitchModes))
+    if (startup_mode == SwModesSampler)
+    {
+        ready = DS_setup_DIRECT_SAMPLING_Patch_and_Preset();
+    }
+    else
+    {
+        if (startup_mode == SwModesLiveSampler)
+        {
+            LS_gain = 28;
+            LINE_IN_amplifier.Set_gain(Volume_float[LS_gain]);
+            Patch_id = PATCHES_MAX;
+            LS_setup_LS_Patch(LS_stereo);
+        }
+        ready = S_Fill_all_tables();
+        if (ready)
+        {
+            P_Update_all_maps_Instrument_for_notes();
+        }
+    }
+    uint16_t tables_mask = 0;
+    if (ready)
+    {
+        for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+        {
+            if (Patch[Patch_id].Instrument[instrument_id].used && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+            {
+                tables_mask |= static_cast<uint16_t>(1u << instrument_id);
+            }
+        }
+    }
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+    if (!ready)
+    {
+        Serial.println(F("AudioTables startup preparation failed"));
+        return false;
+    }
+    switch (startup_mode)
     {
     case SwModesSampler:
-        Patch_id_old = Patch_id;
-        DS_setup_DIRECT_SAMPLING_Patch_and_Preset();
         Golive_DIRECT_SAMPLING();
         break;
-
     case SwModesLiveSampler:
-        Patch_id_old = Patch_id;
-        // Setup LIVE_SAMPLING
-        LS_gain = 28;
-        LINE_IN_amplifier.Set_gain(Volume_float[LS_gain]);
-
-        Patch_id = PATCHES_MAX; // Live Sampler uses PATCHES_MAX
-        LS_setup_LS_Patch(LS_stereo);
-        P_Update_all_maps_Instrument_for_notes();
-        Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
-
         Golive_with_LIVE_SAMPLING();
         break;
-
     case SwModesMidiLoop:
         Golive_with_MIDI_LOOP(true);
         break;
-
-    case SwModesPerformance:
     default:
         Golive_with_PERFORMANCE(Patch_id);
         break;
     }
+    Serial.print(F("AudioTables startup ready, mask: 0x"));
+    Serial.println(tables_mask, HEX);
+    return true;
 }
 
 FLASHMEM
@@ -12631,11 +12892,11 @@ void Startup_hardware_and_objects(void)
     Compile_tables();
 
     // audioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
-    Line_in_gain = 15;
+    Line_in_gain = 5;
     Audio_shield.enable();
-    Audio_shield.volume(headphones_volume_int / (float)40.0);
+    Audio_shield.volume(headphones_volume_int / 40.0F);
     Audio_shield.inputSelect(myInput);
-    // Audio_shield.lineInLevel(Line_in_gain);
+    Audio_shield.lineInLevel(Line_in_gain);
     // Audio_shield.audioPostProcessorEnable();
     Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
     Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
@@ -12650,9 +12911,6 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //   ***********    INIZIALIZZAZIONE OGGETTI    *************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    S_Get_all_Wavetable_pointer();
-    S_Get_all_Noclick_pointer();
 
     // Get Vibrato pointers
     Vibrato_array_pointer = Vibrato.Get_vibrato_array_pointer();
@@ -12714,10 +12972,6 @@ void Startup_hardware_and_objects(void)
     Info.LiveSampler_ptr = &LiveSampler;
 
     // Setup Wavetable-s
-    for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
-    {
-        Wavetable[Inst_id].LiveSampler_ptr = &LiveSampler;
-    }
 
     // Setup Live Sampling Feedback mixers
     LS_Feedback_L.identity = 0;
@@ -12727,7 +12981,7 @@ void Startup_hardware_and_objects(void)
 
     // Setup Display (module)
     tft.begin();
-    tft.setRotation(1);
+    tft.setRotation(3);
     tft.setTextWrap(false);
     tft.fillScreen(ILI9341_BLACK);
     canvas.setTextWrap(false);
@@ -12756,9 +13010,18 @@ void Startup_hardware_and_objects(void)
     MAIN_mixer_out_L.gain(1, 0.0);
     MAIN_mixer_out_R.gain(1, 0.0);
 
-    // Note-to-pitch conversion array
-    key_step = 0;
-    Calc_pitch_from_note(key_step);
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // *******************       PSRAM       *********************
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    // PatchCacheManager
+    for (auto i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
+    {
+        PatchCache_Manager.Set_cache_pointer(i, &patch_cache_array[i][0]);
+    }
+
+    // CacheCycleFinalizer
+    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager, &Audio_tables);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************
@@ -12769,10 +13032,10 @@ void Startup_hardware_and_objects(void)
     // SDA2: 25
     Wire2.begin();
     Wire2.setClock(1000000); // Wire2.setClock(400000);
-    
+
     const byte result = LillaFram.begin();
 
-    if (result == LillaFRAM_2x256::ERROR_0)
+    if (result == LillaFRAM_2x512::ERROR_0)
     {
         Serial.println(F("FRAM bank check: OK"));
     }
@@ -12793,11 +13056,20 @@ void Startup_hardware_and_objects(void)
     // *******************   FILE SCANNER   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
+
+    // Note-to-pitch conversion array
+    key_step = 0;
+    Calc_pitch_from_note(key_step);
 }
 
 FLASHMEM
 void Reload_system_state(void)
 {
+    if (!P_Quiesce_audio_players())
+    {
+        Serial.println(F("AudioTables reload stopped: players still active"));
+        return;
+    }
 
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB
@@ -12873,8 +13145,8 @@ void Reload_system_state(void)
 
     // *****************      DELAY AND LFO    ********************
     // Delay arrays (FIFO)
-    DELAY_fifo_L = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
-    DELAY_fifo_R = PSRAM_Manager.New_samples_array(DELAY_CACHE_BYTES);
+    memset(DELAY_fifo_L, 0, sizeof(DELAY_fifo_L));
+    memset(DELAY_fifo_R, 0, sizeof(DELAY_fifo_R));
 
     Serial.print("indirizzo DELAY_fifo_L: ");
     Serial.println((unsigned long)DELAY_fifo_L, HEX);
@@ -12914,10 +13186,10 @@ void Reload_system_state(void)
     Calc_Delay_values(Delay_data);
 
     // Transmits data to Delay objects
-    Delay_L.Setup_delay(Delay_values.samples);                           // Right channel 0<= value[sample] <= DELAY_PIPELINE - AUDIO_BLOCK_SAMPLES
-    Delay_R.Setup_delay(Delay_values.samples + Delay_values.samples_LR); // channel 0<= value[sample] <= DELAY_PIPELINE - AUDIO_BLOCK_SAMPLES
-    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source); // 0:none 1:LFO  2:input_1
-    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source); // 0:none 1:LFO  2:input_1
+    Delay_L.Setup_delay(Delay_values.samples + (Delay_values.samples_LR > 0 ? Delay_values.samples_LR : 0)); // Restore the same signed left offset used by runtime parameter changes.
+    Delay_R.Setup_delay(Delay_values.samples - (Delay_values.samples_LR < 0 ? Delay_values.samples_LR : 0)); // Restore the same signed right offset used by runtime parameter changes.
+    Delay_L.Set_delay_modulation_source(Delay_values.modulation_source);                                     // 0:none 1:LFO  2:input_1
+    Delay_R.Set_delay_modulation_source(Delay_values.modulation_source);                                     // 0:none 1:LFO  2:input_1
     Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
     Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
     D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
@@ -12933,8 +13205,6 @@ void Reload_system_state(void)
     LS_stereo = false;
     LS_buffer_dim = (LS_stereo ? LS_CACHE_STEREO_SAMPLES : LS_CACHE_MONO_SAMPLES);
 
-    LiveSampler.Reset();
-
     LS_state = EMPTY;
     LS_sound_id = SOUNDS_MAX;
     LS_instrument = 0;
@@ -12943,11 +13213,11 @@ void Reload_system_state(void)
     LS_window_width = LS_buffer_dim;
     LS_window_step = LS_window_width / 8;
     LS_XY_lock = true; // LS_X_sample blocked on FIFO; LS_X_delta is useless
-    LS_XY_delta = 44100;
+    LS_XY_delta = AUDIO_SAMPLE_RATE;
     LS_Y_sample = LS_X_sample + LS_XY_delta;
     LS_X_step = LS_window_width / LS_COMB;
     LS_feedback = 0;
-    LS_Setup_buffers(LS_stereo, true); // LS_Setup_buffers(bool stereo, bool first)
+    LS_Reset_buffer();
 
     // * LPF final filter Output Butterworth filters, 12 db/octave *
     biquad_L.setLowpass(0, 20000, 0.707);
@@ -12979,7 +13249,10 @@ void Reload_system_state(void)
     // Display_Manager.Lilla_cover_saturate();
 
     // ****************    DEFINE STARTUP MODE     ************
-    Startup_mode();
+    if (!Startup_mode())
+    {
+        return;
+    }
 
     // *******************    START MIDI   ************************
     Midi_reader.Begin();
@@ -13057,4 +13330,92 @@ bool TEST_Current_Patch_SD_round_trip(void)
     Serial.println();
 
     return true;
+}
+
+void P_Invalidate_file_cache(int file_id)
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    PatchCache_Manager.Invalidate_file(file_id);
+    Players_Manager.Refresh_cache_sources();
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+}
+
+void P_Invalidate_recording_cache(int recording_id)
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    PatchCache_Manager.Invalidate_file(FIRST_RECORDING_FILE + 2 * recording_id);
+    PatchCache_Manager.Invalidate_file(FIRST_RECORDING_FILE + 2 * recording_id + 1);
+    Players_Manager.Refresh_cache_sources();
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+}
+
+void P_Service_patch_cache(void) // Coordinate bounded cache loading and own both audio critical sections from the main loop.
+{
+    // Paused control callbacks indicate metadata replacement; Direct Sampling owns Flash while recording or converting.
+    const bool copying_allowed = Trigger_0.Is_running() && !(Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state);
+    if (!copying_allowed || NVIC_IS_ENABLED(IRQ_SOFTWARE) == 0)
+    {
+        return;
+    }
+
+    // Entry requires IRQ_SOFTWARE to be enabled, so each critical-section exit restores that state.
+    static constexpr unsigned int CYCLE_TIME_LIMIT = 1700; // Latest permitted copy start within the audio cycle, in microseconds.
+    static uint32_t last_cycle = 0; // Last audio cycle in which background loading attempted work.
+    static uint32_t blocked_since_ms = 0; // Start of the current cache-reclamation grace period.
+    static uint16_t blocked_mask = 0; // Retiring caches currently blocking a pending load.
+    PatchCacheManager::CopyJob job;
+
+    AudioNoInterrupts(); // Take a coherent snapshot while the audio callback cannot change player references.
+    const uint32_t cycle = audio_update_cycle;
+
+    // loop() can run many times per audio block: allow at most one attempt per block, and skip late attempts.
+    // The CYCLE_TIME_LIMIT threshold leaves a conservative margin for up to 512 samples before the next audio deadline.
+    if (cycle == last_cycle || audio_update_time_micros > CYCLE_TIME_LIMIT)
+    {
+        AudioInterrupts();
+        return;
+    }
+    last_cycle = cycle;
+    PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask()); // Reuse retired buffers only after every player has released them.
+    const bool copying = PatchCache_Manager.Prepare_copy(job);                          // Reserve the next chunk; incomplete files remain unavailable to players.
+    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();  // Request space only when pending work cannot obtain a free cache.
+
+    if (reclaim_mask != blocked_mask)
+    {
+        blocked_mask = reclaim_mask;
+        blocked_since_ms = millis(); // Start a new grace period whenever the blocking cache selection changes.
+    }
+    if (reclaim_mask != 0 && static_cast<uint32_t>(millis() - blocked_since_ms) >= 20u)
+    {
+        Players_Manager.Fast_stop_players_using_cache(reclaim_mask); // After 20 ms, fade eligible old readers; their buffers are not freed until references disappear.
+    }
+    if (copying)
+    {
+        AudioStartUsingSPI(); // Register Flash bus use before allowing audio callbacks to run again.
+    }
+    AudioInterrupts(); // Perform the Flash transfer outside the audio critical section.
+    
+    
+    if (!copying)
+    {
+        return;
+    }
+    const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples); // Copy only this reserved chunk into PSRAM, with audio interrupts enabled.
+
+    AudioNoInterrupts();
+    AudioStopUsingSPI();                            // Balance the SPI reservation even when the Flash read fails.
+    const bool ready = PatchCache_Manager.Complete_copy(job, success); // Publish only a fully copied file; failed reads leave playback on Flash.
+    if (ready)
+    {
+        Players_Manager.Refresh_cache_sources(); // Promote current and queued matching voices atomically to the completed PSRAM source.
+    }
+    AudioInterrupts(); // Restore audio processing
 }

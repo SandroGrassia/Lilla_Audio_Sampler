@@ -111,7 +111,7 @@ void DisplayLiveSampler::Buffer(void) //
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_buffer[0]), display_coordinate_y(LS_column_row_buffer[1]), 12);
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(LS_buffer_dim / 44100.0f, 1);
+    tft.print(LS_buffer_dim / AUDIO_SAMPLE_RATE, 1);
     Show_measure_unit("sec", 3);
 }
 
@@ -157,7 +157,7 @@ void DisplayLiveSampler::Window(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_window[0]), display_coordinate_y(LS_column_row_window[1]), LS_chars_window);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(LS_window_width / 44100.0f, 1);
+    tft.print(LS_window_width / AUDIO_SAMPLE_RATE, 1);
     tft.setTextColor(ILI9341_ORANGE);
     tft.print("sec");
 
@@ -171,7 +171,7 @@ void DisplayLiveSampler::Loop_time(void)
     if (LS_mode > 1)
     {
         tft.setTextColor(ILI9341_YELLOW);
-        tft.print(LS_XY_delta / 44100.0f, 2);
+        tft.print(LS_XY_delta / AUDIO_SAMPLE_RATE, 2);
         Show_measure_unit("sec", 3);
     }
     else
@@ -190,7 +190,7 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
     if (LS_XY_lock)
     {
         tft.print("FIXED ");
-        tft.print(LS_X_sample / 44100.0f, 2);
+        tft.print(LS_X_sample / AUDIO_SAMPLE_RATE, 2);
         Show_measure_unit("sec", 3);
     }
     else
@@ -203,7 +203,7 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
 
         else if (LS_X_delta > LS_buffer_dim / 2)
         {
-            local_value = (LS_buffer_dim - LS_X_delta) / 44100.0f;
+            local_value = (LS_buffer_dim - LS_X_delta) / AUDIO_SAMPLE_RATE;
             if (local_value >= 0)
             {
                 tft.print("DELAY ");
@@ -217,7 +217,7 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
         }
         else
         {
-            local_value = -LS_X_delta / 44100.0f;
+            local_value = -LS_X_delta / AUDIO_SAMPLE_RATE;
             if (local_value >= 0)
             {
                 tft.print("DELAY ");

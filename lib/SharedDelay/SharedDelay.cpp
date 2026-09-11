@@ -14,11 +14,11 @@ Delay_data_struct Delay_data;
 float Delay_feedback(int8_t value) // feedback
 {
     const float answer[] = {0, -0.07, -0.18, -0.4, -0.6, -0.65, -0.71, -0.80, -0.92, -0.98};
-    value = constrain(value, 0, 10);
+    value = constrain(value, 0, 9); // The feedback table has ten entries, indexed from zero through nine.
     return answer[value];
 }
 
-void Calc_Delay_values(const Delay_data_struct data)
+void Calc_Delay_values(Delay_data_struct data)
 {
     Calc_delay_routing(data.instrument_route);
     Delay_values.samples = Calc_delay_samples(data.samples);
@@ -36,7 +36,7 @@ void Calc_Delay_values(const Delay_data_struct data)
 }
 
 FLASHMEM
-void Print_Delay_values(const Delay_values_struct Delay_values)
+void Print_Delay_values(Delay_values_struct Delay_values)
 {
     Serial.println();
     Serial.println("Print Delay_values");
@@ -97,7 +97,7 @@ void Print_Delay_data(const Delay_data_struct &data)
     Serial.println();
 }
 
-void Calc_delay_routing(const uint8_t value)
+void Calc_delay_routing(uint8_t value)
 {
     for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
@@ -111,7 +111,7 @@ void Calc_delay_routing(const uint8_t value)
     }
 }
 
-void Turn_ON_Delay(const bool ON) // switch on/off Delay (using Instrument routing)
+void Turn_ON_Delay(bool ON) // switch on/off Delay (using Instrument routing)
 {
     static int instrument_route[INSTRUMENTS];
 
@@ -133,23 +133,28 @@ void Turn_ON_Delay(const bool ON) // switch on/off Delay (using Instrument routi
     }
 }
 
-float Calc_delay_samples(int value) // 0 --> 99
+int Calc_delay_samples(int value)
 {
     value = constrain(value, 0, 99);
-    return delay_samples_table[value];
+    const float normalized = value / 99.0f;
+
+    constexpr float exponent = 2.5f;
+    constexpr int max_samples =  DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES;
+
+    return lroundf(max_samples * powf(normalized, exponent));
 }
 
-float Calc_delay_samples_LR(const int value) // 0 --> 50
+int Calc_delay_samples_LR(int value) // 0 --> 50
 {
-    return value * 44.1;
+    return lroundf(value * (AUDIO_SAMPLE_RATE / 1000));
 }
 
-float Calc_delay_depth(const int value)
+float Calc_delay_depth(int value)
 {
     return depth_array[value] / 100.0f; // 0 <= value <= 39
 }
 
-float Calc_delay_frequency(const int value)
+float Calc_delay_frequency(int value)
 {
     return (value * value / 90.0f); // 0 <= value <= 90
 }

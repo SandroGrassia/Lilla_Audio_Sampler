@@ -9,7 +9,10 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <array>
+#include <AudioStream.h>
 #include "config.h"
+
+static constexpr int AUDIO_BLOCK_BYTES = AUDIO_BLOCK_SAMPLES * 2;
 
 // LILLA STATE
 extern uint8_t Lilla_state;
@@ -38,6 +41,11 @@ extern int8_t first_octave;
 // .raw (imported with SD)
 // .raw .rec (produced by Sampler)
 // .liv (used by Live Sampler)
+// FILES
+static constexpr int NAME_FILE_SIZE = 10;
+static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
+static constexpr int FIRST_RECORDING_FILE = 260;
+
 static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
     {
         // raw files on Flash chip
@@ -67,39 +75,54 @@ static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
         // 320, 321, 322
         "Mono.liv", "Left.liv", "Right.liv"};
 
-
-// RAW FILES COPY
-static constexpr int BAR_POS_Y = 225; // display_coordinate_y(15)
-
-
 // FLASH MEMORY CHIP MANAGEMENT
 extern int verified_flash_memory_MB;
 int FLASHMEM Get_flash_size(void);       // definita in main.cpp
 int VFS_Get_packets_free(void);          // definita in main.cpp ma possibile trasferirla qui
 int FLASHMEM Get_flash_occupation(void); // definita in main.cpp
 
-
-// PSRAM MANAGEMENT
 /*
-PSRAM_16MB
-total space: 16.777.216 byte
-pointer space (in excess): 500 byte
-audio data space = total space - pointer space = 16.776.704 byte (190sec @44.1Ksps/16bit)
-delay space = 220672 Samples x 2 byte x 2 channels = 882.688 byte (about 5 sec per channel)
-applications data space = audio data space - delay space = 15.894.016 byte
+    PSRAM MANAGEMENT
+
+    Lilla 2026 PCB R2 includes:
+    - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
+
+    Raw space = 33.554.432 byte;
+    Metadata space = 0 --> only static allocation
+    Audio space = Raw space = 380.4 sec
+
+    Delay space = DELAY_CACHE_CHANNEL_SAMPLES x 2byte x 2channels
+    Live Sampler space = LS_CACHE_TOTAL_SAMPLES X 2byte
+
+    Patch space = Audio space - Delay space - Live Sampler space
 */
-// Live sampler cache
-static constexpr int LS_CACHE_MONO_SAMPLES = 7946752;
-static constexpr uint32_t LS_CACHE_MONO_BYTES = LS_CACHE_MONO_SAMPLES << 1; // 0xf28400 - 15.893.504
-static constexpr int LS_CACHE_STEREO_SAMPLES = 3973376; 
-static constexpr uint32_t LS_CACHE_STEREO_BYTES = LS_CACHE_STEREO_SAMPLES << 1; // 0x794200 - decimale 7.946.752
-// Delay cahce
-static constexpr int DELAY_CACHE_SAMPLES = 220672;
-static constexpr uint32_t DELAY_CACHE_BYTES = DELAY_CACHE_SAMPLES << 1; // 0x6bc00 - decimale 441.344
+
+// Delay cache (for each channel)
+static constexpr int DELAY_CACHE_SECONDS = 20; // each channel
+static constexpr int DELAY_CACHE_CHANNEL_SAMPLES = ceil(DELAY_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES + AUDIO_BLOCK_SAMPLES;
+
+// Live sampler cache: must be multiple of AUDIO_BLOCK_SAMPLES samples (256 byte)
+static constexpr int LS_CACHE_SECONDS = 20;
+static constexpr int LS_CACHE_CHANNEL_SAMPLES = ceil(LS_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES;
+static constexpr int LS_CACHE_TOTAL_SAMPLES = 2 * LS_CACHE_CHANNEL_SAMPLES;
+
+// Stereo recording option offers LS_CACHE_SECONDS time capacity
+static constexpr int LS_CACHE_STEREO_SAMPLES = LS_CACHE_CHANNEL_SAMPLES;
+
+// Mono recording option offers 2xLS_CACHE_SECONDS time capacity
+static constexpr int LS_CACHE_MONO_SAMPLES = LS_CACHE_TOTAL_SAMPLES;
+
+// Cache per copia .raw file
+static constexpr uint32_t PSRAM_TOTAL_SAMPLES = (32 * 1024 * 1024) / 2;
+static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
+static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
+static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
+static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
+extern volatile uint32_t audio_update_cycle; // Advances once per running audio control cycle.
+extern elapsedMicros audio_update_time_micros; // usata per calcolare il tempo disponibile per la copia
+
 
 // PATCH
-// Variabili runtime
-static constexpr int VOLUME_1 = 29;
 struct Instrument_filter_data_struct
 {
     uint8_t use;            // yes/no
@@ -201,6 +224,21 @@ inline bool operator==(const Sound_struct &lhs, const Sound_struct &rhs)
     return lhs.used == rhs.used && lhs.file == rhs.file && lhs.mode == rhs.mode && lhs.pitch == rhs.pitch && lhs.A == rhs.A && lhs.B == rhs.B && lhs.Noclick == rhs.Noclick && lhs.pan == rhs.pan && lhs.data == rhs.data && lhs.attack == rhs.attack && lhs.decay == rhs.decay && lhs.sustain == rhs.sustain && lhs.release == rhs.release && lhs.gain == rhs.gain;
 }
 
+enum AudioFileStorage : uint8_t
+{
+    Flash,
+    Psram
+};
+
+struct AudioFileSource
+{
+    int16_t file_id = -1;
+    AudioFileStorage storage = Flash;
+    const int16_t *psram_ptr = nullptr;
+    uint32_t samples = 0;
+    int8_t cache_id = -1;
+};
+
 // PERFORMANCE
 static constexpr char PROGMEM note_name[12][3] = {{"C"}, {"C#"}, {"D"}, {"D#"}, {"E"}, {"F"}, {"F#"}, {"G"}, {"G#"}, {"A"}, {"A#"}, {"B"}};
 extern uint8_t Patch_id;
@@ -289,12 +327,25 @@ extern float pan_gain_L_table[33];
 extern float pan_gain_R_table[33];
 
 // funzioni
-uint8_t Get_midi_channel(int patch_id, int instrument_id);
+inline uint8_t Get_sound_id(int patch_id, int instrument_id)
+{
+    return Patch[patch_id].Instrument[instrument_id].sound_id;
+}
+
+inline uint8_t Get_midi_channel(int patch_id, int instrument_id)
+{
+    // .data contains midi channel in its bits: 7 6 5 M I D I 0
+    return ((Sound[Patch[patch_id].Instrument[instrument_id].sound_id].data & 30) >> 1);
+}
+
+
 
 // PRESET
 // E' il the data-set sent to a Player; it's a complete description of a sound that has to be played
 struct Preset_struct
 {
+    bool active = false;
+    AudioFileSource source;
     float volume;
     int8_t pan;
     uint16_t sound_id;
@@ -318,9 +369,7 @@ struct Preset_struct
 extern Preset_struct Preset[INSTRUMENTS];
 
 // AUDIOPLAYER
-extern elapsedMicros security_timer;                // Protezione Audiostream update()
-extern int16_t *Noclick_pointer[INSTRUMENTS];   // each Noclick instance contains 2 arrays
-extern int16_t *Wavetable_pointer[INSTRUMENTS]; // each Wavetable instance contains 2 arrays
+extern elapsedMicros security_timer;            // Protezione Audiostream update()
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id); // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative

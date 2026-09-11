@@ -94,6 +94,7 @@ private:
     // DELAY
     static constexpr int Delay_ROW_BASE = 6;
 
+
 public:
     DisplayManager() {}
 
@@ -127,6 +128,7 @@ public:
     void P_Confirm_patch_change_popup(void);
     void P_Confirm_patch_change_popup_frame(int value);
     void P_Confirm_frame(int X, int Y, int chars, bool print);
+    void P_Confirm_frame_on_RED(int X, int Y, int chars, bool print);
     void P_Confirm_patch_delete_popup(void);
     void P_Confirm_patch_delete_popup_frame(int value);
     // Instrument
@@ -192,8 +194,7 @@ public:
     void Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int flash_raw_volume, int flash_raw_files);
     void Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_time_ms);
     void Copy_raw_files_SD_to_Flash_chip_job_start(void); // inizia la cancellazione (erasing) della Flash memory
-    void Copy_raw_files_SD_to_Flash_chip_initial_percentage(void);
-    void Copy_raw_files_SD_to_Flash_chip_progress(unsigned char barcount);
+    void Update_raw_copy_progress(int barcount);
     void Copy_raw_files_SD_to_Flash_chip_popup_landscape(void); // black panel
     void Copy_raw_files_SD_to_Flash_chip_list_landscape(void);
     void Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, const char *filename, unsigned long length);
