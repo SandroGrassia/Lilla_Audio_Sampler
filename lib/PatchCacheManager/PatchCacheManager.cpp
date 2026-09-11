@@ -4,8 +4,6 @@
  */
 #include "PatchCacheManager.h"
 #include "SharedLiveSampler.h"
-#include "PlayersManager.h"
-#include <spi_interrupt.h>
 
 uint32_t PatchCacheManager::File_samples(int16_t file_id)
 {
@@ -294,61 +292,4 @@ void PatchCacheManager::Release_unreferenced_caches(uint16_t referenced_cache_ma
             cache[i].state = Free;
         }
     }
-}
-
-void PatchCacheManager::Process_pending_loads(PlayersManager &players, bool copying_allowed) // Run one bounded cache-loading step from main, never from the audio interrupt.
-{
-    // The caller owns UI and recording policy; this class only checks whether background copying is allowed.
-    if (!copying_allowed || NVIC_IS_ENABLED(IRQ_SOFTWARE) == 0)
-    {
-        return;
-    }
-
-    // Entry requires IRQ_SOFTWARE to be enabled, so each critical-section exit restores that state.
-    CopyJob job;
-
-    NVIC_DISABLE_IRQ(IRQ_SOFTWARE); // Take a coherent snapshot while the audio callback cannot change player references.
-    const uint32_t cycle = audio_update_cycle;
-
-    // loop() can run many times per audio block: allow at most one attempt per block, and skip late attempts.
-    // The CYCLE_TIME_LIMIT threshold leaves a conservative margin for up to 512 samples before the next audio deadline.
-    if (cycle == last_cycle || audio_update_time_micros > CYCLE_TIME_LIMIT)
-    {
-        NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
-        return;
-    }
-
-    last_cycle = cycle;
-    Release_unreferenced_caches(players.Get_cache_reference_mask()); // Reuse retired buffers only after every player has released them.
-    const bool copying = Prepare_copy(job);                          // Reserve the next chunk; incomplete files remain unavailable to players.
-    const uint16_t reclaim_mask = copying ? 0 : Get_reclaim_mask();  // Request space only when pending work cannot obtain a free cache.
-
-    if (reclaim_mask != blocked_mask)
-    {
-        blocked_mask = reclaim_mask;
-        blocked_since_ms = millis(); // Start a new grace period whenever the blocking cache selection changes.
-    }
-    if (reclaim_mask != 0 && static_cast<uint32_t>(millis() - blocked_since_ms) >= 20u)
-    {
-        players.Fast_stop_players_using_cache(reclaim_mask); // After 20 ms, fade eligible old readers; their buffers are not freed until references disappear.
-    }
-    if (copying)
-    {
-        AudioStartUsingSPI(); // Register Flash bus use before allowing audio callbacks to run again.
-    }
-    NVIC_ENABLE_IRQ(IRQ_SOFTWARE); // Perform the Flash transfer outside the audio critical section.
-    if (!copying)
-    {
-        return;
-    }
-    const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples); // Copy only this reserved chunk into PSRAM, with audio interrupts enabled.
-
-    NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
-    AudioStopUsingSPI();                            // Balance the SPI reservation even when the Flash read fails.
-    const bool ready = Complete_copy(job, success); // Publish only a fully copied file; failed reads leave playback on Flash.
-    if (ready)
-    {
-        players.Refresh_cache_sources(); // Promote current and queued matching voices atomically to the completed PSRAM source.
-    }
-    NVIC_ENABLE_IRQ(IRQ_SOFTWARE); // Restore audio processing
 }

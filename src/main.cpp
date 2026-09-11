@@ -13357,10 +13357,65 @@ void P_Invalidate_recording_cache(int recording_id)
     }
 }
 
-void P_Service_patch_cache(void) // Translate main-loop operating state into permission for background cache loading.
+void P_Service_patch_cache(void) // Coordinate bounded cache loading and own both audio critical sections from the main loop.
 {
     // Paused control callbacks indicate metadata replacement; Direct Sampling owns Flash while recording or converting.
     const bool copying_allowed = Trigger_0.Is_running() && !(Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state);
-    // Keep UI state here; the manager schedules chunks, reclaims buffers and publishes completed sources outside the audio IRQ.
-    PatchCache_Manager.Process_pending_loads(Players_Manager, copying_allowed);
+    if (!copying_allowed || NVIC_IS_ENABLED(IRQ_SOFTWARE) == 0)
+    {
+        return;
+    }
+
+    // Entry requires IRQ_SOFTWARE to be enabled, so each critical-section exit restores that state.
+    static constexpr unsigned int CYCLE_TIME_LIMIT = 1700; // Latest permitted copy start within the audio cycle, in microseconds.
+    static uint32_t last_cycle = 0; // Last audio cycle in which background loading attempted work.
+    static uint32_t blocked_since_ms = 0; // Start of the current cache-reclamation grace period.
+    static uint16_t blocked_mask = 0; // Retiring caches currently blocking a pending load.
+    PatchCacheManager::CopyJob job;
+
+    AudioNoInterrupts(); // Take a coherent snapshot while the audio callback cannot change player references.
+    const uint32_t cycle = audio_update_cycle;
+
+    // loop() can run many times per audio block: allow at most one attempt per block, and skip late attempts.
+    // The CYCLE_TIME_LIMIT threshold leaves a conservative margin for up to 512 samples before the next audio deadline.
+    if (cycle == last_cycle || audio_update_time_micros > CYCLE_TIME_LIMIT)
+    {
+        AudioInterrupts();
+        return;
+    }
+    last_cycle = cycle;
+    PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask()); // Reuse retired buffers only after every player has released them.
+    const bool copying = PatchCache_Manager.Prepare_copy(job);                          // Reserve the next chunk; incomplete files remain unavailable to players.
+    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();  // Request space only when pending work cannot obtain a free cache.
+
+    if (reclaim_mask != blocked_mask)
+    {
+        blocked_mask = reclaim_mask;
+        blocked_since_ms = millis(); // Start a new grace period whenever the blocking cache selection changes.
+    }
+    if (reclaim_mask != 0 && static_cast<uint32_t>(millis() - blocked_since_ms) >= 20u)
+    {
+        Players_Manager.Fast_stop_players_using_cache(reclaim_mask); // After 20 ms, fade eligible old readers; their buffers are not freed until references disappear.
+    }
+    if (copying)
+    {
+        AudioStartUsingSPI(); // Register Flash bus use before allowing audio callbacks to run again.
+    }
+    AudioInterrupts(); // Perform the Flash transfer outside the audio critical section.
+    
+    
+    if (!copying)
+    {
+        return;
+    }
+    const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples); // Copy only this reserved chunk into PSRAM, with audio interrupts enabled.
+
+    AudioNoInterrupts();
+    AudioStopUsingSPI();                            // Balance the SPI reservation even when the Flash read fails.
+    const bool ready = PatchCache_Manager.Complete_copy(job, success); // Publish only a fully copied file; failed reads leave playback on Flash.
+    if (ready)
+    {
+        Players_Manager.Refresh_cache_sources(); // Promote current and queued matching voices atomically to the completed PSRAM source.
+    }
+    AudioInterrupts(); // Restore audio processing
 }
