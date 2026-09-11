@@ -196,41 +196,41 @@ private:
 
     Intervallo	    Dimensione	Contenuto
     0x00000–0x000FF	256	        Header
-    0x00100–0x04BFF	19.200	    100 Patch
-    0x04C00–0x07DFF	12.800	    400 Sound
-    0x07E00–0x07EEF	240	        30 Recording
-    0x07EF0–0x07EFF	16	        Allineamento riservato
-    0x07F00–0x07FFF	256	        System
-    0x08000–0x1FFFF	98.304	    Libero
+    0x00100–0x096FF	38.400	    200 Patch
+    0x09700–0x0FAFF	25.600	    800 Sound
+    0x0FB00–0x0FBEF	240	        30 Recording
+    0x0FBF0–0x0FBFF	16	        Allineamento riservato
+    0x0FC00–0x0FCFF	256	        System
+    0x0FD00–0x1FFFF	66.304	    Libero
 
-    FRAM 0: 32.768 byte liberi
+    FRAM 0: 768 byte liberi
     FRAM 1: 65.536 byte liberi
-    Totale: 98.304 byte = 96 KiB
+    Totale: 66.304 byte = 64,75 KiB
 
     intervalli liberi
-    FRAM 0: 0x08000–0x0FFFF
+    FRAM 0: 0x0FD00–0x0FFFF
     FRAM 1: 0x10000–0x1FFFF
     */
 
-    static constexpr uint16_t FRAM_PATCHES = 100;
-    static constexpr uint16_t FRAM_SOUNDS = 400;
+    static constexpr uint16_t FRAM_PATCHES = 200;
+    static constexpr uint16_t FRAM_SOUNDS = 800;
 
     static constexpr uint32_t FRAM_HEADER_ADDRESS = 0x00000;
     static constexpr uint32_t FRAM_HEADER_BYTES = 0x00100;
 
     static constexpr uint32_t FRAM_PATCH_ADDRESS = FRAM_HEADER_ADDRESS + FRAM_HEADER_BYTES; // 0x00100
-    static constexpr uint32_t FRAM_PATCH_BYTES = FRAM_PATCHES * sizeof(FRAM_Patch_struct);  // 0x04B00
+    static constexpr uint32_t FRAM_PATCH_BYTES = FRAM_PATCHES * sizeof(FRAM_Patch_struct);  // 0x09600
 
-    static constexpr uint32_t FRAM_SOUND_ADDRESS = FRAM_PATCH_ADDRESS + FRAM_PATCH_BYTES; // 0x04C00
-    static constexpr uint32_t FRAM_SOUND_BYTES = FRAM_SOUNDS * sizeof(FRAM_Sound_struct); // 0x03200
+    static constexpr uint32_t FRAM_SOUND_ADDRESS = FRAM_PATCH_ADDRESS + FRAM_PATCH_BYTES; // 0x09700
+    static constexpr uint32_t FRAM_SOUND_BYTES = FRAM_SOUNDS * sizeof(FRAM_Sound_struct); // 0x06400
 
-    static constexpr uint32_t FRAM_RECORDING_ADDRESS = FRAM_SOUND_ADDRESS + FRAM_SOUND_BYTES;    // 0x07E00
+    static constexpr uint32_t FRAM_RECORDING_ADDRESS = FRAM_SOUND_ADDRESS + FRAM_SOUND_BYTES;    // 0x0FB00
     static constexpr uint32_t FRAM_RECORDING_BYTES = RECORDINGS * sizeof(FRAM_Recording_struct); // 0x000F0
 
-    static constexpr uint32_t FRAM_SYSTEM_ADDRESS = 0x07F00;
+    static constexpr uint32_t FRAM_SYSTEM_ADDRESS = 0x0FC00;
     static constexpr uint32_t FRAM_SYSTEM_BYTES = sizeof(FRAM_System_struct); // 0x00100
 
-    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x08000
+    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FD00
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);
     static_assert(sizeof(FRAM_Sound_struct) == 32);

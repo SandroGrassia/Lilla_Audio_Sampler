@@ -5,6 +5,7 @@
 */
 
 #include "DisplaySound.h"
+#include <math.h>
 
 FLASHMEM
 void DisplaySound::Show_pointer_frame(S_field_description_struct description, bool show)
@@ -35,16 +36,21 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
         Display_Manager.P_show_PERFORMANCE_title();
     }
 
-    Display_Manager.P_show_Patch_number(false);
+    tft.setCursor(display_coordinate_x(29), display_coordinate_y(0));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("PATCH");
+    tft.setCursor(display_coordinate_x(S_column_row_Patch[0]), display_coordinate_y(S_column_row_Patch[1]));
+    tft.setTextColor(ILI9341_WHITE);
+    tft.print(Patch_id);
 
-    tft.setCursor(display_coordinate_x(23), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(19), display_coordinate_y(0));// 23 -4
     tft.setTextColor(TEXT_COLOR);
     tft.print("SOUND");
-    tft.setCursor(display_coordinate_x(28.5), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(S_column_row_Sound[0]), display_coordinate_y(S_column_row_Sound[1]));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(instrument_id + 1);
 
-    tft.setCursor(display_coordinate_x(38), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(39), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FILE");
     Show_File_value(instrument_id);
@@ -106,7 +112,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.print("TRIM STEP");
     Show_Trim_step_value();
 
-    tft.setCursor(display_coordinate_x(28), display_coordinate_y(15));
+    tft.setCursor(display_coordinate_x(27), display_coordinate_y(15));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MAX PITCH/VOICES");
     Show_players_Pitch_max_value(instrument_id);
@@ -309,13 +315,19 @@ void DisplaySound::Show_Trim_step_value(void)
 FLASHMEM
 void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
 {
-    Cancel_text_reset_cursor(display_coordinate_x(44.5), display_coordinate_y(15), 8);
+    Cancel_text_reset_cursor(display_coordinate_x(43.5), display_coordinate_y(15), 8);
     tft.setTextColor(ILI9341_WHITE);
 
     const auto &preset = Preset[instrument_id];
     const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
-    tft.print(Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live));
-    tft.print("/");
+    const float max_pitch = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
+    const int max_pitch_semitones = static_cast<int>(floorf(12.0f * log2f(max_pitch)));
+    if (max_pitch_semitones >= 0)
+    {
+        tft.print("+");
+    }
+    tft.print(max_pitch_semitones);
+    tft.print("st/");
     tft.print(live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization]);
 }
 

@@ -21,7 +21,9 @@ class DisplaySound
 {
 private:
     // Screen coordinates for each SOUND page value field, expressed in character columns/rows.
-    static constexpr float S_column_row_File[2] = {43, 0};
+    static constexpr float S_column_row_Patch[2] = {34.5, 0};
+    static constexpr float S_column_row_Sound[2] = {24.5, 0};
+    static constexpr float S_column_row_File[2] = {43.5, 0};
     static constexpr float S_column_row_Midi[2] = {12.5, 4.9};
     static constexpr float S_column_row_Pitch[2] = {23.5, 4.9};
     static constexpr float S_column_row_Gain[2] = {35.5, 4.9};
@@ -73,8 +75,8 @@ private:
         S_chars_Release,
         S_chars_PlayMode,
         S_chars_NoClick};
-        
-    void Delete_all_menu_frame(void);            // Clears every SOUND menu highlight frame.
+
+    void Delete_all_menu_frame(void); // Clears every SOUND menu highlight frame.
 
 public:
     DisplaySound() {}
@@ -82,7 +84,7 @@ public:
     void Show_SOUND_page(int patch_id, int instrument_id);                      // Draws the complete SOUND page for the selected instrument.
     void Show_pointer_frame(S_field_description_struct description, bool show); // Shows or hides the selection frame requested by PointerSound.
     void Show_SOUND_menu(void);                                                 // Rebuilds the SOUND menu row using the currently enabled entries.
-    void Show_wave(int instrument_id); // Renders the waveform preview and trim information.
+    void Show_wave(int instrument_id);                                          // Renders the waveform preview and trim information.
 
     void Show_Attack_value(int instrument_id);  // Prints attack mode and time.
     void Show_Decay_value(int instrument_id);   // Prints decay time.

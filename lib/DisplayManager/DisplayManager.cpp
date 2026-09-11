@@ -104,11 +104,11 @@ void DisplayManager::Led_SOUND_EDIT_instrument(int instrument_id, bool on)
 {
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
     }
     else
     {
-        tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
     }
     return;
 }

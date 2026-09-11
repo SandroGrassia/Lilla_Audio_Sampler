@@ -1,23 +1,10 @@
-# Divieto assoluto di modifica della codebase
+# Divieto di modifica della codebase
 
-In questo repository Codex NON deve mai modificare la codebase.
+In questo repository Codex deve limitarsi a descrivere o proporre testualmente le modifiche nella chat.
 
-Per "modificare la codebase" si intende qualsiasi operazione che crea, modifica, sposta, elimina o formatta file del progetto, inclusi ma non limitati a:
-- file sorgente
-- configurazioni
-- build script
-- test
-- documentazione tecnica nel repository
-- file generati o metadati del progetto
+Codex può modificare la codebase solo dopo esplicita autorizzazione del tipo "ti autorizzo a modificare il codice". 
 
-Sono consentite esclusivamente operazioni di sola lettura, come:
-- ispezionare file
-- eseguire `git status`, `git diff`, `git log`
-- cercare testo con `rg`
-- analizzare il codice
-- proporre patch o piani di modifica senza applicarli
-
-Frasi come "procedi", "applica", "modifica", "implementa", "correggi nel codice" o equivalenti non autorizzano Codex a modificare la codebase. Codex deve limitarsi a descrivere o proporre testualmente le modifiche.
+Frasi come "procedi", "proponi", "crea codice" o equivalenti non autorizzano Codex a modificare la codebase. 
 
 # Divieto di sollecitare l'autorizzazione
 
