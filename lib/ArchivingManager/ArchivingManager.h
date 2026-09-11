@@ -123,7 +123,7 @@ private:
         FRAM_Instrument_filter_struct Filter;
     };
 
-    struct alignas(4) FRAM_Patch_delay_struct // 32 byte
+    struct alignas(4) FRAM_Patch_delay_struct // 28 byte
     {
         uint16_t samples;
         int16_t samples_LR;
@@ -133,7 +133,7 @@ private:
         uint8_t modulation_source;
         uint8_t modulation_depth;
         uint8_t modulation_frequency;
-        uint8_t reserved[13];
+        uint8_t reserved[9];
     };
 
     struct alignas(4) FRAM_Patch_struct // 192 byte
@@ -143,6 +143,7 @@ private:
         uint8_t reserved[30]; // Spazio per futuri metadati di Patch.
         FRAM_Instrument_struct Instrument[INSTRUMENTS];
         FRAM_Patch_delay_struct Delay;
+        uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..187, written after the payload.
     };
 
     struct alignas(4) FRAM_Sound_struct // 32 byte
@@ -162,7 +163,8 @@ private:
         uint8_t sustain;
         uint8_t release;
         uint8_t gain;
-        uint8_t reserved[9];
+        uint8_t reserved[5];
+        uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..27, written after the payload.
     };
 
     struct alignas(4) FRAM_Recording_struct // 8 byte
@@ -234,16 +236,18 @@ private:
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);
     static_assert(sizeof(FRAM_Sound_struct) == 32);
+    static_assert(offsetof(FRAM_Sound_struct, crc32) == 28);
 
     static_assert(sizeof(FRAM_Instrument_filter_struct) == 8);
     static_assert(sizeof(FRAM_Instrument_struct) == 16);
-    static_assert(sizeof(FRAM_Patch_delay_struct) == 32);
+    static_assert(sizeof(FRAM_Patch_delay_struct) == 28);
     static_assert(sizeof(FRAM_Recording_struct) == 8);
     static_assert(sizeof(FRAM_CC_settings_struct) == 16);
     static_assert(sizeof(FRAM_System_struct) == 256);
     static_assert(offsetof(FRAM_System_struct, CC_settings) == 4);
     static_assert(offsetof(FRAM_Patch_struct, Instrument) == 32);
     static_assert(offsetof(FRAM_Patch_struct, Delay) == 160);
+    static_assert(offsetof(FRAM_Patch_struct, crc32) == 188);
 
     static_assert(FRAM_RECORDING_ADDRESS + FRAM_RECORDING_BYTES <= FRAM_SYSTEM_ADDRESS);
     static_assert(FRAM_FIRST_FREE_ADDRESS <= LillaFRAM_2x512::TOTAL_SIZE);
@@ -300,9 +304,13 @@ public:
     bool Save_Patch_from_RAM_to_SD(const int patch_id);
     bool Resume_Patch_from_SD_to_RAM(const int patch_id);
 
+    static constexpr byte FRAM_ERROR_CRC = 12; // Stored Patch or Sound checksum does not match its payload.
+
+    // Patch reads validate the CRC before publishing data; writes calculate and store the CRC last.
     byte FRAM_Write_patch(uint8_t patch_id, const FRAM_Patch_struct &source);
     byte FRAM_Read_patch(uint8_t patch_id, FRAM_Patch_struct &destination);
 
+    // Nested accesses validate the containing Patch; nested writes save it again with a new CRC.
     byte FRAM_Write_instrument(uint8_t patch_id, uint8_t instrument_id, const FRAM_Instrument_struct &source);
     byte FRAM_Read_instrument(uint8_t patch_id, uint8_t instrument_id, FRAM_Instrument_struct &destination);
 
@@ -312,6 +320,7 @@ public:
     byte FRAM_Write_delay(uint8_t patch_id, const FRAM_Patch_delay_struct &source);
     byte FRAM_Read_delay(uint8_t patch_id, FRAM_Patch_delay_struct &destination);
 
+    // Sound reads validate the CRC before publishing data; writes calculate and store the CRC last.
     byte FRAM_Write_sound(uint16_t sound_id, const FRAM_Sound_struct &source);
     byte FRAM_Read_sound(uint16_t sound_id, FRAM_Sound_struct &destination);
 
