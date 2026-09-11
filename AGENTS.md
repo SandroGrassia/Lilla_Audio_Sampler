@@ -26,6 +26,7 @@ senza normalizzare o modificare altri file.
 
 # Espressioni di codice su una sola riga
 
+
 In caso di scrittura o modifica di codice, Codex non deve inserire interruzioni di riga all'interno delle espressioni. Ogni espressione deve essere mantenuta su una sola riga.
 
 Corretto:
@@ -40,4 +41,19 @@ Non consentito:
 return FRAM_PATCH_ADDRESS
          + static_cast<uint32_t>(patch_id)
                * sizeof(FRAM_Patch_struct);
+```
+
+# Graffe obbligatorie per if ed else
+
+I blocchi `if`, `else if` ed `else` devono sempre usare le graffe, anche quando contengono una sola istruzione. Le graffe di apertura e chiusura devono essere su righe separate, allineate alla relativa condizione o a `else`; le istruzioni interne devono essere indentate di quattro spazi.
+
+```cpp
+if (sound_action[id] == 2)
+{
+    ++report.defaulted_sounds;
+}
+else
+{
+    ++report.cleared_sounds;
+}
 ```

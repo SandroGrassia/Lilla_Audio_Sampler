@@ -138,7 +138,7 @@ static constexpr uint8_t SIZE_OF_INSTRUMENT_FILTER_DATA = sizeof(Instrument_filt
 struct Instrument_struct
 {
     bool used;
-    uint8_t sound_id;
+    uint16_t sound_id;
     uint8_t root_key;
     uint8_t from_note;
     uint8_t to_note;
@@ -146,15 +146,15 @@ struct Instrument_struct
     bool lock;
     Instrument_filter_data_struct Filter;
 };
-static constexpr uint8_t SIZE_OF_INSTRUMENT = sizeof(Instrument_struct); // 14
+static constexpr uint8_t SIZE_OF_INSTRUMENT = sizeof(Instrument_struct); // 16, including alignment for sound_id
 
 struct Patch_struct
 {
     bool used;
     uint8_t instruments;
     Instrument_struct Instrument[INSTRUMENTS];
-} __attribute__((__packed__));
-static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 14 = 114
+};
+static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 16 = 130
 
 extern Patch_struct Patch[PATCHES_MAX + 1]; // last used by Direct Sampling for "preascolto" and Live Sampling
 
@@ -327,7 +327,7 @@ extern float pan_gain_L_table[33];
 extern float pan_gain_R_table[33];
 
 // funzioni
-inline uint8_t Get_sound_id(int patch_id, int instrument_id)
+inline uint16_t Get_sound_id(int patch_id, int instrument_id)
 {
     return Patch[patch_id].Instrument[instrument_id].sound_id;
 }

@@ -23,8 +23,8 @@ uint8_t Lilla_state;
 uint8_t Lilla_state_0;
 
 // PATCH
-Patch_struct Patch[PATCHES_MAX + 1]; // local copy of patches_number
-Sound_struct Sound[SOUNDS_MAX + 2];
+DMAMEM Patch_struct Patch[PATCHES_MAX + 1]; // Operational metadata in RAM2; initialized explicitly at startup.
+DMAMEM Sound_struct Sound[SOUNDS_MAX + 2];
 
 // PERFORMANCE
 uint8_t Patch_id = 0;

@@ -552,7 +552,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     main_settings_editing_flag = true;
 }
 
-void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint8_t sound_id_in, uint8_t note_in)
+void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in)
 {
     pitch_note_wait = pitch_note_in;
     velocity_gain_wait = velocity_in;

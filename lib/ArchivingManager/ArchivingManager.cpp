@@ -9,70 +9,289 @@
 
 #include <string.h>
 
-namespace
+uint16_t ArchivingManager::Read_EEPROM_uint16(const uint8_t *source, size_t address)
 {
-// Keep each transfer within Wire2's 136-byte buffer, including the two address bytes.
-constexpr uint32_t FRAM_TRANSFER_BYTES = 128;
+    return static_cast<uint16_t>(source[address]) | (static_cast<uint16_t>(source[address + 1]) << 8);
+}
 
-uint32_t FRAM_Calculate_crc32(const uint8_t *bytes, uint32_t count)
+uint32_t ArchivingManager::Read_EEPROM_uint32(const uint8_t *source, size_t address)
 {
-    uint32_t crc = 0xFFFFFFFFUL;
-    for (uint32_t offset = 0; offset < count; ++offset)
+    return static_cast<uint32_t>(Read_EEPROM_uint16(source, address)) | (static_cast<uint32_t>(Read_EEPROM_uint16(source, address + 2)) << 16);
+}
+
+byte ArchivingManager::Migrate_EEPROM_to_FRAM()
+{
+    // These counts and offsets describe the original EEPROM format, not runtime capacities.
+    constexpr uint16_t legacy_patches = 24;
+    constexpr uint16_t legacy_sounds = 85;
+    static_assert(INSTRUMENTS == 8 && RECORDINGS == 30);
+    uint8_t source[EEPROM_BYTES];
+
+    for (size_t i = 0; i < sizeof(source); ++i)
     {
-        crc ^= bytes[offset];
-        for (uint8_t bit = 0; bit < 8; ++bit)
+        source[i] = EEPROM.read(i);
+    }
+
+    // Reject malformed active records before the first write; deleted records may retain stale data.
+    for (uint16_t id = 0; id < legacy_sounds; ++id)
+    {
+        if (source[LOCATION_SOUND + id * 22] > 1)
         {
-            crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
+            return FRAM_ERROR_SOURCE;
         }
     }
-    return crc ^ 0xFFFFFFFFUL;
-}
 
-byte FRAM_Write_bytes(uint32_t address, const uint8_t *bytes, uint32_t size)
-{
-    uint8_t buffer[FRAM_TRANSFER_BYTES];
-
-    for (uint32_t offset = 0; offset < size;)
+    for (uint16_t id = 0; id < legacy_patches; ++id)
     {
-        const uint32_t remaining = size - offset;
-        const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
-        memcpy(buffer, bytes + offset, count);
-        const byte result = LillaFram.writeArray(address + offset, count, buffer);
-        if (result != LillaFRAM_2x512::ERROR_0)
+        const size_t address = LOCATION_PATCH + id * 90;
+        if (source[address] > 1)
         {
-            return result; // Earlier blocks may already have been written.
+            return FRAM_ERROR_SOURCE;
         }
-        offset += count;
+        if (!source[address])
+        {
+            continue;
+        }
+
+        uint8_t count = 0;
+
+        for (uint8_t instrument = 0; instrument < INSTRUMENTS; ++instrument)
+        {
+            const size_t offset = address + 2 + instrument * 11;
+
+            if (source[offset] > 1)
+            {
+                return FRAM_ERROR_SOURCE;
+            }
+            if (!source[offset])
+            {
+                continue;
+            }
+
+            ++count;
+            const uint8_t sound_id = source[offset + 1];
+
+            if (sound_id >= legacy_sounds || source[LOCATION_SOUND + sound_id * 22] != 1)
+            {
+                return FRAM_ERROR_SOURCE;
+            }
+        }
+
+        if (count != source[address + 1])
+        {
+            return FRAM_ERROR_SOURCE;
+        }
     }
-    return LillaFRAM_2x512::ERROR_0;
-}
 
-template <class T>
-byte FRAM_Write_record(uint32_t address, const T &source)
-{
-    return FRAM_Write_bytes(address, reinterpret_cast<const uint8_t *>(&source), sizeof(T));
-}
-
-template <class T>
-byte FRAM_Read_record(uint32_t address, T &destination)
-{
-    T buffer{};
-    uint8_t *bytes = reinterpret_cast<uint8_t *>(&buffer);
-
-    for (uint32_t offset = 0; offset < sizeof(T);)
+    // Write the complete archive, then reconstruct expected records for a separate verification pass.
+    for (uint8_t pass = 0; pass < 2; ++pass)
     {
-        const uint32_t remaining = sizeof(T) - offset;
-        const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
-        const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
+        for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+        {
+            FRAM_Patch_struct expected{};
+            if (id < legacy_patches && source[LOCATION_PATCH + id * 90])
+            {
+                const size_t address = LOCATION_PATCH + id * 90;
+                expected.used = 1;
+                expected.instruments = source[address + 1];
+
+                for (uint8_t instrument = 0; instrument < INSTRUMENTS; ++instrument)
+                {
+                    const size_t offset = address + 2 + instrument * 11;
+                    auto &target = expected.Instrument[instrument];
+
+                    if (!source[offset])
+                    {
+                        continue;
+                    }
+
+                    target.used = 1;
+                    target.sound_id = source[offset + 1];
+                    target.root_key = source[offset + 2];
+                    target.from_note = source[offset + 3];
+                    target.to_note = source[offset + 4];
+                    target.precedence = source[offset + 5] & 1;
+                    target.lock = (source[offset + 5] >> 1) & 1;
+                    target.Filter.use = source[offset + 6] & 1;
+                    target.Filter.modulation = (source[offset + 6] >> 1) & 7;
+                    target.Filter.type = (source[offset + 6] >> 4) & 3;
+                    target.Filter.pivot = source[offset + 7];
+                    target.Filter.resonance = source[offset + 8];
+                    target.Filter.index = source[offset + 9];
+                    target.Filter.frequency_time = source[offset + 10];
+                }
+                auto &delay = expected.Delay;
+                delay.samples = Read_EEPROM_uint16(source, LOCATION_DELAY);
+                delay.samples_LR = static_cast<int16_t>(Read_EEPROM_uint16(source, LOCATION_DELAY + 2));
+                for (uint8_t instrument = 0; instrument < INSTRUMENTS; ++instrument)
+                {
+                    delay.instrument_route[instrument] = (source[LOCATION_DELAY + 4] >> instrument) & 1;
+                }
+                delay.modulation_source = source[LOCATION_DELAY + 5];
+                delay.modulation_depth = source[LOCATION_DELAY + 6];
+                delay.modulation_frequency = source[LOCATION_DELAY + 7];
+                delay.modulation_phase_LR = Read_EEPROM_uint16(source, LOCATION_DELAY + 8);
+                delay.loop_gain = Read_EEPROM_uint16(source, LOCATION_DELAY + 10);
+            }
+
+            FRAM_Patch_struct actual{};
+            const byte result = pass == 0 ? FRAM_Write_patch(id, expected) : FRAM_Read_patch(id, actual);
+
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result;
+            }
+            if (pass && memcmp(&expected, &actual, offsetof(FRAM_Patch_struct, crc32)) != 0)
+            {
+                return FRAM_ERROR_VERIFY;
+            }
+        }
+        for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+        {
+            FRAM_Sound_struct expected{};
+
+            if (id < legacy_sounds && source[LOCATION_SOUND + id * 22])
+            {
+                const size_t address = LOCATION_SOUND + id * 22;
+                expected.used = 1;
+                expected.file = Read_EEPROM_uint16(source, address + 1);
+                expected.mode = source[address + 3];
+                expected.pitch = static_cast<int8_t>(source[address + 4]);
+                expected.A = Read_EEPROM_uint32(source, address + 5);
+                expected.B = Read_EEPROM_uint32(source, address + 9);
+                expected.Noclick = Read_EEPROM_uint16(source, address + 13);
+                expected.pan = static_cast<int8_t>(source[address + 15]);
+                expected.midi_channel = (source[address + 16] >> 1) & 15;
+                expected.attack_type = source[address + 16] & 1;
+                expected.attack = source[address + 17];
+                expected.decay = source[address + 18];
+                expected.sustain = source[address + 19];
+                expected.release = source[address + 20];
+                expected.gain = source[address + 21];
+            }
+
+            FRAM_Sound_struct actual{};
+            const byte result = pass == 0 ? FRAM_Write_sound(id, expected) : FRAM_Read_sound(id, actual);
+
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result;
+            }
+            if (pass && memcmp(&expected, &actual, offsetof(FRAM_Sound_struct, crc32)) != 0)
+            {
+                return FRAM_ERROR_VERIFY;
+            }
+        }
+        for (uint8_t id = 0; id < RECORDINGS; ++id)
+        {
+            const size_t address = LOCATION_RECORDING + id * 4;
+            FRAM_Recording_struct expected{};
+            expected.first_packet = Read_EEPROM_uint16(source, address);
+            expected.packets = source[address + 2];
+            expected.stereo = (source[address + 3] >> 1) & 1;
+            expected.consistent = source[address + 3] & 1;
+            FRAM_Recording_struct actual{};
+            const byte result = pass == 0 ? FRAM_Write_recording(id, expected) : FRAM_Read_recording(id, actual);
+
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result;
+            }
+            if (pass && memcmp(&expected, &actual, sizeof(expected)) != 0)
+            {
+                return FRAM_ERROR_VERIFY;
+            }
+        }
+
+        FRAM_System_struct expected{};
+        expected.optimization = source[LOCATION_OPTIMIZATION];
+        expected.first_octave = static_cast<int8_t>(source[LOCATION_FIRST_OCTAVE]);
+
+        for (uint8_t instrument = 0; instrument < INSTRUMENTS; ++instrument)
+        {
+            expected.CC_settings.sound_gain[instrument] = source[LOCATION_CC_SETTINGS + instrument];
+        }
+
+        expected.CC_settings.lowpass_filter = source[LOCATION_CC_SETTINGS + 8];
+        FRAM_System_struct actual{};
+        const byte result = pass == 0 ? FRAM_Write_system(expected) : FRAM_Read_system(actual);
+
         if (result != LillaFRAM_2x512::ERROR_0)
         {
             return result;
         }
-        offset += count;
+        if (pass && memcmp(&expected, &actual, sizeof(expected)) != 0)
+        {
+            return FRAM_ERROR_VERIFY;
+        }
     }
-    memcpy(&destination, &buffer, sizeof(T)); // Publish only a complete record.
     return LillaFRAM_2x512::ERROR_0;
 }
+
+namespace
+{
+    // Keep each transfer within Wire2's 136-byte buffer, including the two address bytes.
+    constexpr uint32_t FRAM_TRANSFER_BYTES = 128;
+
+    uint32_t FRAM_Calculate_crc32(const uint8_t *bytes, uint32_t count)
+    {
+        uint32_t crc = 0xFFFFFFFFUL;
+        for (uint32_t offset = 0; offset < count; ++offset)
+        {
+            crc ^= bytes[offset];
+            for (uint8_t bit = 0; bit < 8; ++bit)
+            {
+                crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
+            }
+        }
+        return crc ^ 0xFFFFFFFFUL;
+    }
+
+    byte FRAM_Write_bytes(uint32_t address, const uint8_t *bytes, uint32_t size)
+    {
+        uint8_t buffer[FRAM_TRANSFER_BYTES];
+
+        for (uint32_t offset = 0; offset < size;)
+        {
+            const uint32_t remaining = size - offset;
+            const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
+            memcpy(buffer, bytes + offset, count);
+            const byte result = LillaFram.writeArray(address + offset, count, buffer);
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result; // Earlier blocks may already have been written.
+            }
+            offset += count;
+        }
+        return LillaFRAM_2x512::ERROR_0;
+    }
+
+    template <class T>
+    byte FRAM_Write_record(uint32_t address, const T &source)
+    {
+        return FRAM_Write_bytes(address, reinterpret_cast<const uint8_t *>(&source), sizeof(T));
+    }
+
+    template <class T>
+    byte FRAM_Read_record(uint32_t address, T &destination)
+    {
+        T buffer{};
+        uint8_t *bytes = reinterpret_cast<uint8_t *>(&buffer);
+
+        for (uint32_t offset = 0; offset < sizeof(T);)
+        {
+            const uint32_t remaining = sizeof(T) - offset;
+            const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
+            const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result;
+            }
+            offset += count;
+        }
+        memcpy(&destination, &buffer, sizeof(T)); // Publish only a complete record.
+        return LillaFRAM_2x512::ERROR_0;
+    }
 }
 
 uint32_t ArchivingManager::FRAM_Get_patch_address(uint8_t patch_id)
@@ -116,15 +335,18 @@ byte ArchivingManager::FRAM_Write_patch(uint8_t patch_id, const FRAM_Patch_struc
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     const uint32_t address = FRAM_Get_patch_address(patch_id);
     const uint32_t payload_bytes = offsetof(FRAM_Patch_struct, crc32);
     const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&source);
     const uint32_t crc = FRAM_Calculate_crc32(bytes, payload_bytes);
     const byte result = FRAM_Write_bytes(address, bytes, payload_bytes);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     return FRAM_Write_record(address + payload_bytes, crc);
 }
 
@@ -134,8 +356,10 @@ byte ArchivingManager::FRAM_Read_patch(uint8_t patch_id, FRAM_Patch_struct &dest
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_record(FRAM_Get_patch_address(patch_id), patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
@@ -144,6 +368,7 @@ byte ArchivingManager::FRAM_Read_patch(uint8_t patch_id, FRAM_Patch_struct &dest
     {
         return FRAM_ERROR_CRC;
     }
+
     memcpy(&destination, &patch, sizeof(patch));
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -154,12 +379,15 @@ byte ArchivingManager::FRAM_Write_instrument(uint8_t patch_id, uint8_t instrumen
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     patch.Instrument[instrument_id] = source;
     return FRAM_Write_patch(patch_id, patch);
 }
@@ -170,12 +398,15 @@ byte ArchivingManager::FRAM_Read_instrument(uint8_t patch_id, uint8_t instrument
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     destination = patch.Instrument[instrument_id];
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -186,12 +417,15 @@ byte ArchivingManager::FRAM_Write_filter(uint8_t patch_id, uint8_t instrument_id
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     patch.Instrument[instrument_id].Filter = source;
     return FRAM_Write_patch(patch_id, patch);
 }
@@ -202,12 +436,15 @@ byte ArchivingManager::FRAM_Read_filter(uint8_t patch_id, uint8_t instrument_id,
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     destination = patch.Instrument[instrument_id].Filter;
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -218,12 +455,15 @@ byte ArchivingManager::FRAM_Write_delay(uint8_t patch_id, const FRAM_Patch_delay
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     patch.Delay = source;
     return FRAM_Write_patch(patch_id, patch);
 }
@@ -234,12 +474,15 @@ byte ArchivingManager::FRAM_Read_delay(uint8_t patch_id, FRAM_Patch_delay_struct
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     destination = patch.Delay;
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -250,15 +493,18 @@ byte ArchivingManager::FRAM_Write_sound(uint16_t sound_id, const FRAM_Sound_stru
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     const uint32_t address = FRAM_Get_sound_address(sound_id);
     const uint32_t payload_bytes = offsetof(FRAM_Sound_struct, crc32);
     const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&source);
     const uint32_t crc = FRAM_Calculate_crc32(bytes, payload_bytes);
     const byte result = FRAM_Write_bytes(address, bytes, payload_bytes);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     return FRAM_Write_record(address + payload_bytes, crc);
 }
 
@@ -268,8 +514,10 @@ byte ArchivingManager::FRAM_Read_sound(uint16_t sound_id, FRAM_Sound_struct &des
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Sound_struct sound{};
     const byte result = FRAM_Read_record(FRAM_Get_sound_address(sound_id), sound);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
@@ -278,6 +526,7 @@ byte ArchivingManager::FRAM_Read_sound(uint16_t sound_id, FRAM_Sound_struct &des
     {
         return FRAM_ERROR_CRC;
     }
+
     memcpy(&destination, &sound, sizeof(sound));
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -288,6 +537,7 @@ byte ArchivingManager::FRAM_Write_recording(uint8_t recording_id, const FRAM_Rec
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     return FRAM_Write_record(FRAM_Get_recording_address(recording_id), source);
 }
 
@@ -297,6 +547,7 @@ byte ArchivingManager::FRAM_Read_recording(uint8_t recording_id, FRAM_Recording_
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     return FRAM_Read_record(FRAM_Get_recording_address(recording_id), destination);
 }
 
@@ -318,6 +569,311 @@ byte ArchivingManager::FRAM_Write_system(const FRAM_System_struct &source)
 byte ArchivingManager::FRAM_Read_system(FRAM_System_struct &destination)
 {
     return FRAM_Read_record(FRAM_SYSTEM_ADDRESS, destination);
+}
+
+byte ArchivingManager::Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report)
+{
+    report = {};
+    bool clear_patch[FRAM_PATCHES] = {};
+    bool referenced[FRAM_SOUNDS] = {};
+    uint8_t sound_action[FRAM_SOUNDS] = {}; // 0: keep, 1: clear, 2: default.
+
+    // Complete the read-only assessment first. An I/O failure is not evidence of corruption.
+    for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+    {
+        report.failed_id = id;
+        FRAM_Patch_struct patch{};
+        const byte result = FRAM_Read_patch(id, patch);
+
+        if (result == FRAM_ERROR_CRC)
+        {
+            clear_patch[id] = true;
+            continue; // Never use links from a record with an invalid CRC.
+        }
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (patch.used > 1)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+        if (!patch.used)
+        {
+            continue;
+        }
+
+        uint8_t count = 0;
+        for (const auto &instrument : patch.Instrument)
+        {
+            if (instrument.used > 1)
+            {
+                return FRAM_ERROR_SOURCE;
+            }
+            if (!instrument.used)
+            {
+                continue;
+            }
+            if (instrument.sound_id >= FRAM_SOUNDS)
+            {
+                return FRAM_ERROR_SOURCE;
+            }
+            referenced[instrument.sound_id] = true;
+            ++count;
+        }
+
+        if (count != patch.instruments)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+    }
+
+    report.failed_sound = true;
+    const FRAM_Sound_struct empty_sound{};
+
+    for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+    {
+        report.failed_id = id;
+        FRAM_Sound_struct sound{};
+        const byte result = FRAM_Read_sound(id, sound);
+        if (result != LillaFRAM_2x512::ERROR_0 && result != FRAM_ERROR_CRC)
+        {
+            return result;
+        }
+        if (!referenced[id])
+        {
+            if (result == FRAM_ERROR_CRC || memcmp(&sound, &empty_sound, offsetof(FRAM_Sound_struct, crc32)) != 0)
+            {
+                sound_action[id] = 1;
+            }
+        }
+        else if (result == FRAM_ERROR_CRC)
+        {
+            sound_action[id] = 2;
+        }
+        else if (sound.used != 1)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+    }
+
+    // Persist and verify each repair. A later startup can safely resume after interruption.
+    report.failed_sound = false;
+    for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+    {
+        if (!clear_patch[id])
+        {
+            continue;
+        }
+
+        report.failed_id = id;
+        const FRAM_Patch_struct empty{};
+        byte result = FRAM_Write_patch(id, empty);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+
+        FRAM_Patch_struct actual{};
+        result = FRAM_Read_patch(id, actual);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (memcmp(&empty, &actual, offsetof(FRAM_Patch_struct, crc32)) != 0)
+        {
+            return FRAM_ERROR_VERIFY;
+        }
+
+        ++report.cleared_patches;
+    }
+    report.failed_sound = true;
+    for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+    {
+        if (!sound_action[id])
+        {
+            continue;
+        }
+
+        report.failed_id = id;
+        FRAM_Sound_struct expected{};
+
+        if (sound_action[id] == 2)
+        {
+            // Same defaults as the factory Sound in main; all remaining fields stay zero.
+            expected.used = 1;
+            expected.B = 1000;
+            expected.decay = 50;
+            expected.sustain = 50;
+            expected.release = 10;
+            expected.gain = 12;
+        }
+
+        byte result = FRAM_Write_sound(id, expected);
+        if (result != LillaFRAM_2x512::ERROR_0)
+
+        {
+            return result;
+        }
+
+        FRAM_Sound_struct actual{};
+        result = FRAM_Read_sound(id, actual);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (memcmp(&expected, &actual, offsetof(FRAM_Sound_struct, crc32)) != 0)
+        {
+            return FRAM_ERROR_VERIFY;
+        }
+        if (sound_action[id] == 2)
+        {
+            ++report.defaulted_sounds;
+        }
+        else
+        {
+            ++report.cleared_sounds;
+        }
+    }
+
+    report.failed_id = UINT16_MAX;
+    return LillaFRAM_2x512::ERROR_0;
+}
+
+byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound)
+{
+    static_assert(PATCHES_MAX == FRAM_PATCHES && SOUNDS_MAX == FRAM_SOUNDS);
+
+    memset(Patch, 0, sizeof(Patch));
+    memset(Sound, 0, sizeof(Sound));
+    byte result = LillaFRAM_2x512::ERROR_0;
+    failed_sound = true;
+
+    for (failed_id = 0; failed_id < SOUNDS_MAX; ++failed_id)
+    {
+        FRAM_Sound_struct source{};
+        result = FRAM_Read_sound(failed_id, source);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            break;
+        }
+        if (source.used > 1)
+        {
+            result = FRAM_ERROR_SOURCE;
+            break;
+        }
+        if (!source.used)
+        {
+            continue;
+        }
+
+        auto &target = Sound[failed_id];
+        target.used = true;
+        target.file = source.file;
+        target.mode = source.mode;
+        target.pitch = source.pitch;
+        target.A = source.A;
+        target.B = source.B;
+        target.Noclick = source.Noclick;
+        target.pan = source.pan;
+        target.data = (source.midi_channel << 1) | (source.attack_type & 1);
+        target.attack = source.attack;
+        target.decay = source.decay;
+        target.sustain = source.sustain;
+        target.release = source.release;
+        target.gain = source.gain;
+    }
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        failed_sound = false;
+
+        for (failed_id = 0; failed_id < PATCHES_MAX; ++failed_id)
+        {
+            FRAM_Patch_struct source{};
+            result = FRAM_Read_patch(failed_id, source);
+
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                break;
+            }
+            if (source.used > 1)
+            {
+                result = FRAM_ERROR_SOURCE;
+                break;
+            }
+            if (!source.used)
+            {
+                continue;
+            }
+
+            auto &target = Patch[failed_id];
+            target.used = true;
+            target.instruments = source.instruments;
+            uint8_t count = 0;
+
+            for (uint8_t id = 0; id < INSTRUMENTS; ++id)
+            {
+                const auto &input = source.Instrument[id];
+                if (input.used > 1)
+                {
+                    result = FRAM_ERROR_SOURCE;
+                    break;
+                }
+                if (!input.used)
+                {
+                    continue;
+                }
+                if (input.sound_id >= SOUNDS_MAX || !Sound[input.sound_id].used)
+                {
+                    result = FRAM_ERROR_SOURCE;
+                    break;
+                }
+
+                ++count;
+                auto &output = target.Instrument[id];
+                output.used = true;
+                output.sound_id = input.sound_id;
+                output.root_key = input.root_key;
+                output.from_note = input.from_note;
+                output.to_note = input.to_note;
+                output.precedence = input.precedence;
+                output.lock = input.lock;
+                output.Filter.use = input.Filter.use;
+                output.Filter.type = input.Filter.type;
+                output.Filter.pivot = input.Filter.pivot;
+                output.Filter.resonance = input.Filter.resonance;
+                output.Filter.modulation = input.Filter.modulation;
+                output.Filter.index = input.Filter.index;
+                output.Filter.frequency_time = input.Filter.frequency_time;
+            }
+
+            if (count != source.instruments)
+            {
+                result = FRAM_ERROR_SOURCE;
+            }
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                break;
+            }
+        }
+    }
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        memset(Patch, 0, sizeof(Patch));
+        memset(Sound, 0, sizeof(Sound));
+    }
+    else
+    {
+        failed_id = UINT16_MAX;
+    }
+    
+    return result;
 }
 
 void ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
@@ -379,6 +935,11 @@ void ArchivingManager::Save_first_octave(const int8_t first_octave)
 
 void ArchivingManager::Save_Sound(const int sound_id)
 {
+    if (sound_id < 0 || sound_id >= 85)
+    {
+        return; // Legacy EEPROM capacity; FRAM saving is not enabled yet.
+    }
+
     Eeprom_writeAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
 }
 
@@ -423,12 +984,30 @@ bool ArchivingManager::Validate_Sound_AB_file_raw(uint32_t sound_id)
 
 void ArchivingManager::Read_Sound(const int sound_id)
 {
+    if (sound_id < 0 || sound_id >= 85)
+    {
+        return; // Never address expanded runtime slots through the legacy layout.
+    }
+
     Eeprom_readAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
     Validate_Sound_AB_file_raw(sound_id);
 }
 
 void ArchivingManager::Save_Patch(const int patch_id)
 {
+    if (patch_id < 0 || patch_id >= 24)
+
+    {
+        return; // Legacy EEPROM capacity
+    }
+
+    for (const auto &instrument : Patch[patch_id].Instrument)
+    {
+        if (instrument.used && instrument.sound_id >= 85)
+        {
+            return;
+        }
+    }
     EEPROM_Patch.used = Patch[patch_id].used;
     EEPROM_Patch.instruments = Patch[patch_id].instruments;
 
@@ -454,6 +1033,11 @@ void ArchivingManager::Save_Patch(const int patch_id)
 
 void ArchivingManager::Read_Patch(const int patch_id)
 {
+    if (patch_id < 0 || patch_id >= 24)
+    {
+        return; // Legacy EEPROM capacity.
+    }
+
     Eeprom_readAnything(GET_location_of_Patch(patch_id), EEPROM_Patch);
 
     Patch[patch_id].used = EEPROM_Patch.used;
@@ -664,6 +1248,7 @@ int ArchivingManager::Eeprom_writeAnything(size_t address, const T &source)
     {
         const byte *p = (const byte *)(const void *)&source;
         size_t i = 0;
+
         for (i = 0; i < sizeof(source); ++i)
         {
             EEPROM.write(address++, *p++);
@@ -686,6 +1271,7 @@ int ArchivingManager::Eeprom_readAnything(size_t address, T &destination)
     {
         byte *p = (byte *)(void *)&destination;
         size_t i = 0;
+
         for (i = 0; i < sizeof(destination); ++i)
         {
             *p++ = EEPROM.read(address++);

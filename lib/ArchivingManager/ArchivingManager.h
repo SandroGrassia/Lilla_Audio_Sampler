@@ -32,6 +32,10 @@ private:
     static constexpr int LOCATION_DELAY = 4237;        // 17 byte
     static constexpr int LOCATION_CC_SETTINGS = 4254;  // 31 byte
 
+    // Decode little-endian values from the EEPROM snapshot.
+    static uint16_t Read_EEPROM_uint16(const uint8_t *source, size_t address);
+    static uint32_t Read_EEPROM_uint32(const uint8_t *source, size_t address);
+
     template <class T>
     int Eeprom_writeAnything(const size_t, const T &value);
     template <class T>
@@ -304,6 +308,23 @@ public:
     bool Save_Patch_from_RAM_to_SD(const int patch_id);
     bool Resume_Patch_from_SD_to_RAM(const int patch_id);
 
+    // Initialize FRAM and stop metadata writers before calling. EEPROM is never changed.
+    // Failure leaves a partial archive: retry before enabling the FRAM runtime backend.
+    byte Migrate_EEPROM_to_FRAM();
+    struct FRAM_Repair_report
+    {
+        uint16_t cleared_patches = 0;
+        uint16_t cleared_sounds = 0;
+        uint16_t defaulted_sounds = 0;
+        uint16_t failed_id = UINT16_MAX;
+        bool failed_sound = false;
+    };
+    // Startup only, before runtime loading. Repairs FRAM without changing the RAM model.
+    byte Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report);
+    // Startup only: clears runtime arrays on failure and reports the failing record ID.
+    byte Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound);
+    static constexpr byte FRAM_ERROR_VERIFY = 13;
+    static constexpr byte FRAM_ERROR_SOURCE = 14;
     static constexpr byte FRAM_ERROR_CRC = 12; // Stored Patch or Sound checksum does not match its payload.
 
     // Patch reads validate the CRC before publishing data; writes calculate and store the CRC last.

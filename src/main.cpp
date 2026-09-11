@@ -446,7 +446,7 @@ uint8_t Patch_id_old;
 bool patch_original;
 bool patch_original_0;
 uint8_t patches_number; // number of patches_number in use (NOT deleted)
-int8_t S_Get_Patch_id_free(void);
+int S_Get_Patch_id_free(void);
 void P_Delete_all_Patches_and_Sounds(void);
 void P_Read_all_Patches(void);
 void P_Update_Patches_number(void);
@@ -486,9 +486,9 @@ int S_menu_max;
 void S_Select_menu_elements(void);
 
 // variables
-Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // used to save all Sound starting a new patch_id
+DMAMEM Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // Reference metadata in RAM2.
 
-uint8_t Sound_id;
+uint16_t Sound_id;
 bool S_sound_original = true;
 uint32_t S_trim_step; // samples per each step while trimming audio file
 int S_slicing_window;
@@ -505,10 +505,10 @@ bool S_Verify_is_Sound_original(int sound_id);
 void S_Refresh_source_limits(bool force); // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
 void S_Copy_all_Sound_to_Sound_cache_P(void);
 void S_Pull_all_Sound_from_Sound_cache_P(void);
-uint8_t S_Get_sounds_free(void);
+uint16_t S_Get_sounds_free(void);
 void S_Read_all_Sounds(void);
 void S_Save_all_Sounds_changed(void);
-int8_t S_Get_sound_free(void);
+int S_Get_sound_free(void);
 uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
@@ -8117,7 +8117,7 @@ uint8_t P_Get_next_Patch_id_existing(void)
 
 uint8_t P_Get_previous_Patch_id_existing(void)
 {
-    int8_t patch_id = Patch_id;
+    int patch_id = Patch_id;
     do
     {
         --patch_id;
@@ -8458,7 +8458,10 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
     static float displayed_pitch_limit = -1.0f;
     static int displayed_voices = -1;
     const uint32_t now_ms = millis();
-    if (!force && static_cast<uint32_t>(now_ms - last_ms) < 20u) { return; }
+    if (!force && static_cast<uint32_t>(now_ms - last_ms) < 20u)
+    {
+        return;
+    }
     last_ms = now_ms;
     const auto &preset = Preset[Instrument_id];
     const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
@@ -8517,7 +8520,7 @@ void S_Pull_all_Sound_from_Sound_cache_P(void)
     }
 }
 
-uint8_t S_Get_sounds_free(void)
+uint16_t S_Get_sounds_free(void)
 {
     auto result = 0;
 
@@ -8551,7 +8554,7 @@ uint8_t S_Get_midi_channel_from_Sound(int sound_id)
     return ((Sound[sound_id].data & 30) >> 1);
 }
 
-int8_t S_Get_Patch_id_free(void)
+int S_Get_Patch_id_free(void)
 {
     for (auto local_patch = 0; local_patch < PATCHES_MAX; ++local_patch)
     {
@@ -8563,7 +8566,7 @@ int8_t S_Get_Patch_id_free(void)
     return -1;
 }
 
-int8_t S_Get_sound_free(void)
+int S_Get_sound_free(void)
 {
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
@@ -13038,6 +13041,23 @@ void Startup_hardware_and_objects(void)
     if (result == LillaFRAM_2x512::ERROR_0)
     {
         Serial.println(F("FRAM bank check: OK"));
+
+        /*
+        // migrazione metadati da EEPROM a FRAM
+        Serial.println(F("EEPROM -> FRAM: start"));
+        const byte migration_result = Archive.Migrate_EEPROM_to_FRAM();
+
+        if (migration_result == LillaFRAM_2x512::ERROR_0)
+        {
+            Serial.println(F("EEPROM -> FRAM: completed and verified"));
+        }
+        else
+        {
+            Serial.print(F("EEPROM -> FRAM: failed, error "));
+            Serial.println(migration_result);
+        }
+        */
+
     }
     else
     {
@@ -13129,11 +13149,39 @@ void Reload_system_state(void)
     LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
 
     // *******************   CORE ARRAYS  ************************
+    ArchivingManager::FRAM_Repair_report repair_report;
+    const byte repair_result = Archive.Repair_Patch_Sound_in_FRAM(repair_report);
+    Serial.print(F("FRAM repair: cleared Patches="));
+    Serial.print(repair_report.cleared_patches);
+    Serial.print(F(", cleared Sounds="));
+    Serial.print(repair_report.cleared_sounds);
+    Serial.print(F(", defaulted Sounds="));
+    Serial.println(repair_report.defaulted_sounds);
+    if (repair_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM repair failed: "));
+        Serial.print(repair_report.failed_sound ? F("Sound ") : F("Patch "));
+        Serial.print(repair_report.failed_id);
+        Serial.print(F(", error "));
+        Serial.println(repair_result);
+        while (true) { delay(1000); }
+    }
     P_Delete_all_Patches_and_Sounds();
 
-    S_Read_all_Sounds(); // compila tutti i Sound leggendo dalla EEPROM
+    uint16_t failed_metadata_id = 0;
+    bool failed_sound = false;
+    const byte metadata_result = Archive.Load_Patch_Sound_from_FRAM(failed_metadata_id, failed_sound);
+    if (metadata_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM metadata load failed: "));
+        Serial.print(failed_sound ? F("Sound ") : F("Patch "));
+        Serial.print(failed_metadata_id);
+        Serial.print(F(", error "));
+        Serial.println(metadata_result);
+        while (true) { delay(1000); }
+    }
     S_Copy_all_Sound_to_Sound_cache_P();
-    P_Read_all_Patches(); // compila tutte le Patch leggendo dalla EEPROM
+    Serial.println(F("FRAM -> RAM2: 200 Patches and 800 Sounds loaded, CRC verified"));
 
     Archive.Read_optimization(optimization);
     Archive.Read_first_octave(first_octave);
@@ -13368,9 +13416,9 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
 
     // Entry requires IRQ_SOFTWARE to be enabled, so each critical-section exit restores that state.
     static constexpr unsigned int CYCLE_TIME_LIMIT = 1700; // Latest permitted copy start within the audio cycle, in microseconds.
-    static uint32_t last_cycle = 0; // Last audio cycle in which background loading attempted work.
-    static uint32_t blocked_since_ms = 0; // Start of the current cache-reclamation grace period.
-    static uint16_t blocked_mask = 0; // Retiring caches currently blocking a pending load.
+    static uint32_t last_cycle = 0;                        // Last audio cycle in which background loading attempted work.
+    static uint32_t blocked_since_ms = 0;                  // Start of the current cache-reclamation grace period.
+    static uint16_t blocked_mask = 0;                      // Retiring caches currently blocking a pending load.
     PatchCacheManager::CopyJob job;
 
     AudioNoInterrupts(); // Take a coherent snapshot while the audio callback cannot change player references.
@@ -13385,8 +13433,8 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     }
     last_cycle = cycle;
     PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask()); // Reuse retired buffers only after every player has released them.
-    const bool copying = PatchCache_Manager.Prepare_copy(job);                          // Reserve the next chunk; incomplete files remain unavailable to players.
-    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();  // Request space only when pending work cannot obtain a free cache.
+    const bool copying = PatchCache_Manager.Prepare_copy(job);                                  // Reserve the next chunk; incomplete files remain unavailable to players.
+    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();          // Request space only when pending work cannot obtain a free cache.
 
     if (reclaim_mask != blocked_mask)
     {
@@ -13402,8 +13450,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
         AudioStartUsingSPI(); // Register Flash bus use before allowing audio callbacks to run again.
     }
     AudioInterrupts(); // Perform the Flash transfer outside the audio critical section.
-    
-    
+
     if (!copying)
     {
         return;
@@ -13411,7 +13458,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples); // Copy only this reserved chunk into PSRAM, with audio interrupts enabled.
 
     AudioNoInterrupts();
-    AudioStopUsingSPI();                            // Balance the SPI reservation even when the Flash read fails.
+    AudioStopUsingSPI();                                               // Balance the SPI reservation even when the Flash read fails.
     const bool ready = PatchCache_Manager.Complete_copy(job, success); // Publish only a fully copied file; failed reads leave playback on Flash.
     if (ready)
     {

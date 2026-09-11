@@ -44,8 +44,8 @@ static constexpr int INSTRUMENTS = 8;   // mux number of Instruments per Patch
 static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari
 static constexpr int BLOCK_MIN = 674;       // Maximum span stored in AudioTables as a wavetable; longer loops are read in bounded segments.
 static constexpr int NOCLICK_DIM = 300;     // max number of samples included in cross-fade time in NoClick array creation
-static constexpr int PATCHES_MAX = 24;      // max number of Patchs stored in EEPROM
-static constexpr int SOUNDS_MAX = 85;       // max number of Sounds stored in EEPROM
+static constexpr int PATCHES_MAX = 200;     // FRAM Patch capacity
+static constexpr int SOUNDS_MAX = 800;      // FRAM Sound capacity
 static constexpr int NOTE_NUMBERS = 128;
 
 // POLYPHONY AND MAX-PITCH
