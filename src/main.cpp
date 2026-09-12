@@ -7,6 +7,8 @@
 #include <Arduino.h>
 #include <util/atomic.h>
 #include <type_traits>
+#include <strings.h>
+#include "ZeroRaw.h"
 #include <spi_interrupt.h>
 
 // **********************************************************
@@ -572,7 +574,7 @@ void Calc_pitch_from_note(const int &key_step);
 int Line_in_gain;
 
 // functions
-bool SET_Copy_raw_files_from_SD_to_Flash(void);
+bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed);
 float SET_eraseBytesPerSecond(const unsigned char *id);
 void SET_Ask_if_IMPORT_EXPORT_setup(void);
 void SET_Ask_if_FACTORY_RESET(void);
@@ -7484,15 +7486,19 @@ void loop()
                 // break;
 
             case 4: // import RAW files from SD
+            {
+                const bool resume_controls = Trigger_0.Is_running();
                 if (!P_Quiesce_audio_players())
                 {
                     break;
                 }
 
-                if (SET_Copy_raw_files_from_SD_to_Flash())
+                bool flash_changed = false;
+                if (SET_Copy_raw_files_from_SD_to_Flash(flash_changed))
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
+                    File_scanner.Read_all_file_data();
 
                     // switch off Tools LED
                     TOOLS_pushbutton = false;
@@ -7502,19 +7508,28 @@ void loop()
                 }
                 else
                 {
-                    AudioNoInterrupts();
-                    const bool ready = S_Fill_all_tables();
-                    if (ready)
+                    // Cancellation can resume the old inventory; a failed destructive import cannot.
+                    if (!flash_changed && resume_controls)
                     {
-                        Midi_reader.Start();
-                        Trigger_0.Start();
-                        Trigger_1.Start();
+                        AudioNoInterrupts();
+                        const bool ready = S_Fill_all_tables();
+                        if (ready)
+                        {
+                            Midi_reader.Start();
+                            Trigger_0.Start();
+                            Trigger_1.Start();
+                        }
+                        AudioInterrupts();
                     }
-                    AudioInterrupts();
+                    if (flash_changed)
+                    {
+                        Serial.println(F("RAW import failed; audio remains stopped. Retry the import."));
+                    }
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                 }
                 break;
+            }
 
             case 5: // Setup (all EEPROM content) import from lilla.txt (in SD)
                 Display_Manager.Confirm_config_import_popup();
@@ -12309,8 +12324,9 @@ void CC_Read_all_Sound_gain()
 // ***************************************************************************************************************
 
 FLASHMEM
-bool SET_Copy_raw_files_from_SD_to_Flash()
+bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
 {
+    flash_changed = false;
     int row;
 
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_titolo();
@@ -12335,7 +12351,15 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
+    bool SD_has_zero_raw = false;
     File rootdir = SD.open("/LILLARAW");
+    if (!rootdir || !rootdir.isDirectory())
+    {
+        rootdir.close();
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        delay(4000);
+        return false;
+    }
     while (1)
     {
         // open a file from the SD card
@@ -12345,8 +12369,15 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
             break;
         }
 
-        SD_raw_volume += f.size();
-        ++SD_raw_files;
+        if (!f.isDirectory())
+        {
+            SD_raw_volume += f.size();
+            ++SD_raw_files;
+            if (strcasecmp(f.name(), "0.raw") == 0 && f.size() >= sizeof(int16_t) && f.size() % sizeof(int16_t) == 0)
+            {
+                SD_has_zero_raw = true;
+            }
+        }
         f.close();
     }
     rootdir.close();
@@ -12450,6 +12481,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     // Start erasing flash chip
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_job_start();
 
+    flash_changed = true;
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);
     elapsedMillis dotMillis = 0;
     int percentage = 0;
@@ -12466,23 +12498,53 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
         }
     }
 
-    // Start copying RAW files from SD to Flash chip
+    // Create the fallback first so other imports cannot consume its space.
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
-    rootdir = SD.open("/LILLARAW");
     row = 2;
+    if (!SD_has_zero_raw)
+    {
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
+        if (!ZeroRaw_ensure_file())
+        {
+            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            delay(4000);
+            return false;
+        }
+        Serial.println(F("0.raw reconstructed from firmware: 44100 samples, 88200 bytes."));
+    }
+
+    // Start copying RAW files from SD to Flash chip.
+    rootdir = SD.open("/LILLARAW");
+    if (!rootdir || !rootdir.isDirectory())
+    {
+        rootdir.close();
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        delay(4000);
+        return false;
+    }
     while (1)
     {
-        // open a file from the SD/LILLARAW
         File f = rootdir.openNextFile();
         if (!f)
         {
             break;
         }
+        if (f.isDirectory())
+        {
+            f.close();
+            continue;
+        }
 
-        const char *filename = f.name();
-        unsigned long length = f.size();
+        const bool is_zero_raw = strcasecmp(f.name(), "0.raw") == 0;
+        const char *filename = is_zero_raw ? "0.raw" : f.name();
+        const unsigned long length = f.size();
+        if (is_zero_raw && (length < sizeof(int16_t) || length % sizeof(int16_t) != 0))
+        {
+            f.close();
+            continue; // An empty or truncated PCM sample cannot replace the fallback.
+        }
 
-        row++;
+        ++row;
         if (row > 14)
         {
             Display_Manager.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
@@ -12490,37 +12552,54 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
         }
         Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_to_copy(row, filename, length);
 
-        // create the (empty) file on the Flash chip, than copy data
-        if (SerialFlash.create(filename, length))
+        if (!SerialFlash.create(filename, length))
         {
-            SerialFlashFile ff = SerialFlash.open(filename);
-            if (ff)
-            {
-                // copy data loop
-                unsigned long count = 0;
-                while (count < length)
-                {
-                    char buf[256];
-                    unsigned int n;
-                    n = f.read(buf, 256);
-                    ff.write(buf, n);
-                    count = count + n;
-                }
-                ff.close();
-            }
-            else
-            {
-                Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
-            }
+            f.close();
+            rootdir.close();
+            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
+            delay(4000);
+            return false;
         }
 
-        else
+        SerialFlashFile ff = SerialFlash.open(filename);
+        bool copied = static_cast<bool>(ff);
+        unsigned long count = 0;
+        while (copied && count < length)
         {
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
+            char buf[256];
+            const unsigned long remaining = length - count;
+            const unsigned int bytes = remaining < sizeof(buf) ? remaining : sizeof(buf);
+            const int n = f.read(buf, bytes);
+            if (n <= 0 || static_cast<unsigned int>(n) > bytes || ff.write(buf, static_cast<uint32_t>(n)) != static_cast<uint32_t>(n))
+            {
+                copied = false;
+                break;
+            }
+            count += static_cast<unsigned int>(n);
+        }
+        SerialFlash.wait();
+        ff.close();
+        if (!copied)
+        {
+            SerialFlash.remove(filename);
+            f.close();
+            rootdir.close();
+            Serial.println(F("RAW import failed while reading SD or writing Flash."));
+            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            delay(4000);
+            return false;
         }
         f.close();
     }
     rootdir.close();
+
+    // The required file must exist before reporting success and rebuilding the VFS.
+    if (!ZeroRaw_ensure_file())
+    {
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+        delay(4000);
+        return false;
+    }
     delay(10);
 
     // Display RAW files list

@@ -120,13 +120,16 @@ byte ArchivingManager::Migrate_EEPROM_to_FRAM()
                     target.Filter.index = source[offset + 9];
                     target.Filter.frequency_time = source[offset + 10];
                 }
+
                 auto &delay = expected.Delay;
                 delay.samples = Read_EEPROM_uint16(source, LOCATION_DELAY);
                 delay.samples_LR = static_cast<int16_t>(Read_EEPROM_uint16(source, LOCATION_DELAY + 2));
+
                 for (uint8_t instrument = 0; instrument < INSTRUMENTS; ++instrument)
                 {
                     delay.instrument_route[instrument] = (source[LOCATION_DELAY + 4] >> instrument) & 1;
                 }
+
                 delay.modulation_source = source[LOCATION_DELAY + 5];
                 delay.modulation_depth = source[LOCATION_DELAY + 6];
                 delay.modulation_frequency = source[LOCATION_DELAY + 7];
@@ -182,6 +185,7 @@ byte ArchivingManager::Migrate_EEPROM_to_FRAM()
                 return FRAM_ERROR_VERIFY;
             }
         }
+
         for (uint8_t id = 0; id < RECORDINGS; ++id)
         {
             const size_t address = LOCATION_RECORDING + id * 4;
@@ -289,6 +293,7 @@ namespace
             }
             offset += count;
         }
+        
         memcpy(&destination, &buffer, sizeof(T)); // Publish only a complete record.
         return LillaFRAM_2x512::ERROR_0;
     }
@@ -896,6 +901,7 @@ void ArchivingManager::Read_optimization(uint8_t &optimization)
 {
     Eeprom_readAnything(LOCATION_OPTIMIZATION, optimization);
     const uint8_t valid = Normalize_optimization(optimization);
+
     if (valid != optimization)
     {
         optimization = valid;
