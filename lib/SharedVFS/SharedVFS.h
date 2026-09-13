@@ -81,15 +81,6 @@ static constexpr char PROGMEM name_packet[PACKETS][10] =
         "P1000.raw", "P1001.raw", "P1002.raw", "P1003.raw", "P1004.raw", "P1005.raw", "P1006.raw", "P1007.raw", "P1008.raw", "P1009.raw", "P1010.raw", "P1011.raw", "P1012.raw", "P1013.raw", "P1014.raw", "P1015.raw", "P1016.raw", "P1017.raw", "P1018.raw", "P1019.raw",
         "P1020.raw", "P1021.raw", "P1022.raw", "P1023.raw"};
 
-struct EEPROM_VFS_Recording // 4 byte
-{
-    uint16_t first_packet; // if stereo is Left channel's first packet (Right channel's first packet is .first_packet + 1)
-    uint8_t packets;       // packets per channel
-    uint8_t info;
-};
-extern EEPROM_VFS_Recording EEPROM_Recording[RECORDINGS];
-static constexpr uint8_t SIZE_OF_EEPROM_RECORDING = sizeof(EEPROM_Recording[0]);
-
 struct VFS_Recording // runtime
 {
     int first_packet; // if stereo is Left channel's first packet (Right channel's first packet is .first_packet + 1)

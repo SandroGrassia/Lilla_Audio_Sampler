@@ -18,7 +18,7 @@
     PCB: LILLA_2026_R2 - august 2026
 
     Hardware
-    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes)
+    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; external FRAM: 128 KiB)
     - Audio Adaptor Rev.D
     - display: SPI ILI9341 240x320
     - n.1 Mic amplifier (AD828A) module
@@ -586,8 +586,8 @@ int8_t CC_menu;
 int CC_number;
 
 // functions
-void CC_Save_settings(void);
-void CC_Read_all_Sound_gain(void);
+byte CC_Save_settings(void);
+byte CC_Read_all_Sound_gain(void);
 
 // >>>>>>> DELAY
 EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES];
@@ -637,8 +637,8 @@ void DS_convert_file_L(int file_L_RAW, int bytes); // Convert the left recording
 void DS_convert_file_R(int file_R_RAW, int bytes); // Convert the right recording channel and invalidate its previous RAW cache.
 void DS_seed_all_Recordings(void);
 void DS_update_recordings(void);
-void DS_read_all_Recordings(void);
-void DS_read_Recording(int value);
+byte DS_read_all_Recordings(void);
+byte DS_read_Recording(int value);
 float DS_get_Recording_seconds(int value);
 int DS_find_Recording_free(void);
 int DS_get_next_Recording(int value);
@@ -662,6 +662,7 @@ void VFS_Erase_all_packets(void);
 void VFS_Erase_all_packets_for_DS(void);
 void VFS_Erase_packet(int value);
 void VFS_Clean_up_VFS(void);
+void VFS_Clean_up_orphan_packets(void);
 void VFS_Defragment(void);
 void VFS_Shift_file(int to_packet, int from_packet, int packets);
 void VFS_Print_FAT(void);
@@ -753,8 +754,8 @@ int volume_MONITOR = 0;
 void Golive_MIXER(void);
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS;
 
-// EEPROM
-void Factory_setup_Eeprom(void);
+// FRAM
+void Factory_setup_FRAM(void);
 
 // SOUND PUSHBUTTONS
 int PB_number;
@@ -1074,10 +1075,10 @@ void setup()
     if (Read_pushbutton(EN_PB_PreListenVol))
     {
         // Attenzione richiede 2/3 minuti per la cancellazione dei Packet!
-        // Se la procedura si interrompe la EEPROM resta azzarata e Patch[0] o Sound[0] NON saranno configurati correttamente!!
+        // Se la procedura si interrompe, ripeterla prima di usare l'archivio.
 
         Display_Manager.Factory_reset_wait_popup();
-        Factory_setup_Eeprom();
+        Factory_setup_FRAM();
     }
 
     // UI devices test mode; results are showed on display and sent via Serial.print
@@ -1373,7 +1374,6 @@ void loop()
     // Pushbutton Low-pass flat
     if (Read_pushbutton(EN_PB_Cutoff))
     {
-        Archive.Print_EEPROM_content();
         if (lowpass_target < LPF_MAX)
         {
             lowpass_flag = true;
@@ -1553,9 +1553,6 @@ void loop()
                         Archive.Save_Patch(deleted_patch);
                         Archive.Copy_Patch_from_RAM_to_SD(deleted_patch);
 
-                        // Delete delay_<patch_id>.txt file
-                        Archive.Delete_patch_Delay_data_in_SD(deleted_patch);
-
                         P_Read_all_Patches();
                         P_Update_Patches_number();
                         S_Read_all_Sounds();
@@ -1630,12 +1627,11 @@ void loop()
                                 return;
                             }
 
-                            if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id)) // Patch Delay: look for delay_<patch_id> in SD
+                            Delay_data_struct delay_final;
+                            if (Archive.Read_Delay(Patch_id, delay_final) == LillaFRAM_2x512::ERROR_0)
                             {
                                 Serial.println(F("Smooth changing of delay values COULD start..."));
-
-                                Delay_data_struct delay_final;
-                                Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(delay_final);
+                                Delay_data = delay_final;
 
                                 AudioNoInterrupts();
                                 Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
@@ -1653,13 +1649,11 @@ void loop()
                             return;
                         }
 
-                        // Patch Delay: look for delay_<patch_id> in SD
-                        if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id))
+                        Delay_data_struct delay_final;
+                        if (Archive.Read_Delay(Patch_id, delay_final) == LillaFRAM_2x512::ERROR_0)
                         {
                             Serial.println(F("Smooth changing of delay values COULD start..."));
-
-                            Delay_data_struct delay_final;
-                            Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(delay_final);
+                            Delay_data = delay_final;
 
                             AudioNoInterrupts();
                             Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
@@ -4234,7 +4228,7 @@ void loop()
             {
             case SwModesSampler:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Archive.Save_Delay(Patch_id, Delay_data);
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
@@ -4277,7 +4271,7 @@ void loop()
 
             case SwModesLiveSampler:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Archive.Save_Delay(Patch_id, Delay_data);
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
@@ -4324,19 +4318,16 @@ void loop()
                 {
                 case PERFORMANCE:
 
-                    // Salva su EEPROM
-                    Archive.Save_Delay_to_Eeprom(Delay_data);
+                    // Salva il Delay della Patch su FRAM.
+                    Archive.Save_Delay(Patch_id, Delay_data);
 
                     if (true)
                     {
                         Serial.println();
                         Serial.println(F("main() - Delay_data in RAM:"));
                         Print_Delay_data(Delay_data);
-                        Serial.println(F("... has been saved in EEPROM."));
+                        Serial.println(F("... has been saved in FRAM."));
                     }
-
-                    // Save Delay_data in delay_<patch_id>.txt in SD
-                    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
 
                     Golive_with_PERFORMANCE(Patch_id);
                     break;
@@ -4350,9 +4341,6 @@ void loop()
                     break;
 
                 case MIDI_LOOP:
-                    // Patch delay
-                    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
-
                     Switch_from_MIDI_LOOP_to_PERFORMANCE();
                     break;
 
@@ -4365,7 +4353,7 @@ void loop()
 
             case SwModesMidiLoop:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Archive.Save_Delay(Patch_id, Delay_data);
                 Golive_with_MIDI_LOOP(false);
             }
             break;
@@ -4379,7 +4367,7 @@ void loop()
             {
             case SwToolsMixer:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Archive.Save_Delay(Patch_id, Delay_data);
                 Switch_to_MIXER();
             }
             break;
@@ -4389,14 +4377,14 @@ void loop()
 
             case SwToolsSetup:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Archive.Save_Delay(Patch_id, Delay_data);
                 Golive_SETUP();
             }
             break;
 
             case SwToolsTest:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                Archive.Save_Delay(Patch_id, Delay_data);
                 Golive_MIDI_MONITOR();
             }
             break;
@@ -7426,6 +7414,7 @@ void loop()
         {
             Display_Manager.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
+            Archive.Save_key_step(static_cast<uint8_t>(key_step));
         }
 
         // Set Prima ottava
@@ -7531,7 +7520,7 @@ void loop()
                 break;
             }
 
-            case 5: // Setup (all EEPROM content) import from lilla.txt (in SD)
+            case 5: // Versioned FRAM backup import from SD.
                 Display_Manager.Confirm_config_import_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7551,7 +7540,7 @@ void loop()
                     Display_Manager.SETUP_show_frame(SET_menu);
                     break;
                 }
-                if (!SD.exists("/LILLASET/lilla.txt"))
+                if (!SD.exists("/LILLASET/lilla.fram"))
                 {
                     Display_Manager.Config_import_FILE_error_popup();
                     delay(5000);
@@ -7563,12 +7552,19 @@ void loop()
                 {
                     Display_Manager.Config_import_REBOOT_popup();
 
-                    File file = SD.open("/LILLASET/lilla.txt"); // apertura file esistente
+                    File file = SD.open("/LILLASET/lilla.fram");
                     if (file)
                     {
-                        Archive.Save_setup_file(file);
+                        const bool restored = Archive.Restore_FRAM_backup(file);
                         file.close();
-                        Serial.println("Lilla setup has been copied from lilla.txt to EEPROM");
+                        if (!restored)
+                        {
+                            Serial.println(F("FRAM backup rejected: invalid format, version, length or CRC"));
+                            Display_Manager.Config_import_FILE_error_popup();
+                            delay(5000);
+                            break;
+                        }
+                        Serial.println(F("Versioned FRAM backup restored and verified"));
                     }
 
                     if (!P_Quiesce_audio_players())
@@ -7586,7 +7582,7 @@ void loop()
                 }
                 break;
 
-            case 6: // Setup (all EEPROM content) export to SD card (lillaold.txt)
+            case 6: // Versioned FRAM backup export to SD card.
                 Display_Manager.Confirm_config_export_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7606,19 +7602,26 @@ void loop()
                         Serial.println(F("/LILLASET directory created"));
                     }
 
-                    if (SD.open("/LILLASET/lillaold.txt"))
+                    if (SD.exists("/LILLASET/lilla.fram"))
                     {
-                        SD.remove("/LILLASET/lillaold.txt");
-                        Serial.println(F("existing lillaold.txt has been deleted"));
+                        SD.remove("/LILLASET/lilla.fram");
+                        Serial.println(F("existing lilla.fram has been deleted"));
                     }
 
-                    File file = SD.open("/LILLASET/lillaold.txt", FILE_WRITE); // creazione del file destinazione
+                    File file = SD.open("/LILLASET/lilla.fram", FILE_WRITE);
                     if (file)
                     {
-                        Serial.println(F("new lillaold.txt has been created"));
-                        Archive.Copy_setup_from_Eeprom_to_SD(file);
+                        Serial.println(F("new lilla.fram has been created"));
+                        const bool saved = Archive.Save_FRAM_backup(file);
                         file.close();
-                        Display_Manager.Config_export_save_popup();
+                        if (saved)
+                        {
+                            Display_Manager.Config_export_save_popup();
+                        }
+                        else
+                        {
+                            Display_Manager.Config_export_SD_error_popup();
+                        }
                         delay(5000);
                     }
                     else
@@ -7664,7 +7667,7 @@ void loop()
                 {
                     break;
                 }
-                Factory_setup_Eeprom();
+                Factory_setup_FRAM();
                 Reload_system_state();
                 break;
 
@@ -8038,46 +8041,19 @@ void P_Reset_all_maps_Instrument_for_notes()
 FLASHMEM
 void P_Delete_all_Patches_and_Sounds(void)
 {
+    const Patch_struct empty_patch{};
+
     for (auto patch_id = 0; patch_id < PATCHES_MAX; ++patch_id)
     {
-        Patch[patch_id].used = false;
-        Patch[patch_id].instruments = 0; // number of instruments in the patch_id
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-        {
-            Patch[patch_id].Instrument[instrument_id].used = false;
-            Patch[patch_id].Instrument[instrument_id].sound_id = 0;
-            Patch[patch_id].Instrument[instrument_id].from_note = 0;
-            Patch[patch_id].Instrument[instrument_id].to_note = 0;
-            Patch[patch_id].Instrument[instrument_id].root_key = 0;
-            Patch[patch_id].Instrument[instrument_id].precedence = 0;
-            Patch[patch_id].Instrument[instrument_id].lock = 0;
-
-            Patch[patch_id].Instrument[instrument_id].Filter.use = 0;        // yes/no
-            Patch[patch_id].Instrument[instrument_id].Filter.type = 0;       // bit4,5:filter_type
-            Patch[patch_id].Instrument[instrument_id].Filter.pivot = 0;      // 0 --> 100 filter frequency/note frequency
-            Patch[patch_id].Instrument[instrument_id].Filter.resonance = 0;  // 0 --> 40
-            Patch[patch_id].Instrument[instrument_id].Filter.modulation = 0; // bit1,2,3:modulation
-            Patch[patch_id].Instrument[instrument_id].Filter.index = 0;      // 1 --> 20 modulation_index
-            Patch[patch_id].Instrument[instrument_id].Filter.frequency_time = 0;
-        }
+        Patch[patch_id] = empty_patch;
     }
+
+    Sound_struct empty_sound{};
+    empty_sound.data = 2;
 
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
-        Sound[sound_id].used = false;
-        Sound[sound_id].file = 0;
-        Sound[sound_id].mode = 0;
-        Sound[sound_id].pitch = 0;
-        Sound[sound_id].A = 0;
-        Sound[sound_id].B = 0;
-        Sound[sound_id].Noclick = 0;
-        Sound[sound_id].pan = 0;
-        Sound[sound_id].data = 2;
-        Sound[sound_id].attack = 0;
-        Sound[sound_id].decay = 0;
-        Sound[sound_id].sustain = 0;
-        Sound[sound_id].release = 0;
-        Sound[sound_id].gain = 0; // 20 means gain = 1.0
+        Sound[sound_id] = empty_sound;
     }
 }
 
@@ -8342,7 +8318,6 @@ bool P_Save_current_patch_as_new(void)
     S_Save_all_Sounds_changed();
     Archive.Save_Patch(Patch_id);
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
-    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
     P_Update_Patches_number();
     Patch_cache_P = Patch[Patch_id];
     S_Copy_all_Sound_to_Sound_cache_P();
@@ -8521,7 +8496,7 @@ void S_Save_all_Sounds_changed(void)
         else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
         {
             Archive.Save_Sound(sound_id);
-            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su EEPROM per per sound_id: ");
+            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su FRAM per sound_id: ");
             Serial.println(sound_id);
         }
     }
@@ -9196,35 +9171,39 @@ void DS_update_recordings(void)
     Serial.println();
 }
 
-void DS_read_all_Recordings(void)
+byte DS_read_all_Recordings(void)
 {
     for (auto i = 0; i < RECORDINGS; ++i)
     {
-        DS_read_Recording(i);
+        const byte result = DS_read_Recording(i);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
     }
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-void DS_read_Recording(int recording)
+byte DS_read_Recording(int recording)
 {
     if (recording >= 0 && recording < RECORDINGS)
     {
-        Archive.Read_DS_Recording(recording, EEPROM_Recording[recording]);
-
-        Recording[recording].first_packet = EEPROM_Recording[recording].first_packet;
-        Recording[recording].packets = EEPROM_Recording[recording].packets;
-        Recording[recording].stereo = bitRead(EEPROM_Recording[recording].info, 1);
-        Recording[recording].consistent = bitRead(EEPROM_Recording[recording].info, 0);
+        const byte result = Archive.Read_DS_Recording(recording);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
         Recording[recording].bytes = 2 * DS_get_samples_in_Recording(recording);
         Recording[recording].seconds = DS_get_Recording_seconds(recording);
 
-        Serial.print(F("Read from EEPROM Recording: "));
-        Serial.print(recording);
-        Serial.print(F(" from location: "));
-        Serial.println(Archive.GET_location_of_DS_Recording(recording));
+        Serial.print(F("Read from FRAM Recording: "));
+        Serial.println(recording);
         P_Recording(recording);
+        return LillaFRAM_2x512::ERROR_0;
     }
-    else
-        Serial.println(F("***** WARNING! --> DS_read_Recording: 'recording' out of range"));
+
+    Serial.println(F("***** WARNING! --> DS_read_Recording: 'recording' out of range"));
+    return LillaFRAM_2x512::ERROR_11;
 }
 
 float DS_get_Recording_seconds(int value)
@@ -10049,13 +10028,11 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             LiveSampler.Stop();
             Switch_to_PERFORMANCE_patch_old();
 
-            // Patch Delay: look for delay_<patch_id> in SD
-            if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id))
+            Delay_data_struct delay_final;
+            if (Archive.Read_Delay(Patch_id, delay_final) == LillaFRAM_2x512::ERROR_0)
             {
                 Serial.println(F("Smooth changing of delay values COULD start..."));
-
-                Delay_data_struct delay_final;
-                Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(delay_final);
+                Delay_data = delay_final;
 
                 AudioNoInterrupts();
                 Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
@@ -10561,7 +10538,7 @@ bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
     }
     else
     {
-        Serial.println(F("Copy_Patch_Delay_data_from_SD_to_Eeprom - SD not present!"));
+        Serial.println(F("LOOP_Copy_midi_loop_from_RAM_to_SD - SD not present!"));
         return false;
     }
 }
@@ -11123,12 +11100,29 @@ void VFS_Clean_up_VFS(void) // Deletes packets occupied by not-consistent record
             Recording[i].stereo = 0;
             Recording[i].consistent = true;
 
-            // salva su EEPROM
+            // Save the cleared metadata to FRAM.
             Serial.println(F("Now save Recording... "));
             Archive.Save_DS_Recording(i);
         }
     }
     Serial.println(F("*** Finished *** "));
+    Serial.println();
+}
+
+void VFS_Clean_up_orphan_packets(void)
+{
+    Serial.println(F("*** VFS_Clean_up_orphan_packets ***"));
+    VFS_Compile_FAT_table();
+
+    for (auto packet = DS_First_packet; packet < DS_VFS_packets; ++packet)
+    {
+        if (VFS_FAT_table[packet] == -1 && SerialFlash.exists(name_packet[packet]))
+        {
+            VFS_Erase_packet(packet);
+        }
+    }
+
+    Serial.println(F("*** Finished ***"));
     Serial.println();
 }
 
@@ -11619,17 +11613,18 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
 // **********************************               FACTORY SETUP               **********************************
 // ***************************************************************************************************************
 FLASHMEM
-void Factory_setup_Eeprom(void)
+void Factory_setup_FRAM(void)
 {
-    // la funzione cancella
-
-    // cancella l'intero contenuto della EEPROM (EEPROM emulation memory all'interno della Flash 8M del T4.1)
-    Archive.Reset_EEPROM();
+    if (Archive.Factory_reset_FRAM() != LillaFRAM_2x512::ERROR_0)
+    {
+        PRINT_ERROR(F("Factory FRAM reset failed - "));
+        return;
+    }
 
     // cancella gli array descrittivi di Patch e Sound
     P_Delete_all_Patches_and_Sounds();
 
-    // definisci una Patch[0] al solo scopo di salvarla su EEPROM
+    // Definisce e salva la Patch iniziale in FRAM.
     Patch[0].used = true;
     Patch[0].instruments = 1; // number of instruments in the patch_id
     Patch[0].Instrument[0].used = 1;
@@ -11654,10 +11649,10 @@ void Factory_setup_Eeprom(void)
 
     Serial.println(F("Patch[0] Saved"));
 
-    // inizializza l'array descrittivo delle registrazioni (Direct Sampler) e salva su EEPROM
+    // Inizializza e salva in FRAM i metadati del Direct Sampler.
     DS_seed_all_Recordings();
 
-    // definisci un Sound[0] al solo scopo di salvarlo su EEPROM
+    // Definisce e salva il Sound iniziale in FRAM.
     Sound[0].used = true;
     Sound[0].file = 0;
     Sound[0].mode = 0;
@@ -11676,13 +11671,13 @@ void Factory_setup_Eeprom(void)
     Sound_id = 0;
     Archive.Save_Sound(Sound_id);
 
-    // salva su EEPROM l'ottava del NoteNumber 0 (prima ottava)
+    // Salva in FRAM l'ottava del NoteNumber 0.
     Archive.Save_first_octave(-2);
 
     // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
     Archive.Save_optimization(DEFAULT_OPTIMIZATION);
 
-    // assegna i parametri per il Delay al solo scopo di salvarli su EEPROM
+    // Assegna e salva in FRAM i parametri iniziali del Delay.
     Delay_data.samples = 20;                  // value ; 0 --> 99
     Delay_data.samples_LR = 0;                // value L/R ; -10 --> 10
     Delay_data.instrument_route = 0b00000000; // all Instruments are NOT routed to Delay
@@ -11691,7 +11686,7 @@ void Factory_setup_Eeprom(void)
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 5;
-    Archive.Save_Delay_to_Eeprom(Delay_data);
+    Archive.Save_Delay(0, Delay_data);
 
     // cancella il contenute dei packet sulla Flash aggiuntiva
     VFS_Erase_all_packets();
@@ -12241,25 +12236,14 @@ void Golive_MIXER(void)
 // ****************************                         SETTINGS                        **************************
 // ***************************************************************************************************************
 
-void CC_Save_settings(void)
+byte CC_Save_settings(void)
 {
     Midi_reader.Stop();
-
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        if (CC_Sound_gain[instrument_id] != CC_Sound_gain_cache[instrument_id])
-        {
-            Archive.Save_CC_Sound_gain(instrument_id, CC_Sound_gain[instrument_id]);
-        }
-    }
-
-    if (CC_lowpass_filter_value != CC_lowpass_filter_cache)
-    {
-        Archive.Save_CC_lowpass_filter(CC_lowpass_filter_value);
-    }
+    const byte result = Archive.Save_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
 
     Players_Manager.Stop_all_players();
     Midi_reader.Start();
+    return result;
 }
 
 void SET_Ask_if_IMPORT_EXPORT_setup(void)
@@ -12311,12 +12295,9 @@ void SET_Ask_if_FACTORY_RESET(void)
 // ****************************                 CONTROL CHANGE ASSIGNENT                **************************
 // ***************************************************************************************************************
 
-void CC_Read_all_Sound_gain()
+byte CC_Read_all_Sound_gain()
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        Archive.Read_CC_Sound_gain(instrument_id, CC_Sound_gain[instrument_id]);
-    }
+    return Archive.Read_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
 }
 
 // ***************************************************************************************************************
@@ -13120,23 +13101,6 @@ void Startup_hardware_and_objects(void)
     if (result == LillaFRAM_2x512::ERROR_0)
     {
         Serial.println(F("FRAM bank check: OK"));
-
-        /*
-        // migrazione metadati da EEPROM a FRAM
-        Serial.println(F("EEPROM -> FRAM: start"));
-        const byte migration_result = Archive.Migrate_EEPROM_to_FRAM();
-
-        if (migration_result == LillaFRAM_2x512::ERROR_0)
-        {
-            Serial.println(F("EEPROM -> FRAM: completed and verified"));
-        }
-        else
-        {
-            Serial.print(F("EEPROM -> FRAM: failed, error "));
-            Serial.println(migration_result);
-        }
-        */
-
     }
     else
     {
@@ -13196,12 +13160,6 @@ void Reload_system_state(void)
     Serial.println();
 
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
-    // Print EEPROM content
-    Serial.println("Print_EEPROM_content()");
-    if (false)
-    {
-        Archive.Print_EEPROM_content();
-    }
     // Resets all Recording and erase all DS_VFS_Packets
     if (false)
     {
@@ -13214,10 +13172,48 @@ void Reload_system_state(void)
     }
     // |||||||||||||||||       END TOOLS      ||||||||||||||||||||
 
-    // Read all Recordings (from EEPROM)
-    DS_read_all_Recordings(); // reads from EEPROM and print all Recordings
-    VFS_Clean_up_VFS();       // se ci sono recording non consistent cancella packets e recording
-    VFS_Defragment();         // Prima aggiorna la VFS_FAT_table; in base a questa se ci sono buchi nel VFS li chiude, aggiornando i Recording e salvandoli, infine aggiornando VFS_FAT_table
+    ArchivingManager::FRAM_System_repair_report system_repair_report;
+    const byte system_repair_result = Archive.Repair_System_in_FRAM(system_repair_report);
+
+    if (system_repair_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM System repair failed, error "));
+        Serial.println(system_repair_result);
+        while (true) { delay(1000); }
+    }
+
+    Serial.print(F("FRAM System repair: defaulted="));
+    Serial.println(system_repair_report.defaulted ? F("yes") : F("no"));
+
+    ArchivingManager::FRAM_Recording_repair_report recording_repair_report;
+    const byte recording_repair_result = Archive.Repair_Recordings_in_FRAM(recording_repair_report);
+
+    if (recording_repair_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM Recording repair failed: Recording "));
+        Serial.print(recording_repair_report.failed_id);
+        Serial.print(F(", error "));
+        Serial.println(recording_repair_result);
+        while (true) { delay(1000); }
+    }
+
+    Serial.print(F("FRAM Recording repair: cleared Recordings="));
+    Serial.println(recording_repair_report.cleared_recordings);
+
+    const byte recording_load_result = DS_read_all_Recordings();
+    if (recording_load_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM Recording load failed, error "));
+        Serial.println(recording_load_result);
+        while (true) { delay(1000); }
+    }
+
+    VFS_Clean_up_VFS();
+    if (recording_repair_report.cleared_recordings > 0)
+    {
+        VFS_Clean_up_orphan_packets();
+    }
+    VFS_Defragment();
     DS_update_recordings();
 
     // Print VFS FAT table
@@ -13229,13 +13225,16 @@ void Reload_system_state(void)
 
     // *******************   CORE ARRAYS  ************************
     ArchivingManager::FRAM_Repair_report repair_report;
+
     const byte repair_result = Archive.Repair_Patch_Sound_in_FRAM(repair_report);
+
     Serial.print(F("FRAM repair: cleared Patches="));
     Serial.print(repair_report.cleared_patches);
     Serial.print(F(", cleared Sounds="));
     Serial.print(repair_report.cleared_sounds);
     Serial.print(F(", defaulted Sounds="));
     Serial.println(repair_report.defaulted_sounds);
+
     if (repair_result != LillaFRAM_2x512::ERROR_0)
     {
         Serial.print(F("FRAM repair failed: "));
@@ -13262,10 +13261,31 @@ void Reload_system_state(void)
     S_Copy_all_Sound_to_Sound_cache_P();
     Serial.println(F("FRAM -> RAM2: 200 Patches and 800 Sounds loaded, CRC verified"));
 
-    Archive.Read_optimization(optimization);
-    Archive.Read_first_octave(first_octave);
-    CC_Read_all_Sound_gain();
-    Archive.Read_CC_lowpass_filter(CC_lowpass_filter_value);
+    byte system_settings_result = Archive.Read_optimization(optimization);
+
+    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
+    {
+        system_settings_result = Archive.Read_first_octave(first_octave);
+    }
+
+    uint8_t stored_key_step = 0;
+    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
+    {
+        system_settings_result = Archive.Read_key_step(stored_key_step);
+    }
+    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
+    {
+        system_settings_result = CC_Read_all_Sound_gain();
+    }
+    if (system_settings_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM System settings load failed, error "));
+        Serial.println(system_settings_result);
+        while (true) { delay(1000); }
+    }
+
+    key_step = stored_key_step;
+    Calc_pitch_from_note(key_step);
 
     P_Update_Patches_number(); // aggiorna patches_number (numero di patchi disponibili)
     Patch_id = P_Get_first_Patch_id_existing();
@@ -13288,9 +13308,6 @@ void Reload_system_state(void)
     Delay_L.DELAY_fifo = DELAY_fifo_L;
     Delay_R.DELAY_fifo = DELAY_fifo_R;
 
-    // Tries to copy patch delay data from da SD to EEPROM
-    Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id);
-
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
     if (false)
     {
@@ -13303,13 +13320,11 @@ void Reload_system_state(void)
         Delay_data.modulation_phase_LR = 0;
         Delay_data.loop_gain = 5;
 
-        // Salva i parametri per il Delay su EEPROM
-        Archive.Save_Delay_to_Eeprom(Delay_data);
+        Archive.Save_Delay(Patch_id, Delay_data);
     }
     // |||||||||||||||||       END TOOLS      ||||||||||||||||||||
 
-    // Reads delay data from EEPROM
-    Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(Delay_data);
+    Archive.Read_Delay(Patch_id, Delay_data);
     Calc_Delay_values(Delay_data);
 
     // Transmits data to Delay objects
