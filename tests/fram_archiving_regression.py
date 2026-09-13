@@ -14,7 +14,7 @@ declarations = header[header.index("    struct FRAM_Repair_report"):header.rinde
 settings_declarations = header[header.index("    byte Save_CC_lowpass_filter"):header.index("    byte Read_Delay")]
 settings_declarations += header[header.index("    byte Read_first_octave"):header.index("    byte Save_Sound")]
 settings_declarations += header[header.index("    byte Save_DS_Recording"):header.index("    byte Factory_reset_FRAM")]
-methods = implementation[implementation.index("namespace\n{"):implementation.index("byte ArchivingManager::Factory_reset_FRAM")]
+methods = implementation[implementation.index("namespace\n{"):implementation.index("byte ArchivingManager::Set_FRAM_archive_state")]
 methods += implementation[implementation.index("uint32_t ArchivingManager::FRAM_Get_patch_address"):implementation.index("byte ArchivingManager::Save_CC_lowpass_filter")]
 methods += implementation[implementation.index("byte ArchivingManager::Save_CC_lowpass_filter"):implementation.index("byte ArchivingManager::Read_Delay")]
 methods += implementation[implementation.index("byte ArchivingManager::Read_first_octave"):implementation.index("byte ArchivingManager::Save_Sound")]
@@ -395,50 +395,50 @@ int main() {
     {
         using A = ArchivingManager;
         A archive;
-        auto &e = EEPROM.memory;
-        // Last legacy IDs, nontrivial packed fields, signed values and stale deleted records.
-        const size_t p = 23 * 90, s = 2280 + 84 * 22;
-        e[p] = 1; e[p + 1] = 1;
-        const uint8_t instrument[] = {1, 84, 60, 20, 100, 3, 0x37, 8, 9, 10, 11};
-        memcpy(e.data() + p + 2, instrument, sizeof(instrument));
-        const uint8_t sound[] = {1, 0x23, 1, 2, 0xF4, 0x78, 0x56, 0x34, 0x12, 0xEF, 0xCD, 0xAB, 0x09, 0x34, 0x12, 0xFD, 31, 4, 5, 6, 7, 8};
-        memcpy(e.data() + s, sound, sizeof(sound));
-        const uint8_t delay[] = {99, 0, 0xF6, 0xFF, 0xA5, 2, 39, 90, 0x67, 1, 9, 0};
-        memcpy(e.data() + 4237, delay, sizeof(delay));
-        e[1] = 255; e[2281] = 255;
-        e[2160] = 0x34; e[2161] = 0x12; e[2162] = 200; e[2163] = 3;
-        e[4235] = 2; e[4236] = 254; e[4254] = 70; e[4262] = 71;
-        const auto original = e;
-        LillaFram.reset();
-        assert(archive.Migrate_EEPROM_to_FRAM() == 0);
-        assert(e == original);
+        auto seed_archive = [&]()
+        {
+            LillaFram.reset();
+            A::FRAM_Patch_struct empty_patch{};
+            A::FRAM_Sound_struct empty_sound{};
+            A::FRAM_Recording_struct empty_recording{};
+            empty_recording.consistent = 1;
+            for (int id = 0; id < 200; ++id)
+            {
+                assert(archive.FRAM_Write_patch(id, empty_patch) == 0);
+            }
+            for (int id = 0; id < 800; ++id)
+            {
+                assert(archive.FRAM_Write_sound(id, empty_sound) == 0);
+            }
+            for (int id = 0; id < 30; ++id)
+            {
+                assert(archive.FRAM_Write_recording(id, empty_recording) == 0);
+            }
+            A::FRAM_System_struct settings{};
+            empty_recording.first_packet = 123;
+            empty_recording.packets = 7;
+            assert(archive.FRAM_Write_recording(0, empty_recording) == 0);
+            assert(archive.FRAM_Write_recording(29, empty_recording) == 0);
+            settings.optimization = 2;
+            settings.first_octave = -2;
+            assert(archive.FRAM_Write_system(settings) == 0);
+            empty_patch.used = 1;
+            empty_patch.instruments = 1;
+            empty_patch.Instrument[0].used = 1;
+            empty_patch.Instrument[0].sound_id = 84;
+            assert(archive.FRAM_Write_patch(23, empty_patch) == 0);
+            empty_sound.used = 1;
+            empty_sound.A = 0x12345678;
+            empty_sound.pitch = -12;
+            empty_sound.midi_channel = 15;
+            empty_sound.attack_type = 1;
+            assert(archive.FRAM_Write_sound(84, empty_sound) == 0);
+        };
+        seed_archive();
         A::FRAM_Patch_struct patch{};
-        assert(archive.FRAM_Read_patch(23, patch) == 0);
-        assert(patch.used == 1 && patch.instruments == 1 && patch.Instrument[0].sound_id == 84);
-        assert(patch.Instrument[0].Filter.type == 3 && patch.Instrument[0].Filter.modulation == 3 && patch.Instrument[0].lock == 1);
-        assert(patch.Delay.samples == 99 && patch.Delay.samples_LR == -10 && patch.Delay.modulation_phase_LR == 359);
-        assert(patch.Delay.loop_gain == 9 && patch.Delay.modulation_frequency == 90);
-        for (int i = 0; i < 8; ++i) assert(patch.Delay.instrument_route[i] == ((0xA5 >> i) & 1));
         A::FRAM_Sound_struct value{};
-        assert(archive.FRAM_Read_sound(84, value) == 0);
-        assert(value.file == 291 && value.pitch == -12 && value.pan == -3 && value.A == 0x12345678 && value.B == 0x09ABCDEF);
-        assert(value.Noclick == 0x1234 && value.midi_channel == 15 && value.attack_type == 1 && value.gain == 8);
-        for (int id = 0; id < 200; ++id) {
-            if (id == 23) continue;
-            assert(archive.FRAM_Read_patch(id, patch) == 0);
-            const auto bytes = reinterpret_cast<const uint8_t *>(&patch);
-            assert(std::all_of(bytes, bytes + 188, [](uint8_t b) { return b == 0; }));
-        }
-        for (int id = 0; id < 800; ++id) {
-            if (id == 84) continue;
-            assert(archive.FRAM_Read_sound(id, value) == 0);
-            const auto bytes = reinterpret_cast<const uint8_t *>(&value);
-            assert(std::all_of(bytes, bytes + 28, [](uint8_t b) { return b == 0; }));
-        }
         A::FRAM_Recording_struct recording{};
-        assert(archive.FRAM_Read_recording(0, recording) == 0 && recording.first_packet == 0x1234 && recording.packets == 200 && recording.stereo == 1 && recording.consistent == 1);
         A::FRAM_System_struct system{};
-        assert(archive.FRAM_Read_system(system) == 0 && system.optimization == 2 && system.first_octave == -2 && system.key_step == 0 && system.CC_settings.sound_gain[0] == 70 && system.CC_settings.lowpass_filter == 71);
         // Recording repair assesses the complete bank before writing and can resume after interruption.
         LillaFram.memory[0xFB00] ^= 1;
         LillaFram.memory[0xFB00 + 29 * 12 + 8] ^= 1;
@@ -470,22 +470,7 @@ int main() {
         assert(std::all_of(system_cc, system_cc + sizeof(system.CC_settings), [](uint8_t value) { return value == 0; }));
         LillaFram.clear_io();
         assert(archive.Repair_System_in_FRAM(system_report) == 0 && !system_report.defaulted && LillaFram.writes.empty());
-        LillaFram.clear_io(); e[p + 3] = 85;
-        assert(archive.Migrate_EEPROM_to_FRAM() == A::FRAM_ERROR_SOURCE && LillaFram.calls == 0);
-        e = original;
-        LillaFram.clear_io(); LillaFram.fail_at = 1;
-        assert(archive.Migrate_EEPROM_to_FRAM() == LillaFram.failure && e == original);
-        LillaFram.clear_io();
-        assert(archive.Migrate_EEPROM_to_FRAM() == 0);
-        // Inject a failure late in the first migration write pass.
-        LillaFram.clear_io(); LillaFram.fail_at = 2233;
-        assert(archive.Migrate_EEPROM_to_FRAM() == LillaFram.failure && e == original);
-        LillaFram.clear_io(); LillaFram.corrupt_on_read = 0x100;
-        assert(archive.Migrate_EEPROM_to_FRAM() == A::FRAM_ERROR_CRC);
-        LillaFram.clear_io(); LillaFram.corrupt_on_read = 0xFD00;
-        assert(archive.Migrate_EEPROM_to_FRAM() == A::FRAM_ERROR_CRC);
-        LillaFram.clear_io();
-        assert(archive.Migrate_EEPROM_to_FRAM() == 0 && e == original);
+        seed_archive();
         // Load production runtime structures, including high Sound IDs and the reserved sampler slots.
         A::FRAM_Sound_struct high_sound{};
         assert(archive.FRAM_Read_sound(84, high_sound) == 0);
@@ -500,7 +485,7 @@ int main() {
         memset(Sound, 0xA5, sizeof(Sound));
         LillaFram.clear_io();
         assert(archive.Load_Patch_Sound_from_FRAM(failed_id, failed_sound) == 0);
-        assert(LillaFram.writes.empty() && e == original && failed_id == UINT16_MAX);
+        assert(LillaFram.writes.empty() && failed_id == UINT16_MAX);
         assert(Patch[199].used && Patch[199].Instrument[0].sound_id == 799 && Sound[799].used);
         assert(Sound[799].A == 0x12345678 && Sound[799].pitch == -12 && Sound[799].data == 31);
         assert(!Patch[0].used && !Patch[200].used && !Sound[800].used && !Sound[801].used);
@@ -513,7 +498,7 @@ int main() {
         assert(archive.Load_Patch_Sound_from_FRAM(failed_id, failed_sound) == A::FRAM_ERROR_SOURCE && failed_id == 199 && !failed_sound);
         assert(!Patch[23].used && !Sound[84].used);
         // Repair only FRAM: corrupt Patch links cannot delete a Sound referenced by a valid Patch.
-        assert(archive.Migrate_EEPROM_to_FRAM() == 0);
+        seed_archive();
         high_patch.Instrument[0].sound_id = 799;
         assert(archive.FRAM_Write_sound(799, high_sound) == 0);
         assert(archive.FRAM_Write_patch(199, high_patch) == 0);
@@ -537,7 +522,7 @@ int main() {
         LillaFram.clear_io();
         assert(archive.Repair_Patch_Sound_in_FRAM(report) == 0);
         assert(report.cleared_patches == 1 && report.cleared_sounds == 3 && report.defaulted_sounds == 1);
-        assert(e == original && memcmp(patch_before, Patch, sizeof(Patch)) == 0 && memcmp(sound_before, Sound, sizeof(Sound)) == 0);
+        assert(memcmp(patch_before, Patch, sizeof(Patch)) == 0 && memcmp(sound_before, Sound, sizeof(Sound)) == 0);
         assert(archive.FRAM_Read_patch(23, patch) == 0 && patch.used == 0);
         for (int id : {84, 699, 700}) {
             assert(archive.FRAM_Read_sound(id, value) == 0);
@@ -556,7 +541,6 @@ int main() {
         Serial.println(F("PASS: FRAM Recording repair, read failure, interrupted write and retry"));
         Serial.println(F("PASS: FRAM System repair, exact defaults, read failure, interrupted write and retry"));
         Serial.println(F("PASS: FRAM runtime load, high IDs, CRC failure, invalid links, zeroed sampler slots and no persistent writes"));
-        Serial.println(F("PASS: EEPROM migration, conversion, zeroed unused records, CRCs, source validation, I/O failure and retry"));
     }
     const uint8_t check[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
     assert(FRAM_Calculate_crc32(check, sizeof(check)) == 0xCBF43926UL);
@@ -591,9 +575,6 @@ int main() {
     Serial.println(F("PASS: all 16 FRAM operations, physical offsets, first/last IDs, Sound IDs above 255, region isolation, buffer limits, invalid IDs and injected I/O failures"));
 }
 """
-legacy_test_start = tests.index("    {\n        using A = ArchivingManager;")
-legacy_test_end = tests.index("    const uint8_t check[]")
-tests = tests[:legacy_test_start] + tests[legacy_test_end:]
 tests = tests.replace("EXPECTED_PATTERN_CRC", hex(zlib.crc32(bytes((i * 37 + 11) & 255 for i in range(188)))))
 tests = tests.replace("EXPECTED_SOUND_CRC", hex(zlib.crc32(bytes((i * 37 + 11) & 255 for i in range(28)))))
 compiler = shutil.which("g++") or r"C:\msys64\ucrt64\bin\g++.exe"

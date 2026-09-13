@@ -1051,6 +1051,24 @@ struct PatchEditSnapshot
 // *************************************************************
 // *************************************************************
 
+void Require_FRAM(byte result)
+{
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        return;
+    }
+    Serial.print(F("FRAM operation failed, error "));
+    Serial.println(result);
+    P_Quiesce_audio_players();
+    AudioNoInterrupts();
+    Display_Manager.FRAM_io_error_popup();
+    // Do not run subsequent save, erase or cache-publication steps after a failed access.
+    while (true)
+    {
+        delay(10);
+    }
+}
+
 void setup()
 {
     AudioNoInterrupts();
@@ -1174,6 +1192,7 @@ void setup()
 
 void loop()
 {
+    Require_FRAM(DirectSampler.Storage_error());
 
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
@@ -1499,7 +1518,7 @@ void loop()
 
                 case value_P_Save: // Save this Patch
                     S_Save_all_Sounds_changed();
-                    Archive.Save_Patch(Patch_id);
+                    Require_FRAM(Archive.Save_Patch(Patch_id));
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
                     S_Read_all_Sounds();
@@ -1550,7 +1569,7 @@ void loop()
                         }
 
                         S_Save_all_Sounds_changed();
-                        Archive.Save_Patch(deleted_patch);
+                        Require_FRAM(Archive.Save_Patch(deleted_patch));
                         Archive.Copy_Patch_from_RAM_to_SD(deleted_patch);
 
                         P_Read_all_Patches();
@@ -1616,7 +1635,7 @@ void loop()
                             else if (action == 2) // Yes: save changings and switch patch_id
                             {
                                 S_Save_all_Sounds_changed();
-                                Archive.Save_Patch(Patch_id);
+                                Require_FRAM(Archive.Save_Patch(Patch_id));
                                 Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
                                 S_Read_all_Sounds();
                             }
@@ -1627,16 +1646,6 @@ void loop()
                                 return;
                             }
 
-                            Delay_data_struct delay_final;
-                            if (Archive.Read_Delay(Patch_id, delay_final) == LillaFRAM_2x512::ERROR_0)
-                            {
-                                Serial.println(F("Smooth changing of delay values COULD start..."));
-                                Delay_data = delay_final;
-
-                                AudioNoInterrupts();
-                                Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
-                                AudioInterrupts();
-                            }
 
                             Patch_id_old = Patch_id;
                         }
@@ -1649,16 +1658,6 @@ void loop()
                             return;
                         }
 
-                        Delay_data_struct delay_final;
-                        if (Archive.Read_Delay(Patch_id, delay_final) == LillaFRAM_2x512::ERROR_0)
-                        {
-                            Serial.println(F("Smooth changing of delay values COULD start..."));
-                            Delay_data = delay_final;
-
-                            AudioNoInterrupts();
-                            Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
-                            AudioInterrupts();
-                        }
 
                         Patch_id_old = Patch_id;
                     }
@@ -4228,7 +4227,10 @@ void loop()
             {
             case SwModesSampler:
             {
-                Archive.Save_Delay(Patch_id, Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
@@ -4271,7 +4273,10 @@ void loop()
 
             case SwModesLiveSampler:
             {
-                Archive.Save_Delay(Patch_id, Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
@@ -4319,7 +4324,10 @@ void loop()
                 case PERFORMANCE:
 
                     // Salva il Delay della Patch su FRAM.
-                    Archive.Save_Delay(Patch_id, Delay_data);
+                    if (Patch_id < PATCHES_MAX)
+                    {
+                        Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    }
 
                     if (true)
                     {
@@ -4353,7 +4361,10 @@ void loop()
 
             case SwModesMidiLoop:
             {
-                Archive.Save_Delay(Patch_id, Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Golive_with_MIDI_LOOP(false);
             }
             break;
@@ -4367,7 +4378,10 @@ void loop()
             {
             case SwToolsMixer:
             {
-                Archive.Save_Delay(Patch_id, Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Switch_to_MIXER();
             }
             break;
@@ -4377,14 +4391,20 @@ void loop()
 
             case SwToolsSetup:
             {
-                Archive.Save_Delay(Patch_id, Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Golive_SETUP();
             }
             break;
 
             case SwToolsTest:
             {
-                Archive.Save_Delay(Patch_id, Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Golive_MIDI_MONITOR();
             }
             break;
@@ -5237,6 +5257,7 @@ void loop()
             // Stop if SteroSampler has stopped
             if (!DirectSampler.Is_recording())
             {
+                Require_FRAM(DirectSampler.Storage_error());
                 DS_state = DS_waiting_state;
 
                 // switch OFF Audio Input monitor
@@ -5253,7 +5274,7 @@ void loop()
                 {
                     Recording[recording].consistent = true;
                     // consistent Recording must be saved
-                    Archive.Save_DS_Recording(recording);
+                    Require_FRAM(Archive.Save_DS_Recording(recording));
                     DS_read_Recording(recording); // only to update .bytes and .seconds
                 }
 
@@ -5494,7 +5515,7 @@ void loop()
                     {
                         Recording[recording].consistent = true;
                         // consistent Recording must be saved
-                        Archive.Save_DS_Recording(recording);
+                        Require_FRAM(Archive.Save_DS_Recording(recording));
                         DS_read_Recording(recording); // only to update .bytes and .seconds
                     }
 
@@ -7414,7 +7435,7 @@ void loop()
         {
             Display_Manager.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
-            Archive.Save_key_step(static_cast<uint8_t>(key_step));
+            Require_FRAM(Archive.Save_key_step(static_cast<uint8_t>(key_step)));
         }
 
         // Set Prima ottava
@@ -7432,7 +7453,7 @@ void loop()
             optimization = optimization_cache;
             AudioInterrupts();
 
-            Archive.Save_optimization(optimization);
+            Require_FRAM(Archive.Save_optimization(optimization));
             Display_Manager.SETUP_show_Optimization_value();
         }
 
@@ -7552,6 +7573,10 @@ void loop()
                 {
                     Display_Manager.Config_import_REBOOT_popup();
 
+                    if (!P_Quiesce_audio_players())
+                    {
+                        break;
+                    }
                     File file = SD.open("/LILLASET/lilla.fram");
                     if (file)
                     {
@@ -7562,17 +7587,17 @@ void loop()
                             Serial.println(F("FRAM backup rejected: invalid format, version, length or CRC"));
                             Display_Manager.Config_import_FILE_error_popup();
                             delay(5000);
+                            Reload_system_state();
                             break;
                         }
-                        Serial.println(F("Versioned FRAM backup restored and verified"));
+                        Serial.println(F("Backup verified; FRAM restore completed"));
                     }
-
-                    if (!P_Quiesce_audio_players())
+                    else
                     {
+                        Display_Manager.Config_import_FILE_error_popup();
+                        Reload_system_state();
                         break;
                     }
-                    // Imported recording metadata replaces the previous inventory only after players stop.
-                    DS_seed_all_Recordings();
 
                     // switch off Tools LED
                     TOOLS_pushbutton = false;
@@ -7602,33 +7627,15 @@ void loop()
                         Serial.println(F("/LILLASET directory created"));
                     }
 
-                    if (SD.exists("/LILLASET/lilla.fram"))
+                    if (Archive.Export_FRAM_backup())
                     {
-                        SD.remove("/LILLASET/lilla.fram");
-                        Serial.println(F("existing lilla.fram has been deleted"));
-                    }
-
-                    File file = SD.open("/LILLASET/lilla.fram", FILE_WRITE);
-                    if (file)
-                    {
-                        Serial.println(F("new lilla.fram has been created"));
-                        const bool saved = Archive.Save_FRAM_backup(file);
-                        file.close();
-                        if (saved)
-                        {
-                            Display_Manager.Config_export_save_popup();
-                        }
-                        else
-                        {
-                            Display_Manager.Config_export_SD_error_popup();
-                        }
-                        delay(5000);
+                        Display_Manager.Config_export_save_popup();
                     }
                     else
                     {
                         Display_Manager.Config_export_SD_error_popup();
-                        delay(5000);
                     }
+                    delay(5000);
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                 }
@@ -7686,7 +7693,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
                 Switch_to_MIXER();
                 break;
@@ -7697,7 +7704,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 Golive_DELAY_SETTINGS();
@@ -7712,7 +7719,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 Golive_MIDI_MONITOR();
@@ -7734,7 +7741,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 switch (Lilla_state_0)
@@ -7763,7 +7770,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 switch (Lilla_state_0)
@@ -7793,7 +7800,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 switch (Lilla_state_0)
@@ -7822,7 +7829,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
                 switch (Lilla_state_0)
                 {
@@ -8061,7 +8068,7 @@ void P_Read_all_Patches(void)
 {
     for (auto patch_id = 0; patch_id < PATCHES_MAX; ++patch_id)
     {
-        Archive.Read_Patch(patch_id);
+        Require_FRAM(Archive.Read_Patch(patch_id));
     }
 }
 
@@ -8219,6 +8226,8 @@ bool P_Ask_if_delete_this_Patch(void)
 
 bool P_Jump_to_Patch(uint8_t next_patch)
 {
+    Delay_data_struct next_delay{};
+    Require_FRAM(Archive.Read_Delay(next_patch, next_delay));
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t next_tables_mask = 0;
     if (!P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask, true))
@@ -8241,6 +8250,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
     Players_Manager.Release_softly_all_players(Patch_id);
     Players_statistics.Reset_total_Players_per_instrument();
     Patch_id = next_patch;
+    Delay_manager.New_values(&next_delay);
     P_Update_all_maps_Instrument_for_notes();
     Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
     uint8_t active_bank_mask = 0;
@@ -8264,6 +8274,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
 
 bool P_Save_current_patch_as_new(void)
 {
+    const Delay_data_struct cloned_delay = Delay_data;
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
     const PatchEditSnapshot previous;
@@ -8316,7 +8327,8 @@ bool P_Save_current_patch_as_new(void)
     }
     // Persistent writes follow successful publication, so a table error cannot save a half-applied clone.
     S_Save_all_Sounds_changed();
-    Archive.Save_Patch(Patch_id);
+    Require_FRAM(Archive.Save_Patch(Patch_id));
+    Require_FRAM(Archive.Save_Delay(Patch_id, cloned_delay));
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
     P_Update_Patches_number();
     Patch_cache_P = Patch[Patch_id];
@@ -8487,7 +8499,7 @@ void S_Save_all_Sounds_changed(void)
         // Sound which have been changed only for .used
         if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
         {
-            Archive.Save_Sound(sound_id);
+            Require_FRAM(Archive.Save_Sound(sound_id));
             Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
             Serial.println(sound_id);
         }
@@ -8495,7 +8507,7 @@ void S_Save_all_Sounds_changed(void)
         // Sound used which have been changed
         else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
         {
-            Archive.Save_Sound(sound_id);
+            Require_FRAM(Archive.Save_Sound(sound_id));
             Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su FRAM per sound_id: ");
             Serial.println(sound_id);
         }
@@ -8528,7 +8540,7 @@ void S_Read_all_Sounds(void)
 {
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
-        Archive.Read_Sound(sound_id);
+        Require_FRAM(Archive.Read_Sound(sound_id));
     }
 }
 
@@ -9146,7 +9158,7 @@ void DS_seed_all_Recordings(void)
         Recording[i].seconds = 0.0; // float
         Recording[i].stereo = 0;
         Recording[i].consistent = true;
-        Archive.Save_DS_Recording(i);
+        Require_FRAM(Archive.Save_DS_Recording(i));
         Serial.print(F("Seeded Recording: "));
         Serial.println(i);
     }
@@ -9777,7 +9789,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
+                Require_FRAM(Archive.Save_DS_Recording(recording));
                 DS_read_Recording(recording); // only to update .bytes and .seconds
             }
 
@@ -9941,7 +9953,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
+                Require_FRAM(Archive.Save_DS_Recording(recording));
                 DS_read_Recording(recording); // only to update .bytes and .seconds
             }
 
@@ -9970,18 +9982,25 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 
 void Switch_to_PERFORMANCE_patch_old(void)
 {
+    Delay_data_struct next_delay{};
+    Require_FRAM(Archive.Read_Delay(Patch_id_old, next_delay));
     AudioNoInterrupts();
     if (!P_Rebuild_patch_old())
     {
         AudioInterrupts();
         return;
     }
+    Delay_manager.New_values(&next_delay);
     AudioInterrupts();
     Golive_with_PERFORMANCE(Patch_id);
 }
 
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void)
 {
+    if (Patch_id < PATCHES_MAX)
+    {
+        Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+    }
     AudioNoInterrupts();
     LOOP_stop_all_midi_tracks();
     AudioInterrupts();
@@ -10028,16 +10047,6 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             LiveSampler.Stop();
             Switch_to_PERFORMANCE_patch_old();
 
-            Delay_data_struct delay_final;
-            if (Archive.Read_Delay(Patch_id, delay_final) == LillaFRAM_2x512::ERROR_0)
-            {
-                Serial.println(F("Smooth changing of delay values COULD start..."));
-                Delay_data = delay_final;
-
-                AudioNoInterrupts();
-                Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
-                AudioInterrupts();
-            }
         }
     }
     else
@@ -10090,7 +10099,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
                 Recording[recording].consistent = true;
 
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
+                Require_FRAM(Archive.Save_DS_Recording(recording));
                 DS_read_Recording(recording); // call for updating .bytes and .seconds
             }
 
@@ -11102,7 +11111,7 @@ void VFS_Clean_up_VFS(void) // Deletes packets occupied by not-consistent record
 
             // Save the cleared metadata to FRAM.
             Serial.println(F("Now save Recording... "));
-            Archive.Save_DS_Recording(i);
+            Require_FRAM(Archive.Save_DS_Recording(i));
         }
     }
     Serial.println(F("*** Finished *** "));
@@ -11165,7 +11174,7 @@ void VFS_Defragment(void) // updates VFS_FAT_table, moves packets, updates recor
                     // update runtime info and Save
                     Recording[recording_id].first_packet = to_packet;
                     Recording[recording_id].consistent = true;
-                    Archive.Save_DS_Recording(recording_id);
+                    Require_FRAM(Archive.Save_DS_Recording(recording_id));
 
                     Serial.print("Now this is Recording: ");
                     P_Recording(recording_id);
@@ -11615,11 +11624,7 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
 FLASHMEM
 void Factory_setup_FRAM(void)
 {
-    if (Archive.Factory_reset_FRAM() != LillaFRAM_2x512::ERROR_0)
-    {
-        PRINT_ERROR(F("Factory FRAM reset failed - "));
-        return;
-    }
+    Require_FRAM(Archive.Factory_reset_FRAM(false));
 
     // cancella gli array descrittivi di Patch e Sound
     P_Delete_all_Patches_and_Sounds();
@@ -11644,7 +11649,7 @@ void Factory_setup_FRAM(void)
     Patch[0].Instrument[0].Filter.frequency_time = 5; // 0 --> 20
 
     Patch_id = 0;
-    Archive.Save_Patch(Patch_id);
+    Require_FRAM(Archive.Save_Patch(Patch_id));
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
     Serial.println(F("Patch[0] Saved"));
@@ -11669,13 +11674,13 @@ void Factory_setup_FRAM(void)
     Sound[0].gain = 12; // 20 means gain = 1.0
     Serial.println(F("Saving Sound[0]"));
     Sound_id = 0;
-    Archive.Save_Sound(Sound_id);
+    Require_FRAM(Archive.Save_Sound(Sound_id));
 
     // Salva in FRAM l'ottava del NoteNumber 0.
-    Archive.Save_first_octave(-2);
+    Require_FRAM(Archive.Save_first_octave(-2));
 
     // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
-    Archive.Save_optimization(DEFAULT_OPTIMIZATION);
+    Require_FRAM(Archive.Save_optimization(DEFAULT_OPTIMIZATION));
 
     // Assegna e salva in FRAM i parametri iniziali del Delay.
     Delay_data.samples = 20;                  // value ; 0 --> 99
@@ -11686,10 +11691,11 @@ void Factory_setup_FRAM(void)
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 5;
-    Archive.Save_Delay(0, Delay_data);
+    Require_FRAM(Archive.Save_Delay(0, Delay_data));
 
     // cancella il contenute dei packet sulla Flash aggiuntiva
     VFS_Erase_all_packets();
+    Require_FRAM(Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY));
 }
 
 FLASHMEM
@@ -13134,6 +13140,31 @@ void Reload_system_state(void)
         return;
     }
 
+    if (Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.println(F("FRAM archive unavailable: interrupted restore, invalid header or I/O error. Automatic repair is blocked."));
+        Serial.println(F("Insert SD. Press Select or send R to restore /LILLASET/lilla.fram; send B to restore /LILLASET/lilla.bak."));
+        Display_Manager.FRAM_recovery_popup();
+        bool recovered = false;
+        while (!recovered)
+        {
+            Shifters_manager.Update();
+            const int command = Serial.available() ? Serial.read() : -1;
+            const bool previous = command == 'B' || command == 'b' || Read_pushbutton(EN_PB_Value);
+            if (Read_pushbutton(EN_PB_Select) || command == 'R' || command == 'r' || previous)
+            {
+                if (SD.begin(BUILTIN_SDCARD))
+                {
+                    File backup = SD.open(previous ? "/LILLASET/lilla.bak" : "/LILLASET/lilla.fram");
+                    recovered = backup && Archive.Restore_FRAM_backup(backup);
+                    backup.close();
+                }
+                Serial.println(recovered ? F("Backup verified; restore completed.") : F("Restore failed. Check SD and retry R or B."));
+            }
+            delay(10);
+        }
+    }
+
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB
     verified_flash_memory_MB = Get_flash_size() / 1048576;
@@ -13320,11 +13351,14 @@ void Reload_system_state(void)
         Delay_data.modulation_phase_LR = 0;
         Delay_data.loop_gain = 5;
 
-        Archive.Save_Delay(Patch_id, Delay_data);
+        if (Patch_id < PATCHES_MAX)
+        {
+            Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+        }
     }
     // |||||||||||||||||       END TOOLS      ||||||||||||||||||||
 
-    Archive.Read_Delay(Patch_id, Delay_data);
+    Require_FRAM(Archive.Read_Delay(Patch_id, Delay_data));
     Calc_Delay_values(Delay_data);
 
     // Transmits data to Delay objects

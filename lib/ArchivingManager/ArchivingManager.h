@@ -26,8 +26,8 @@ private:
 
     static constexpr size_t PATCH_PATH_SIZE = 32;
     bool Is_SD_inserted(void);
-    void Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
-    void Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
+    bool Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
+    bool Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
     void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
     void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
 
@@ -186,7 +186,7 @@ private:
         uint32_t payload_bytes;
         uint32_t payload_crc32;
     };
-    static constexpr uint16_t FRAM_BACKUP_VERSION = 1;
+    static constexpr uint16_t FRAM_BACKUP_VERSION = 2;
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);
     static_assert(sizeof(FRAM_Sound_struct) == 32);
@@ -250,7 +250,13 @@ public:
     bool Save_Patch_from_RAM_to_SD(const int patch_id);
     bool Resume_Patch_from_SD_to_RAM(const int patch_id);
 
-    byte Factory_reset_FRAM();
+    byte Factory_reset_FRAM(bool publish_ready = true);
+    byte Check_FRAM_archive();
+    byte Set_FRAM_archive_state(uint32_t state);
+    bool Verify_FRAM_backup(File &file);
+    bool Export_FRAM_backup();
+    static constexpr uint32_t RESTORE_IN_PROGRESS = 0x52535452;
+    static constexpr uint32_t ARCHIVE_READY = 0x52454144;
     bool Save_FRAM_backup(File &file);
     bool Restore_FRAM_backup(File &file);
     struct FRAM_Repair_report

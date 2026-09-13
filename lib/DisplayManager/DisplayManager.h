@@ -178,6 +178,8 @@ public:
     void Confirm_config_import_popup(void);
     void SD_missing(uint16_t color);
     void Config_import_FILE_error_popup(void);
+    void FRAM_recovery_popup(void);
+    void FRAM_io_error_popup(void);
     void Config_import_REBOOT_popup(void);
     void Confirm_config_import_frame(uint8_t value);
     void Confirm_config_export_popup(void);

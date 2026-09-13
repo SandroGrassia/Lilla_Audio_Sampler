@@ -937,9 +937,9 @@ void DisplayManager::SETUP_show_SETUP_page(void)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.print(F("IMPORT RAW FILES FROM /LILLARAW"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
-    tft.print(F("IMPORT CONFIGURATION FROM /LILLASET/lilla.txt"));
+    tft.print(F("IMPORT CONFIGURATION FROM /LILLASET/lilla.fram"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
-    tft.print(F("EXPORT CONFIGURATION TO /LILLASET/lillaold.txt"));
+    tft.print(F("EXPORT CONFIGURATION TO /LILLASET/lilla.fram"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
     tft.print(F("FACTORY RESET"));
 
@@ -1289,6 +1289,34 @@ void DisplayManager::SD_missing(uint16_t color)
 }
 
 FLASHMEM
+void DisplayManager::FRAM_io_error_popup(void)
+{
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.setCursor(10, 70);
+    tft.println(F("FRAM ACCESS FAILED - OPERATION STOPPED"));
+    tft.setCursor(10, 100);
+    tft.println(F("Data may not have been saved."));
+    tft.setCursor(10, 130);
+    tft.println(F("Check FRAM connections and restart."));
+}
+
+void DisplayManager::FRAM_recovery_popup(void)
+{
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.setCursor(10, 70);
+    tft.println(F("ARCHIVE UNAVAILABLE - RESTORE REQUIRED"));
+    tft.setCursor(10, 100);
+    tft.println(F("Insert SD with /LILLASET backup"));
+    tft.setCursor(10, 130);
+    tft.println(F("SELECT: restore lilla.fram"));
+    tft.setCursor(10, 150);
+    tft.println(F("VALUE:  restore lilla.bak"));
+}
+
 void DisplayManager::Config_import_FILE_error_popup(void)
 {
     L_POPUP = display_coordinate_x(35);
@@ -1302,7 +1330,7 @@ void DisplayManager::Config_import_FILE_error_popup(void)
     tft.setTextColor(ILI9341_YELLOW);
 
     //       ("01234567890123456789012345678901234");
-    tft.print(F("  SD/LILLASET/lilla.txt NOT FOUND"));
+    tft.print(F("  INVALID OR MISSING SD/LILLASET/lilla.fram"));
 }
 
 FLASHMEM
@@ -1401,7 +1429,7 @@ void DisplayManager::Config_export_save_popup(void)
     tft.setTextColor(ILI9341_WHITE);
 
     //       ("01234567890123456789012345678901234567890123456789");
-    tft.print(F("  CONFIGURATION SAVED: SD/LILLASET/lillaold.txt"));
+    tft.print(F("  CONFIGURATION SAVED: SD/LILLASET/lilla.fram"));
 }
 
 FLASHMEM
