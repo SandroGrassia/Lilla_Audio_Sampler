@@ -654,17 +654,18 @@ void P_Recording(int value);
 void VFS_Make_VFS(void);
 int VFS_Get_packets(void);
 void VFS_Print_allocation(void);
-void VFS_Compile_FAT_table(void);
+bool VFS_Compile_FAT_table(void);
 void VFS_Reset_FAT_table(void);
 int VFS_Get_first_packet_free(void);
 int VFS_Get_packets_free(void);
 void VFS_Erase_all_packets(void);
 void VFS_Erase_all_packets_for_DS(void);
-void VFS_Erase_packet(int value);
-void VFS_Clean_up_VFS(void);
-void VFS_Clean_up_orphan_packets(void);
-void VFS_Defragment(void);
-void VFS_Shift_file(int to_packet, int from_packet, int packets);
+bool VFS_Erase_packet(int value);
+bool VFS_Clean_up_VFS(void);
+bool VFS_Clean_up_orphan_packets(void);
+bool VFS_Defragment(void);
+bool VFS_Shift_file(int to_packet, int recording_id);
+void Require_VFS(bool result);
 void VFS_Print_FAT(void);
 
 // STANDARD FILE SYSTEM
@@ -5349,8 +5350,8 @@ void loop()
                     // Delete recording
                     P_Invalidate_recording_cache(recording);
                     Recording[recording].consistent = false;
-                    VFS_Clean_up_VFS();
-                    VFS_Defragment();
+                    Require_VFS(VFS_Clean_up_VFS());
+                    Require_VFS(VFS_Defragment());
                     DS_update_recordings();
                     VFS_Print_FAT();
 
@@ -5740,8 +5741,8 @@ void loop()
                     {
                         P_Invalidate_recording_cache(recording);
                         Recording[recording].consistent = false;
-                        VFS_Clean_up_VFS();
-                        VFS_Defragment();
+                        Require_VFS(VFS_Clean_up_VFS());
+                        Require_VFS(VFS_Defragment());
                         DS_update_recordings();
                         VFS_Print_FAT();
 
@@ -11034,26 +11035,76 @@ void VFS_Print_allocation(void)
     Serial.println();
 }
 
-void VFS_Compile_FAT_table(void)
+// VFS operations run without audio callbacks, which could otherwise access the same SPI Flash.
+struct VFS_Audio_guard
 {
-    // reset array
-    VFS_Reset_FAT_table();
-
-    for (auto i = 0; i < RECORDINGS; ++i)
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    bool successful = false;
+    VFS_Audio_guard() { AudioNoInterrupts(); }
+    bool Complete() { successful = true; return true; }
+    ~VFS_Audio_guard()
     {
-        int last_packet = Recording[i].first_packet + Recording[i].packets * (Recording[i].stereo ? 2 : 1) - 1;
-        if (Recording[i].consistent && Recording[i].packets > 0)
+        if (successful && enabled && SerialFlash.ready())
         {
-            for (auto j = Recording[i].first_packet; j <= last_packet; ++j)
+            AudioInterrupts();
+        }
+    }
+};
+
+FLASHMEM
+void Require_VFS(bool result)
+{
+    if (result)
+    {
+        return;
+    }
+    Serial.println(F("VFS operation failed; restart required. Incomplete recordings remain marked in FRAM."));
+    AudioNoInterrupts();
+    Trigger_0.Stop();
+    Trigger_1.Stop();
+    Midi_reader.Stop();
+    while (true)
+    {
+        delay(10);
+    }
+}
+
+FLASHMEM
+static bool VFS_Valid_span(const VFS_Recording &entry)
+{
+    const int channels = entry.stereo ? 2 : 1;
+    return entry.packets >= 0 && entry.packets <= DS_VFS_packets / channels && (entry.packets == 0 || (entry.first_packet >= DS_First_packet && entry.first_packet <= DS_VFS_packets - entry.packets * channels));
+}
+
+FLASHMEM
+bool VFS_Compile_FAT_table(void)
+{
+    if (DS_First_packet < 0 || DS_VFS_packets < DS_First_packet || DS_VFS_packets > VFS_PACKETS_DS)
+    {
+        return false;
+    }
+    VFS_Reset_FAT_table();
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        const auto &entry = Recording[id];
+        if (!VFS_Valid_span(entry))
+        {
+            return false;
+        }
+        if (entry.consistent)
+        {
+            const int end = entry.first_packet + entry.packets * (entry.stereo ? 2 : 1);
+            for (int packet = entry.first_packet; packet < end; ++packet)
             {
-                VFS_FAT_table[j] = i;
-                Serial.print(F("VFS_Compile_FAT_table() --> Packet: "));
-                Serial.print(j);
-                Serial.print(F(" Recording: "));
-                Serial.print(i);
+                if (VFS_FAT_table[packet] != -1)
+                {
+                    return false; // Never erase or move recordings with overlapping ownership.
+                }
+                VFS_FAT_table[packet] = id;
             }
         }
     }
+    return true;
 }
 
 void VFS_Reset_FAT_table(void)
@@ -11099,7 +11150,7 @@ void VFS_Erase_all_packets(void)
     {
         if (SerialFlash.exists(name_packet[i]))
         {
-            VFS_Erase_packet(i);
+            Require_VFS(VFS_Erase_packet(i));
         }
     }
     Serial.println(F("*** Finished *** "));
@@ -11111,165 +11162,337 @@ void VFS_Erase_all_packets_for_DS(void)
     Serial.println("*** Erase ALL Packets for Direct Sampling and VFS_FAT ***");
     for (auto i = DS_First_packet; i <= DS_Last_packet; ++i)
     {
-        VFS_Erase_packet(i);
+        Require_VFS(VFS_Erase_packet(i));
     }
     Serial.println(F("*** Finished *** "));
     Serial.println();
 }
 
-void VFS_Erase_packet(int value)
-{
-    Serial.print("Erase Packet: ");
-    Serial.println(value);
-    SerialFlashFile Packet;
-    Packet = SerialFlash.open(name_packet[value]);
-    Packet.erase();
-    Packet.close();
+static constexpr uint32_t VFS_FLASH_TIMEOUT_MS = 10000;
+static constexpr uint32_t VFS_COPY_BYTES = 256;
 
-    if (value <= DS_Last_packet)
+FLASHMEM
+static bool VFS_Wait_flash(void)
+{
+    const uint32_t start = millis();
+    while (!SerialFlash.ready())
+    {
+        if (static_cast<uint32_t>(millis() - start) >= VFS_FLASH_TIMEOUT_MS)
+        {
+            return false;
+        }
+        delay(1);
+    }
+    return true;
+}
+
+FLASHMEM
+static bool VFS_Open_packet(int id, SerialFlashFile &file)
+{
+    if (id < 0 || id >= VFS_PACKETS_MAX || !VFS_Wait_flash())
+    {
+        return false;
+    }
+    file = SerialFlash.open(name_packet[id]);
+    const uint32_t block = SerialFlash.blockSize();
+    return file && file.size() == PACKET_DIM && block > 0 && PACKET_DIM % block == 0 && file.getFlashAddress() % block == 0;
+}
+
+FLASHMEM
+static bool VFS_Packet_is_blank(SerialFlashFile &file, bool &blank)
+{
+    uint8_t buffer[VFS_COPY_BYTES];
+    blank = false;
+    file.seek(0);
+    for (uint32_t offset = 0; offset < PACKET_DIM; offset += sizeof(buffer))
+    {
+        if (!VFS_Wait_flash() || file.read(buffer, sizeof(buffer)) != sizeof(buffer))
+        {
+            return false;
+        }
+        for (uint8_t value : buffer)
+        {
+            if (value != 0xFF)
+            {
+                return true;
+            }
+        }
+    }
+    blank = true;
+    return true;
+}
+
+FLASHMEM
+bool VFS_Erase_packet(int value)
+{
+    VFS_Audio_guard audio_guard;
+    SerialFlashFile file;
+    if (!VFS_Open_packet(value, file))
+    {
+        return false;
+    }
+    // Issue one physical erase at a time so the driver's internal wait cannot hide a timeout.
+    const uint32_t block = SerialFlash.blockSize();
+    for (uint32_t offset = 0; offset < PACKET_DIM; offset += block)
+    {
+        SerialFlash.eraseBlock(file.getFlashAddress() + offset);
+        if (!VFS_Wait_flash())
+        {
+            return false;
+        }
+    }
+    bool blank = false;
+    if (!VFS_Packet_is_blank(file, blank) || !blank)
+    {
+        return false;
+    }
+    if (value >= DS_First_packet && value < DS_VFS_packets)
     {
         VFS_FAT_table[value] = -1;
     }
+    return audio_guard.Complete();
 }
 
-void VFS_Clean_up_VFS(void) // Deletes packets occupied by not-consistent recording, delete recording, save recording
+FLASHMEM
+static bool VFS_Save_recording_verified(int id)
 {
-    Serial.println("*** VFS_Clean_up_VFS ***");
-
-    // erase Packets occupied by inconsistent Recordings
-    for (auto i = 0; i < RECORDINGS; ++i)
+    const VFS_Recording expected = Recording[id];
+    if (Archive.Save_DS_Recording(id) != LillaFRAM_2x512::ERROR_0)
     {
-        if (!Recording[i].consistent)
+        return false;
+    }
+    const byte result = Archive.Read_DS_Recording(id); // Uses the public CRC-checked reader.
+    const auto &stored = Recording[id];
+    const bool verified = result == LillaFRAM_2x512::ERROR_0 && stored.first_packet == expected.first_packet && stored.packets == expected.packets && stored.stereo == expected.stereo && stored.consistent == expected.consistent;
+    Recording[id] = expected;
+    return verified;
+}
+
+FLASHMEM
+bool VFS_Clean_up_orphan_packets(void)
+{
+    VFS_Audio_guard audio_guard;
+    if (!VFS_Compile_FAT_table())
+    {
+        return false;
+    }
+    for (int packet = DS_First_packet; packet < DS_VFS_packets; ++packet)
+    {
+        if (VFS_FAT_table[packet] == -1)
         {
-            Serial.print(F("Found NON consistent Recording: "));
-            Serial.print(i);
-            Serial.println(F(". Now associated Packets will be erased:"));
-            // find all Packets registered "i" and erase
-            int last_packet = Recording[i].first_packet + Recording[i].packets * (Recording[i].stereo ? 2 : 1);
-            for (auto j = Recording[i].first_packet; j < last_packet; ++j)
+            SerialFlashFile file;
+            bool blank = false;
+            if (!VFS_Open_packet(packet, file) || !VFS_Packet_is_blank(file, blank))
             {
-                VFS_Erase_packet(j);
+                return false;
             }
-
-            // ricompila il recording come consistent
-            Serial.println(F("Now delete Recording... "));
-            Recording[i].first_packet = 0;
-            Recording[i].packets = 0;
-            Recording[i].bytes = 0;
-            Recording[i].seconds = 0.0f;
-            Recording[i].stereo = 0;
-            Recording[i].consistent = true;
-
-            // Save the cleared metadata to FRAM.
-            Serial.println(F("Now save Recording... "));
-            Require_FRAM(Archive.Save_DS_Recording(i));
-        }
-    }
-    Serial.println(F("*** Finished *** "));
-    Serial.println();
-}
-
-void VFS_Clean_up_orphan_packets(void)
-{
-    Serial.println(F("*** VFS_Clean_up_orphan_packets ***"));
-    VFS_Compile_FAT_table();
-
-    for (auto packet = DS_First_packet; packet < DS_VFS_packets; ++packet)
-    {
-        if (VFS_FAT_table[packet] == -1 && SerialFlash.exists(name_packet[packet]))
-        {
-            VFS_Erase_packet(packet);
-        }
-    }
-
-    Serial.println(F("*** Finished ***"));
-    Serial.println();
-}
-
-void VFS_Defragment(void) // updates VFS_FAT_table, moves packets, updates recording, save recording, again updates VFS_FAT_table
-{
-    Serial.println("*** VFS_Defragment  ***");
-    VFS_Compile_FAT_table();
-
-    // Packet     1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
-    // Recording  a a a a _ _ _ _ _ _  cL cR cL cR cL cR cL cR _  _  _  d  d  d  d  d  _  _
-
-    for (auto i = DS_First_packet; i < DS_VFS_packets; ++i)
-    {
-        if (VFS_FAT_table[i] == -1) // i == 5
-        {
-            for (auto j = i; j < DS_VFS_packets; ++j) // j = 5 -->
+            if (!blank && !VFS_Erase_packet(packet))
             {
-                if (VFS_FAT_table[j] >= 0) // j == 11
+                return false;
+            }
+        }
+    }
+    return audio_guard.Complete();
+}
+
+FLASHMEM
+bool VFS_Clean_up_VFS(void)
+{
+    VFS_Audio_guard audio_guard;
+    if (!VFS_Compile_FAT_table())
+    {
+        return false;
+    }
+    bool pending = false;
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        if (!Recording[id].consistent)
+        {
+            // Also covers runtime Delete: persist intent before the first Flash change.
+            if (!VFS_Save_recording_verified(id))
+            {
+                return false;
+            }
+            pending = true;
+        }
+    }
+    if (!pending)
+    {
+        return audio_guard.Complete();
+    }
+    // Keep every pending marker until originals AND orphaned destinations are erased.
+    // A second power loss during cleanup will therefore cause cleanup to run again.
+    if (!VFS_Clean_up_orphan_packets())
+    {
+        return false;
+    }
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        if (!Recording[id].consistent)
+        {
+            const VFS_Recording previous = Recording[id];
+            Recording[id] = {};
+            Recording[id].consistent = true;
+            if (!VFS_Save_recording_verified(id))
+            {
+                Recording[id] = previous;
+                return false;
+            }
+        }
+    }
+    return audio_guard.Complete();
+}
+
+FLASHMEM
+static bool VFS_Packet_used_bytes(SerialFlashFile &file, uint32_t &used)
+{
+    uint8_t buffer[VFS_COPY_BYTES];
+    for (uint32_t end = PACKET_DIM; end > 0; end -= sizeof(buffer))
+    {
+        file.seek(end - sizeof(buffer));
+        if (!VFS_Wait_flash() || file.read(buffer, sizeof(buffer)) != sizeof(buffer))
+        {
+            return false;
+        }
+        for (int i = sizeof(buffer) - 1; i >= 0; --i)
+        {
+            if (buffer[i] != 0xFF)
+            {
+                used = (end - sizeof(buffer) + i + 2) & ~1U; // Preserve the complete final 16-bit sample.
+                return true;
+            }
+        }
+    }
+    used = 0;
+    return true;
+}
+
+FLASHMEM
+bool VFS_Shift_file(int to_packet, int recording_id)
+{
+    VFS_Audio_guard audio_guard;
+    if (recording_id < 0 || recording_id >= RECORDINGS)
+    {
+        return false;
+    }
+    const auto &entry = Recording[recording_id];
+    if (!VFS_Valid_span(entry) || entry.consistent || entry.packets == 0 || to_packet < DS_First_packet || to_packet >= entry.first_packet)
+    {
+        return false;
+    }
+    const int from_packet = entry.first_packet;
+    const int channels = entry.stereo ? 2 : 1;
+    const int packets = entry.packets * channels;
+    uint8_t source[VFS_COPY_BYTES], actual[VFS_COPY_BYTES];
+    for (int i = 0; i < packets; ++i)
+    {
+        SerialFlashFile from, to;
+        if (!VFS_Open_packet(from_packet + i, from) || !VFS_Open_packet(to_packet + i, to))
+        {
+            return false;
+        }
+        uint32_t used = PACKET_DIM;
+        // Runtime byte counts are inferred, not stored. Inspect each channel's actual tail independently.
+        if (i / channels == entry.packets - 1 && !VFS_Packet_used_bytes(from, used))
+        {
+            return false;
+        }
+        if (!VFS_Erase_packet(to_packet + i))
+        {
+            return false;
+        }
+        from.seek(0);
+        to.seek(0);
+        for (uint32_t offset = 0; offset < used; offset += VFS_COPY_BYTES)
+        {
+            const uint32_t count = used - offset < VFS_COPY_BYTES ? used - offset : VFS_COPY_BYTES;
+            if (!VFS_Wait_flash() || from.read(source, count) != count || to.write(source, count) != count || !VFS_Wait_flash())
+            {
+                return false;
+            }
+            to.seek(offset);
+            if (to.read(actual, count) != count || memcmp(source, actual, count) != 0)
+            {
+                return false;
+            }
+        }
+    }
+    // Overlapping source packets are already destinations: erase only the abandoned source tail.
+    const int tail = from_packet > to_packet + packets ? from_packet : to_packet + packets;
+    for (int packet = tail; packet < from_packet + packets; ++packet)
+    {
+        if (!VFS_Erase_packet(packet))
+        {
+            return false;
+        }
+    }
+    return audio_guard.Complete();
+}
+
+FLASHMEM
+bool VFS_Defragment(void)
+{
+    VFS_Audio_guard audio_guard;
+    if (!VFS_Compile_FAT_table())
+    {
+        return false;
+    }
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        if (!Recording[id].consistent)
+        {
+            return false; // Cleanup must precede compaction.
+        }
+    }
+    int destination = DS_First_packet;
+    int source = DS_First_packet;
+    while (source < DS_VFS_packets)
+    {
+        const int id = VFS_FAT_table[source];
+        if (id < 0)
+        {
+            ++source;
+            continue;
+        }
+        auto &entry = Recording[id];
+        const int packets = entry.packets * (entry.stereo ? 2 : 1);
+        if (destination < source)
+        {
+            // Check file geometry before changing the persistent validity marker.
+            for (int i = 0; i < packets; ++i)
+            {
+                SerialFlashFile from, to;
+                if (!VFS_Open_packet(source + i, from) || !VFS_Open_packet(destination + i, to))
                 {
-                    Serial.print("Space free found from Packet: ");
-                    Serial.print(i);
-                    Serial.print(" to Packet: ");
-                    Serial.println(j - 1);
-
-                    int to_packet = i;                                                                        // 5
-                    int from_packet = j;                                                                      // 11
-                    int recording_id = VFS_FAT_table[j];                                                      // c
-                    int packets = Recording[recording_id].packets * (Recording[recording_id].stereo ? 2 : 1); // 8
-
-                    Serial.print("Recording: ");
-                    P_Recording(recording_id);
-                    Serial.println("will be moved down.");
-
-                    Recording[recording_id].consistent = false;
-                    VFS_Shift_file(to_packet, from_packet, packets); // MOVE_file_VFS(int to_packet, int from_packet, int packets)
-
-                    // Packet     1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
-                    // Recording  a a a a cLcRcLcRcLcR cL cR _  _  _  _  _  _  _  _  _  d  d  d  d  d  _  _
-
-                    // update runtime info and Save
-                    Recording[recording_id].first_packet = to_packet;
-                    Recording[recording_id].consistent = true;
-                    Require_FRAM(Archive.Save_DS_Recording(recording_id));
-
-                    Serial.print("Now this is Recording: ");
-                    P_Recording(recording_id);
-
-                    // update VFS_FAT ad run again
-                    VFS_Compile_FAT_table();
-
-                    i = i + packets - 1; // = 5 + 8 - 1  = 12
-                    break;
+                    return false;
                 }
             }
+            entry.consistent = false;
+            if (!VFS_Save_recording_verified(id) || !VFS_Shift_file(destination, id))
+            {
+                return false;
+            }
+            entry.first_packet = destination;
+            entry.consistent = true;
+            if (!VFS_Save_recording_verified(id))
+            {
+                entry.first_packet = source;
+                entry.consistent = false;
+                return false;
+            }
+            for (int i = source; i < source + packets; ++i)
+            {
+                VFS_FAT_table[i] = -1;
+            }
+            for (int i = destination; i < destination + packets; ++i)
+            {
+                VFS_FAT_table[i] = id;
+            }
         }
+        destination += packets;
+        source += packets;
     }
-    Serial.println(F("*** Finished *** "));
-    Serial.println();
-    return;
-}
-
-void VFS_Shift_file(int to_packet, int from_packet, int packets)
-{
-    int16_t basket[AUDIO_BLOCK_SAMPLES];
-    SerialFlashFile Packet_from;
-    SerialFlashFile Packet_to;
-
-    for (auto i = 0; i < packets; ++i)
-    {
-        Serial.print("moving packet: ");
-        Serial.println(from_packet + i);
-        Packet_from = SerialFlash.open(name_packet[from_packet + i]);
-        Packet_to = SerialFlash.open(name_packet[to_packet + i]);
-        Packet_to.erase();
-        // Packet_from.seek(0); // unnecessary
-        // Packet_to.seek(0);  // unnecessary
-        for (auto block = 0; block < 256; ++block)
-        {
-            // Packet_from.seek(block * 256); // included in .read function
-            Packet_from.read(basket, 256);
-            // Packet_to.seek(block * 256); // included in .write function
-            Packet_to.write(basket, 256);
-        }
-        Packet_from.erase();
-        Packet_from.close();
-        Packet_to.close();
-    }
+    return audio_guard.Complete();
 }
 
 void VFS_Print_FAT(void)
@@ -13290,12 +13513,9 @@ void Reload_system_state(void)
         while (true) { delay(1000); }
     }
 
-    VFS_Clean_up_VFS();
-    if (recording_repair_report.cleared_recordings > 0)
-    {
-        VFS_Clean_up_orphan_packets();
-    }
-    VFS_Defragment();
+    Require_VFS(VFS_Clean_up_VFS());
+    // CRC repair also leaves a durable inconsistent marker; cleanup handles every orphan before clearing it.
+    Require_VFS(VFS_Defragment());
     DS_update_recordings();
 
     // Print VFS FAT table

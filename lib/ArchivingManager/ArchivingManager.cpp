@@ -700,7 +700,7 @@ byte ArchivingManager::Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &r
 
         report.failed_id = id;
         FRAM_Recording_struct expected{};
-        expected.consistent = 1;
+        expected.consistent = 0; // Durable cleanup request: CRC damage can leave orphaned Flash packets.
         byte result = FRAM_Write_recording(id, expected);
 
         if (result != LillaFRAM_2x512::ERROR_0)

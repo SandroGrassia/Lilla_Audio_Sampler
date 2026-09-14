@@ -451,7 +451,7 @@ int main() {
         LillaFram.clear_io();
         assert(archive.Repair_Recordings_in_FRAM(recording_report) == 0 && recording_report.cleared_recordings == 2 && recording_report.failed_id == UINT8_MAX);
         for (uint8_t id : {0, 29}) {
-            assert(archive.FRAM_Read_recording(id, recording) == 0 && recording.first_packet == 0 && recording.packets == 0 && recording.stereo == 0 && recording.consistent == 1);
+            assert(archive.FRAM_Read_recording(id, recording) == 0 && recording.first_packet == 0 && recording.packets == 0 && recording.stereo == 0 && recording.consistent == 0);
         }
         LillaFram.clear_io();
         assert(archive.Repair_Recordings_in_FRAM(recording_report) == 0 && recording_report.cleared_recordings == 0 && LillaFram.writes.empty());
