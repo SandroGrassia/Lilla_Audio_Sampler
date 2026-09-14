@@ -12,7 +12,7 @@
 static constexpr int NEW_LOOP = -1;
 static constexpr int NO_TRACK = -1; // track virtuale per note suonate da tastiera nello stato MIDI_LOOP
 static constexpr int MASTER_TRACK = 0;
-static constexpr int LOOP_EVENTS = 40; // numero massimo di eventi in un track
+static constexpr uint32_t LOOP_EVENTS = 100; // Capacity per track; counts and SD v1 remain 32-bit when increased.
 static constexpr int LOOP_UI_A = 1;    // primo encoder prima fila
 static constexpr int LOOP_UI_B = 9;    // primo encoder seconda fila
 static constexpr int LOOP_UI_C = 17;   // primo encoder terza fila
@@ -30,14 +30,14 @@ struct LOOP_struct // verificata 8 byte
 static constexpr int LOOP_struct_bytes = sizeof(LOOP_struct);
 
 extern LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS];
-extern byte LOOP_events[TRACKS];
+extern uint32_t LOOP_events[TRACKS];
 extern int LOOP_slide[TRACKS]; // slittamento temporale in ms
-extern int LOOP_pitch_int[TRACKS]; // slittamento pitch -400....0....+400
+extern int LOOP_pitch_int[TRACKS]; // pitch shift in semitones, -24 through +24
 extern float LOOP_stretch; // stretch comune a tutti i track
 
 // LOOP play/stop
 extern bool LOOP_track_run[TRACKS]; // se "true" il track e' in esecuzione
-extern int LOOP_play_event[TRACKS]; // indice del prossimo evento da eseguire
+extern uint32_t LOOP_play_event[TRACKS]; // indice del prossimo evento da eseguire
 extern uint32_t LOOP_play_time[TRACKS]; // (ms) istante di esecuzione del prossimo evento da eseguire rispetto a LOOP_Clock
 extern float LOOP_volume[TRACKS];
 extern uint16_t LOOP_time; // (ms) durata del track master (0) comune a tutti i track
@@ -45,10 +45,10 @@ extern uint16_t LOOP_time; // (ms) durata del track master (0) comune a tutti i 
 // LOOP learn
 extern int LOOP_learning_track;
 extern bool LOOP_learn_flag;
-extern int LOOP_elements;
+extern uint32_t LOOP_elements;
 extern elapsedMillis LOOP_learn_clock; // utilizzato per calcolare la durata di track learn
 extern int LOOP_clock_memo;
-extern int LOOP_last_event;
+extern uint32_t LOOP_last_event;
 
 // Metronomo
 extern bool LOOP_metronomo_run; // se "true" i led del metronomo sono visualizzati

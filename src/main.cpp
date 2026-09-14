@@ -713,7 +713,7 @@ void LS_setup_LS_Patch(bool stereo);
 
 // >>>>>>> MIDI_LOOP
 // variables
-uint8_t LOOP_time_order[TRACKS][LOOP_EVENTS] = {0};
+DMAMEM uint32_t LOOP_time_order[TRACKS][LOOP_EVENTS]; // Initialized by LOOP_set_time_order before use.
 elapsedMillis LOOP_clock = 0; // clock fisico
 int LOOP_volume_int[TRACKS] = {0};
 bool LOOP_run_button_state; // pulsante EN_PB_Loop true: run loop abilitati -  false: stop tutti i loop
@@ -736,8 +736,8 @@ unsigned long LOOP_Clock_time_from_virtual_time(int T_evento);
 void LOOP_restart_procedure(int track);
 void LOOP_set_time_order(int track);
 bool LOOP_Print_midi_loop_complete_data(int loop_id);
-void LOOP_Compile_midi_loop_file(int loop_id, File &file); // private
-void LOOP_Copy_midi_loop_from_SD_to_RAM_local(File &file);
+bool LOOP_Compile_midi_loop_file(FsFile &file); // private
+bool LOOP_Read_midi_loop_file(FsFile &file, bool load);
 String LOOP_Filename_midi_loop(int loop_id);     // private
 bool LOOP_Look_for_midi_loop_in_SD(int loop_id); // notice: does NOT check if SD is present
 bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);
@@ -6550,73 +6550,81 @@ void loop()
 
             else if (new_loop_id != LOOP_id)
             {
-                // delete runnig loop data and stop metronomo
-                LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
-
-                // Change LOOP_id
-                LOOP_id = new_loop_id;
-
-                // Import LOOP_id from SD
-                LOOP_Copy_midi_loop_from_SD_to_RAM(LOOP_id);
-
-                // Show LOOP_id on display
-                Display_MidiLoop.Show_loop_id();
-
-                // Show LOOP_time on display
-                Display_MidiLoop.Loop_total_time();
-
-                // Show track infos on display
-                for (auto track = 0; track < TRACKS; ++track)
+                // Validation leaves the current loop untouched; a failed second pass clears it safely.
+                const bool loaded = LOOP_Copy_midi_loop_from_SD_to_RAM(new_loop_id);
+                if (loaded || LOOP_events[MASTER_TRACK] == 0)
                 {
-                    Display_MidiLoop.Show_track_all_data(track);
-                }
+                    if (loaded)
+                    {
+                        LOOP_id = new_loop_id;
+                    }
 
-                // Update menu and pointer
-                Pointer_MidiLoop.Show_pointer(false);
-                LOOP_select_menu_elements();
-                Display_MidiLoop.Show_menu();
-                Pointer_MidiLoop.Set_pointer_to_first_menu_element();
-                LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+                    // Show LOOP_id on display
+                    Display_MidiLoop.Show_loop_id();
 
-                Clear_UI_events();
+                    // Show LOOP_time on display
+                    Display_MidiLoop.Loop_total_time();
 
-                // Switch off all tracks LEDs on display
-                Loop_led_set.Request_all_LED_switch_off();
+                    // Show track infos on display
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        Display_MidiLoop.Show_track_all_data(track);
+                    }
 
-                // Switch on led_0
-                LOOP_metronomo.Led_ON(0);
+                    // Update menu and pointer
+                    Pointer_MidiLoop.Show_pointer(false);
+                    LOOP_select_menu_elements();
+                    Display_MidiLoop.Show_menu();
+                    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
-                // Setup metronomo
-                LOOP_metronomo.Setup(LOOP_time);
+                    Clear_UI_events();
 
-                // restart clock
-                LOOP_restart_clock();
+                    // Switch off all tracks LEDs on display
+                    Loop_led_set.Request_all_LED_switch_off();
 
-                // Set first event for each track
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    LOOP_play_event[track] = 0;
-                }
+                    if (LOOP_time > 0)
+                    {
+                        LOOP_metronomo.Led_ON(0);
+                        LOOP_metronomo.Setup(LOOP_time);
+                    }
 
-                // Sort events by timestamp
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    LOOP_set_time_order(track);
-                }
+                    // restart clock
+                    LOOP_restart_clock();
 
-                // Simulate all tracks Start/Stop, with all tracks active
-                LOOP_run_button_state = false;
+                    // Set first event for each track
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        LOOP_play_event[track] = 0;
+                    }
 
-                // Save track states before stopping
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    LOOP_track_run_memo[track] = LOOP_events[track] > 0;
-                    LOOP_track_run[track] = false;
+                    // Sort events by timestamp
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        LOOP_set_time_order(track);
+                    }
+
+                    // Simulate all tracks Start/Stop, with all tracks active
+                    LOOP_run_button_state = LOOP_events[MASTER_TRACK] == 0;
+
+                    // Save track states before stopping
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        LOOP_track_run_memo[track] = LOOP_events[track] > 0;
+                        LOOP_track_run[track] = false;
+                    }
                 }
 
                 // Report
-                Serial.println("Loop uploaded; data in RAM:");
-                LOOP_Print_midi_loop_complete_data(LOOP_id);
+                if (loaded)
+                {
+                    Serial.println("Loop uploaded; data in RAM:");
+                    LOOP_Print_midi_loop_complete_data(LOOP_id);
+                }
+                else
+                {
+                    Serial.println(F("Loop import failed."));
+                }
             }
         }
 
@@ -6880,7 +6888,7 @@ void loop()
                         Serial.println(" **************** ");
                         Serial.print("eventi:");
                         Serial.println(LOOP_events[LOOP_learning_track]);
-                        for (auto event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
+                        for (uint32_t event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
                         {
                             Serial.print(event);
                             Serial.print(" time:");
@@ -6896,7 +6904,7 @@ void loop()
                         }
 
                         Serial.print("Ordine temporale degli eventi: ");
-                        for (auto event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
+                        for (uint32_t event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
                         {
                             Serial.print(LOOP_time_order[LOOP_learning_track][event]);
                             Serial.print(" - ");
@@ -7015,7 +7023,7 @@ void loop()
                             Serial.println(jump);
 
                             AudioNoInterrupts();
-                            for (auto event = 0; event < LOOP_events[track]; ++event)
+                            for (uint32_t event = 0; event < LOOP_events[track]; ++event)
                             {
                                 LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
                             }
@@ -7043,7 +7051,7 @@ void loop()
                             int jump = LOOP_time - LOOP_slide[track];
 
                             AudioNoInterrupts();
-                            for (auto event = 0; event < LOOP_events[track]; ++event)
+                            for (uint32_t event = 0; event < LOOP_events[track]; ++event)
                             {
                                 LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
                             }
@@ -7137,8 +7145,12 @@ void loop()
 
                     case value_LOOP_Save:
                     {
-                        LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
-
+                        if (!LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id))
+                        {
+                            Serial.println(F("Loop save failed; RAM loop remains unsaved."));
+                            Clear_UI_events();
+                            break;
+                        }
                         LOOP_original = true;
 
                         // Update menu and pointerMenu
@@ -7157,9 +7169,13 @@ void loop()
                         result = LOOP_Get_first_loop_id_free();
                         if (result >= 0)
                         {
+                            if (!LOOP_Copy_midi_loop_from_RAM_to_SD(result))
+                            {
+                                Serial.println(F("Loop Save As New failed; loop ID unchanged."));
+                                Clear_UI_events();
+                                break;
+                            }
                             LOOP_id = result;
-                            LOOP_Print_midi_loop_complete_data(LOOP_id);
-                            LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
 
                             // Update menu
                             LOOP_original = true;
@@ -7181,7 +7197,12 @@ void loop()
 
                     case value_LOOP_Delete:
                     {
-                        LOOP_Delete_midi_loop_from_SD(LOOP_id);
+                        if (LOOP_id != NEW_LOOP && !LOOP_Delete_midi_loop_from_SD(LOOP_id))
+                        {
+                            Serial.println(F("Loop delete failed."));
+                            Clear_UI_events();
+                            break;
+                        }
 
                         // new
                         LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
@@ -10218,6 +10239,7 @@ void LOOP_reset_all_data(void)
 {
     LOOP_time = 0;
     LOOP_stretch_int = 100;
+    LOOP_stretch = 1.0f;
     for (auto track = 0; track < TRACKS; ++track)
     {
         LOOP_events[track] = 0;        // numero di eventi nel track
@@ -10372,10 +10394,10 @@ void LOOP_set_time_order(int track)
     else if (LOOP_events[track] > 1)
     {
         // Trova l'indice associato al primo evento rispetto al tempo normalizzato
-        int min_time_index = 0; // indice cercato
+        uint32_t min_time_index = 0; // indice cercato
         int min_time = LOOP_element[track][0].time;
 
-        for (auto i = 1; i < LOOP_events[track]; ++i)
+        for (uint32_t i = 1; i < LOOP_events[track]; ++i)
         {
             if (LOOP_element[track][i].time < min_time)
             {
@@ -10390,7 +10412,7 @@ void LOOP_set_time_order(int track)
         LOOP_time_order[track][0] = evento successivo
         */
 
-        for (auto i = 0; i < LOOP_events[track]; ++i)
+        for (uint32_t i = 0; i < LOOP_events[track]; ++i)
         {
             LOOP_time_order[track][i] = (min_time_index + i) % LOOP_events[track];
         }
@@ -10414,7 +10436,7 @@ void LOOP_restart_procedure(int track)
     else
     {
         LOOP_clock_memo = LOOP_normalized_time();
-        for (auto i = 0; i < LOOP_events[track]; ++i)
+        for (uint32_t i = 0; i < LOOP_events[track]; ++i)
         {
             if (LOOP_element[track][LOOP_time_order[track][i]].time >= LOOP_clock_memo)
             {
@@ -10450,22 +10472,22 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     Serial.print("uint16_t LOOP_time: ");
     Serial.println(LOOP_time);
 
-    // byte LOOP_events[TRACKS]
-    Serial.println("byte LOOP_events[TRACKS]");
+    // uint32_t LOOP_events[TRACKS]
+    Serial.println("uint32_t LOOP_events[TRACKS]");
     for (auto i = 0; i < TRACKS; ++i)
     {
         Serial.println(LOOP_events[i]);
     }
 
     // int LOOP_slide[TRACKS]
-    Serial.println("int LOOP_slide[6]");
+    Serial.println("int LOOP_slide[TRACKS]");
     for (auto i = 0; i < TRACKS; ++i)
     {
         Serial.println(LOOP_slide[i]);
     }
 
     // int LOOP_pitch_int[TRACKS]
-    Serial.println("int LOOP_pitch_int[6]");
+    Serial.println("int LOOP_pitch_int[TRACKS]");
     for (auto i = 0; i < TRACKS; ++i)
     {
         Serial.println(LOOP_pitch_int[i]);
@@ -10478,7 +10500,7 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     // LOOP_element[TRACKS][LOOP_EVENTS]
     for (byte track = 0; track < TRACKS; ++track)
     {
-        for (auto event = 0; event < LOOP_events[track]; ++event)
+        for (uint32_t event = 0; event < LOOP_events[track]; ++event)
         {
             Serial.print("*** LOOP_element[");
             Serial.print(track);
@@ -10507,260 +10529,289 @@ String LOOP_Filename_midi_loop(int loop_id)
     return String(filename + ".loop");
 }
 
-bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
+// Loop SD v1: magic line, uint32_t track count, uint16_t duration, uint32_t event counts,
+// int32_t slides/pitches/stretch, then 8-byte events. Little-endian bytes, one decimal byte per line.
+// Legacy files omit magic/track count and use uint8_t event counts; malformed 24-byte arrays are rejected.
+static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 1\r\n";
+static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
+
+FLASHMEM
+static bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size)
 {
-    if (SD.begin(BUILTIN_SDCARD))
+    auto *bytes = static_cast<uint8_t *>(destination);
+    for (size_t i = 0; i < size; ++i)
     {
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-
-        if (!SD.exists("/LILLALOOP"))
+        unsigned int value = 0;
+        unsigned int digits = 0;
+        int c = file.read();
+        while (c >= '0' && c <= '9' && digits < 3)
         {
-            SD.mkdir("/LILLALOOP");
-            Serial.println(F("LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id) - /LILLALOOP directory created"));
+            value = value * 10 + c - '0';
+            ++digits;
+            c = file.read();
         }
-
-        const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
+        if (c == '\r')
         {
-            SD.remove(full_path_);
-
-            Serial.print(F("LOOP_Copy_midi_loop_from_RAM_to_SD - existing "));
-            Serial.print(full_path);
-            Serial.println(" has been deleted.");
+            c = file.read();
         }
-
-        Serial.print(F("LOOP_Copy_midi_loop_from_RAM_to_SD - this midi_loop will be saved as: "));
-        Serial.println(full_path);
-
-        File file = SD.open(full_path_, FILE_WRITE); // creazione del file vuoto
-        if (file)
+        if (digits == 0 || value > 255 || c != '\n')
         {
-            LOOP_Compile_midi_loop_file(loop_id, file);
-            file.close();
-            return true;
+            return false;
         }
-        else
+        bytes[i] = static_cast<uint8_t>(value);
+    }
+    return true;
+}
+
+FLASHMEM
+static bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size)
+{
+    const auto *bytes = static_cast<const uint8_t *>(source);
+    for (size_t i = 0; i < size; ++i)
+    {
+        const size_t expected = (bytes[i] >= 100 ? 3 : (bytes[i] >= 10 ? 2 : 1)) + 2;
+        if (file.println(bytes[i]) != expected)
         {
             return false;
         }
     }
-    else
-    {
-        Serial.println(F("LOOP_Copy_midi_loop_from_RAM_to_SD - SD not present!"));
-        return false;
-    }
+    return true;
 }
 
-void LOOP_Compile_midi_loop_file(int loop_id, File &file) // private
+FLASHMEM
+bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 {
-    const byte *data; // = (const byte *)(const void *)&Delay_data;
-
-    // uint16_t LOOP_time - total bytes: 2
-    data = (const byte *)(const void *)&LOOP_time;
-    for (auto i = 0; i < 2; ++i)
+    const bool versioned = file.peek() == 'L';
+    if (versioned)
     {
-        file.println(*(data + i));
-        Serial.println(*(data + i));
-    }
-
-    // byte LOOP_events[TRACKS] - total bytes: 1 per each track
-    data = &LOOP_events[0];
-    for (auto i = 0; i < TRACKS; ++i)
-    {
-        file.println(*(data + i));
-    }
-
-    // int LOOP_slide[TRACKS]  - total bytes: 4 per each track
-    data = (const byte *)(const void *)&LOOP_slide[0];
-    for (auto i = 0; i < 24; ++i)
-    {
-        file.println(*(data + i));
-    }
-
-    // int LOOP_pitch_int[TRACKS] - total bytes: 4 per each track
-    data = (const byte *)(const void *)&LOOP_pitch_int[0];
-    for (auto i = 0; i < 24; ++i)
-    {
-        file.println(*(data + i));
-    }
-
-    // int LOOP_stretch - total bytes: 4
-    data = (const byte *)(const void *)&LOOP_stretch_int;
-    for (auto i = 0; i < 4; ++i)
-    {
-        file.println(*(data + i));
-        Serial.println(*(data + i));
-    }
-
-    // LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS]
-    for (byte track = 0; track < TRACKS; ++track)
-    {
-        for (auto event = 0; event < LOOP_events[track]; ++event)
+        for (size_t i = 0; i < sizeof(LOOP_SD_MAGIC) - 1; ++i)
         {
-            data = (const byte *)(const void *)&LOOP_element[track][event];
-            for (auto i = 0; i < LOOP_struct_bytes; ++i)
-            {
-                file.println(*(data + i));
-            }
-        }
-    }
-}
-
-bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id) // public
-{
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-
-        if (SD.exists(full_path_))
-        {
-            Serial.print(F("LOOP_Copy_midi_loop_from_SD_to_RAM - midi loop file "));
-            Serial.print(full_path);
-            Serial.println(F(" found; now starts data import."));
-
-            File file = SD.open(full_path_);
-            if (file)
-            {
-                LOOP_Copy_midi_loop_from_SD_to_RAM_local(file);
-                file.close();
-                LOOP_original = true;
-                return true;
-            }
-            else
+            if (file.read() != LOOP_SD_MAGIC[i])
             {
                 return false;
             }
         }
-        else
+        uint32_t tracks = 0;
+        if (!LOOP_Read_bytes(file, &tracks, sizeof(tracks)) || tracks != TRACKS)
         {
-            Serial.println(F("LOOP_Copy_midi_loop_from_SD_to_RAM - midi loop file not found on SD!"));
             return false;
         }
     }
-    else
+    uint16_t duration = 0;
+    uint32_t counts[TRACKS] = {};
+    int slides[TRACKS], pitches[TRACKS], stretch;
+    if (!LOOP_Read_bytes(file, &duration, sizeof(duration)))
     {
-        Serial.println(F("LOOP_Copy_midi_loop_from_SD_to_RAM - ERROR - SD not present!"));
         return false;
     }
-}
-
-void LOOP_Copy_midi_loop_from_SD_to_RAM_local(File &file)
-{
-    String string_byte;
-    uint8_t value_b[4];
-
-    // uint16_t LOOP_time
-    for (auto b = 0; b < 2; ++b)
+    for (int track = 0; track < TRACKS; ++track)
     {
-        string_byte = file.readStringUntil('\n');
-        value_b[b] = string_byte.toInt();
-    }
-    memcpy(&LOOP_time, value_b, 2);
-    // LOOP_time = (value_b[1] << 8) | value_b[0];
-
-    // byte LOOP_events[TRACKS]
-    for (auto i = 0; i < TRACKS; ++i)
-    {
-        string_byte = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-        LOOP_events[i] = string_byte.toInt();
-    }
-
-    // int LOOP_slide[TRACKS]
-    for (auto i = 0; i < TRACKS; ++i)
-    {
-        for (auto b = 0; b < 4; ++b)
+        // Keep this bound in both passes: never trust an SD count as an array bound.
+        if (!LOOP_Read_bytes(file, &counts[track], versioned ? sizeof(uint32_t) : sizeof(uint8_t)) || counts[track] > LOOP_EVENTS)
         {
-            string_byte = file.readStringUntil('\n');
-            value_b[b] = string_byte.toInt();
+            return false;
         }
-        memcpy(&LOOP_slide[i], value_b, 4);
     }
-
-    // int LOOP_pitch_int[TRACKS]
-    for (auto i = 0; i < TRACKS; ++i)
+    if (!LOOP_Read_bytes(file, slides, sizeof(slides)) || !LOOP_Read_bytes(file, pitches, sizeof(pitches)) || !LOOP_Read_bytes(file, &stretch, sizeof(stretch)))
     {
-        for (auto b = 0; b < 4; ++b)
+        return false;
+    }
+    if (!load)
+    {
+        if (duration == 0 || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
         {
-            string_byte = file.readStringUntil('\n');
-            value_b[b] = string_byte.toInt();
+            return false;
         }
-        memcpy(&LOOP_pitch_int[i], value_b, 4);
-    }
-
-    // int LOOP_stretch_int
-    for (auto b = 0; b < 4; ++b)
-    {
-        string_byte = file.readStringUntil('\n');
-        value_b[b] = string_byte.toInt();
-    }
-    memcpy(&LOOP_stretch_int, value_b, 4);
-
-    LOOP_stretch = static_cast<float>(LOOP_stretch_int) / 100.0f;
-
-    // LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS] -> 8 bytes
-    for (auto track = 0; track < TRACKS; ++track)
-    {
-        for (auto event = 0; event < LOOP_events[track]; ++event)
+        for (int track = 0; track < TRACKS; ++track)
         {
-            // int time
-            for (auto b = 0; b < 4; ++b)
+            if (slides[track] < 0 || slides[track] >= duration || pitches[track] < -24 || pitches[track] > 24)
             {
-                string_byte = file.readStringUntil('\n');
-                value_b[b] = string_byte.toInt();
+                return false;
             }
-            memcpy(&LOOP_element[track][event].time, value_b, 4);
-
-            // uint8_t midi_channel
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].midi_channel = string_byte.toInt();
-
-            // uint8_t note_number
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].note_number = string_byte.toInt();
-
-            // uint8_t velocity
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].velocity = string_byte.toInt();
-
-            // bool note_on velocity
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].note_on = string_byte.toInt();
         }
     }
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        for (uint32_t event = 0; event < counts[track]; ++event)
+        {
+            uint8_t bytes[8];
+            if (!LOOP_Read_bytes(file, bytes, sizeof(bytes)))
+            {
+                return false;
+            }
+            int time;
+            memcpy(&time, bytes, sizeof(time));
+            if (!load && (time < 0 || time > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
+            {
+                return false;
+            }
+            if (load)
+            {
+                LOOP_element[track][event] = {time, bytes[4], bytes[5], bytes[6], bytes[7] != 0};
+            }
+        }
+    }
+    if (file.getError() || file.curPosition() != file.fileSize())
+    {
+        return false;
+    }
+    if (load)
+    {
+        LOOP_time = duration;
+        memcpy(LOOP_events, counts, sizeof(counts));
+        memcpy(LOOP_slide, slides, sizeof(slides));
+        memcpy(LOOP_pitch_int, pitches, sizeof(pitches));
+        LOOP_stretch_int = stretch;
+        LOOP_stretch = static_cast<float>(stretch) / 100.0f;
+    }
+    return true;
 }
 
+FLASHMEM
+bool LOOP_Compile_midi_loop_file(FsFile &file)
+{
+    const uint32_t tracks = TRACKS;
+    if (file.write(LOOP_SD_MAGIC, sizeof(LOOP_SD_MAGIC) - 1) != sizeof(LOOP_SD_MAGIC) - 1 || !LOOP_Write_bytes(file, &tracks, sizeof(tracks)))
+    {
+        return false;
+    }
+    if (!LOOP_Write_bytes(file, &LOOP_time, sizeof(LOOP_time)) || !LOOP_Write_bytes(file, LOOP_events, sizeof(LOOP_events)) || !LOOP_Write_bytes(file, LOOP_slide, sizeof(LOOP_slide)) || !LOOP_Write_bytes(file, LOOP_pitch_int, sizeof(LOOP_pitch_int)) || !LOOP_Write_bytes(file, &LOOP_stretch_int, sizeof(LOOP_stretch_int)))
+    {
+        return false;
+    }
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        if (LOOP_events[track] > LOOP_EVENTS)
+        {
+            return false;
+        }
+        for (uint32_t event = 0; event < LOOP_events[track]; ++event)
+        {
+            if (!LOOP_Write_bytes(file, &LOOP_element[track][event], sizeof(LOOP_struct)))
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+FLASHMEM
+static bool LOOP_Recover_SD_file(const String &path)
+{
+    const String backup = path + ".bak";
+    return SD.exists(path.c_str()) || !SD.exists(backup.c_str()) || SD.rename(backup.c_str(), path.c_str());
+}
+
+FLASHMEM
+bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
+{
+    if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
+    {
+        return false;
+    }
+    if (!SD.exists("/LILLALOOP") && !SD.mkdir("/LILLALOOP"))
+    {
+        return false;
+    }
+    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    const String temporary = path + ".tmp";
+    const String backup = path + ".bak";
+    if (!LOOP_Recover_SD_file(path))
+    {
+        return false;
+    }
+    FsFile file = SD.sdfs.open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+    if (!file)
+    {
+        return false;
+    }
+    const bool written = LOOP_Compile_midi_loop_file(file) && file.sync();
+    const bool closed = file.close();
+    if (!written || !closed)
+    {
+        return false;
+    }
+    file = SD.sdfs.open(temporary.c_str(), O_RDONLY);
+    const bool verified = file && LOOP_Read_midi_loop_file(file, false);
+    file.close();
+    if (!verified)
+    {
+        return false;
+    }
+    const bool had_previous = SD.exists(path.c_str());
+    if (had_previous)
+    {
+        if (SD.exists(backup.c_str()) && !SD.remove(backup.c_str()))
+        {
+            return false;
+        }
+        if (!SD.rename(path.c_str(), backup.c_str()))
+        {
+            return false;
+        }
+    }
+    if (!SD.rename(temporary.c_str(), path.c_str()))
+    {
+        if (had_previous && !SD.rename(backup.c_str(), path.c_str()))
+        {
+            Serial.println(F("Loop replacement failed; previous loop retained in .loop.bak."));
+        }
+        return false;
+    }
+    return true; // Keep .bak until the next successful replacement or explicit deletion.
+}
+
+FLASHMEM
+bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id)
+{
+    if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
+    {
+        return false;
+    }
+    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    if (!LOOP_Recover_SD_file(path))
+    {
+        return false;
+    }
+    FsFile file = SD.sdfs.open(path.c_str(), O_RDONLY);
+    if (!file || !LOOP_Read_midi_loop_file(file, false) || !file.seekSet(0))
+    {
+        return false; // No active-loop data has been changed.
+    }
+    LOOP_stop_and_reset_runnig_loop_data();
+    // Same reader, no second semantic validation and no full-loop staging buffer.
+    const bool loaded = LOOP_Read_midi_loop_file(file, true);
+    file.close();
+    if (!loaded)
+    {
+        LOOP_reset_all_data(); // A read failure must never expose partially loaded events to playback.
+        LOOP_id = NEW_LOOP;
+        LOOP_original = false;
+        return false;
+    }
+    LOOP_original = true;
+    return true;
+}
+
+FLASHMEM
 bool LOOP_Delete_midi_loop_from_SD(int loop_id)
 {
-    if (SD.begin(BUILTIN_SDCARD))
+    if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
     {
-        if (!SD.exists("/LILLALOOP"))
+        return false;
+    }
+    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    // Remove sidecars first so a deleted loop cannot be rediscovered through its backup.
+    for (const char *suffix : {".tmp", ".bak", ""})
+    {
+        const String target = path + suffix;
+        if (SD.exists(target.c_str()) && !SD.remove(target.c_str()))
         {
-            Serial.println(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - file doesn't exist."));
-            return true;
-        }
-
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-
-        if (SD.exists(full_path_))
-        {
-            SD.remove(full_path_);
-            Serial.print(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - file removed."));
-            return true;
-        }
-        else
-        {
-            Serial.println(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - file doesn't exist."));
-            return true;
+            return false;
         }
     }
-
-    Serial.print(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - ERROR - SD not present!"));
-    return false;
+    return true;
 }
 
 bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
@@ -10777,7 +10828,7 @@ bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
 
-        if (SD.exists(full_path_))
+        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
         {
             return true;
         }
@@ -10801,14 +10852,14 @@ int LOOP_Get_first_loop_id_free(void)
     else if (!SD.exists("/LILLALOOP"))
     {
         Serial.println(F("LOOP_Get_first_loop_id_free(void) - no .loop file in SD."));
-        return -2;
+        return 0; // The export procedure creates the directory on the first save.
     }
     for (auto loop_id = 0; loop_id < MIDI_LOOP_FILES; ++loop_id)
     {
         String filename = LOOP_Filename_midi_loop(loop_id);
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
-        if (!SD.exists(full_path_))
+        if (!SD.exists(full_path_) && !SD.exists((full_path + ".bak").c_str()))
         {
             Serial.print(F("LOOP_Get_first_loop_id_free(void) - loop_id: "));
             Serial.println(loop_id);
@@ -10836,7 +10887,7 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id)
         String filename = LOOP_Filename_midi_loop(next_loop);
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
+        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
         {
             return next_loop;
         }
@@ -10868,7 +10919,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
         String filename = LOOP_Filename_midi_loop(previous_loop);
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
+        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
         {
             return previous_loop;
         }

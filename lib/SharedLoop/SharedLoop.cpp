@@ -7,8 +7,8 @@
 #include "SharedLoop.h"
 
 // MIDI LOOP
-LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS];
-byte LOOP_events[TRACKS];
+DMAMEM LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS]; // Access only entries below LOOP_events; RAM2 is not zero-initialized.
+uint32_t LOOP_events[TRACKS];
 int LOOP_slide[TRACKS];
 float LOOP_stretch = 1.0;
 
@@ -24,7 +24,7 @@ uint8_t position_Menu_LOOP[LOOP_menu_values]; // argument is element
 // LOOP play/stop
 bool LOOP_track_run[TRACKS] = {false};
 uint32_t LOOP_play_time[TRACKS] = {0};
-int LOOP_play_event[TRACKS] = {0};
+uint32_t LOOP_play_event[TRACKS] = {0};
 float LOOP_volume[TRACKS] = {0};
 uint16_t LOOP_time;
 int LOOP_pitch_int[TRACKS] = {0};
@@ -32,10 +32,10 @@ int LOOP_pitch_int[TRACKS] = {0};
 // LOOP learn
 int LOOP_learning_track;
 bool LOOP_learn_flag;
-int LOOP_elements;
+uint32_t LOOP_elements;
 elapsedMillis LOOP_learn_clock;
 int LOOP_clock_memo;
-int LOOP_last_event;
+uint32_t LOOP_last_event;
 
 // LOOP_metronomo
 bool LOOP_metronomo_run = false; // il metronomo e' running

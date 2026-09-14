@@ -94,7 +94,7 @@ void MidiReader::Update(void)
                 */
 
                 // Loop learning
-                if ((Lilla_state == MIDI_LOOP) & LOOP_learn_flag)
+                if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements < LOOP_EVENTS)
                 {
                     // Solo in caso di NoteOn
                     if (LOOP_elements == 0)
@@ -136,7 +136,7 @@ void MidiReader::Update(void)
                     LOOP_element[LOOP_learning_track][LOOP_last_event].note_on = true;
 
                     // Ultimo evento accettabile
-                    if (LOOP_elements == (LOOP_EVENTS - 1))
+                    if (LOOP_elements >= LOOP_EVENTS)
                     {
                         LOOP_learn_flag = false;
                         Serial.println("Loop chiuso per raggiunto limite eventi!");
@@ -199,7 +199,7 @@ void MidiReader::Update(void)
                 velocity = MIDI.getData2();
 
                 // Loop learning
-                if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0)
+                if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0 && LOOP_elements < LOOP_EVENTS)
                 {
                     // Aggiorna il conteggio degli elementi
                     ++LOOP_elements;
@@ -222,7 +222,7 @@ void MidiReader::Update(void)
                     LOOP_element[LOOP_learning_track][LOOP_last_event].note_on = false;
 
                     // Ultimo evento accettabile
-                    if (LOOP_elements == LOOP_EVENTS - 1)
+                    if (LOOP_elements >= LOOP_EVENTS)
                     {
                         LOOP_learn_flag = false;
                         // Serial.println("Loop chiuso per raggiunto limite eventi!");
@@ -442,7 +442,7 @@ void MidiReader::Update(void)
         {
             if (LOOP_track_run[track] && (LOOP_Clock_frozen >= LOOP_play_time[track]))
             {
-                int event = LOOP_play_event[track];
+                uint32_t event = LOOP_play_event[track];
 
                 // Prima del primo evento, tutti i Player di track devono aver gia' ricevuto NoteOff, altrimenti gli vengono inviati
                 if (event == 0)
