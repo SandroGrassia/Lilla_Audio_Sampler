@@ -8,14 +8,11 @@
 
 void PointerMidiLoop::Set_pointer_to_first_menu_element(void)
 {
-    // pointerMenu = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]);
-    // Display_MidiLoop.Loop_show_pointerMenu(pointerMenu, true);
-
     pointer.field_name = field_LOOP_Menu;
-    pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]);
+    pointer.menu_element = LOOP_menu_max >= 0 ? static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]) : value_LOOP_Menu_none;
     pointer.track_value_element = value_LOOP_Track_none;
 
-    Display_MidiLoop.Loop_show_pointerMenu(pointer.menu_element, true);
+    Show_pointer(true);
 
     for (auto track = 0; track < TRACKS; ++track)
     {
@@ -75,6 +72,14 @@ void PointerMidiLoop::Move_pointer(const int value)
     }
 
     Show_pointer(false);
+
+    if (LOOP_menu_max < 0)
+    {
+        pointer.field_name = field_LOOP_Menu;
+        pointer.menu_element = value_LOOP_Menu_none;
+        pointer.track_value_element = value_LOOP_Track_none;
+        return;
+    }
 
     switch (pointer.field_name)
     {

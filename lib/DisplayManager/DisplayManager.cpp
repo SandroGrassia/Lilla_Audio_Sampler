@@ -23,7 +23,7 @@ void DisplayManager::Lilla_cover_slow(void)
     }
 
     // fade-out
-    delay(4000);
+    delay(6000);
     for (auto i = 50; i >= 0; --i)
     {
         Cover_text(i / 50.0f);
@@ -356,21 +356,28 @@ void DisplayManager::Logo(float light)
 void DisplayManager::Cover_text(float light)
 {
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
-    tft.setCursor(display_coordinate_x(13), display_coordinate_y(12));
+    tft.setCursor(display_coordinate_x(13), Text_position_DY);
     tft.print("UPDATE ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
     tft.print(FIRMWARE_VERSION);
 
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
-    tft.setCursor(display_coordinate_x(13), display_coordinate_y(13) - 4);
-    tft.print("AUDIO MEMORY ");
+    tft.setCursor(display_coordinate_x(13), Text_position_DY + 11);
+    tft.print("AUDIO REPOSITORY ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
     tft.print(verified_flash_memory_MB);
     tft.print("MB");
 
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
-    tft.setCursor(display_coordinate_x(13), display_coordinate_y(14) - 8);
-    tft.print("LIVE SAMPLER MEMORY ");
+    tft.setCursor(display_coordinate_x(13), Text_position_DY + 22);
+    tft.print("AUDIO RAM ");
+    tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
+    tft.print(PSRAM_TOTAL_SAMPLES * sizeof(int16_t) / (1UL << 20));
+    tft.print("MB");
+
+    tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
+    tft.setCursor(display_coordinate_x(13), Text_position_DY + 33);
+    tft.print("LIVE SAMPLER CACHE ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
     tft.print("16MB");
 }

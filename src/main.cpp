@@ -7148,13 +7148,16 @@ void loop()
 
                     case value_LOOP_Save:
                     {
-                        if (!LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id))
+                        const int saved_loop_id = LOOP_id == NEW_LOOP ? LOOP_Get_first_loop_id_free() : LOOP_id;
+                        if (saved_loop_id < 0 || !LOOP_Copy_midi_loop_from_RAM_to_SD(saved_loop_id))
                         {
                             Serial.println(F("Loop save failed; RAM loop remains unsaved."));
                             Clear_UI_events();
                             break;
                         }
+                        LOOP_id = saved_loop_id;
                         LOOP_original = true;
+                        Display_MidiLoop.Show_loop_id();
 
                         // Update menu and pointerMenu
                         Pointer_MidiLoop.Show_pointer(false);
@@ -10299,14 +10302,15 @@ void LOOP_select_menu_elements(void)
         Menu_LOOP[2] = false; // Save as New
     }
 
-    if (LOOP_id == -1) // nuovo loop
+    if (LOOP_id == NEW_LOOP) // nuovo loop
     {
         Menu_LOOP[0] = false; // New
-        Menu_LOOP[1] = false; // Save
-        // Menu_LOOP[3] = false; // Delete
-
+        Menu_LOOP[2] = false; // Save as New
         if (LOOP_events[0] == 0)  // nuovo loop vuoto
-            Menu_LOOP[2] = false; // Save as New
+        {
+            Menu_LOOP[1] = false; // Save
+            Menu_LOOP[3] = false; // Delete
+        }
     }
 
     LOOP_menu_max = Menu_LOOP[0] + Menu_LOOP[1] + Menu_LOOP[2] + Menu_LOOP[3] - 1;
@@ -14040,7 +14044,6 @@ void Reload_system_state(void)
 
     // *******************    COVER PAGE    **********************
     Display_Manager.Lilla_cover_slow();
-    // Display_Manager.Lilla_cover_saturate();
 
     // ****************    DEFINE STARTUP MODE     ************
     if (!Startup_mode())

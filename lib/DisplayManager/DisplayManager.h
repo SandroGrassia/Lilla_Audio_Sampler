@@ -35,7 +35,8 @@ private:
     void Cover_text(const float light);
     uint16_t Calc_color(uint16_t color_peak, float light);
     static constexpr int Logo_position_DX = 80; // pixel
-    static constexpr int Logo_position_DY = 50; // pixel
+    static constexpr int Logo_position_DY = 45; // pixel
+    static constexpr int Text_position_DY = 175; // pixel
 
     // Avvisi
     //                         "0123456789012345678901234..7890123456789109876543210";
