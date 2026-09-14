@@ -667,6 +667,8 @@ bool VFS_Defragment(void);
 bool VFS_Shift_file(int to_packet, int recording_id);
 void Require_VFS(bool result);
 void VFS_Print_FAT(void);
+bool BACKUP_Export(void);
+bool BACKUP_Restore(bool *config_error = nullptr);
 
 // STANDARD FILE SYSTEM
 int Get_next_raw_file_in_flash(int file);
@@ -7563,7 +7565,7 @@ void loop()
                 break;
             }
 
-            case 5: // Versioned FRAM backup import from SD.
+            case 5: // Restore configuration and Recording audio from the backup root.
                 Display_Manager.Confirm_config_import_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7577,49 +7579,38 @@ void loop()
                 // check SD presence
                 if (!SD.begin(BUILTIN_SDCARD))
                 {
-                    Display_Manager.SD_missing(ILI9341_BLACK);
-                    delay(5000);
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                     break;
                 }
-                if (!SD.exists("/LILLASET/lilla.fram"))
+                if (!SD.exists("/LILLABACKUP/LILLA_CONFIG.fram"))
                 {
-                    Display_Manager.Config_import_FILE_error_popup();
-                    delay(5000);
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                     break;
                 }
                 else
                 {
-                    Display_Manager.Config_import_REBOOT_popup();
-
                     if (!P_Quiesce_audio_players())
                     {
                         break;
                     }
-                    File file = SD.open("/LILLASET/lilla.fram");
-                    if (file)
+                    bool config_error = false;
+                    if (!BACKUP_Restore(&config_error))
                     {
-                        const bool restored = Archive.Restore_FRAM_backup(file);
-                        file.close();
-                        if (!restored)
+                        if (config_error)
                         {
-                            Serial.println(F("FRAM backup rejected: invalid format, version, length or CRC"));
-                            Display_Manager.Config_import_FILE_error_popup();
-                            delay(5000);
-                            Reload_system_state();
+                            Display_Manager.SETUP_show_SETUP_page();
+                            Display_Manager.SETUP_show_frame(SET_menu);
                             break;
                         }
-                        Serial.println(F("Backup verified; FRAM restore completed"));
-                    }
-                    else
-                    {
+                        Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /LILLABACKUP."));
                         Display_Manager.Config_import_FILE_error_popup();
+                        delay(5000);
                         Reload_system_state();
                         break;
                     }
+                    Serial.println(F("Configuration and Recording audio restored and verified."));
 
                     // switch off Tools LED
                     TOOLS_pushbutton = false;
@@ -7629,7 +7620,7 @@ void loop()
                 }
                 break;
 
-            case 6: // Versioned FRAM backup export to SD card.
+            case 6: // Create a new numbered backup with Recording audio.
                 Display_Manager.Confirm_config_export_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7643,13 +7634,7 @@ void loop()
                 // check SD presence
                 if (SD.begin(BUILTIN_SDCARD))
                 {
-                    if (!SD.exists("/LILLASET"))
-                    {
-                        SD.mkdir("/LILLASET");
-                        Serial.println(F("/LILLASET directory created"));
-                    }
-
-                    if (Archive.Export_FRAM_backup())
+                    if (BACKUP_Export())
                     {
                         Display_Manager.Config_export_save_popup();
                     }
@@ -11512,6 +11497,371 @@ void VFS_Print_FAT(void)
 // **********************************            STANDARD RAW FILES             **********************************
 // ***************************************************************************************************************
 
+// Complete SD backups: metadata v3 binds every audio channel by length and CRC.
+// RAW files preserve full allocated packets, including erased tails, without trusting inferred runtime lengths.
+static constexpr char BACKUP_ROOT[] = "/LILLABACKUP";
+static constexpr char BACKUP_CONFIG[] = "LILLA_CONFIG.fram";
+
+FLASHMEM
+static uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size)
+{
+    for (size_t i = 0; i < size; ++i)
+    {
+        crc ^= data[i];
+        for (uint8_t bit = 0; bit < 8; ++bit)
+        {
+            crc = (crc >> 1) ^ ((crc & 1U) ? 0xEDB88320UL : 0UL);
+        }
+    }
+    return crc;
+}
+
+FLASHMEM
+static void BACKUP_Audio_path(char *path, size_t size, const char *directory, int id, int channel)
+{
+    snprintf(path, size, "%s/REC_%02d_%c.raw", directory, id, channel == 0 ? 'L' : 'R');
+}
+
+FLASHMEM
+static bool BACKUP_Verify_audio(const char *path, uint32_t bytes, uint32_t expected_crc)
+{
+    FsFile file = SD.sdfs.open(path, O_RDONLY);
+    if (!file || file.fileSize() != bytes)
+    {
+        return false;
+    }
+    uint8_t buffer[VFS_COPY_BYTES];
+    uint32_t crc = 0xFFFFFFFFUL;
+    for (uint32_t offset = 0; offset < bytes; offset += sizeof(buffer))
+    {
+        const uint32_t count = bytes - offset < sizeof(buffer) ? bytes - offset : sizeof(buffer);
+        if (file.read(buffer, count) != static_cast<int>(count))
+        {
+            return false;
+        }
+        crc = BACKUP_Update_crc(crc, buffer, count);
+    }
+    return !file.getError() && (crc ^ 0xFFFFFFFFUL) == expected_crc;
+}
+
+FLASHMEM
+static bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bool restore, uint32_t &crc)
+{
+    uint8_t buffer[VFS_COPY_BYTES], actual[VFS_COPY_BYTES];
+    crc = 0xFFFFFFFFUL;
+    for (int packet = 0; packet < entry.packets; ++packet)
+    {
+        SerialFlashFile flash;
+        const int id = entry.first_packet + packet * (entry.stereo ? 2 : 1) + channel;
+        if (!VFS_Open_packet(id, flash))
+        {
+            return false;
+        }
+        for (uint32_t offset = 0; offset < PACKET_DIM; offset += sizeof(buffer))
+        {
+            if (!VFS_Wait_flash())
+            {
+                return false;
+            }
+            if (restore)
+            {
+                if (file.read(buffer, sizeof(buffer)) != sizeof(buffer) || flash.write(buffer, sizeof(buffer)) != sizeof(buffer) || !VFS_Wait_flash())
+                {
+                    return false;
+                }
+                flash.seek(offset);
+                if (flash.read(actual, sizeof(actual)) != sizeof(actual) || memcmp(buffer, actual, sizeof(buffer)) != 0)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (flash.read(buffer, sizeof(buffer)) != sizeof(buffer) || file.write(buffer, sizeof(buffer)) != sizeof(buffer))
+                {
+                    return false;
+                }
+            }
+            crc = BACKUP_Update_crc(crc, buffer, sizeof(buffer));
+        }
+    }
+    crc ^= 0xFFFFFFFFUL;
+    return !file.getError();
+}
+
+FLASHMEM
+static bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio = false, bool *config_error = nullptr)
+{
+    char path[64];
+    snprintf(path, sizeof(path), "%s/%s", directory, BACKUP_CONFIG);
+    File config = SD.open(path);
+    if (!config || !Archive.Read_backup_audio(config, audio, entries))
+    {
+        if (config_error != nullptr)
+        {
+            *config_error = true;
+        }
+        return false;
+    }
+    config.close();
+    // Recovery runs before runtime loading: probe physical packets, not the old FRAM addresses.
+    capacity = 0;
+    bool gap = false;
+    for (int packet = 0; packet < VFS_PACKETS_MAX; ++packet)
+    {
+        if (!SerialFlash.exists(name_packet[packet]))
+        {
+            gap = true;
+            continue;
+        }
+        SerialFlashFile flash;
+        if (gap || !VFS_Open_packet(packet, flash))
+        {
+            return false;
+        }
+        ++capacity;
+    }
+    uint32_t required = 0;
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        for (int channel = 0; channel < 2; ++channel)
+        {
+            if (audio[id].bytes[channel] > 0)
+            {
+                BACKUP_Audio_path(path, sizeof(path), directory, id, channel);
+                if (!BACKUP_Verify_audio(path, audio[id].bytes[channel], audio[id].crc32[channel]))
+                {
+                    if (!discard_invalid_audio)
+                    {
+                        return false;
+                    }
+                    // Discard the whole Recording, including both stereo channels; never retry its audio.
+                    entries[id] = {};
+                    entries[id].consistent = true;
+                    audio[id] = {};
+                    Serial.print(F("Restore: cleared Recording with missing or invalid audio: "));
+                    Serial.println(id);
+                    break;
+                }
+            }
+        }
+        required += entries[id].packets * (entries[id].stereo ? 2U : 1U);
+    }
+    return required <= static_cast<uint32_t>(capacity);
+}
+
+FLASHMEM
+static bool BACKUP_Export_files(void)
+{
+    if (!SD.begin(BUILTIN_SDCARD) || Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
+    {
+        return false;
+    }
+    if (!SD.exists(BACKUP_ROOT) && !SD.mkdir(BACKUP_ROOT))
+    {
+        return false;
+    }
+    uint32_t highest = 0;
+    File directory = SD.open(BACKUP_ROOT);
+    if (!directory || !directory.isDirectory())
+    {
+        return false;
+    }
+    while (true)
+    {
+        File entry = directory.openNextFile();
+        if (!entry)
+        {
+            break;
+        }
+        const char *name = entry.name();
+        const char *slash = strrchr(name, '/');
+        name = slash ? slash + 1 : name;
+        const size_t length = strlen(name);
+        if (length == 6 || (length == 10 && strcmp(name + 6, ".tmp") == 0))
+        {
+            uint32_t number = 0;
+            bool numeric = true;
+            for (int i = 0; i < 6; ++i)
+            {
+                numeric &= name[i] >= '0' && name[i] <= '9';
+                number = number * 10 + (numeric ? name[i] - '0' : 0);
+            }
+            if (numeric && number > highest)
+            {
+                highest = number;
+            }
+        }
+        entry.close();
+    }
+    directory.close();
+    if (highest >= 999999)
+    {
+        return false;
+    }
+    char temporary[40], destination[40], path[64];
+    snprintf(temporary, sizeof(temporary), "%s/%06lu.tmp", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
+    snprintf(destination, sizeof(destination), "%s/%06lu", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
+    if (SD.exists(temporary) || SD.exists(destination) || !SD.mkdir(temporary))
+    {
+        return false;
+    }
+    ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
+    VFS_Recording entries[RECORDINGS]{};
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        const VFS_Recording runtime = Recording[id];
+        const byte result = Archive.Read_DS_Recording(id);
+        entries[id] = Recording[id];
+        Recording[id] = runtime;
+        if (result != LillaFRAM_2x512::ERROR_0 || !entries[id].consistent || !VFS_Valid_span(entries[id]))
+        {
+            return false;
+        }
+        const auto &entry = entries[id];
+        if (entry.packets == 0)
+        {
+            continue;
+        }
+        for (int earlier = 0; earlier < id; ++earlier)
+        {
+            const auto &other = entries[earlier];
+            if (other.packets > 0 && entry.first_packet < other.first_packet + other.packets * (other.stereo ? 2 : 1) && other.first_packet < entry.first_packet + entry.packets * (entry.stereo ? 2 : 1))
+            {
+                return false;
+            }
+        }
+        for (int channel = 0; channel < (entry.stereo ? 2 : 1); ++channel)
+        {
+            BACKUP_Audio_path(path, sizeof(path), temporary, id, channel);
+            FsFile file = SD.sdfs.open(path, O_WRONLY | O_CREAT | O_EXCL);
+            if (!file)
+            {
+                return false;
+            }
+            audio[id].bytes[channel] = static_cast<uint32_t>(entry.packets) * PACKET_DIM;
+            const bool written = BACKUP_Copy_audio(file, entry, channel, false, audio[id].crc32[channel]) && file.sync();
+            const bool closed = file.close();
+            if (!written || !closed)
+            {
+                return false;
+            }
+        }
+    }
+    // Written last: an interrupted audio export never acquires a complete configuration file.
+    snprintf(path, sizeof(path), "%s/%s", temporary, BACKUP_CONFIG);
+    File config = SD.open(path, FILE_WRITE);
+    const bool saved = config && Archive.Save_FRAM_backup(config, audio);
+    config.close();
+    int capacity = 0;
+    if (!saved || !BACKUP_Verify_directory(temporary, audio, entries, capacity) || !SD.rename(temporary, destination))
+    {
+        return false;
+    }
+    Serial.print(F("Complete backup saved: "));
+    Serial.println(destination);
+    return true;
+}
+
+FLASHMEM
+bool BACKUP_Export(void)
+{
+    VFS_Audio_guard guard;
+    const bool saved = BACKUP_Export_files();
+    guard.Complete(); // An SD export failure has not changed the live archive.
+    return saved;
+}
+
+FLASHMEM
+static bool BACKUP_Restore_files(bool &changed, bool &config_error)
+{
+    if (!SD.begin(BUILTIN_SDCARD))
+    {
+        config_error = true;
+        return false;
+    }
+    if (!VFS_Wait_flash())
+    {
+        return false;
+    }
+    ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
+    VFS_Recording entries[RECORDINGS]{};
+    int capacity = 0;
+    if (!BACKUP_Verify_directory(BACKUP_ROOT, audio, entries, capacity, true, &config_error))
+    {
+        return false;
+    }
+    char path[64];
+    snprintf(path, sizeof(path), "%s/%s", BACKUP_ROOT, BACKUP_CONFIG);
+    File config = SD.open(path);
+    if (!config || !Archive.Verify_FRAM_backup(config))
+    {
+        config_error = true;
+        return false;
+    }
+    changed = true; // Even a torn state-marker write requires recovery rather than resuming playback.
+    if (!Archive.Restore_FRAM_backup(config, false))
+    {
+        return false;
+    }
+    config.close();
+    DS_First_packet = 0;
+    DS_VFS_packets = capacity;
+    DS_Last_packet = capacity - 1;
+    VFS_packets = capacity;
+    // Existing RAW library files are untouched; only the VFS packet area is replaced.
+    for (int packet = 0; packet < capacity; ++packet)
+    {
+        if (!VFS_Erase_packet(packet))
+        {
+            return false;
+        }
+    }
+    int destination = 0;
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        auto &entry = entries[id];
+        entry.first_packet = entry.packets > 0 ? destination : 0;
+        for (int channel = 0; channel < (entry.stereo ? 2 : 1) && entry.packets > 0; ++channel)
+        {
+            BACKUP_Audio_path(path, sizeof(path), BACKUP_ROOT, id, channel);
+            FsFile file = SD.sdfs.open(path, O_RDONLY);
+            uint32_t crc = 0;
+            if (!file || file.fileSize() != audio[id].bytes[channel] || !BACKUP_Copy_audio(file, entry, channel, true, crc) || crc != audio[id].crc32[channel])
+            {
+                return false;
+            }
+        }
+        Recording[id] = entry;
+        if (!VFS_Save_recording_verified(id))
+        {
+            return false;
+        }
+        destination += entry.packets * (entry.stereo ? 2 : 1);
+    }
+    return Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
+}
+
+FLASHMEM
+bool BACKUP_Restore(bool *config_error)
+{
+    VFS_Audio_guard guard;
+    bool changed = false;
+    bool invalid_config = false;
+    const bool restored = BACKUP_Restore_files(changed, invalid_config);
+    if (config_error != nullptr)
+    {
+        *config_error = invalid_config;
+    }
+    if (restored || !changed)
+    {
+        guard.Complete();
+    }
+    return restored;
+}
+
+// End complete SD backups.
+
 int Get_next_raw_file_in_flash(int file)
 {
     int value = file;
@@ -13417,23 +13767,20 @@ void Reload_system_state(void)
     if (Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
     {
         Serial.println(F("FRAM archive unavailable: interrupted restore, invalid header or I/O error. Automatic repair is blocked."));
-        Serial.println(F("Insert SD. Press Select or send R to restore /LILLASET/lilla.fram; send B to restore /LILLASET/lilla.bak."));
+        Serial.println(F("Place LILLA_CONFIG.fram and its REC files in /LILLABACKUP. Press Select to retry the complete restore."));
         Display_Manager.FRAM_recovery_popup();
         bool recovered = false;
         while (!recovered)
         {
             Shifters_manager.Update();
-            const int command = Serial.available() ? Serial.read() : -1;
-            const bool previous = command == 'B' || command == 'b' || Read_pushbutton(EN_PB_Value);
-            if (Read_pushbutton(EN_PB_Select) || command == 'R' || command == 'r' || previous)
+            if (Read_pushbutton(EN_PB_Select))
             {
-                if (SD.begin(BUILTIN_SDCARD))
+                bool config_error = false;
+                recovered = BACKUP_Restore(&config_error);
+                if (!config_error)
                 {
-                    File backup = SD.open(previous ? "/LILLASET/lilla.bak" : "/LILLASET/lilla.fram");
-                    recovered = backup && Archive.Restore_FRAM_backup(backup);
-                    backup.close();
+                    Serial.println(recovered ? F("Configuration and audio restored.") : F("Restore failed. Check the backup files and press Select to retry."));
                 }
-                Serial.println(recovered ? F("Backup verified; restore completed.") : F("Restore failed. Check SD and retry R or B."));
             }
             delay(10);
         }

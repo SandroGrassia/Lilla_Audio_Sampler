@@ -253,12 +253,18 @@ public:
     byte Factory_reset_FRAM(bool publish_ready = true);
     byte Check_FRAM_archive();
     byte Set_FRAM_archive_state(uint32_t state);
+    struct Recording_backup_audio
+    {
+        uint32_t bytes[2];
+        uint32_t crc32[2];
+    };
+    static_assert(sizeof(Recording_backup_audio) == 16);
     bool Verify_FRAM_backup(File &file);
-    bool Export_FRAM_backup();
+    bool Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings);
     static constexpr uint32_t RESTORE_IN_PROGRESS = 0x52535452;
     static constexpr uint32_t ARCHIVE_READY = 0x52454144;
-    bool Save_FRAM_backup(File &file);
-    bool Restore_FRAM_backup(File &file);
+    bool Save_FRAM_backup(File &file, const Recording_backup_audio *audio = nullptr);
+    bool Restore_FRAM_backup(File &file, bool publish_ready = true);
     struct FRAM_Repair_report
     {
         uint16_t cleared_patches = 0;
@@ -274,7 +280,7 @@ public:
         uint8_t cleared_recordings = 0;
         uint8_t failed_id = UINT8_MAX;
     };
-    // Startup only. CRC-corrupt Recording metadata is replaced with an empty, consistent record.
+    // Startup only. CRC-corrupt Recording metadata is replaced with an empty, inconsistent cleanup marker.
     byte Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report);
     struct FRAM_System_repair_report
     {

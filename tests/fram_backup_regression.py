@@ -1,4 +1,4 @@
-"""Exercise production backup, restore markers and SD rotation with injected failures."""
+"""Exercise FRAM metadata codecs, audio manifests and restore markers with injected failures."""
 from pathlib import Path
 import os
 import runpy
@@ -16,6 +16,7 @@ mock = r'''
 #include <map>
 #include <memory>
 #include <string>
+constexpr int PACKET_DIM = 65536;
 constexpr int FILE_WRITE = 1;
 struct File {
     std::shared_ptr<std::vector<uint8_t>> data;
@@ -84,10 +85,10 @@ int main() {
     std::fill_n(LillaFram.memory.begin(), 16, 0);
     assert(archive.Check_FRAM_archive() == 0);
     assert(std::equal(baseline.begin() + 256, baseline.end(), LillaFram.memory.begin() + 256));
-    assert(archive.Export_FRAM_backup());
-    const auto good = *SD.files.at("/LILLASET/lilla.fram");
+    File backup = SD.open("/metadata.test", FILE_WRITE);
+    assert(archive.Save_FRAM_backup(backup));
+    const auto good = *backup.data;
     assert(good.size() == 20 + 0xFE00 - 256);
-    File backup = SD.open("/LILLASET/lilla.fram");
     assert(archive.Verify_FRAM_backup(backup));
     (*backup.data)[25] ^= 1;
     LillaFram.clear_io();
@@ -121,16 +122,26 @@ int main() {
     LillaFram.clear_io();
     assert(archive.Check_FRAM_archive() != 0);
     assert(archive.Restore_FRAM_backup(backup));
-    assert(!archive.Export_FRAM_backup());
-    assert(*SD.files.at("/LILLASET/lilla.fram") == good);
+    assert(!archive.Save_FRAM_backup(backup));
+    assert(*backup.data == good);
     File::fail_write = false;
-    SD.rename_calls = 0;
-    SD.fail_rename = 2;
-    assert(!archive.Export_FRAM_backup());
-    assert(*SD.files.at("/LILLASET/lilla.bak") == good);
-    SD.fail_rename = 0;
-    assert(archive.Export_FRAM_backup());
-    assert(*SD.files.at("/LILLASET/lilla.bak") == good);
+    A::Recording_backup_audio audio[RECORDINGS]{};
+    VFS_Recording entries[RECORDINGS]{};
+    assert(!archive.Read_backup_audio(backup, audio, entries)); // V2 has no audio identity.
+    audio[0].bytes[0] = 7 * PACKET_DIM;
+    audio[0].crc32[0] = 12345;
+    File full{std::make_shared<std::vector<uint8_t>>()};
+    assert(archive.Save_FRAM_backup(full, audio));
+    assert(archive.Read_backup_audio(full, audio, entries));
+    assert(entries[0].first_packet == 10 && entries[0].packets == 7 && audio[0].crc32[0] == 12345);
+    LillaFram.clear_io();
+    assert(!archive.Restore_FRAM_backup(full) && LillaFram.writes.empty()); // Cannot publish metadata-only V3 restore.
+    assert(archive.Restore_FRAM_backup(full, false) && archive.Check_FRAM_archive() != 0);
+    assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
+    audio[0].bytes[0] -= 2;
+    File mismatch{std::make_shared<std::vector<uint8_t>>()};
+    assert(archive.Save_FRAM_backup(mismatch, audio));
+    assert(archive.Verify_FRAM_backup(mismatch) && !archive.Read_backup_audio(mismatch, audio, entries));
     // Version 1 includes the old header: validate it, but never copy it to FRAM.
     A::FRAM_Backup_header_struct old{};
     memcpy(old.magic, "LILLAFRM", 8);
@@ -151,7 +162,7 @@ int main() {
     assert(archive.Check_FRAM_archive() != 0);
     assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
     assert(archive.Check_FRAM_archive() == 0);
-    std::puts("PASS: header initialization, V1/V2 restore, interruption/retry, Recording preservation, CRC rejection and backup rotation failures");
+    std::puts("PASS: header initialization, V1/V2 codecs, V3 audio manifest, deferred READY, interruption/retry and CRC rejection");
 }
 '''
 compiler = base["compiler"]

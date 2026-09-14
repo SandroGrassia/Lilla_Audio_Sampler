@@ -223,7 +223,7 @@ byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
     return publish_ready ? Set_FRAM_archive_state(ARCHIVE_READY) : LillaFRAM_2x512::ERROR_0;
 }
 
-bool ArchivingManager::Save_FRAM_backup(File &file)
+bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio *audio)
 {
     if (Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
     {
@@ -232,15 +232,17 @@ bool ArchivingManager::Save_FRAM_backup(File &file)
     FRAM_Backup_header_struct header{};
     const uint8_t magic[8] = {'L', 'I', 'L', 'L', 'A', 'F', 'R', 'M'};
     memcpy(header.magic, magic, sizeof(magic));
-    header.version = FRAM_BACKUP_VERSION;
+    header.version = audio ? 3 : FRAM_BACKUP_VERSION;
     header.header_bytes = sizeof(header);
-    header.payload_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
+    const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
+    const uint32_t audio_bytes = audio ? RECORDINGS * sizeof(Recording_backup_audio) : 0;
+    header.payload_bytes = config_bytes + audio_bytes;
 
     uint8_t buffer[128];
     uint32_t crc = 0xFFFFFFFFUL;
-    for (uint32_t address = 0; address < header.payload_bytes; address += sizeof(buffer))
+    for (uint32_t address = 0; address < config_bytes; address += sizeof(buffer))
     {
-        const uint32_t remaining = header.payload_bytes - address;
+        const uint32_t remaining = config_bytes - address;
         const uint32_t count = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
         if (FRAM_Read_bytes(FRAM_PATCH_ADDRESS + address, buffer, count) != LillaFRAM_2x512::ERROR_0)
         {
@@ -255,21 +257,30 @@ bool ArchivingManager::Save_FRAM_backup(File &file)
             }
         }
     }
+    const auto *manifest = reinterpret_cast<const uint8_t *>(audio);
+    for (uint32_t offset = 0; offset < audio_bytes; ++offset)
+    {
+        crc ^= manifest[offset];
+        for (uint8_t bit = 0; bit < 8; ++bit)
+        {
+            crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
+        }
+    }
     header.payload_crc32 = crc ^ 0xFFFFFFFFUL;
     if (file.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header)) != sizeof(header))
     {
         return false;
     }
-    for (uint32_t address = 0; address < header.payload_bytes; address += sizeof(buffer))
+    for (uint32_t address = 0; address < config_bytes; address += sizeof(buffer))
     {
-        const uint32_t remaining = header.payload_bytes - address;
+        const uint32_t remaining = config_bytes - address;
         const uint32_t count = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
         if (FRAM_Read_bytes(FRAM_PATCH_ADDRESS + address, buffer, count) != LillaFRAM_2x512::ERROR_0 || file.write(buffer, count) != count)
         {
             return false;
         }
     }
-    return true;
+    return audio_bytes == 0 || file.write(manifest, audio_bytes) == audio_bytes;
 }
 
 bool ArchivingManager::Verify_FRAM_backup(File &file)
@@ -284,7 +295,8 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
     {
         return false;
     }
-    const bool supported = (header.version == 1 && header.payload_bytes == FRAM_FIRST_FREE_ADDRESS) || (header.version == FRAM_BACKUP_VERSION && header.payload_bytes == FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES);
+    const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
+    const bool supported = (header.version == 1 && header.payload_bytes == FRAM_FIRST_FREE_ADDRESS) || (header.version == FRAM_BACKUP_VERSION && header.payload_bytes == config_bytes) || (header.version == 3 && header.payload_bytes == config_bytes + RECORDINGS * sizeof(Recording_backup_audio));
     if (memcmp(header.magic, magic, sizeof(magic)) != 0 || !supported || header.header_bytes != sizeof(header) || file.size() != sizeof(header) + header.payload_bytes)
     {
         return false;
@@ -313,7 +325,7 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
     return (crc ^ 0xFFFFFFFFUL) == header.payload_crc32;
 }
 
-bool ArchivingManager::Restore_FRAM_backup(File &file)
+bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
 {
     if (!Verify_FRAM_backup(file) || !file.seek(0))
     {
@@ -323,6 +335,10 @@ bool ArchivingManager::Restore_FRAM_backup(File &file)
     if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || !file.seek(sizeof(header) + (header.version == 1 ? FRAM_HEADER_BYTES : 0)))
     {
         return false;
+    }
+    if (header.version == 3 && publish_ready)
+    {
+        return false; // Only the full restore may publish READY, after the audio and relocated metadata.
     }
     if (Set_FRAM_archive_state(RESTORE_IN_PROGRESS) != LillaFRAM_2x512::ERROR_0)
     {
@@ -343,48 +359,59 @@ bool ArchivingManager::Restore_FRAM_backup(File &file)
             return false;
         }
     }
-    return Set_FRAM_archive_state(ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
+    return !publish_ready || Set_FRAM_archive_state(ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
 }
 
-bool ArchivingManager::Export_FRAM_backup()
+bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings)
 {
-    const char *temporary = "/LILLASET/lilla.tmp";
-    const char *current = "/LILLASET/lilla.fram";
-    const char *previous = "/LILLASET/lilla.bak";
-    if (SD.exists(temporary) && !SD.remove(temporary))
+    if (audio == nullptr || recordings == nullptr || !Verify_FRAM_backup(file) || !file.seek(0))
     {
         return false;
     }
-    File file = SD.open(temporary, FILE_WRITE);
-    if (!file)
+    FRAM_Backup_header_struct header{};
+    if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || header.version != 3)
+    {
+        return false; // Metadata-only backups cannot recover audio.
+    }
+    if (!file.seek(sizeof(header) + FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES) || file.read(reinterpret_cast<uint8_t *>(audio), RECORDINGS * sizeof(*audio)) != RECORDINGS * sizeof(*audio))
     {
         return false;
     }
-    const bool saved = Save_FRAM_backup(file);
-    file.close();
-    if (!saved)
+    if (!file.seek(sizeof(header) + FRAM_RECORDING_ADDRESS - FRAM_HEADER_BYTES))
     {
         return false;
     }
-    file = SD.open(temporary);
-    const bool verified = file && Verify_FRAM_backup(file);
-    file.close();
-    if (!verified)
+    for (int id = 0; id < RECORDINGS; ++id)
     {
-        return false;
-    }
-    if (SD.exists(current))
-    {
-        if (SD.exists(previous) && !SD.remove(previous))
+        FRAM_Recording_struct entry{};
+        if (file.read(reinterpret_cast<uint8_t *>(&entry), sizeof(entry)) != sizeof(entry) || FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(&entry), offsetof(FRAM_Recording_struct, crc32)) != entry.crc32)
         {
             return false;
         }
-        if (!SD.rename(current, previous))
+        const uint32_t span = entry.packets * (entry.stereo ? 2U : 1U);
+        if (entry.stereo > 1 || entry.consistent != 1 || span > VFS_PACKETS_MAX || (span > 0 && entry.first_packet > VFS_PACKETS_MAX - span))
         {
             return false;
         }
+        const uint32_t bytes = static_cast<uint32_t>(entry.packets) * PACKET_DIM;
+        if (audio[id].bytes[0] != bytes || audio[id].bytes[1] != (entry.stereo ? bytes : 0U))
+        {
+            return false;
+        }
+        for (int channel = 0; channel < 2; ++channel)
+        {
+            if (audio[id].bytes[channel] == 0 && audio[id].crc32[channel] != 0)
+            {
+                return false;
+            }
+        }
+        recordings[id] = {};
+        recordings[id].first_packet = entry.first_packet;
+        recordings[id].packets = entry.packets;
+        recordings[id].stereo = entry.stereo != 0;
+        recordings[id].consistent = true;
     }
-    return SD.rename(temporary, current);
+    return true;
 }
 
 uint32_t ArchivingManager::FRAM_Get_patch_address(uint8_t patch_id)
