@@ -1195,6 +1195,10 @@ void setup()
 
 void loop()
 {
+    if (Display_MidiLoop.Update_save_failed())
+    {
+        Pointer_MidiLoop.Show_pointer(true);
+    }
     Require_FRAM(DirectSampler.Storage_error());
 
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
@@ -6755,6 +6759,10 @@ void loop()
                     // Learning
                     while (LOOP_learn_flag)
                     {
+                        if (Display_MidiLoop.Update_save_failed())
+                        {
+                            Pointer_MidiLoop.Show_pointer(true);
+                        }
                         Shifters_manager.Update();
 
                         // Stop learning
@@ -7152,6 +7160,7 @@ void loop()
                         if (saved_loop_id < 0 || !LOOP_Copy_midi_loop_from_RAM_to_SD(saved_loop_id))
                         {
                             Serial.println(F("Loop save failed; RAM loop remains unsaved."));
+                            Display_MidiLoop.Show_save_failed();
                             Clear_UI_events();
                             break;
                         }
@@ -7178,6 +7187,7 @@ void loop()
                             if (!LOOP_Copy_midi_loop_from_RAM_to_SD(result))
                             {
                                 Serial.println(F("Loop Save As New failed; loop ID unchanged."));
+                                Display_MidiLoop.Show_save_failed();
                                 Clear_UI_events();
                                 break;
                             }
@@ -7196,6 +7206,11 @@ void loop()
                             // Update loop_id
                             Display_MidiLoop.Show_loop_id();
 
+                            Clear_UI_events();
+                        }
+                        else
+                        {
+                            Display_MidiLoop.Show_save_failed();
                             Clear_UI_events();
                         }
                     }

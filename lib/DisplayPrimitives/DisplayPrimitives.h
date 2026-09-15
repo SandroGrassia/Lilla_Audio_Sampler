@@ -43,5 +43,6 @@ void Frame_by_pixels(const int X, const int Y, const int chars, const int high, 
 void Show_measure_unit(const char *what, const int lenght);
 void Delete_text_row(const float row); // delete text row
 
-void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color);
+// Vertical popup offset in pixels: negative moves up, positive moves down.
+void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
 void Backgorund_red(const float col, const float row, const int chars);

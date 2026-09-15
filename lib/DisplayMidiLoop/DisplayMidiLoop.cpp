@@ -6,6 +6,46 @@
 
 #include "DisplayMidiLoop.h"
 
+// SAVE FAILED vertical offset in pixels: adjust here; negative moves up, positive moves down.
+static constexpr int Save_failed_y_offset = -14;
+
+FLASHMEM
+void DisplayMidiLoop::Show_save_failed(void)
+{
+    Show_popup_text("SAVE FAILED", ILI9341_WHITE, ILI9341_RED, Save_failed_y_offset);
+    save_failed_started_ms = millis();
+    save_failed_visible = true;
+}
+
+FLASHMEM
+bool DisplayMidiLoop::Update_save_failed(void)
+{
+    if (!save_failed_visible)
+    {
+        return false;
+    }
+    if (Lilla_state != MIDI_LOOP)
+    {
+        save_failed_visible = false;
+        return false;
+    }
+    if (static_cast<uint32_t>(millis() - save_failed_started_ms) >= 4000u)
+    {
+        // Match the geometry used by Show_popup_text().
+        const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 4);
+        const int height = display_coordinate_y(3);
+        tft.fillRect((320 - width) / 2, (240 - height) / 2 + Save_failed_y_offset, width, height, ILI9341_BLACK);
+        save_failed_visible = false;
+        
+        for (int track = 0; track < TRACKS; ++track)
+        {
+            Show_track_all_data(track);
+        }
+        return true;
+    }
+    return false;
+}
+
 FLASHMEM
 void DisplayMidiLoop::Loop_REC_advice(const int track, const bool on)
 {
@@ -55,6 +95,7 @@ void DisplayMidiLoop::Show_volume(void)
 FLASHMEM
 void DisplayMidiLoop::Show_Loop_page(void)
 {
+    save_failed_visible = false;
     tft.fillScreen(ILI9341_BLACK);
     Show_MIDI_LOOP();
     Show_menu();

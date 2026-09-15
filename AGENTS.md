@@ -1,14 +1,9 @@
-# Divieto di modifica della codebase
+# Modifica della codebase
 
-In questo repository Codex deve limitarsi a descrivere o proporre testualmente le modifiche nella chat.
+In questo repository Codex può modificare la codebase con esplicita autorizzazione del tipo "procedi a modificare il codice", "ti autorizzo a modificare il codice".
 
-Codex può modificare la codebase solo dopo esplicita autorizzazione del tipo "ti autorizzo a modificare il codice". 
+Assieme alla modifica del codice è anche autorizzata la compilazione.
 
-Frasi come "procedi", "proponi", "crea codice" o equivalenti non autorizzano Codex a modificare la codebase. 
-
-# Divieto di sollecitare l'autorizzazione
-
-Codex non deve mai chiedere di propria iniziativa se l'utente autorizza le modifiche, usando la formula "Autorizzi queste modifiche?" o formule equivalenti.
 
 # Terminatori di riga obbligatori
 

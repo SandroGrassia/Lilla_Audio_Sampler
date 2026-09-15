@@ -22,6 +22,8 @@
 class DisplayMidiLoop
 {
 private:
+    bool save_failed_visible = false;
+    uint32_t save_failed_started_ms = 0;
     static constexpr int Loop_sound_id_column = 5;
     static constexpr int Loop_sound_id_to_track_1_distance = 4;
 
@@ -104,6 +106,8 @@ public:
     void Loop_led(const int track, const int instrument_id, const bool on);
     void Loop_led_metronomo(const int Xled, const int Yled, const bool ONled);
     void Show_menu(void);
+    void Show_save_failed(void);
+    bool Update_save_failed(void); // True when track data was restored; the caller must redraw the pointer.
 
     // pointer
     void Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show);
