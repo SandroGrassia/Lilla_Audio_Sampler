@@ -73,64 +73,82 @@ void DisplaySampler::DS_page_lower(int recording)
     tft.print("- FREE FOR RAW FILES ");
     DS_raw_available_memory();
 
-    DS_Recording_description(recording, true, false);
-    DS_sampler_IO();
+    if (DS_recording_controls_visible)
+    {
+        DS_sampler_IO();
+    }
+    else
+    {
+        DS_Recording_description(recording, true, false);
+    }
+}
+
+FLASHMEM
+void DisplaySampler::DS_set_recording_controls(bool visible)
+{
+    if (DS_recording_controls_visible == visible)
+    {
+        return;
+    }
+    DS_recording_controls_visible = visible;
+    const int top = display_coordinate_y(DS_ROW_RECORDING) - 4;
+    tft.fillRect(0, top, 320, 240 - top, ILI9341_BLACK);
+    if (visible)
+    {
+        DS_recording_led_visible = false;
+        DS_recording_led_redraw = true;
+        DS_sampler_IO();
+    }
+    else
+    {
+        DS_Recording_description(recording, true, false);
+    }
 }
 
 FLASHMEM
 void DisplaySampler::DS_sampler_IO(void)
 {
-    tft.setCursor(DS_VUMETER_BAR_X + 1, DS_VUMETER_BAR_Y + 4);
+    if (!DS_recording_controls_visible)
+    {
+        return;
+    }
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(DS_ROW_RECORDING));
+    tft.setTextColor(ILI9341_RED);
+    tft.print("PAUSE+REC");
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(DS_ROW_GAIN));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("L");
-    tft.setCursor(DS_VUMETER_BAR_X + DS_VUMETER_BAR_DX, DS_VUMETER_BAR_Y + 4);
-    tft.print("R");
-
-    tft.drawRect(DS_VUMETER_BAR_X - 1, DS_VUMETER_BAR_Y - BAR_ELEMENTS - 1, DS_VUMETER_BAR_DISTANCE + 2, BAR_ELEMENTS + 2, 0x03E0);
-    tft.drawRect(DS_VUMETER_BAR_X - 1 + DS_VUMETER_BAR_DX, DS_VUMETER_BAR_Y - BAR_ELEMENTS - 1, DS_VUMETER_BAR_DISTANCE + 2, BAR_ELEMENTS + 2, 0x03E0);
-    DS_bar(0, 0);
-    DS_bar(1, 0);
-
-    tft.drawRect(DS_START_X, DS_START_Y, 31, 15, ILI9341_GREEN);
-    tft.drawBitmap(DS_START_X - 19, DS_START_Y + 4, DS_freccia, 19, 7, ILI9341_GREEN);
-    tft.setCursor(DS_START_X - 63, DS_START_Y + 4);
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("LINE-IN");
-
-    tft.setCursor(DS_START_X + 4, DS_START_Y + 17);
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("GAIN");
-
-    DS_sampler_frame(true);
-    DS_sampler_txt(false);
+    tft.print("AUDIO IN GAIN");
     DS_show_gain();
+    for (int channel = 0; channel < 2; ++channel)
+    {
+        const int y = display_coordinate_y(channel == 0 ? DS_ROW_LEVEL_L : DS_ROW_LEVEL_R);
+        tft.setCursor(display_coordinate_x(0), y);
+        tft.setTextColor(TEXT_COLOR);
+        tft.print(channel == 0 ? "LEVEL L" : "LEVEL R");
+        tft.fillRect(DS_VUMETER_BAR_X, y, BAR_ELEMENTS * DS_VUMETER_STEP_WIDTH, DS_VUMETER_BAR_HEIGHT, ILI9341_BLACK);
+        tft.drawRect(DS_VUMETER_BAR_X - 1, y - 1, BAR_ELEMENTS * DS_VUMETER_STEP_WIDTH + 2, DS_VUMETER_BAR_HEIGHT + 2, 0x03E0);
+        DS_VU_meter_value_old[channel] = 0;
+    }
 }
 
 void DisplaySampler::DS_bar(int channel, int value)
 {
-    int X0 = (channel == 0 ? DS_VUMETER_BAR_X : DS_VUMETER_BAR_X + DS_VUMETER_BAR_DX);
-    float value_float;
-    const float BAR_ELEMENTS_float = BAR_ELEMENTS;
-
-    if (value < 0)
+    if (!DS_recording_controls_visible || channel < 0 || channel > 1)
     {
-        value = 0;
+        return;
     }
-
+    value = constrain(value, 0, BAR_ELEMENTS);
+    const int y = display_coordinate_y(channel == 0 ? DS_ROW_LEVEL_L : DS_ROW_LEVEL_R);
     if (value > DS_VU_meter_value_old[channel])
     {
-        for (auto i = DS_VU_meter_value_old[channel] + 1; i <= value; ++i)
+        for (int i = DS_VU_meter_value_old[channel] + 1; i <= value; ++i)
         {
-            value_float = i / BAR_ELEMENTS_float;
-            tft.drawFastHLine(X0, DS_VUMETER_BAR_Y - i, DS_VUMETER_BAR_DISTANCE, DS_calc_bar_color(value_float));
+            tft.fillRect(DS_VUMETER_BAR_X + (i - 1) * DS_VUMETER_STEP_WIDTH, y, DS_VUMETER_STEP_WIDTH, DS_VUMETER_BAR_HEIGHT, DS_calc_bar_color(static_cast<float>(i) / BAR_ELEMENTS));
         }
     }
     else if (value < DS_VU_meter_value_old[channel])
     {
-        for (auto i = value + 1; i <= DS_VU_meter_value_old[channel]; ++i)
-        {
-            tft.drawFastHLine(X0, DS_VUMETER_BAR_Y - i, DS_VUMETER_BAR_DISTANCE, ILI9341_BLACK);
-        }
+        tft.fillRect(DS_VUMETER_BAR_X + value * DS_VUMETER_STEP_WIDTH, y, (DS_VU_meter_value_old[channel] - value) * DS_VUMETER_STEP_WIDTH, DS_VUMETER_BAR_HEIGHT, ILI9341_BLACK);
     }
     DS_VU_meter_value_old[channel] = value;
 }
@@ -145,27 +163,15 @@ uint16_t DisplaySampler::DS_calc_bar_color(float value)
 }
 
 FLASHMEM
-void DisplaySampler::DS_line_out(bool visible)
-{
-    tft.drawBitmap(DS_START_X + 37, DS_START_Y + 7, DS_freccia_gomito, 13, 23, (visible ? ILI9341_GREEN : GREEN_OFF));
-    tft.setCursor(DS_START_X + 55, DS_START_Y + 23);
-    tft.setTextColor((visible ? TEXT_COLOR : TEXT_OFF_COLOR));
-    tft.print("LINE-OUT");
-}
-
-FLASHMEM
-void DisplaySampler::DS_sampler_frame(bool visible)
-{
-    tft.drawBitmap(DS_START_X + 31, DS_START_Y + 4, DS_freccia, 19, 7, (visible ? ILI9341_GREEN : ILI9341_BLACK));
-    tft.drawRoundRect(DS_START_X + 50, DS_START_Y, 51, 15, 3, (visible ? ILI9341_GREEN : ILI9341_BLACK));
-}
-
-FLASHMEM
 void DisplaySampler::DS_sampler_txt(bool color)
 {
-    tft.setCursor(DS_START_X + 58, DS_START_Y + 4);
+    if (!DS_recording_controls_visible)
+    {
+        return;
+    }
+    Cancel_text_reset_cursor(display_coordinate_x(0), display_coordinate_y(DS_ROW_RECORDING), 9);
     tft.setTextColor(color ? ILI9341_RED : RED_OFF);
-    tft.print("RECORD");
+    tft.print("RECORDING");
 }
 
 FLASHMEM
@@ -308,6 +314,10 @@ void DisplaySampler::DS_export_options(int file_L_RAW, int file_R_RAW, int DS_ex
 FLASHMEM
 void DisplaySampler::DS_Recording_description(int recording, bool led, bool update_header)
 {
+    if (DS_recording_controls_visible)
+    {
+        return;
+    }
     DS_recording_led_visible = led;
     DS_recording_led_redraw = true;
     tft.setCursor(led ? display_coordinate_x(DS_column_row_RECORDING_LED[0]) : display_coordinate_x(DS_column_row_RECORDING[0]), display_coordinate_y(DS_column_row_RECORDING[1]));
@@ -418,7 +428,11 @@ void DisplaySampler::DS_update_volume(bool adj)
 FLASHMEM
 void DisplaySampler::DS_show_gain(void)
 {
-    Cancel_text_reset_cursor(DS_START_X + 4, DS_START_Y + 4, 4);
+    if (!DS_recording_controls_visible)
+    {
+        return;
+    }
+    Cancel_text_reset_cursor(display_coordinate_x(DS_COLUMN_GAIN), display_coordinate_y(DS_ROW_GAIN), 4);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(DS_gain / 20.0f, 2);
 }
@@ -471,12 +485,12 @@ void DisplaySampler::DS_show_pointer_frame(const DS_pointer_struct pointer, cons
         const int position = position_Menu_DS[pointer.menu_element];
         Frame_by_col_row(X_position_Menu_DS[position], Y_position_Menu_DS[position], dimension_voice_Menu_DS[element_Menu_DS[position]], show);
     }
-    else if (pointer.value_element == value_DS_Recording)
+    else if (pointer.value_element == value_DS_Recording && !DS_recording_controls_visible)
     {
         Frame_by_col_row(DS_column_row_recording[0], DS_column_row_recording[1], DS_chars_recording, show);
     }
-    else if (pointer.value_element == value_DS_Gain)
+    else if (pointer.value_element == value_DS_Gain && DS_recording_controls_visible)
     {
-        Frame_by_pixels(DS_START_X + 4, DS_START_Y + 4, 4, show);
+        Frame_by_col_row(DS_COLUMN_GAIN, DS_ROW_GAIN, 4, show);
     }
 }

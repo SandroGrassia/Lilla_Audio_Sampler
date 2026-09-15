@@ -4031,7 +4031,6 @@ void loop()
 
                     Display_Sampler.DS_page_upper();
                     Display_Sampler.DS_page_lower(recording);
-                    Display_Sampler.DS_line_out(false);
 
                     // Menu
                     DS_define_menu();
@@ -4265,7 +4264,6 @@ void loop()
 
                     Display_Sampler.DS_page_upper();
                     Display_Sampler.DS_page_lower(recording);
-                    Display_Sampler.DS_line_out(false);
 
                     // Menu
                     DS_define_menu();
@@ -5252,7 +5250,7 @@ void loop()
         }
 
         // Update VU meter
-        if (DS_state == DS_waiting_state || DS_state == DS_pause_state || DS_state == DS_recording_state)
+        if (DS_state == DS_pause_state || DS_state == DS_recording_state)
         {
             float val;
             if (PeakTracking_L.available())
@@ -5281,7 +5279,6 @@ void loop()
             if (DS_recording_time_update >= 200)
             {
                 DS_recording_time_update = 0;
-                Display_Sampler.DS_update_recording_seconds(DS_recording_time);
                 Display_Sampler.DS_available_memory();
             }
 
@@ -5326,8 +5323,6 @@ void loop()
 
                 Display_Sampler.DS_available_memory();
 
-                Display_Sampler.DS_line_out(false);
-                Display_Sampler.DS_sampler_frame(true);
                 Display_Sampler.DS_sampler_txt(false);
 
                 VFS_Print_FAT();
@@ -5428,7 +5423,6 @@ void loop()
 
                     Clear_UI_events();
 
-                    Display_Sampler.DS_line_out(true);
                 }
                 break;
 
@@ -5565,8 +5559,6 @@ void loop()
                     Clear_UI_events();
 
                     Display_Sampler.DS_available_memory();
-                    Display_Sampler.DS_line_out(false);
-                    Display_Sampler.DS_sampler_frame(true);
                     Display_Sampler.DS_sampler_txt(false);
 
                     // VFS_Print_FAT();
@@ -5831,7 +5823,6 @@ void loop()
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
                     Display_Sampler.DS_page_lower(recording);
-                    Display_Sampler.DS_line_out(false);
                     Clear_UI_events();
                 }
                 break;
@@ -5850,7 +5841,7 @@ void loop()
             if (DS_local_pointer.value_element == value_DS_Gain)
             {
                 // Share the LINE IN gain with Mixer; allow adjustment while monitoring or recording.
-                if ((DS_state == DS_waiting_state || DS_state == DS_pause_state || DS_state == DS_recording_state) && Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
+                if ((DS_state == DS_pause_state || DS_state == DS_recording_state) && Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
                 {
                     AudioNoInterrupts();
                     LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
@@ -5918,7 +5909,6 @@ void loop()
 
                 Display_Sampler.DS_page_upper();
                 Display_Sampler.DS_page_lower(recording);
-                Display_Sampler.DS_line_out(false);
 
                 // Menu
                 DS_define_menu();
@@ -6085,7 +6075,6 @@ void loop()
 
                             Display_Sampler.DS_page_upper();
                             Display_Sampler.DS_page_lower(recording);
-                            Display_Sampler.DS_line_out(false);
 
                             // Menu
                             DS_define_menu();
@@ -7482,7 +7471,6 @@ void loop()
 
                     Display_Sampler.DS_page_upper();
                     Display_Sampler.DS_page_lower(recording);
-                    Display_Sampler.DS_line_out(false);
 
                     // Menu
                     DS_define_menu();
@@ -9209,6 +9197,8 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         }
     }
 
+    Display_Sampler.DS_set_recording_controls(DS_state == DS_pause_state || DS_state == DS_recording_state);
+
     DS_menu_max = -1;
     for (auto i = 0; i < DS_menu_elements; ++i)
     {
@@ -9370,7 +9360,6 @@ void Golive_DIRECT_SAMPLING(void)
 
     Display_Sampler.DS_page_upper();
     Display_Sampler.DS_page_lower(recording);
-    Display_Sampler.DS_line_out(false);
 
     // Menu
     DS_define_menu();
@@ -9586,7 +9575,6 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
 
             Display_Sampler.DS_page_upper();
             Display_Sampler.DS_page_lower(recording);
-            Display_Sampler.DS_line_out(false);
 
             // Menu
             DS_define_menu();
@@ -9768,7 +9756,6 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 
             Display_Sampler.DS_page_upper();
             Display_Sampler.DS_page_lower(recording);
-            Display_Sampler.DS_line_out(false);
 
             // Menu
             DS_define_menu();
@@ -9928,7 +9915,6 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 
             Display_Sampler.DS_page_upper();
             Display_Sampler.DS_page_lower(recording);
-            Display_Sampler.DS_line_out(false);
 
             // Menu
             DS_define_menu();
