@@ -44,6 +44,7 @@ private:
 
     int state;
     bool patch_release_pending = false;
+    void Enforce_cycle_deadline(void);
     uint32_t patch_release_started = 0;
     static constexpr uint32_t QUICK_RELEASE_TIME = 2000; // Maximum lifetime in milliseconds of outgoing patch voices.
     static constexpr uint32_t PATCH_RELEASE_BLOCK_MS = (1000u * AUDIO_BLOCK_SAMPLES + static_cast<uint32_t>(AUDIO_SAMPLE_RATE) - 1u) / static_cast<uint32_t>(AUDIO_SAMPLE_RATE);
@@ -248,6 +249,8 @@ private:
     // flags
     bool warmup_for_play_again_flag = false; // quando si riceve Get_ready_to_play ma il Player è !idle, il Player non puo' partire immediatamente
     bool restart_flag = false;
+    bool pending_note_released = false; // A NoteOff for the replacement must survive until Start_playing().
+    float modulation_depth = 0.0f;
     bool main_settings_editing_flag = false;
     bool vibrato_flag = false;
     bool pitch_tune_flag = false;
@@ -329,6 +332,13 @@ public:
 
     bool isPlaying(void);
     bool isPoweredOn(void);
+    bool Has_pending_note(void) const { return state != IDLE && (warmup_for_play_again_flag || restart_flag); }
+    bool Needs_restart_mix(void) const { return state != IDLE && warmup_for_play_again_flag; }
+    int Assigned_note(void) const { return Has_pending_note() ? note_wait : note; }
+    int Assigned_track(void) const { return Has_pending_note() ? track_wait : track; }
+    int Assigned_instrument(void) const { return Has_pending_note() ? instrument_id_wait : instrument_id; }
+    int Assigned_patch(void) const { return Has_pending_note() ? patch_id_wait : local_patch; }
+    void Set_modulation(uint8_t value);
     void set_file(int file_id_in); // Select a Flash or Live Sampler file for the next note.
     void Set_source(const AudioFileSource &source); // Attach the prepared source before configuring the next note.
     void Refresh_cached_source(const AudioFileSource &source); // Promote identical data and refresh current/pending pitch limits; call with audio interrupts disabled.
@@ -351,7 +361,7 @@ public:
     void Set_mix_samples(uint8_t value);
 
     void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Prepare the next start from precomputed preset parameters and table references. 
-    void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint8_t sound_id_in, uint8_t note_in); // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
+    void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in); // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
     void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.
     
     void Release_note(void); // release note, fires ADSR "release"

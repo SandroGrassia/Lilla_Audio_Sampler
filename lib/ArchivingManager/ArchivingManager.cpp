@@ -11,68 +11,407 @@
 
 namespace
 {
-// Keep each transfer within Wire2's 136-byte buffer, including the two address bytes.
-constexpr uint32_t FRAM_TRANSFER_BYTES = 128;
+    // Keep each transfer within Wire2's 136-byte buffer, including the two address bytes.
+    constexpr uint32_t FRAM_TRANSFER_BYTES = 128;
 
-uint32_t FRAM_Calculate_crc32(const uint8_t *bytes, uint32_t count)
-{
-    uint32_t crc = 0xFFFFFFFFUL;
-    for (uint32_t offset = 0; offset < count; ++offset)
+    uint32_t FRAM_Calculate_crc32(const uint8_t *bytes, uint32_t count)
     {
-        crc ^= bytes[offset];
+        uint32_t crc = 0xFFFFFFFFUL;
+        for (uint32_t offset = 0; offset < count; ++offset)
+        {
+            crc ^= bytes[offset];
+            for (uint8_t bit = 0; bit < 8; ++bit)
+            {
+                crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
+            }
+        }
+        return crc ^ 0xFFFFFFFFUL;
+    }
+
+    byte FRAM_Write_bytes(uint32_t address, const uint8_t *bytes, uint32_t size)
+    {
+        uint8_t buffer[FRAM_TRANSFER_BYTES];
+
+        for (uint32_t offset = 0; offset < size;)
+        {
+            const uint32_t remaining = size - offset;
+            const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
+            memcpy(buffer, bytes + offset, count);
+            const byte result = LillaFram.writeArray(address + offset, count, buffer);
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result; // Earlier blocks may already have been written.
+            }
+            offset += count;
+        }
+        return LillaFRAM_2x512::ERROR_0;
+    }
+
+    byte FRAM_Read_bytes(uint32_t address, uint8_t *bytes, uint32_t size)
+    {
+        for (uint32_t offset = 0; offset < size;)
+        {
+            const uint32_t remaining = size - offset;
+            const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
+            const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result;
+            }
+            offset += count;
+        }
+        return LillaFRAM_2x512::ERROR_0;
+    }
+
+    template <class T>
+    byte FRAM_Write_record(uint32_t address, const T &source)
+    {
+        return FRAM_Write_bytes(address, reinterpret_cast<const uint8_t *>(&source), sizeof(T));
+    }
+
+    template <class T>
+    byte FRAM_Read_record(uint32_t address, T &destination)
+    {
+        T buffer{};
+        uint8_t *bytes = reinterpret_cast<uint8_t *>(&buffer);
+
+        for (uint32_t offset = 0; offset < sizeof(T);)
+        {
+            const uint32_t remaining = sizeof(T) - offset;
+            const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
+            const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                return result;
+            }
+            offset += count;
+        }
+
+        memcpy(&destination, &buffer, sizeof(T)); // Publish only a complete record.
+        return LillaFRAM_2x512::ERROR_0;
+    }
+}
+
+byte ArchivingManager::Set_FRAM_archive_state(uint32_t state)
+{
+    uint32_t header[4] = {0x4C465241, 1, state, 0};
+    header[3] = FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(header), 12);
+    const byte result = FRAM_Write_bytes(FRAM_HEADER_ADDRESS, reinterpret_cast<const uint8_t *>(header), 12);
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    const byte crc_result = FRAM_Write_record(FRAM_HEADER_ADDRESS + 12, header[3]);
+    if (crc_result != LillaFRAM_2x512::ERROR_0)
+    {
+        return crc_result;
+    }
+    uint32_t actual[4]{};
+    const byte read_result = FRAM_Read_record(FRAM_HEADER_ADDRESS, actual);
+    if (read_result != LillaFRAM_2x512::ERROR_0)
+    {
+        return read_result;
+    }
+    return memcmp(header, actual, sizeof(header)) == 0 ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_VERIFY;
+}
+
+byte ArchivingManager::Check_FRAM_archive()
+{
+    uint32_t header[4]{};
+    const byte result = FRAM_Read_record(FRAM_HEADER_ADDRESS, header);
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    bool blank_zero = true;
+    bool blank_ff = true;
+    for (const auto word : header)
+    {
+        blank_zero = blank_zero && word == 0;
+        blank_ff = blank_ff && word == UINT32_MAX;
+    }
+    if (blank_zero || blank_ff)
+    {
+        // Enrol only an intact pre-header archive. Never repair while its state is unknown.
+        FRAM_Patch_struct patch{};
+        FRAM_Sound_struct sound{};
+        FRAM_Recording_struct recording{};
+        FRAM_System_struct system{};
+        for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+        {
+            const byte read_result = FRAM_Read_patch(id, patch);
+            if (read_result != LillaFRAM_2x512::ERROR_0)
+            {
+                return read_result;
+            }
+        }
+        for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+        {
+            const byte read_result = FRAM_Read_sound(id, sound);
+            if (read_result != LillaFRAM_2x512::ERROR_0)
+            {
+                return read_result;
+            }
+        }
+        for (uint8_t id = 0; id < RECORDINGS; ++id)
+        {
+            const byte read_result = FRAM_Read_recording(id, recording);
+            if (read_result != LillaFRAM_2x512::ERROR_0)
+            {
+                return read_result;
+            }
+        }
+        const byte read_result = FRAM_Read_system(system);
+        if (read_result != LillaFRAM_2x512::ERROR_0)
+        {
+            return read_result;
+        }
+        return Set_FRAM_archive_state(ARCHIVE_READY);
+    }
+    if (header[0] != 0x4C465241 || header[1] != 1 || header[2] != ARCHIVE_READY || header[3] != FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(header), 12))
+    {
+        return FRAM_ERROR_SOURCE;
+    }
+    return LillaFRAM_2x512::ERROR_0;
+}
+
+byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
+{
+    const byte started = Set_FRAM_archive_state(RESTORE_IN_PROGRESS);
+    if (started != LillaFRAM_2x512::ERROR_0)
+    {
+        return started;
+    }
+    const FRAM_Patch_struct empty_patch{};
+    for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+    {
+        const byte result = FRAM_Write_patch(id, empty_patch);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+    }
+
+    const FRAM_Sound_struct empty_sound{};
+    for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+    {
+        const byte result = FRAM_Write_sound(id, empty_sound);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+    }
+
+    FRAM_Recording_struct empty_recording{};
+    empty_recording.consistent = 1;
+    for (uint8_t id = 0; id < RECORDINGS; ++id)
+    {
+        const byte result = FRAM_Write_recording(id, empty_recording);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+    }
+
+    FRAM_System_struct system{};
+    system.first_octave = -2;
+    const byte result = FRAM_Write_system(system);
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    return publish_ready ? Set_FRAM_archive_state(ARCHIVE_READY) : LillaFRAM_2x512::ERROR_0;
+}
+
+bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio *audio)
+{
+    if (Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
+    {
+        return false;
+    }
+    FRAM_Backup_header_struct header{};
+    const uint8_t magic[8] = {'L', 'I', 'L', 'L', 'A', 'F', 'R', 'M'};
+    memcpy(header.magic, magic, sizeof(magic));
+    header.version = audio ? 3 : FRAM_BACKUP_VERSION;
+    header.header_bytes = sizeof(header);
+    const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
+    const uint32_t audio_bytes = audio ? RECORDINGS * sizeof(Recording_backup_audio) : 0;
+    header.payload_bytes = config_bytes + audio_bytes;
+
+    uint8_t buffer[128];
+    uint32_t crc = 0xFFFFFFFFUL;
+    for (uint32_t address = 0; address < config_bytes; address += sizeof(buffer))
+    {
+        const uint32_t remaining = config_bytes - address;
+        const uint32_t count = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+        if (FRAM_Read_bytes(FRAM_PATCH_ADDRESS + address, buffer, count) != LillaFRAM_2x512::ERROR_0)
+        {
+            return false;
+        }
+        for (uint32_t offset = 0; offset < count; ++offset)
+        {
+            crc ^= buffer[offset];
+            for (uint8_t bit = 0; bit < 8; ++bit)
+            {
+                crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
+            }
+        }
+    }
+    const auto *manifest = reinterpret_cast<const uint8_t *>(audio);
+    for (uint32_t offset = 0; offset < audio_bytes; ++offset)
+    {
+        crc ^= manifest[offset];
         for (uint8_t bit = 0; bit < 8; ++bit)
         {
             crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
         }
     }
-    return crc ^ 0xFFFFFFFFUL;
-}
-
-byte FRAM_Write_bytes(uint32_t address, const uint8_t *bytes, uint32_t size)
-{
-    uint8_t buffer[FRAM_TRANSFER_BYTES];
-
-    for (uint32_t offset = 0; offset < size;)
+    header.payload_crc32 = crc ^ 0xFFFFFFFFUL;
+    if (file.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header)) != sizeof(header))
     {
-        const uint32_t remaining = size - offset;
-        const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
-        memcpy(buffer, bytes + offset, count);
-        const byte result = LillaFram.writeArray(address + offset, count, buffer);
-        if (result != LillaFRAM_2x512::ERROR_0)
-        {
-            return result; // Earlier blocks may already have been written.
-        }
-        offset += count;
+        return false;
     }
-    return LillaFRAM_2x512::ERROR_0;
-}
-
-template <class T>
-byte FRAM_Write_record(uint32_t address, const T &source)
-{
-    return FRAM_Write_bytes(address, reinterpret_cast<const uint8_t *>(&source), sizeof(T));
-}
-
-template <class T>
-byte FRAM_Read_record(uint32_t address, T &destination)
-{
-    T buffer{};
-    uint8_t *bytes = reinterpret_cast<uint8_t *>(&buffer);
-
-    for (uint32_t offset = 0; offset < sizeof(T);)
+    for (uint32_t address = 0; address < config_bytes; address += sizeof(buffer))
     {
-        const uint32_t remaining = sizeof(T) - offset;
-        const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
-        const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
-        if (result != LillaFRAM_2x512::ERROR_0)
+        const uint32_t remaining = config_bytes - address;
+        const uint32_t count = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+        if (FRAM_Read_bytes(FRAM_PATCH_ADDRESS + address, buffer, count) != LillaFRAM_2x512::ERROR_0 || file.write(buffer, count) != count)
         {
-            return result;
+            return false;
         }
-        offset += count;
     }
-    memcpy(&destination, &buffer, sizeof(T)); // Publish only a complete record.
-    return LillaFRAM_2x512::ERROR_0;
+    return audio_bytes == 0 || file.write(manifest, audio_bytes) == audio_bytes;
 }
+
+bool ArchivingManager::Verify_FRAM_backup(File &file)
+{
+    if (!file.seek(0))
+    {
+        return false;
+    }
+    FRAM_Backup_header_struct header{};
+    const uint8_t magic[8] = {'L', 'I', 'L', 'L', 'A', 'F', 'R', 'M'};
+    if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header))
+    {
+        return false;
+    }
+    const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
+    const bool supported = (header.version == 1 && header.payload_bytes == FRAM_FIRST_FREE_ADDRESS) || (header.version == FRAM_BACKUP_VERSION && header.payload_bytes == config_bytes) || (header.version == 3 && header.payload_bytes == config_bytes + RECORDINGS * sizeof(Recording_backup_audio));
+    if (memcmp(header.magic, magic, sizeof(magic)) != 0 || !supported || header.header_bytes != sizeof(header) || file.size() != sizeof(header) + header.payload_bytes)
+    {
+        return false;
+    }
+
+    uint8_t buffer[128];
+    uint32_t crc = 0xFFFFFFFFUL;
+    uint32_t remaining_payload = header.payload_bytes;
+    while (remaining_payload > 0)
+    {
+        const uint32_t count = remaining_payload < sizeof(buffer) ? remaining_payload : sizeof(buffer);
+        if (file.read(buffer, count) != count)
+        {
+            return false;
+        }
+        for (uint32_t offset = 0; offset < count; ++offset)
+        {
+            crc ^= buffer[offset];
+            for (uint8_t bit = 0; bit < 8; ++bit)
+            {
+                crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
+            }
+        }
+        remaining_payload -= count;
+    }
+    return (crc ^ 0xFFFFFFFFUL) == header.payload_crc32;
+}
+
+bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
+{
+    if (!Verify_FRAM_backup(file) || !file.seek(0))
+    {
+        return false;
+    }
+    FRAM_Backup_header_struct header{};
+    if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || !file.seek(sizeof(header) + (header.version == 1 ? FRAM_HEADER_BYTES : 0)))
+    {
+        return false;
+    }
+    if (header.version == 3 && publish_ready)
+    {
+        return false; // Only the full restore may publish READY, after the audio and relocated metadata.
+    }
+    if (Set_FRAM_archive_state(RESTORE_IN_PROGRESS) != LillaFRAM_2x512::ERROR_0)
+    {
+        return false;
+    }
+    uint8_t buffer[128];
+    for (uint32_t address = FRAM_PATCH_ADDRESS; address < FRAM_FIRST_FREE_ADDRESS; address += sizeof(buffer))
+    {
+        const uint32_t remaining = FRAM_FIRST_FREE_ADDRESS - address;
+        const uint32_t count = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+        if (file.read(buffer, count) != count || FRAM_Write_bytes(address, buffer, count) != LillaFRAM_2x512::ERROR_0)
+        {
+            return false;
+        }
+        uint8_t actual[128];
+        if (FRAM_Read_bytes(address, actual, count) != LillaFRAM_2x512::ERROR_0 || memcmp(buffer, actual, count) != 0)
+        {
+            return false;
+        }
+    }
+    return !publish_ready || Set_FRAM_archive_state(ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
+}
+
+bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings)
+{
+    if (audio == nullptr || recordings == nullptr || !Verify_FRAM_backup(file) || !file.seek(0))
+    {
+        return false;
+    }
+    FRAM_Backup_header_struct header{};
+    if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || header.version != 3)
+    {
+        return false; // Metadata-only backups cannot recover audio.
+    }
+    if (!file.seek(sizeof(header) + FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES) || file.read(reinterpret_cast<uint8_t *>(audio), RECORDINGS * sizeof(*audio)) != RECORDINGS * sizeof(*audio))
+    {
+        return false;
+    }
+    if (!file.seek(sizeof(header) + FRAM_RECORDING_ADDRESS - FRAM_HEADER_BYTES))
+    {
+        return false;
+    }
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        FRAM_Recording_struct entry{};
+        if (file.read(reinterpret_cast<uint8_t *>(&entry), sizeof(entry)) != sizeof(entry) || FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(&entry), offsetof(FRAM_Recording_struct, crc32)) != entry.crc32)
+        {
+            return false;
+        }
+        const uint32_t span = entry.packets * (entry.stereo ? 2U : 1U);
+        if (entry.stereo > 1 || entry.consistent != 1 || span > VFS_PACKETS_MAX || (span > 0 && entry.first_packet > VFS_PACKETS_MAX - span))
+        {
+            return false;
+        }
+        const uint32_t bytes = static_cast<uint32_t>(entry.packets) * PACKET_DIM;
+        if (audio[id].bytes[0] != bytes || audio[id].bytes[1] != (entry.stereo ? bytes : 0U))
+        {
+            return false;
+        }
+        for (int channel = 0; channel < 2; ++channel)
+        {
+            if (audio[id].bytes[channel] == 0 && audio[id].crc32[channel] != 0)
+            {
+                return false;
+            }
+        }
+        recordings[id] = {};
+        recordings[id].first_packet = entry.first_packet;
+        recordings[id].packets = entry.packets;
+        recordings[id].stereo = entry.stereo != 0;
+        recordings[id].consistent = true;
+    }
+    return true;
 }
 
 uint32_t ArchivingManager::FRAM_Get_patch_address(uint8_t patch_id)
@@ -116,15 +455,18 @@ byte ArchivingManager::FRAM_Write_patch(uint8_t patch_id, const FRAM_Patch_struc
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     const uint32_t address = FRAM_Get_patch_address(patch_id);
     const uint32_t payload_bytes = offsetof(FRAM_Patch_struct, crc32);
     const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&source);
     const uint32_t crc = FRAM_Calculate_crc32(bytes, payload_bytes);
     const byte result = FRAM_Write_bytes(address, bytes, payload_bytes);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     return FRAM_Write_record(address + payload_bytes, crc);
 }
 
@@ -134,8 +476,10 @@ byte ArchivingManager::FRAM_Read_patch(uint8_t patch_id, FRAM_Patch_struct &dest
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_record(FRAM_Get_patch_address(patch_id), patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
@@ -144,6 +488,7 @@ byte ArchivingManager::FRAM_Read_patch(uint8_t patch_id, FRAM_Patch_struct &dest
     {
         return FRAM_ERROR_CRC;
     }
+
     memcpy(&destination, &patch, sizeof(patch));
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -154,12 +499,15 @@ byte ArchivingManager::FRAM_Write_instrument(uint8_t patch_id, uint8_t instrumen
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     patch.Instrument[instrument_id] = source;
     return FRAM_Write_patch(patch_id, patch);
 }
@@ -170,12 +518,15 @@ byte ArchivingManager::FRAM_Read_instrument(uint8_t patch_id, uint8_t instrument
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     destination = patch.Instrument[instrument_id];
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -186,12 +537,15 @@ byte ArchivingManager::FRAM_Write_filter(uint8_t patch_id, uint8_t instrument_id
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     patch.Instrument[instrument_id].Filter = source;
     return FRAM_Write_patch(patch_id, patch);
 }
@@ -202,12 +556,15 @@ byte ArchivingManager::FRAM_Read_filter(uint8_t patch_id, uint8_t instrument_id,
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     destination = patch.Instrument[instrument_id].Filter;
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -218,12 +575,15 @@ byte ArchivingManager::FRAM_Write_delay(uint8_t patch_id, const FRAM_Patch_delay
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     patch.Delay = source;
     return FRAM_Write_patch(patch_id, patch);
 }
@@ -234,12 +594,15 @@ byte ArchivingManager::FRAM_Read_delay(uint8_t patch_id, FRAM_Patch_delay_struct
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Patch_struct patch{};
     const byte result = FRAM_Read_patch(patch_id, patch);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     destination = patch.Delay;
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -250,15 +613,18 @@ byte ArchivingManager::FRAM_Write_sound(uint16_t sound_id, const FRAM_Sound_stru
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     const uint32_t address = FRAM_Get_sound_address(sound_id);
     const uint32_t payload_bytes = offsetof(FRAM_Sound_struct, crc32);
     const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&source);
     const uint32_t crc = FRAM_Calculate_crc32(bytes, payload_bytes);
     const byte result = FRAM_Write_bytes(address, bytes, payload_bytes);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     return FRAM_Write_record(address + payload_bytes, crc);
 }
 
@@ -268,8 +634,10 @@ byte ArchivingManager::FRAM_Read_sound(uint16_t sound_id, FRAM_Sound_struct &des
     {
         return LillaFRAM_2x512::ERROR_11;
     }
+
     FRAM_Sound_struct sound{};
     const byte result = FRAM_Read_record(FRAM_Get_sound_address(sound_id), sound);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
@@ -278,6 +646,7 @@ byte ArchivingManager::FRAM_Read_sound(uint16_t sound_id, FRAM_Sound_struct &des
     {
         return FRAM_ERROR_CRC;
     }
+
     memcpy(&destination, &sound, sizeof(sound));
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -288,7 +657,19 @@ byte ArchivingManager::FRAM_Write_recording(uint8_t recording_id, const FRAM_Rec
     {
         return LillaFRAM_2x512::ERROR_11;
     }
-    return FRAM_Write_record(FRAM_Get_recording_address(recording_id), source);
+
+    const uint32_t address = FRAM_Get_recording_address(recording_id);
+    const uint32_t payload_bytes = offsetof(FRAM_Recording_struct, crc32);
+    const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&source);
+    const uint32_t crc = FRAM_Calculate_crc32(bytes, payload_bytes);
+    const byte result = FRAM_Write_bytes(address, bytes, payload_bytes);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    return FRAM_Write_record(address + payload_bytes, crc);
 }
 
 byte ArchivingManager::FRAM_Read_recording(uint8_t recording_id, FRAM_Recording_struct &destination)
@@ -297,89 +678,745 @@ byte ArchivingManager::FRAM_Read_recording(uint8_t recording_id, FRAM_Recording_
     {
         return LillaFRAM_2x512::ERROR_11;
     }
-    return FRAM_Read_record(FRAM_Get_recording_address(recording_id), destination);
+
+    FRAM_Recording_struct recording{};
+    const byte result = FRAM_Read_record(FRAM_Get_recording_address(recording_id), recording);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    if (recording.crc32 != FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(&recording), offsetof(FRAM_Recording_struct, crc32)))
+    {
+        return FRAM_ERROR_CRC;
+    }
+
+    memcpy(&destination, &recording, sizeof(recording));
+    return LillaFRAM_2x512::ERROR_0;
+}
+
+byte ArchivingManager::Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report)
+{
+    report = {};
+    bool clear_recording[RECORDINGS] = {};
+
+    // Complete the assessment before writing: an I/O failure is not evidence of corruption.
+    for (uint8_t id = 0; id < RECORDINGS; ++id)
+    {
+        report.failed_id = id;
+        FRAM_Recording_struct recording{};
+        const byte result = FRAM_Read_recording(id, recording);
+
+        if (result == FRAM_ERROR_CRC)
+        {
+            clear_recording[id] = true;
+            continue;
+        }
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+    }
+
+    for (uint8_t id = 0; id < RECORDINGS; ++id)
+    {
+        if (!clear_recording[id])
+        {
+            continue;
+        }
+
+        report.failed_id = id;
+        FRAM_Recording_struct expected{};
+        expected.consistent = 0; // Durable cleanup request: CRC damage can leave orphaned Flash packets.
+        byte result = FRAM_Write_recording(id, expected);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+
+        FRAM_Recording_struct actual{};
+        result = FRAM_Read_recording(id, actual);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (memcmp(&expected, &actual, offsetof(FRAM_Recording_struct, crc32)) != 0)
+        {
+            return FRAM_ERROR_VERIFY;
+        }
+
+        ++report.cleared_recordings;
+    }
+
+    report.failed_id = UINT8_MAX;
+    return LillaFRAM_2x512::ERROR_0;
 }
 
 byte ArchivingManager::FRAM_Write_CC_settings(const FRAM_CC_settings_struct &source)
 {
-    return FRAM_Write_record(FRAM_Get_CC_settings_address(), source);
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    system.CC_settings = source;
+    return FRAM_Write_system(system);
 }
 
 byte ArchivingManager::FRAM_Read_CC_settings(FRAM_CC_settings_struct &destination)
 {
-    return FRAM_Read_record(FRAM_Get_CC_settings_address(), destination);
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    destination = system.CC_settings;
+    return LillaFRAM_2x512::ERROR_0;
 }
 
 byte ArchivingManager::FRAM_Write_system(const FRAM_System_struct &source)
 {
-    return FRAM_Write_record(FRAM_SYSTEM_ADDRESS, source);
+    const uint32_t payload_bytes = offsetof(FRAM_System_struct, crc32);
+    const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&source);
+    const uint32_t crc = FRAM_Calculate_crc32(bytes, payload_bytes);
+    const byte result = FRAM_Write_bytes(FRAM_SYSTEM_ADDRESS, bytes, payload_bytes);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    return FRAM_Write_record(FRAM_SYSTEM_ADDRESS + payload_bytes, crc);
 }
 
 byte ArchivingManager::FRAM_Read_system(FRAM_System_struct &destination)
 {
-    return FRAM_Read_record(FRAM_SYSTEM_ADDRESS, destination);
-}
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_record(FRAM_SYSTEM_ADDRESS, system);
 
-void ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
-{
-    Eeprom_writeAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter);
-}
-
-void ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
-{
-    Eeprom_readAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter); // Eeprom_readAnything(LOCATION_CC_SETTINGS + 8, CC_lowpass_filter);
-}
-
-void ArchivingManager::Save_optimization(const uint8_t optimization)
-{
-    const uint8_t valid = Normalize_optimization(optimization);
-    Eeprom_writeAnything(LOCATION_OPTIMIZATION, valid);
-}
-
-void ArchivingManager::Read_optimization(uint8_t &optimization)
-{
-    Eeprom_readAnything(LOCATION_OPTIMIZATION, optimization);
-    const uint8_t valid = Normalize_optimization(optimization);
-    if (valid != optimization)
+    if (result != LillaFRAM_2x512::ERROR_0)
     {
-        optimization = valid;
-        Save_optimization(optimization);
+        return result;
     }
+    if (system.crc32 != FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(&system), offsetof(FRAM_System_struct, crc32)))
+    {
+        return FRAM_ERROR_CRC;
+    }
+
+    memcpy(&destination, &system, sizeof(system));
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-void ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument)
+byte ArchivingManager::Repair_System_in_FRAM(FRAM_System_repair_report &report)
 {
-    Eeprom_writeAnything(LOCATION_CC_SETTINGS + instrument_id, CC_Sg_instrument);
+    report = {};
+    FRAM_System_struct system{};
+    byte result = FRAM_Read_system(system);
+
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    if (result != FRAM_ERROR_CRC)
+    {
+        return result;
+    }
+
+    FRAM_System_struct expected{};
+    expected.optimization = 0;
+    expected.first_octave = -2;
+    expected.key_step = 0;
+    result = FRAM_Write_system(expected);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    FRAM_System_struct actual{};
+    result = FRAM_Read_system(actual);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    if (memcmp(&expected, &actual, offsetof(FRAM_System_struct, crc32)) != 0)
+    {
+        return FRAM_ERROR_VERIFY;
+    }
+
+    report.defaulted = true;
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-void ArchivingManager::Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument)
+byte ArchivingManager::Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report)
 {
-    Eeprom_readAnything(LOCATION_CC_SETTINGS + instrument_id, CC_Sg_instrument);
+    report = {};
+    bool clear_patch[FRAM_PATCHES] = {};
+    bool referenced[FRAM_SOUNDS] = {};
+    uint8_t sound_action[FRAM_SOUNDS] = {}; // 0: keep, 1: clear, 2: default.
+
+    // Complete the read-only assessment first. An I/O failure is not evidence of corruption.
+    for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+    {
+        report.failed_id = id;
+        FRAM_Patch_struct patch{};
+        const byte result = FRAM_Read_patch(id, patch);
+
+        if (result == FRAM_ERROR_CRC)
+        {
+            clear_patch[id] = true;
+            continue; // Never use links from a record with an invalid CRC.
+        }
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (patch.used > 1)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+        if (!patch.used)
+        {
+            continue;
+        }
+
+        uint8_t count = 0;
+        for (const auto &instrument : patch.Instrument)
+        {
+            if (instrument.used > 1)
+            {
+                return FRAM_ERROR_SOURCE;
+            }
+            if (!instrument.used)
+            {
+                continue;
+            }
+            if (instrument.sound_id >= FRAM_SOUNDS)
+            {
+                return FRAM_ERROR_SOURCE;
+            }
+            referenced[instrument.sound_id] = true;
+            ++count;
+        }
+
+        if (count != patch.instruments)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+    }
+
+    report.failed_sound = true;
+    const FRAM_Sound_struct empty_sound{};
+
+    for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+    {
+        report.failed_id = id;
+        FRAM_Sound_struct sound{};
+        const byte result = FRAM_Read_sound(id, sound);
+        if (result != LillaFRAM_2x512::ERROR_0 && result != FRAM_ERROR_CRC)
+        {
+            return result;
+        }
+        if (!referenced[id])
+        {
+            if (result == FRAM_ERROR_CRC || memcmp(&sound, &empty_sound, offsetof(FRAM_Sound_struct, crc32)) != 0)
+            {
+                sound_action[id] = 1;
+            }
+        }
+        else if (result == FRAM_ERROR_CRC)
+        {
+            sound_action[id] = 2;
+        }
+        else if (sound.used != 1)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+    }
+
+    // Persist and verify each repair. A later startup can safely resume after interruption.
+    report.failed_sound = false;
+    for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
+    {
+        if (!clear_patch[id])
+        {
+            continue;
+        }
+
+        report.failed_id = id;
+        const FRAM_Patch_struct empty{};
+        byte result = FRAM_Write_patch(id, empty);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+
+        FRAM_Patch_struct actual{};
+        result = FRAM_Read_patch(id, actual);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (memcmp(&empty, &actual, offsetof(FRAM_Patch_struct, crc32)) != 0)
+        {
+            return FRAM_ERROR_VERIFY;
+        }
+
+        ++report.cleared_patches;
+    }
+    report.failed_sound = true;
+    for (uint16_t id = 0; id < FRAM_SOUNDS; ++id)
+    {
+        if (!sound_action[id])
+        {
+            continue;
+        }
+
+        report.failed_id = id;
+        FRAM_Sound_struct expected{};
+
+        if (sound_action[id] == 2)
+        {
+            // Same defaults as the factory Sound in main; all remaining fields stay zero.
+            expected.used = 1;
+            expected.B = 1000;
+            expected.decay = 50;
+            expected.sustain = 50;
+            expected.release = 10;
+            expected.gain = 12;
+        }
+
+        byte result = FRAM_Write_sound(id, expected);
+        if (result != LillaFRAM_2x512::ERROR_0)
+
+        {
+            return result;
+        }
+
+        FRAM_Sound_struct actual{};
+        result = FRAM_Read_sound(id, actual);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+        if (memcmp(&expected, &actual, offsetof(FRAM_Sound_struct, crc32)) != 0)
+        {
+            return FRAM_ERROR_VERIFY;
+        }
+        if (sound_action[id] == 2)
+        {
+            ++report.defaulted_sounds;
+        }
+        else
+        {
+            ++report.cleared_sounds;
+        }
+    }
+
+    report.failed_id = UINT16_MAX;
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-void ArchivingManager::Copy_patch_Delay_data_from_Eeprom_to_Ram(Delay_data_struct &delay_data)
+byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound)
 {
-    Eeprom_readAnything(LOCATION_DELAY, delay_data);
+    static_assert(PATCHES_MAX == FRAM_PATCHES && SOUNDS_MAX == FRAM_SOUNDS);
+
+    memset(Patch, 0, sizeof(Patch));
+    memset(Sound, 0, sizeof(Sound));
+    byte result = LillaFRAM_2x512::ERROR_0;
+    failed_sound = true;
+
+    for (failed_id = 0; failed_id < SOUNDS_MAX; ++failed_id)
+    {
+        FRAM_Sound_struct source{};
+        result = FRAM_Read_sound(failed_id, source);
+
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            break;
+        }
+        if (source.used > 1)
+        {
+            result = FRAM_ERROR_SOURCE;
+            break;
+        }
+        if (!source.used)
+        {
+            continue;
+        }
+
+        auto &target = Sound[failed_id];
+        target.used = true;
+        target.file = source.file;
+        target.mode = source.mode;
+        target.pitch = source.pitch;
+        target.A = source.A;
+        target.B = source.B;
+        target.Noclick = source.Noclick;
+        target.pan = source.pan;
+        target.data = (source.midi_channel << 1) | (source.attack_type & 1);
+        target.attack = source.attack;
+        target.decay = source.decay;
+        target.sustain = source.sustain;
+        target.release = source.release;
+        target.gain = source.gain;
+    }
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        failed_sound = false;
+
+        for (failed_id = 0; failed_id < PATCHES_MAX; ++failed_id)
+        {
+            FRAM_Patch_struct source{};
+            result = FRAM_Read_patch(failed_id, source);
+
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                break;
+            }
+            if (source.used > 1)
+            {
+                result = FRAM_ERROR_SOURCE;
+                break;
+            }
+            if (!source.used)
+            {
+                continue;
+            }
+
+            auto &target = Patch[failed_id];
+            target.used = true;
+            target.instruments = source.instruments;
+            uint8_t count = 0;
+
+            for (uint8_t id = 0; id < INSTRUMENTS; ++id)
+            {
+                const auto &input = source.Instrument[id];
+                if (input.used > 1)
+                {
+                    result = FRAM_ERROR_SOURCE;
+                    break;
+                }
+                if (!input.used)
+                {
+                    continue;
+                }
+                if (input.sound_id >= SOUNDS_MAX || !Sound[input.sound_id].used)
+                {
+                    result = FRAM_ERROR_SOURCE;
+                    break;
+                }
+
+                ++count;
+                auto &output = target.Instrument[id];
+                output.used = true;
+                output.sound_id = input.sound_id;
+                output.root_key = input.root_key;
+                output.from_note = input.from_note;
+                output.to_note = input.to_note;
+                output.precedence = input.precedence;
+                output.lock = input.lock;
+                output.Filter.use = input.Filter.use;
+                output.Filter.type = input.Filter.type;
+                output.Filter.pivot = input.Filter.pivot;
+                output.Filter.resonance = input.Filter.resonance;
+                output.Filter.modulation = input.Filter.modulation;
+                output.Filter.index = input.Filter.index;
+                output.Filter.frequency_time = input.Filter.frequency_time;
+            }
+
+            if (count != source.instruments)
+            {
+                result = FRAM_ERROR_SOURCE;
+            }
+            if (result != LillaFRAM_2x512::ERROR_0)
+            {
+                break;
+            }
+        }
+    }
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        memset(Patch, 0, sizeof(Patch));
+        memset(Sound, 0, sizeof(Sound));
+    }
+    else
+    {
+        failed_id = UINT16_MAX;
+    }
+    
+    return result;
 }
 
-void ArchivingManager::Save_Delay_to_Eeprom(const Delay_data_struct &Delay_data)
+byte ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
 {
-    Eeprom_writeAnything(LOCATION_DELAY, Delay_data);
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    system.CC_settings.lowpass_filter = static_cast<uint8_t>(CC_lowpass_filter);
+    return FRAM_Write_system(system);
 }
 
-void ArchivingManager::Read_first_octave(int8_t &first_octave)
+byte ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
 {
-    Eeprom_readAnything(LOCATION_FIRST_OCTAVE, first_octave);
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        CC_lowpass_filter = system.CC_settings.lowpass_filter;
+    }
+
+    return result;
 }
 
-void ArchivingManager::Save_first_octave(const int8_t first_octave)
+byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter)
 {
-    Eeprom_writeAnything(LOCATION_FIRST_OCTAVE, first_octave);
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    memcpy(system.CC_settings.sound_gain, sound_gain, sizeof(system.CC_settings.sound_gain));
+    system.CC_settings.lowpass_filter = lowpass_filter;
+    return FRAM_Write_system(system);
 }
 
-void ArchivingManager::Save_Sound(const int sound_id)
+byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter)
 {
-    Eeprom_writeAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        memcpy(sound_gain, system.CC_settings.sound_gain, sizeof(system.CC_settings.sound_gain));
+        lowpass_filter = system.CC_settings.lowpass_filter;
+    }
+
+    return result;
+}
+
+byte ArchivingManager::Save_optimization(const uint8_t optimization)
+{
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    system.optimization = Normalize_optimization(optimization);
+    return FRAM_Write_system(system);
+}
+
+byte ArchivingManager::Read_optimization(uint8_t &optimization)
+{
+    FRAM_System_struct system{};
+    byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    const uint8_t valid = Normalize_optimization(system.optimization);
+    optimization = valid;
+
+    if (valid != system.optimization)
+    {
+        system.optimization = valid;
+        result = FRAM_Write_system(system);
+    }
+
+    return result;
+}
+
+byte ArchivingManager::Save_key_step(const uint8_t key_step)
+{
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    system.key_step = key_step;
+    return FRAM_Write_system(system);
+}
+
+byte ArchivingManager::Read_key_step(uint8_t &key_step)
+{
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        key_step = system.key_step;
+    }
+
+    return result;
+}
+
+byte ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument)
+{
+    if (instrument_id >= INSTRUMENTS)
+    {
+        return LillaFRAM_2x512::ERROR_11;
+    }
+
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    system.CC_settings.sound_gain[instrument_id] = CC_Sg_instrument;
+    return FRAM_Write_system(system);
+}
+
+byte ArchivingManager::Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument)
+{
+    if (instrument_id >= INSTRUMENTS)
+    {
+        return LillaFRAM_2x512::ERROR_11;
+    }
+
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        CC_Sg_instrument = system.CC_settings.sound_gain[instrument_id];
+    }
+
+    return result;
+}
+
+byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_data)
+{
+    FRAM_Patch_delay_struct source{};
+    const byte result = FRAM_Read_delay(patch_id, source);
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    Delay_data_struct candidate{};
+    candidate.samples = source.samples;
+    candidate.samples_LR = source.samples_LR;
+    candidate.instrument_route = 0;
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        if (source.instrument_route[instrument_id] > 1)
+        {
+            return FRAM_ERROR_SOURCE;
+        }
+        bitWrite(candidate.instrument_route, instrument_id, source.instrument_route[instrument_id]);
+    }
+    candidate.modulation_source = source.modulation_source;
+    candidate.modulation_depth = source.modulation_depth;
+    candidate.modulation_frequency = source.modulation_frequency;
+    candidate.modulation_phase_LR = source.modulation_phase_LR;
+    candidate.loop_gain = source.loop_gain;
+    delay_data = candidate;
+    return LillaFRAM_2x512::ERROR_0;
+}
+
+byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &delay_data)
+{
+    FRAM_Patch_delay_struct destination{};
+    destination.samples = delay_data.samples;
+    destination.samples_LR = delay_data.samples_LR;
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        destination.instrument_route[instrument_id] = bitRead(delay_data.instrument_route, instrument_id);
+    }
+    destination.modulation_source = delay_data.modulation_source;
+    destination.modulation_depth = delay_data.modulation_depth;
+    destination.modulation_frequency = delay_data.modulation_frequency;
+    destination.modulation_phase_LR = delay_data.modulation_phase_LR;
+    destination.loop_gain = delay_data.loop_gain;
+    return FRAM_Write_delay(patch_id, destination);
+}
+
+byte ArchivingManager::Read_first_octave(int8_t &first_octave)
+{
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        first_octave = system.first_octave;
+    }
+
+    return result;
+}
+
+byte ArchivingManager::Save_first_octave(const int8_t first_octave)
+{
+    FRAM_System_struct system{};
+    const byte result = FRAM_Read_system(system);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+
+    system.first_octave = first_octave;
+    return FRAM_Write_system(system);
+}
+
+byte ArchivingManager::Save_Sound(const int sound_id)
+{
+    if (sound_id < 0 || sound_id >= SOUNDS_MAX)
+    {
+        return LillaFRAM_2x512::ERROR_11;
+    }
+
+    const auto &runtime = Sound[sound_id];
+    FRAM_Sound_struct destination{};
+    destination.used = runtime.used ? 1 : 0;
+    destination.file = runtime.file;
+    destination.mode = runtime.mode;
+    destination.pitch = runtime.pitch;
+    destination.A = runtime.A;
+    destination.B = runtime.B;
+    destination.Noclick = runtime.Noclick;
+    destination.pan = runtime.pan;
+    destination.midi_channel = (runtime.data >> 1) & 15;
+    destination.attack_type = runtime.data & 1;
+    destination.attack = runtime.attack;
+    destination.decay = runtime.decay;
+    destination.sustain = runtime.sustain;
+    destination.release = runtime.release;
+    destination.gain = runtime.gain;
+    return FRAM_Write_sound(static_cast<uint16_t>(sound_id), destination);
 }
 
 bool ArchivingManager::Validate_Sound_AB_file_raw(uint32_t sound_id)
@@ -417,723 +1454,221 @@ bool ArchivingManager::Validate_Sound_AB_file_raw(uint32_t sound_id)
     Sound[sound_id].A = 0;
     Sound[sound_id].B = static_cast<uint32_t>(fallback_samples - 1);
 
-    Save_Sound(sound_id);
-    return true;
+    return Save_Sound(sound_id) == LillaFRAM_2x512::ERROR_0;
 }
 
-void ArchivingManager::Read_Sound(const int sound_id)
+byte ArchivingManager::Read_Sound(const int sound_id)
 {
-    Eeprom_readAnything(Get_location_of_Sound(sound_id), Sound[sound_id]);
-    Validate_Sound_AB_file_raw(sound_id);
-}
-
-void ArchivingManager::Save_Patch(const int patch_id)
-{
-    EEPROM_Patch.used = Patch[patch_id].used;
-    EEPROM_Patch.instruments = Patch[patch_id].instruments;
-
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    if (sound_id < 0 || sound_id >= SOUNDS_MAX)
     {
-        EEPROM_Patch.Instrument[instrument_id].used = Patch[patch_id].Instrument[instrument_id].used;
-        EEPROM_Patch.Instrument[instrument_id].sound_id = Get_sound_id(patch_id, instrument_id);
-        EEPROM_Patch.Instrument[instrument_id].root_key = Patch[patch_id].Instrument[instrument_id].root_key;
-
-        EEPROM_Patch.Instrument[instrument_id].from_note = Patch[patch_id].Instrument[instrument_id].from_note;
-        EEPROM_Patch.Instrument[instrument_id].to_note = Patch[patch_id].Instrument[instrument_id].to_note;
-        EEPROM_Patch.Instrument[instrument_id].info = (Patch[patch_id].Instrument[instrument_id].precedence == true ? 0b1 : 0b0) + (Patch[patch_id].Instrument[instrument_id].lock == true ? 0b10 : 0b00); // bit0: precedence, bit1: lock
-
-        EEPROM_Patch.Instrument[instrument_id].Filter.data = Patch[patch_id].Instrument[instrument_id].Filter.use + (Patch[patch_id].Instrument[instrument_id].Filter.modulation << 1) + (Patch[patch_id].Instrument[instrument_id].Filter.type << 4); // bit0: use  bit1,2,3: modulation  bit4,5: type
-        EEPROM_Patch.Instrument[instrument_id].Filter.pivot = Patch[patch_id].Instrument[instrument_id].Filter.pivot;                                                                                                                                  // 0 --> 100 filter frequency/note frequency
-        EEPROM_Patch.Instrument[instrument_id].Filter.resonance = Patch[patch_id].Instrument[instrument_id].Filter.resonance;                                                                                                                          // 0 --> 40
-        EEPROM_Patch.Instrument[instrument_id].Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index;                                                                                                                                  // 1 --> 20 modulation_index
-        EEPROM_Patch.Instrument[instrument_id].Filter.frequency_time = Patch[patch_id].Instrument[instrument_id].Filter.frequency_time;                                                                                                                // 0 --> 20
+        return LillaFRAM_2x512::ERROR_11;
     }
 
-    Eeprom_writeAnything(GET_location_of_Patch(patch_id), EEPROM_Patch);
-}
-
-void ArchivingManager::Read_Patch(const int patch_id)
-{
-    Eeprom_readAnything(GET_location_of_Patch(patch_id), EEPROM_Patch);
-
-    Patch[patch_id].used = EEPROM_Patch.used;
-    Patch[patch_id].instruments = EEPROM_Patch.instruments;
-
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    FRAM_Sound_struct source{};
+    const byte result = FRAM_Read_sound(static_cast<uint16_t>(sound_id), source);
+    if (result != LillaFRAM_2x512::ERROR_0)
     {
-        Patch[patch_id].Instrument[instrument_id].used = EEPROM_Patch.Instrument[instrument_id].used;
-        Patch[patch_id].Instrument[instrument_id].sound_id = EEPROM_Patch.Instrument[instrument_id].sound_id;
-
-        Patch[patch_id].Instrument[instrument_id].root_key = EEPROM_Patch.Instrument[instrument_id].root_key;
-        Patch[patch_id].Instrument[instrument_id].from_note = EEPROM_Patch.Instrument[instrument_id].from_note;
-        Patch[patch_id].Instrument[instrument_id].to_note = EEPROM_Patch.Instrument[instrument_id].to_note;
-        Patch[patch_id].Instrument[instrument_id].precedence = bitRead(EEPROM_Patch.Instrument[instrument_id].info, 0);
-        Patch[patch_id].Instrument[instrument_id].lock = bitRead(EEPROM_Patch.Instrument[instrument_id].info, 1);
-
-        Patch[patch_id].Instrument[instrument_id].Filter.use = bitRead(EEPROM_Patch.Instrument[instrument_id].Filter.data, 0);                                                                                                                                                  // yes/no
-        Patch[patch_id].Instrument[instrument_id].Filter.type = bitRead(EEPROM_Patch.Instrument[instrument_id].Filter.data, 4) + 2 * bitRead(EEPROM_Patch.Instrument[instrument_id].Filter.data, 5);                                                                            // bit4,5:filter_type
-        Patch[patch_id].Instrument[instrument_id].Filter.pivot = EEPROM_Patch.Instrument[instrument_id].Filter.pivot;                                                                                                                                                           // 0 --> 100 filter frequency/note frequency
-        Patch[patch_id].Instrument[instrument_id].Filter.resonance = EEPROM_Patch.Instrument[instrument_id].Filter.resonance;                                                                                                                                                   // 0 --> 40
-        Patch[patch_id].Instrument[instrument_id].Filter.modulation = bitRead(EEPROM_Patch.Instrument[instrument_id].Filter.data, 1) + 2 * bitRead(EEPROM_Patch.Instrument[instrument_id].Filter.data, 2) + 4 * bitRead(EEPROM_Patch.Instrument[instrument_id].Filter.data, 3); // bit1,2,3:modulation
-        Patch[patch_id].Instrument[instrument_id].Filter.index = EEPROM_Patch.Instrument[instrument_id].Filter.index;                                                                                                                                                           // 1 --> 20 modulation_index
-        Patch[patch_id].Instrument[instrument_id].Filter.frequency_time = EEPROM_Patch.Instrument[instrument_id].Filter.frequency_time;                                                                                                                                         // 0 --> 20
+        return result;
     }
-}
-
-void ArchivingManager::Save_DS_Recording(const int recording)
-{
-    Serial.println(F("*** Save_DS_Recording(int recording) ***"));
-
-    if (recording >= 0 && recording < RECORDINGS)
+    if (source.used > 1)
     {
-        EEPROM_Recording[recording].first_packet = Recording[recording].first_packet;
-        EEPROM_Recording[recording].packets = Recording[recording].packets;
-        bitWrite(EEPROM_Recording[recording].info, 1, (Recording[recording].stereo ? 1 : 0));
-        bitWrite(EEPROM_Recording[recording].info, 0, (Recording[recording].consistent ? 1 : 0));
-        Save_DS_Recording(recording, EEPROM_Recording[recording]);
+        return FRAM_ERROR_SOURCE;
     }
-    else
+
+    auto &runtime = Sound[sound_id];
+    runtime.used = source.used != 0;
+    runtime.file = source.file;
+    runtime.mode = source.mode;
+    runtime.pitch = source.pitch;
+    runtime.A = source.A;
+    runtime.B = source.B;
+    runtime.Noclick = source.Noclick;
+    runtime.pan = source.pan;
+    runtime.data = (source.midi_channel << 1) | (source.attack_type & 1);
+    runtime.attack = source.attack;
+    runtime.decay = source.decay;
+    runtime.sustain = source.sustain;
+    runtime.release = source.release;
+    runtime.gain = source.gain;
+    return !runtime.used || Validate_Sound_AB_file_raw(sound_id) ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_SOURCE;
+}
+
+byte ArchivingManager::Save_Patch(const int patch_id)
+{
+    if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
-        Serial.println(F("***** WARNING! --> Save_DS_Recording: recording out of range"));
+        return LillaFRAM_2x512::ERROR_11;
     }
-}
 
-void ArchivingManager::Save_DS_Recording(const int &recording, const EEPROM_VFS_Recording &EEPROM_Rec_recording)
-{
-    Serial.print("ArchivingManager - GET_location_of_DS_Recording(recording): ");
-    Serial.println(GET_location_of_DS_Recording(recording));
-
-    Eeprom_writeAnything(GET_location_of_DS_Recording(recording), EEPROM_Rec_recording);
-}
-
-void ArchivingManager::Read_DS_Recording(const int &recording, EEPROM_VFS_Recording &EEPROM_Rec_recording)
-{
-    Eeprom_readAnything(GET_location_of_DS_Recording(recording), EEPROM_Rec_recording);
-}
-
-void ArchivingManager::Save_setup_file(File &file)
-{
-    auto value = 0;
-    auto location = 0;
-    String value_txt;
-
-    while (file.available())
+    FRAM_Patch_struct destination{};
+    byte result = FRAM_Read_patch(static_cast<uint8_t>(patch_id), destination);
+    if (result != LillaFRAM_2x512::ERROR_0)
     {
-        // leggi il byte x
-        value_txt = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-        value = value_txt.toInt();              // conversione da String a uint8_t es: x = 230
-
-        // trascrivi x
-        EEPROM.write(location, value);
-        delayMicroseconds(100); // important not to block the process
-        ++location;
+        return result;
     }
-}
 
-void ArchivingManager::Copy_setup_from_Eeprom_to_SD(File &file)
-{
-    auto value = 0;
-
-    for (auto location = 0; location < EEPROM_BYTES; ++location)
+    const auto &runtime = Patch[patch_id];
+    if (runtime.instruments > INSTRUMENTS)
     {
-        // leggi il byte value
-        value = EEPROM.read(location); // restituisce uint8_t es: x = 230
-        delayMicroseconds(100);        // important not to block the process
-
-        // trascrivi value
-        file.println(String(value)); // es: String(x) = "230" ossia si salvano i tre digit con a capo 2 3 0 \n
+        return FRAM_ERROR_SOURCE;
     }
-}
-
-void ArchivingManager::Reset_EEPROM(void)
-{
-    for (auto location = 0; location < EEPROM_BYTES; ++location)
+    destination.used = runtime.used ? 1 : 0;
+    destination.instruments = runtime.instruments;
+    memset(destination.Instrument, 0, sizeof(destination.Instrument));
+    uint8_t instruments = 0;
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
-        EEPROM.write(location, 0);
-    }
-}
-
-void ArchivingManager::Print_EEPROM_content(void)
-{
-    auto location = 0;
-
-    for (location = 0; location < LOCATION_RECORDING; ++location)
-    {
-        if (location % 90 == 0)
+        const auto &input = runtime.Instrument[instrument_id];
+        if (input.used && input.sound_id >= SOUNDS_MAX)
         {
-            Serial.println();
-            Serial.print("Patch ");
-            Serial.println(location / 90);
+            return FRAM_ERROR_SOURCE;
+        }
+        if (input.used)
+        {
+            ++instruments;
         }
 
-        Serial.print(F("location "));
-        Serial.print(location);
-        Serial.print(" value: ");
-        Serial.println(EEPROM.read(location));
-        delay(1);
+        auto &output = destination.Instrument[instrument_id];
+        output.used = input.used ? 1 : 0;
+        output.sound_id = input.sound_id;
+        output.root_key = input.root_key;
+        output.from_note = input.from_note;
+        output.to_note = input.to_note;
+        output.precedence = input.precedence ? 1 : 0;
+        output.lock = input.lock ? 1 : 0;
+        output.Filter.use = input.Filter.use;
+        output.Filter.type = input.Filter.type;
+        output.Filter.pivot = input.Filter.pivot;
+        output.Filter.resonance = input.Filter.resonance;
+        output.Filter.modulation = input.Filter.modulation;
+        output.Filter.index = input.Filter.index;
+        output.Filter.frequency_time = input.Filter.frequency_time;
+    }
+    if (instruments != runtime.instruments)
+    {
+        return FRAM_ERROR_SOURCE;
     }
 
-    Serial.println();
+    result = FRAM_Write_patch(static_cast<uint8_t>(patch_id), destination);
+    return result;
+}
 
-    for (location = LOCATION_RECORDING; location < LOCATION_SOUND; ++location)
+byte ArchivingManager::Read_Patch(const int patch_id)
+{
+    if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
-        if ((location - LOCATION_RECORDING) % SIZE_OF_EEPROM_RECORDING == 0)
+        return LillaFRAM_2x512::ERROR_11;
+    }
+
+    FRAM_Patch_struct source{};
+    const byte result = FRAM_Read_patch(static_cast<uint8_t>(patch_id), source);
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    if (source.used > 1 || source.instruments > INSTRUMENTS)
+    {
+        return FRAM_ERROR_SOURCE;
+    }
+
+    Patch_struct destination{};
+    destination.used = source.used != 0;
+    destination.instruments = source.instruments;
+    uint8_t instruments = 0;
+    for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        const auto &input = source.Instrument[instrument_id];
+        if (input.used > 1)
         {
-            Serial.println();
+            return FRAM_ERROR_SOURCE;
+        }
+        if (!input.used)
+        {
+            continue;
+        }
+        if (input.sound_id >= SOUNDS_MAX)
+        {
+            return FRAM_ERROR_SOURCE;
         }
 
-        Serial.print(F("Recording - location "));
-        Serial.print(location);
-        Serial.print(" value: ");
-        Serial.println(EEPROM.read(location));
+        auto &output = destination.Instrument[instrument_id];
+        output.used = true;
+        output.sound_id = input.sound_id;
+        output.root_key = input.root_key;
+        output.from_note = input.from_note;
+        output.to_note = input.to_note;
+        output.precedence = input.precedence != 0;
+        output.lock = input.lock != 0;
+        output.Filter.use = input.Filter.use;
+        output.Filter.type = input.Filter.type;
+        output.Filter.pivot = input.Filter.pivot;
+        output.Filter.resonance = input.Filter.resonance;
+        output.Filter.modulation = input.Filter.modulation;
+        output.Filter.index = input.Filter.index;
+        output.Filter.frequency_time = input.Filter.frequency_time;
+        ++instruments;
     }
-
-    Serial.println();
-
-    for (location = LOCATION_SOUND; location < LOCATION_OPTIMIZATION; ++location)
+    if (instruments != source.instruments)
     {
-        if ((location - LOCATION_SOUND) % SIZE_OF_SOUND == 0)
-        {
-            Serial.println();
-            Serial.print("Sound ");
-            Serial.println((location - LOCATION_SOUND) / SIZE_OF_SOUND);
-        }
-
-        Serial.print(F("location "));
-        Serial.print(location);
-        Serial.print(" value: ");
-        Serial.println(EEPROM.read(location));
+        return FRAM_ERROR_SOURCE;
     }
 
-    Serial.println();
-
-    Serial.print(F("SETUP_Optimization - location "));
-    Serial.print(LOCATION_OPTIMIZATION);
-    Serial.print(" value: ");
-    Serial.println(EEPROM.read(LOCATION_OPTIMIZATION));
-    Serial.println();
-
-    Serial.print(F("First Octave - location "));
-    Serial.print(LOCATION_FIRST_OCTAVE);
-    Serial.print(" value: ");
-    Serial.println(EEPROM.read(LOCATION_FIRST_OCTAVE));
-    Serial.println();
-
-    for (location = LOCATION_DELAY; location < LOCATION_CC_SETTINGS; ++location)
-    {
-        Serial.print(F("Delay - location "));
-        Serial.print(location);
-        Serial.print(" value: ");
-        Serial.println(EEPROM.read(location));
-    }
-
-    Serial.println();
-
-    for (location = LOCATION_CC_SETTINGS; location < EEPROM_BYTES; ++location)
-    {
-        Serial.print(F("CC Settings - location "));
-        Serial.print(location);
-        Serial.print(" value: ");
-        Serial.println(EEPROM.read(location));
-    }
-
-    Serial.println();
+    Patch[patch_id] = destination;
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-int ArchivingManager::GET_location_of_DS_Recording(const int &recording)
+byte ArchivingManager::Save_DS_Recording(const int recording)
 {
-    return (LOCATION_RECORDING + (recording * SIZE_OF_EEPROM_RECORDING));
+    if (recording < 0 || recording >= RECORDINGS)
+    {
+        return LillaFRAM_2x512::ERROR_11;
+    }
+
+    const auto &runtime = Recording[recording];
+    if (runtime.first_packet < 0 || runtime.first_packet > UINT16_MAX || runtime.packets < 0 || runtime.packets > UINT16_MAX)
+    {
+        return FRAM_ERROR_SOURCE;
+    }
+
+    FRAM_Recording_struct destination{};
+    destination.first_packet = static_cast<uint16_t>(runtime.first_packet);
+    destination.packets = static_cast<uint16_t>(runtime.packets);
+    destination.stereo = runtime.stereo ? 1 : 0;
+    destination.consistent = runtime.consistent ? 1 : 0;
+    return FRAM_Write_recording(static_cast<uint8_t>(recording), destination);
 }
 
-uint16_t ArchivingManager::GET_location_of_Patch(const uint8_t &patch_id)
+byte ArchivingManager::Read_DS_Recording(const int recording)
 {
-    return LOCATION_PATCH + (patch_id * SIZE_OF_EEPROM_PATCH);
+    if (recording < 0 || recording >= RECORDINGS)
+    {
+        return LillaFRAM_2x512::ERROR_11;
+    }
+
+    FRAM_Recording_struct source{};
+    const byte result = FRAM_Read_recording(static_cast<uint8_t>(recording), source);
+
+    if (result != LillaFRAM_2x512::ERROR_0)
+    {
+        return result;
+    }
+    if (source.stereo > 1 || source.consistent > 1)
+    {
+        return FRAM_ERROR_SOURCE;
+    }
+    const uint32_t packet_span = static_cast<uint32_t>(source.packets) * (source.stereo ? 2U : 1U);
+    if (source.packets > 0 && (source.first_packet >= VFS_PACKETS_MAX || packet_span > static_cast<uint32_t>(VFS_PACKETS_MAX - source.first_packet)))
+    {
+        return FRAM_ERROR_SOURCE;
+    }
+
+    Recording[recording].first_packet = source.first_packet;
+    Recording[recording].packets = source.packets;
+    Recording[recording].stereo = source.stereo != 0;
+    Recording[recording].consistent = source.consistent != 0;
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-uint16_t ArchivingManager::Get_location_of_Sound(const uint8_t &sound_id)
-{
-    // Serial.print("GET_location_of_sound: ");
-    // Serial.println(LOCATION_SOUND + (sound_id * SIZE_OF_SOUND));
-    return (LOCATION_SOUND + (sound_id * SIZE_OF_SOUND));
-}
-
-template <class T>
-int ArchivingManager::Eeprom_writeAnything(size_t address, const T &source)
-{
-    if (address >= 0)
-    {
-        const byte *p = (const byte *)(const void *)&source;
-        size_t i = 0;
-        for (i = 0; i < sizeof(source); ++i)
-        {
-            EEPROM.write(address++, *p++);
-        }
-
-        return i;
-    }
-
-    else
-    {
-        Serial.println(F("Eeprom_writeAnything error!!"));
-        return -1;
-    }
-}
-
-template <class T>
-int ArchivingManager::Eeprom_readAnything(size_t address, T &destination)
-{
-    if (address >= 0)
-    {
-        byte *p = (byte *)(void *)&destination;
-        size_t i = 0;
-        for (i = 0; i < sizeof(destination); ++i)
-        {
-            *p++ = EEPROM.read(address++);
-        }
-        return i;
-    }
-
-    else
-    {
-        Serial.println(F("Eeprom_readAnything error!!"));
-        return -1;
-    }
-}
-
-void ArchivingManager::Eeprom_write_uint8_t(const size_t address, const uint8_t &value)
-{
-    if (address >= 0)
-    {
-        EEPROM.write(address, value);
-    }
-}
-
-void ArchivingManager::Eeprom_read_uint8_t(const size_t address, uint8_t &destination)
-{
-    if (address >= 0)
-    {
-        destination = EEPROM.read(address);
-    }
-}
-
-void ArchivingManager::Eeprom_write_int8_t(const size_t address, const int8_t &value)
-{
-    if (address >= 0)
-    {
-        EEPROM.write(address, value);
-    }
-}
-
-void ArchivingManager::Eeprom_read_int8_t(const size_t address, int8_t &destination)
-{
-    if (address >= 0)
-    {
-        destination = EEPROM.read(address);
-    }
-}
-
-// File name patch_id - delay
-String ArchivingManager::Filename_patch_Delay(const int patch_id)
-{
-    String filename = String(patch_id);
-    return String(filename + ".delay");
-}
-
-void ArchivingManager::Copy_Delay_data_from_RAM_to_SD(File &file) // private
-{
-    const byte *data = (const byte *)(const void *)&Delay_data;
-
-    for (auto i = 0; i < DELAY_DATA_DIM; ++i)
-    {
-        file.println(*(data + i));
-    }
-}
-
-void ArchivingManager::Copy_Delay_data_from_Eeprom_to_SD(File &file) // private
-{
-    auto value = 0;
-
-    for (auto location = LOCATION_DELAY; location < LOCATION_DELAY + DELAY_DATA_DIM; ++location)
-    {
-        value = EEPROM.read(location);
-        delayMicroseconds(100); // important not to block the process
-        file.println(String(value));
-    }
-
-    if (false)
-    {
-        Serial.println(F("ArchivingManager::Copy_Delay_data_from_Eeprom_to_SD(File &file) - Read EEPROM data:"));
-        Serial.println(file.name());
-        Print_Delay_data_reading_from_Eeprom();
-    }
-}
-
-void ArchivingManager::Copy_Delay_data_from_SD_to_Eeprom(File &file) // private
-{
-    auto value = 0;
-    auto location = LOCATION_DELAY;
-    String value_txt;
-
-    while (file.available())
-    {
-        value_txt = file.readStringUntil('\n'); // restituisce String - es: value_txt = "230" ossia i char "2" "3" "0" "\n"
-        value = value_txt.toInt();              // toInt() conversione da String a long es: value = 230
-        EEPROM.write(location, value);
-        delayMicroseconds(100); // important not to block the process
-        location++;
-    }
-
-    if (true)
-    {
-        Serial.println(F("ArchivingManager::Copy_Delay_data_from_SD_to_Eeprom(File &file)- Read EEPROM data:"));
-        Print_Delay_data_reading_from_Eeprom();
-    }
-}
-
-FLASHMEM
-void ArchivingManager::Print_Delay_data_reading_from_Eeprom()
-{
-    auto data_LSB = 0;
-    auto data_MSB = 0;
-    auto result_int = 0;
-    auto result_uint = 0;
-    size_t location = 0;
-
-    Serial.println();
-    Serial.println(F("ArchivingManager::Print_Delay_data_reading_from_Eeprom()"));
-
-    Serial.print("uint16_t samples: ");
-    data_LSB = EEPROM.read(LOCATION_DELAY + location++);
-    data_MSB = EEPROM.read(LOCATION_DELAY + location++);
-    result_uint = data_MSB << 8 | data_LSB;
-    Serial.println(result_uint);
-
-    Serial.print("int16_t samples_LR: ");
-    data_LSB = EEPROM.read(LOCATION_DELAY + location++);
-    data_MSB = EEPROM.read(LOCATION_DELAY + location++);
-    result_int = data_MSB << 8 | data_LSB;
-    Serial.println(result_int);
-
-    Serial.print("instrument_route: ");
-    Serial.println(EEPROM.read(LOCATION_DELAY + location++));
-
-    Serial.print("modulation: ");
-    Serial.println(EEPROM.read(LOCATION_DELAY + location++));
-
-    Serial.print("depth: ");
-    Serial.println(EEPROM.read(LOCATION_DELAY + location++));
-
-    Serial.print("frequency: ");
-    Serial.println(EEPROM.read(LOCATION_DELAY + location++));
-
-    Serial.print("uint16_t phase_LR: ");
-    data_LSB = EEPROM.read(LOCATION_DELAY + location++);
-    data_MSB = EEPROM.read(LOCATION_DELAY + location++);
-    result_uint = data_MSB << 8 | data_LSB;
-    Serial.println(result_uint);
-
-    Serial.print("uint16_t loop_gain: ");
-    data_LSB = EEPROM.read(LOCATION_DELAY + location++);
-    data_MSB = EEPROM.read(LOCATION_DELAY + location++);
-    result_uint = data_MSB << 8 | data_LSB;
-    Serial.println(result_uint);
-    Serial.println();
-}
-
-bool ArchivingManager::Delete_patch_Delay_data_in_SD(const int patch_id)
-{
-    String filename = Filename_patch_Delay(patch_id);
-    String full_path = String("/LILLADELAY/" + filename);
-
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
-        {
-            SD.remove(full_path_);
-
-            Serial.print(F("ArchivingManager::Delete_patch_Delay_data_in_SD - existing "));
-            Serial.print(full_path);
-            Serial.println(" has been deleted.");
-            return true;
-        }
-        else
-        {
-            Serial.print(F("ArchivingManager::Delete_patch_Delay_data_in_SD - Delay not existing."));
-            return true;
-        }
-    }
-    else
-    {
-        Serial.println(F("ArchivingManager::Delete_patch_Delay_data_in_SD - SD not present!"));
-        return false;
-    }
-}
-
-void ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD(const int patch_id) // public
-{
-    String filename = Filename_patch_Delay(patch_id);
-    String full_path = String("/LILLADELAY/" + filename);
-    auto *full_path_ptr = full_path.c_str();
-
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (!SD.exists("/LILLADELAY"))
-        {
-            SD.mkdir("/LILLADELAY");
-            Serial.println(F("/LILLADELAY directory created"));
-        }
-
-        if (SD.exists(full_path_ptr))
-        {
-            SD.remove(full_path_ptr);
-
-            Serial.print(F("ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD - existing "));
-            Serial.print(full_path_ptr);
-            Serial.println(" has been deleted.");
-        }
-
-        File file = SD.open(full_path_ptr, FILE_WRITE); // creazione del file vuoto
-        if (file)
-        {
-            Copy_Delay_data_from_RAM_to_SD(file);
-            file.close();
-
-            Serial.print(F("ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD - Delay_data saved in "));
-            Serial.print(full_path_ptr);
-            Serial.println(" in SD.");
-        }
-    }
-    else
-    {
-        Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_RAM_to_SD - SD not present!"));
-    }
-}
-
-bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM(const int patch_id) // public
-{
-    String filename = Filename_patch_Delay(patch_id);
-    String full_path = String("/LILLADELAY/" + filename);
-    auto *full_path_ptr = full_path.c_str();
-
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (SD.exists(full_path_ptr))
-        {
-            Serial.print(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM - Delay file "));
-            Serial.print(full_path);
-            Serial.println(F(" found; now starts Delay import."));
-
-            File file = SD.open(full_path_ptr);
-            if (file)
-            {
-                Copy_Delay_data_from_SD_to_RAM(file);
-                file.close();
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
-        {
-            Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM - Delay not found on SD!"));
-            return false;
-        }
-    }
-
-    else
-    {
-        Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM - SD not present!"));
-        return false;
-    }
-}
-
-void ArchivingManager::Copy_Delay_data_from_SD_to_RAM(File &file)
-{
-    uint8_t value;
-    String value_txt;
-    uint8_t value_1;
-    uint8_t value_2;
-
-    /*
-    struct Delay_data_struct // DELAY_DATA_DIM byte
-    {
-        uint16_t samples;
-        int16_t samples_LR;
-        uint8_t instrument_route;
-        uint8_t modulation_source;
-        uint8_t modulation_depth;
-        uint8_t modulation_frequency;
-        uint16_t modulation_phase_LR;
-        uint16_t loop_gain;
-    };
-    */
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    Delay_data.samples = value_2 << 8 | value_1;
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    Delay_data.samples_LR = static_cast<int16_t>(value_2 << 8 | value_1);
-
-    value_txt = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-    value = value_txt.toInt();              // toInt() conversione da String a long es: x = 230
-    Delay_data.instrument_route = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Delay_data.modulation_source = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Delay_data.modulation_depth = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Delay_data.modulation_frequency = value;
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    Delay_data.modulation_phase_LR = value_2 << 8 | value_1;
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    Delay_data.loop_gain = value_2 << 8 | value_1;
-
-    Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_RAM - Done."));
-}
-
-void ArchivingManager::Copy_patch_Delay_data_from_Eeprom_to_SD(const int patch_id) // public
-{
-    String filename = Filename_patch_Delay(patch_id);
-    String full_path = String("/LILLADELAY/" + filename);
-    auto *full_path_ptr = full_path.c_str();
-
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (!SD.exists("/LILLADELAY"))
-        {
-            SD.mkdir("/LILLADELAY");
-            Serial.println(F("/LILLADELAY directory created"));
-        }
-
-        if (SD.exists(full_path_ptr))
-        {
-            SD.remove(full_path_ptr);
-            Serial.print(F("ArchivingManager::Copy_Patch_Delay_data_from_Eeprom_to_SD - existing "));
-            Serial.print(full_path_ptr);
-            Serial.println(" has been deleted.");
-        }
-
-        File file = SD.open(full_path_ptr, FILE_WRITE); // creazione del file
-        if (file)
-        {
-            Copy_Delay_data_from_Eeprom_to_SD(file);
-            file.close();
-
-            Serial.print(F("ArchivingManager::Copy_Patch_Delay_data_from_Eeprom_to_SD - delay data have been saved in "));
-            Serial.print(full_path_ptr);
-            Serial.println(" on SD.");
-        }
-    }
-    else
-    {
-        Serial.println(F("ArchivingManager::Copy_Patch_Delay_data_from_Eeprom_to_SD - SD not present!"));
-    }
-}
-
-bool ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom(const int patch_id) // public
-{
-    String filename = Filename_patch_Delay(patch_id);
-    String full_path = String("/LILLADELAY/" + filename);
-    auto *full_path_ptr = full_path.c_str();
-
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (SD.exists(full_path_ptr))
-        {
-            Serial.print(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom - delay data file "));
-            Serial.print(full_path);
-            Serial.println(F(" found; now starts data import."));
-
-            File file = SD.open(full_path_ptr);
-            if (file)
-            {
-                Copy_Delay_data_from_SD_to_Eeprom(file);
-                file.close();
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
-        {
-            Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom - delay data not found on SD!"));
-            return false;
-        }
-    }
-    else
-    {
-        Serial.println(F("ArchivingManager::Copy_patch_Delay_data_from_SD_to_Eeprom - SD not present!"));
-        return false;
-    }
-}
-
-void ArchivingManager::Print_patch_Delay_file_reading_from_SD(const int patch_id) // public
-{
-    String filename = Filename_patch_Delay(patch_id);
-    String full_path = String("/LILLADELAY/" + filename);
-    auto *full_path_ptr = full_path.c_str();
-
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (SD.exists(full_path_ptr))
-        {
-            Serial.print("ArchivingManager::Print_patch_Delay_file_reading_from_SD - Reading SD Delay file ");
-            Serial.println(full_path);
-
-            File file = SD.open(full_path_ptr);
-            if (file)
-            {
-                uint8_t x;
-                String x_txt;
-                int i = 0;
-
-                while (file.available())
-                {
-                    x_txt = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-                    x = x_txt.toInt();                  // conversione da String a uint8_t es: x = 230
-                    delayMicroseconds(100);             // important not to block the process
-                    Serial.print("byte ");
-                    Serial.print(i);
-                    Serial.print(" value: ");
-                    Serial.println(x);
-                    ++i;
-                }
-                file.close();
-            }
-        }
-    }
-    else
-    {
-        Serial.println(F("ArchivingManager::Print_patch_Delay_file_reading_from_SD - SD not present!"));
-    }
-}
-
-// Filename patch description
 String ArchivingManager::Filename_Patch(const int patch_id)
 {
     String filename = String(patch_id);
@@ -1174,8 +1709,12 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
         File file = SD.open(full_path_ptr, FILE_WRITE);
         if (file)
         {
-            Copy_Patch_from_RAM_to_SD(patch_id, file);
+            const bool saved = Copy_Patch_from_RAM_to_SD(patch_id, file);
             file.close();
+            if (!saved)
+            {
+                return false;
+            }
 
             Serial.print(F("ArchivingManager::Copy_Patch_from_RAM_to_SD - Patch saved in "));
             Serial.print(full_path_ptr);
@@ -1366,14 +1905,46 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
     return true;
 }
 
-void ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
+bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
 {
-    const auto *data = (const byte *)(const void *)&Patch[patch_id];
-
-    for (auto i = 0; i < SIZE_OF_PATCH; ++i)
+    if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
-        file.println(*(data + i));
+        return false;
     }
+    uint8_t payload[2 + INSTRUMENTS * 15]{};
+    size_t offset = 0;
+    payload[offset++] = Patch[patch_id].used;
+    payload[offset++] = Patch[patch_id].instruments;
+    for (const auto &instrument : Patch[patch_id].Instrument)
+    {
+        payload[offset++] = instrument.used;
+        payload[offset++] = instrument.sound_id & 255;
+        payload[offset++] = instrument.sound_id >> 8;
+        payload[offset++] = instrument.root_key;
+        payload[offset++] = instrument.from_note;
+        payload[offset++] = instrument.to_note;
+        payload[offset++] = instrument.precedence;
+        payload[offset++] = instrument.lock;
+        payload[offset++] = instrument.Filter.use;
+        payload[offset++] = instrument.Filter.type;
+        payload[offset++] = instrument.Filter.pivot;
+        payload[offset++] = instrument.Filter.resonance;
+        payload[offset++] = instrument.Filter.modulation;
+        payload[offset++] = instrument.Filter.index;
+        payload[offset++] = instrument.Filter.frequency_time;
+    }
+    if (file.println("LILLA_PATCH_1") == 0)
+    {
+        return false;
+    }
+    for (const auto value : payload)
+    {
+        if (file.println(value) == 0)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id)
@@ -1445,16 +2016,16 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
     {
         if (SD.exists(full_path_ptr))
         {
-            Serial.print(F("ArchivingManager::Copy_Patch_from_SD_to_Eeprom - Patch file "));
+            Serial.print(F("ArchivingManager::Copy_Patch_from_SD_to_RAM - Patch file "));
             Serial.print(full_path);
             Serial.println(F(" found; now starts Patch import."));
 
             File file = SD.open(full_path_ptr);
             if (file)
             {
-                Copy_Patch_from_SD_to_RAM(patch_id, file);
+                const bool loaded = Copy_Patch_from_SD_to_RAM(patch_id, file);
                 file.close();
-                return true;
+                return loaded;
             }
             else
             {
@@ -1475,122 +2046,106 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
     }
 }
 
-void ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file) // private
+bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
 {
-    uint8_t value;
-    String value_txt;
-    uint8_t value_LSB;
-    uint8_t value_MSB;
-
-    /*
-    struct Patch_struct
+    if (patch_id < 0 || patch_id >= PATCHES_MAX || !file.seek(0))
     {
-        bool used;
-        uint8_t instruments;
-        Instrument_struct Instrument[8];
+        return false;
     }
-    */
-
-    value_txt = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-    value = value_txt.toInt();              // toInt() conversione da String a long es: x = 230
-    Patch[patch_id].used = (value++ != 0);
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Patch[patch_id].instruments = value;
-
-    /*
-    struct Instrument_struct
+    const char magic[] = "LILLA_PATCH_1\r\n";
+    char prefix[sizeof(magic) - 1]{};
+    const bool versioned = file.read(reinterpret_cast<uint8_t *>(prefix), sizeof(prefix)) == sizeof(prefix) && memcmp(prefix, magic, sizeof(prefix)) == 0;
+    if (!versioned && !file.seek(0))
     {
-        bool used;
-        uint8_t sound_id;
-        uint8_t root_key;
-        uint8_t from_note;
-        uint8_t to_note;
-        bool precedence;
-        bool lock;
-        Instrument_filter_data_struct Filter;
-    };
-    */
-
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+        return false;
+    }
+    uint8_t payload[130]{};
+    size_t count = 0;
+    unsigned value = 0;
+    bool digits = false;
+    while (file.available())
     {
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].used = (value != 0);
-
-        value_txt = file.readStringUntil('\n');
-        value_LSB = value_txt.toInt();
-        value_txt = file.readStringUntil('\n');
-        value_MSB = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].sound_id = value_MSB << 8 | value_LSB;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].root_key = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].from_note = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].to_note = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].precedence = (value != 0);
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].lock = (value != 0);
-
-        /*
-        struct Instrument_filter_data_struct
+        const int character = file.read();
+        if (character >= '0' && character <= '9')
         {
-        uint8_t use;            // yes/no
-        uint8_t type;           // filter type 0 --> 3
-        uint8_t pivot;          // 0 --> 100 filter frequency/note frequency
-        uint8_t resonance;      // 0 --> 40
-        uint8_t modulation;     // waveform 0 -> 3
-        uint8_t index;          // 1 --> 20 modulation_index
-        uint8_t frequency_time; // 0 --> 20
-        };
-        */
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.use = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.type = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.pivot = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.resonance = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.modulation = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.index = value;
-
-        value_txt = file.readStringUntil('\n');
-        value = value_txt.toInt();
-        Patch[patch_id].Instrument[instrument_id].Filter.frequency_time = value;
+            value = value * 10 + character - '0';
+            if (value > 255)
+            {
+                return false;
+            }
+            digits = true;
+        }
+        else if (character == '\r')
+        {
+            continue;
+        }
+        else if (character == '\n' && digits && count < sizeof(payload))
+        {
+            payload[count++] = value;
+            value = 0;
+            digits = false;
+        }
+        else
+        {
+            return false;
+        }
     }
-
-    if (true)
+    if (digits || (versioned && count != 122) || (!versioned && count != 114 && count != 122 && count != 130))
     {
-        Serial.println(F("ArchivingManager::Copy_Patch_from_SD_to_RAM(int patch_id, File &file)- Done."));
+        return false;
     }
+    Patch_struct candidate{};
+    if (payload[0] > 1 || payload[1] > INSTRUMENTS)
+    {
+        return false;
+    }
+    candidate.used = payload[0] != 0;
+    candidate.instruments = payload[1];
+    size_t offset = 2;
+    uint8_t used = 0;
+    for (auto &instrument : candidate.Instrument)
+    {
+        const uint8_t active = payload[offset++];
+        if (active > 1)
+        {
+            return false;
+        }
+        instrument.used = active != 0;
+        if (count == 130)
+        {
+            ++offset; // Legacy RAM export included alignment before the 16-bit Sound ID.
+        }
+        instrument.sound_id = payload[offset++];
+        if (count != 114)
+        {
+            instrument.sound_id |= static_cast<uint16_t>(payload[offset++]) << 8;
+        }
+        instrument.root_key = payload[offset++];
+        instrument.from_note = payload[offset++];
+        instrument.to_note = payload[offset++];
+        const uint8_t precedence = payload[offset++];
+        const uint8_t lock = payload[offset++];
+        if (precedence > 1 || lock > 1 || (active && instrument.sound_id >= SOUNDS_MAX))
+        {
+            return false;
+        }
+        instrument.precedence = precedence != 0;
+        instrument.lock = lock != 0;
+        instrument.Filter.use = payload[offset++];
+        instrument.Filter.type = payload[offset++];
+        instrument.Filter.pivot = payload[offset++];
+        instrument.Filter.resonance = payload[offset++];
+        instrument.Filter.modulation = payload[offset++];
+        instrument.Filter.index = payload[offset++];
+        instrument.Filter.frequency_time = payload[offset++];
+        used += active;
+    }
+    if (used != candidate.instruments)
+    {
+        return false;
+    }
+    Patch[patch_id] = candidate;
+    return true;
 }
 
 bool ArchivingManager::Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id) // public

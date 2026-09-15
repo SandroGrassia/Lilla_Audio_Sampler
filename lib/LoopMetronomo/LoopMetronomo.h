@@ -17,7 +17,7 @@ class LoopMetronomo
 {
 private:
     static constexpr int Metro_LED_Y = 64; // Y-PIXEL primo led Metronomo
-    static constexpr int Metro_LED_X = 70; // X-PIXEL primo led Metronomo
+    const int Metro_LED_X = display_coordinate_x(DisplayMidiLoop::Loop_track1_column); // X-PIXEL primo led Metronomo
     int beat;
     int metro_delta_ms[LOOP_metro_leds]; // delta_t in ms tra i passi del metronomo
 

@@ -27,6 +27,7 @@ private:
     audio_block_t *in_block_R = nullptr;
 
     volatile bool recording;
+    volatile byte storage_error = 0;
     int recording_id = 0;          // equivalent to file_id
     LillaSerialFlashFile Packet_L; // SerialFlashFile Packet_L;
     LillaSerialFlashFile Packet_R; // SerialFlashFile Packet_R;
@@ -69,4 +70,5 @@ public:
     bool Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in);
     void Book_stop(void);
     bool Is_recording(void);
+    byte Storage_error(void) const { return storage_error; }
 };

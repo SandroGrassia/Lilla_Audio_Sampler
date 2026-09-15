@@ -23,7 +23,7 @@ prefix = r'''
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
+#include <cstdio>
 #include <vector>
 #define constrain(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))
 #define bitRead(x,n) (((x)>>(n))&1)
@@ -33,7 +33,7 @@ constexpr int INSTRUMENTS=8;
 constexpr int AUDIO_BLOCK_SAMPLES=128;
 constexpr float AUDIO_SAMPLE_RATE=44100.0f;
 constexpr int DELAY_CACHE_CHANNEL_SAMPLES=4096;
-struct SerialStub { template<class T> void print(T) {} template<class T> void println(T) {} void println() {} } Serial;
+struct SerialStub { template<class T> void print(T) {} template<class T> void println(T) {} void println(const char *text) { std::puts(text); } void println() {} } Serial;
 struct audio_block_t { int16_t data[AUDIO_BLOCK_SAMPLES]={}; };
 class AudioStream {
 public:
@@ -108,7 +108,7 @@ int main() {
  left.Set_delay_central_value(DELAY_CACHE_CHANNEL_SAMPLES); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<DELAY_CACHE_CHANNEL_SAMPLES); } assert(left.delay_value==DELAY_CACHE_CHANNEL_SAMPLES-AUDIO_BLOCK_SAMPLES);
  left.Set_delay_central_value(-1); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<DELAY_CACHE_CHANNEL_SAMPLES); } assert(left.delay_value==0);
  Delay_data_struct same=Delay_data; assert(!m.New_values(&same)); m.Set_value(MODULATION_DEPTH,0); m.Update(); auto remaining=m.remaining[MODULATION_DEPTH]; same=Delay_data; assert(m.New_values(&same)); assert(m.remaining[MODULATION_DEPTH]==remaining); m.Stop();
- std::cout << "PASS: routing 0-7, LR zero/sign changes, patch/UI retargeting, exact endpoints, stale flags, feedback bounds/zero, gain mute, time ramps, allocation failure\n";
+ Serial.println(F("PASS: routing 0-7, LR zero/sign changes, patch/UI retargeting, exact endpoints, stale flags, feedback bounds/zero, gain mute, time ramps, allocation failure"));
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

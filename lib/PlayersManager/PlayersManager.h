@@ -41,6 +41,25 @@ private:
 
     // Play notes
     bool Player_booked[PLAYERS] = {false};
+    uint8_t modulation_value[16] = {0}; // Independent CC1 state for active, pending and future notes on each channel.
+    bool midi_batch_active = false;
+    uint8_t restart_mix_first_player = 0; // Rotate only the individual restart-crossfade fallback; selection priorities remain unchanged.
+
+    enum class Selection_order { First, Last, Oldest };
+    struct Player_filter
+    {
+        int instrument = -1; // -1 means any instrument/state.
+        int powered = -1;
+        int playing = -1;
+        bool unprotected = false;
+        bool sample_only = false;
+        bool other_patch = false;
+    };
+    bool Can_select_player(int player, const Player_filter &filter) const;
+    int Find_player(const Player_filter &filter, Selection_order order);
+    int Find_free_player(void);
+    int Find_other_patch_player(bool sample_only, bool prefer_last);
+    int Select_player_for_note(uint8_t instrument_id, uint8_t note_number, int track);
     bool restart_Player[PLAYERS] = {false}; // questo array serve per contare, ad ogni ciclo, il numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
 
     static inline float Calc_pitch(float value)
@@ -74,6 +93,9 @@ public:
 
     // chiamate da MidiReader
     void Reset_booked_and_restart_player(void);
+    void Begin_midi_batch(void);
+    void End_midi_batch(void);
+    void Set_modulation(uint8_t midi_channel, uint8_t value);
     void Reset_players_to_restart(void);
 
     /*

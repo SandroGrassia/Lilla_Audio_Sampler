@@ -7,6 +7,8 @@
 #include <Arduino.h>
 #include <util/atomic.h>
 #include <type_traits>
+#include <strings.h>
+#include "ZeroRaw.h"
 #include <spi_interrupt.h>
 
 // **********************************************************
@@ -16,7 +18,7 @@
     PCB: LILLA_2026_R2 - august 2026
 
     Hardware
-    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; EEPROM: 4284 bytes)
+    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; external FRAM: 128 KiB)
     - Audio Adaptor Rev.D
     - display: SPI ILI9341 240x320
     - n.1 Mic amplifier (AD828A) module
@@ -199,11 +201,11 @@
 // *************************************************************
 
 // Attenzione: la funzione update() e' chiamata nell'ordine in cui vengono dichiarati gli oggetti Audiostream
-LillaClock Trigger_0; // 1a Lettura midi ed esecuzione comandi
+LillaClock Trigger_0; // Collect MIDI and prepare MIDI/loop requests before the Players.
 AudioPlayer Player[PLAYERS];
 Router_16x3 Router_L;
 Router_16x3 Router_R;
-LillaClock Trigger_1; // 2a Lettura midi
+LillaClock Trigger_1; // Reserved control hook: no MIDI reads after the Players.
 CacheCycleFinalizer CacheCycle_finalizer;
 AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
@@ -291,49 +293,47 @@ AudioConnection patchCord44(Router_R, 0, Delay_R, 1); // modulazione del delay d
 
 AudioConnection patchCord45(Router_L, 1, mixer_L, 1);
 AudioConnection patchCord46(Tone_generator, 0, mixer_L, 2);
-AudioConnection patchCord47(Trigger_0, 0, mixer_L, 3);
 
-AudioConnection patchCord48(Router_R, 1, mixer_R, 1);
-AudioConnection patchCord49(Tone_generator, 0, mixer_R, 2);
-AudioConnection patchCord50(Trigger_1, 0, mixer_R, 3);
+AudioConnection patchCord47(Router_R, 1, mixer_R, 1);
+AudioConnection patchCord48(Tone_generator, 0, mixer_R, 2);
 
-AudioConnection patchCord51(mixer_L, 0, biquad_L, 0);
-AudioConnection patchCord52(mixer_R, 0, biquad_R, 0);
+AudioConnection patchCord49(mixer_L, 0, biquad_L, 0);
+AudioConnection patchCord50(mixer_R, 0, biquad_R, 0);
 
-AudioConnection patchCord53(biquad_L, 0, MAIN_mixer_out_L, 0);
-AudioConnection patchCord54(biquad_R, 0, MAIN_mixer_out_R, 0);
+AudioConnection patchCord51(biquad_L, 0, MAIN_mixer_out_L, 0);
+AudioConnection patchCord52(biquad_R, 0, MAIN_mixer_out_R, 0);
 
-AudioConnection patchCord55(biquad_L, 0, LS_Feedback_L, 1);
-AudioConnection patchCord56(biquad_R, 0, LS_Feedback_R, 1);
+AudioConnection patchCord53(biquad_L, 0, LS_Feedback_L, 1);
+AudioConnection patchCord54(biquad_R, 0, LS_Feedback_R, 1);
 
-AudioConnection patchCord57(InputDevice, 0, LINE_IN_amplifier, 0);
-AudioConnection patchCord58(InputDevice, 1, LINE_IN_amplifier, 1);
+AudioConnection patchCord55(InputDevice, 0, LINE_IN_amplifier, 0);
+AudioConnection patchCord56(InputDevice, 1, LINE_IN_amplifier, 1);
 
-AudioConnection patchCord59(LINE_IN_amplifier, 0, PeakTracking_L, 0);
-AudioConnection patchCord60(LINE_IN_amplifier, 1, PeakTracking_R, 0);
-AudioConnection patchCord61(LINE_IN_amplifier, 0, MAIN_mixer_out_L, 1);
-AudioConnection patchCord62(LINE_IN_amplifier, 1, MAIN_mixer_out_R, 1);
+AudioConnection patchCord57(LINE_IN_amplifier, 0, PeakTracking_L, 0);
+AudioConnection patchCord58(LINE_IN_amplifier, 1, PeakTracking_R, 0);
+AudioConnection patchCord59(LINE_IN_amplifier, 0, MAIN_mixer_out_L, 1);
+AudioConnection patchCord60(LINE_IN_amplifier, 1, MAIN_mixer_out_R, 1);
 
-AudioConnection patchCord63(MAIN_mixer_out_L, 0, audio_out, 0);
-AudioConnection patchCord64(MAIN_mixer_out_R, 0, audio_out, 1);
+AudioConnection patchCord61(MAIN_mixer_out_L, 0, audio_out, 0);
+AudioConnection patchCord62(MAIN_mixer_out_R, 0, audio_out, 1);
 
-AudioConnection patchCord65(Router_L, 2, PWM_mixer_out_L, 0);
-AudioConnection patchCord66(Router_R, 2, PWM_mixer_out_R, 0);
+AudioConnection patchCord63(Router_L, 2, PWM_mixer_out_L, 0);
+AudioConnection patchCord64(Router_R, 2, PWM_mixer_out_R, 0);
 
-AudioConnection patchCord67(LINE_IN_amplifier, 0, PWM_mixer_out_L, 1);
-AudioConnection patchCord68(LINE_IN_amplifier, 1, PWM_mixer_out_R, 1);
+AudioConnection patchCord65(LINE_IN_amplifier, 0, PWM_mixer_out_L, 1);
+AudioConnection patchCord66(LINE_IN_amplifier, 1, PWM_mixer_out_R, 1);
 
-AudioConnection patchCord69(LINE_IN_amplifier, 0, LS_Feedback_L, 0);
-AudioConnection patchCord70(LINE_IN_amplifier, 1, LS_Feedback_R, 0);
+AudioConnection patchCord67(LINE_IN_amplifier, 0, LS_Feedback_L, 0);
+AudioConnection patchCord68(LINE_IN_amplifier, 1, LS_Feedback_R, 0);
 
-AudioConnection patchCord71(LS_Feedback_L, 0, LiveSampler, 0);
-AudioConnection patchCord72(LS_Feedback_R, 0, LiveSampler, 1);
+AudioConnection patchCord69(LS_Feedback_L, 0, LiveSampler, 0);
+AudioConnection patchCord70(LS_Feedback_R, 0, LiveSampler, 1);
 
-AudioConnection patchCord73(LINE_IN_amplifier, 0, DirectSampler, 0);
-AudioConnection patchCord74(LINE_IN_amplifier, 1, DirectSampler, 1);
+AudioConnection patchCord71(LINE_IN_amplifier, 0, DirectSampler, 0);
+AudioConnection patchCord72(LINE_IN_amplifier, 1, DirectSampler, 1);
 
-AudioConnection patchCord75(PWM_mixer_out_L, 0, PWM_L, 0);
-AudioConnection patchCord76(PWM_mixer_out_R, 0, PWM_R, 0);
+AudioConnection patchCord73(PWM_mixer_out_L, 0, PWM_L, 0);
+AudioConnection patchCord74(PWM_mixer_out_R, 0, PWM_R, 0);
 
 AudioControlSGTL5000 Audio_shield;
 
@@ -446,7 +446,7 @@ uint8_t Patch_id_old;
 bool patch_original;
 bool patch_original_0;
 uint8_t patches_number; // number of patches_number in use (NOT deleted)
-int8_t S_Get_Patch_id_free(void);
+int S_Get_Patch_id_free(void);
 void P_Delete_all_Patches_and_Sounds(void);
 void P_Read_all_Patches(void);
 void P_Update_Patches_number(void);
@@ -486,9 +486,9 @@ int S_menu_max;
 void S_Select_menu_elements(void);
 
 // variables
-Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // used to save all Sound starting a new patch_id
+DMAMEM Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // Reference metadata in RAM2.
 
-uint8_t Sound_id;
+uint16_t Sound_id;
 bool S_sound_original = true;
 uint32_t S_trim_step; // samples per each step while trimming audio file
 int S_slicing_window;
@@ -505,10 +505,10 @@ bool S_Verify_is_Sound_original(int sound_id);
 void S_Refresh_source_limits(bool force); // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
 void S_Copy_all_Sound_to_Sound_cache_P(void);
 void S_Pull_all_Sound_from_Sound_cache_P(void);
-uint8_t S_Get_sounds_free(void);
+uint16_t S_Get_sounds_free(void);
 void S_Read_all_Sounds(void);
 void S_Save_all_Sounds_changed(void);
-int8_t S_Get_sound_free(void);
+int S_Get_sound_free(void);
 uint32_t S_Calc_trim_step(int value);
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
@@ -572,7 +572,7 @@ void Calc_pitch_from_note(const int &key_step);
 int Line_in_gain;
 
 // functions
-bool SET_Copy_raw_files_from_SD_to_Flash(void);
+bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed);
 float SET_eraseBytesPerSecond(const unsigned char *id);
 void SET_Ask_if_IMPORT_EXPORT_setup(void);
 void SET_Ask_if_FACTORY_RESET(void);
@@ -584,8 +584,8 @@ int8_t CC_menu;
 int CC_number;
 
 // functions
-void CC_Save_settings(void);
-void CC_Read_all_Sound_gain(void);
+byte CC_Save_settings(void);
+byte CC_Read_all_Sound_gain(void);
 
 // >>>>>>> DELAY
 EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES];
@@ -635,8 +635,8 @@ void DS_convert_file_L(int file_L_RAW, int bytes); // Convert the left recording
 void DS_convert_file_R(int file_R_RAW, int bytes); // Convert the right recording channel and invalidate its previous RAW cache.
 void DS_seed_all_Recordings(void);
 void DS_update_recordings(void);
-void DS_read_all_Recordings(void);
-void DS_read_Recording(int value);
+byte DS_read_all_Recordings(void);
+byte DS_read_Recording(int value);
 float DS_get_Recording_seconds(int value);
 int DS_find_Recording_free(void);
 int DS_get_next_Recording(int value);
@@ -652,17 +652,21 @@ void P_Recording(int value);
 void VFS_Make_VFS(void);
 int VFS_Get_packets(void);
 void VFS_Print_allocation(void);
-void VFS_Compile_FAT_table(void);
+bool VFS_Compile_FAT_table(void);
 void VFS_Reset_FAT_table(void);
 int VFS_Get_first_packet_free(void);
 int VFS_Get_packets_free(void);
 void VFS_Erase_all_packets(void);
 void VFS_Erase_all_packets_for_DS(void);
-void VFS_Erase_packet(int value);
-void VFS_Clean_up_VFS(void);
-void VFS_Defragment(void);
-void VFS_Shift_file(int to_packet, int from_packet, int packets);
+bool VFS_Erase_packet(int value);
+bool VFS_Clean_up_VFS(void);
+bool VFS_Clean_up_orphan_packets(void);
+bool VFS_Defragment(void);
+bool VFS_Shift_file(int to_packet, int recording_id);
+void Require_VFS(bool result);
 void VFS_Print_FAT(void);
+bool BACKUP_Export(void);
+bool BACKUP_Restore(bool *config_error = nullptr);
 
 // STANDARD FILE SYSTEM
 int Get_next_raw_file_in_flash(int file);
@@ -710,7 +714,7 @@ void LS_setup_LS_Patch(bool stereo);
 
 // >>>>>>> MIDI_LOOP
 // variables
-uint8_t LOOP_time_order[TRACKS][LOOP_EVENTS] = {0};
+DMAMEM uint32_t LOOP_time_order[TRACKS][LOOP_EVENTS]; // Initialized by LOOP_set_time_order before use.
 elapsedMillis LOOP_clock = 0; // clock fisico
 int LOOP_volume_int[TRACKS] = {0};
 bool LOOP_run_button_state; // pulsante EN_PB_Loop true: run loop abilitati -  false: stop tutti i loop
@@ -733,8 +737,8 @@ unsigned long LOOP_Clock_time_from_virtual_time(int T_evento);
 void LOOP_restart_procedure(int track);
 void LOOP_set_time_order(int track);
 bool LOOP_Print_midi_loop_complete_data(int loop_id);
-void LOOP_Compile_midi_loop_file(int loop_id, File &file); // private
-void LOOP_Copy_midi_loop_from_SD_to_RAM_local(File &file);
+bool LOOP_Compile_midi_loop_file(FsFile &file); // private
+bool LOOP_Read_midi_loop_file(FsFile &file, bool load);
 String LOOP_Filename_midi_loop(int loop_id);     // private
 bool LOOP_Look_for_midi_loop_in_SD(int loop_id); // notice: does NOT check if SD is present
 bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);
@@ -751,8 +755,8 @@ int volume_MONITOR = 0;
 void Golive_MIXER(void);
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS;
 
-// EEPROM
-void Factory_setup_Eeprom(void);
+// FRAM
+void Factory_setup_FRAM(void);
 
 // SOUND PUSHBUTTONS
 int PB_number;
@@ -1048,6 +1052,24 @@ struct PatchEditSnapshot
 // *************************************************************
 // *************************************************************
 
+void Require_FRAM(byte result)
+{
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        return;
+    }
+    Serial.print(F("FRAM operation failed, error "));
+    Serial.println(result);
+    P_Quiesce_audio_players();
+    AudioNoInterrupts();
+    Display_Manager.FRAM_io_error_popup();
+    // Do not run subsequent save, erase or cache-publication steps after a failed access.
+    while (true)
+    {
+        delay(10);
+    }
+}
+
 void setup()
 {
     AudioNoInterrupts();
@@ -1072,10 +1094,10 @@ void setup()
     if (Read_pushbutton(EN_PB_PreListenVol))
     {
         // Attenzione richiede 2/3 minuti per la cancellazione dei Packet!
-        // Se la procedura si interrompe la EEPROM resta azzarata e Patch[0] o Sound[0] NON saranno configurati correttamente!!
+        // Se la procedura si interrompe, ripeterla prima di usare l'archivio.
 
         Display_Manager.Factory_reset_wait_popup();
-        Factory_setup_Eeprom();
+        Factory_setup_FRAM();
     }
 
     // UI devices test mode; results are showed on display and sent via Serial.print
@@ -1171,6 +1193,11 @@ void setup()
 
 void loop()
 {
+    if (Display_MidiLoop.Update_save_failed())
+    {
+        Pointer_MidiLoop.Show_pointer(true);
+    }
+    Require_FRAM(DirectSampler.Storage_error());
 
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
@@ -1371,7 +1398,6 @@ void loop()
     // Pushbutton Low-pass flat
     if (Read_pushbutton(EN_PB_Cutoff))
     {
-        Archive.Print_EEPROM_content();
         if (lowpass_target < LPF_MAX)
         {
             lowpass_flag = true;
@@ -1497,7 +1523,7 @@ void loop()
 
                 case value_P_Save: // Save this Patch
                     S_Save_all_Sounds_changed();
-                    Archive.Save_Patch(Patch_id);
+                    Require_FRAM(Archive.Save_Patch(Patch_id));
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
                     S_Read_all_Sounds();
@@ -1548,11 +1574,8 @@ void loop()
                         }
 
                         S_Save_all_Sounds_changed();
-                        Archive.Save_Patch(deleted_patch);
+                        Require_FRAM(Archive.Save_Patch(deleted_patch));
                         Archive.Copy_Patch_from_RAM_to_SD(deleted_patch);
-
-                        // Delete delay_<patch_id>.txt file
-                        Archive.Delete_patch_Delay_data_in_SD(deleted_patch);
 
                         P_Read_all_Patches();
                         P_Update_Patches_number();
@@ -1617,7 +1640,7 @@ void loop()
                             else if (action == 2) // Yes: save changings and switch patch_id
                             {
                                 S_Save_all_Sounds_changed();
-                                Archive.Save_Patch(Patch_id);
+                                Require_FRAM(Archive.Save_Patch(Patch_id));
                                 Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
                                 S_Read_all_Sounds();
                             }
@@ -1628,17 +1651,6 @@ void loop()
                                 return;
                             }
 
-                            if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id)) // Patch Delay: look for delay_<patch_id> in SD
-                            {
-                                Serial.println(F("Smooth changing of delay values COULD start..."));
-
-                                Delay_data_struct delay_final;
-                                Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(delay_final);
-
-                                AudioNoInterrupts();
-                                Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
-                                AudioInterrupts();
-                            }
 
                             Patch_id_old = Patch_id;
                         }
@@ -1651,18 +1663,6 @@ void loop()
                             return;
                         }
 
-                        // Patch Delay: look for delay_<patch_id> in SD
-                        if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id))
-                        {
-                            Serial.println(F("Smooth changing of delay values COULD start..."));
-
-                            Delay_data_struct delay_final;
-                            Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(delay_final);
-
-                            AudioNoInterrupts();
-                            Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
-                            AudioInterrupts();
-                        }
 
                         Patch_id_old = Patch_id;
                     }
@@ -4232,7 +4232,10 @@ void loop()
             {
             case SwModesSampler:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
@@ -4275,7 +4278,10 @@ void loop()
 
             case SwModesLiveSampler:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 switch (Lilla_state_0)
                 {
                 case PERFORMANCE:
@@ -4322,19 +4328,19 @@ void loop()
                 {
                 case PERFORMANCE:
 
-                    // Salva su EEPROM
-                    Archive.Save_Delay_to_Eeprom(Delay_data);
+                    // Salva il Delay della Patch su FRAM.
+                    if (Patch_id < PATCHES_MAX)
+                    {
+                        Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    }
 
                     if (true)
                     {
                         Serial.println();
                         Serial.println(F("main() - Delay_data in RAM:"));
                         Print_Delay_data(Delay_data);
-                        Serial.println(F("... has been saved in EEPROM."));
+                        Serial.println(F("... has been saved in FRAM."));
                     }
-
-                    // Save Delay_data in delay_<patch_id>.txt in SD
-                    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
 
                     Golive_with_PERFORMANCE(Patch_id);
                     break;
@@ -4348,9 +4354,6 @@ void loop()
                     break;
 
                 case MIDI_LOOP:
-                    // Patch delay
-                    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
-
                     Switch_from_MIDI_LOOP_to_PERFORMANCE();
                     break;
 
@@ -4363,7 +4366,10 @@ void loop()
 
             case SwModesMidiLoop:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Golive_with_MIDI_LOOP(false);
             }
             break;
@@ -4377,7 +4383,10 @@ void loop()
             {
             case SwToolsMixer:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Switch_to_MIXER();
             }
             break;
@@ -4387,14 +4396,20 @@ void loop()
 
             case SwToolsSetup:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Golive_SETUP();
             }
             break;
 
             case SwToolsTest:
             {
-                Archive.Save_Delay_to_Eeprom(Delay_data);
+                if (Patch_id < PATCHES_MAX)
+                {
+                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                }
                 Golive_MIDI_MONITOR();
             }
             break;
@@ -5247,6 +5262,7 @@ void loop()
             // Stop if SteroSampler has stopped
             if (!DirectSampler.Is_recording())
             {
+                Require_FRAM(DirectSampler.Storage_error());
                 DS_state = DS_waiting_state;
 
                 // switch OFF Audio Input monitor
@@ -5263,7 +5279,7 @@ void loop()
                 {
                     Recording[recording].consistent = true;
                     // consistent Recording must be saved
-                    Archive.Save_DS_Recording(recording);
+                    Require_FRAM(Archive.Save_DS_Recording(recording));
                     DS_read_Recording(recording); // only to update .bytes and .seconds
                 }
 
@@ -5338,8 +5354,8 @@ void loop()
                     // Delete recording
                     P_Invalidate_recording_cache(recording);
                     Recording[recording].consistent = false;
-                    VFS_Clean_up_VFS();
-                    VFS_Defragment();
+                    Require_VFS(VFS_Clean_up_VFS());
+                    Require_VFS(VFS_Defragment());
                     DS_update_recordings();
                     VFS_Print_FAT();
 
@@ -5504,7 +5520,7 @@ void loop()
                     {
                         Recording[recording].consistent = true;
                         // consistent Recording must be saved
-                        Archive.Save_DS_Recording(recording);
+                        Require_FRAM(Archive.Save_DS_Recording(recording));
                         DS_read_Recording(recording); // only to update .bytes and .seconds
                     }
 
@@ -5729,8 +5745,8 @@ void loop()
                     {
                         P_Invalidate_recording_cache(recording);
                         Recording[recording].consistent = false;
-                        VFS_Clean_up_VFS();
-                        VFS_Defragment();
+                        Require_VFS(VFS_Clean_up_VFS());
+                        Require_VFS(VFS_Defragment());
                         DS_update_recordings();
                         VFS_Print_FAT();
 
@@ -6539,73 +6555,81 @@ void loop()
 
             else if (new_loop_id != LOOP_id)
             {
-                // delete runnig loop data and stop metronomo
-                LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
-
-                // Change LOOP_id
-                LOOP_id = new_loop_id;
-
-                // Import LOOP_id from SD
-                LOOP_Copy_midi_loop_from_SD_to_RAM(LOOP_id);
-
-                // Show LOOP_id on display
-                Display_MidiLoop.Show_loop_id();
-
-                // Show LOOP_time on display
-                Display_MidiLoop.Loop_total_time();
-
-                // Show track infos on display
-                for (auto track = 0; track < TRACKS; ++track)
+                // Validation leaves the current loop untouched; a failed second pass clears it safely.
+                const bool loaded = LOOP_Copy_midi_loop_from_SD_to_RAM(new_loop_id);
+                if (loaded || LOOP_events[MASTER_TRACK] == 0)
                 {
-                    Display_MidiLoop.Show_track_all_data(track);
-                }
+                    if (loaded)
+                    {
+                        LOOP_id = new_loop_id;
+                    }
 
-                // Update menu and pointer
-                Pointer_MidiLoop.Show_pointer(false);
-                LOOP_select_menu_elements();
-                Display_MidiLoop.Show_menu();
-                Pointer_MidiLoop.Set_pointer_to_first_menu_element();
-                LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+                    // Show LOOP_id on display
+                    Display_MidiLoop.Show_loop_id();
 
-                Clear_UI_events();
+                    // Show LOOP_time on display
+                    Display_MidiLoop.Loop_total_time();
 
-                // Switch off all tracks LEDs on display
-                Loop_led_set.Request_all_LED_switch_off();
+                    // Show track infos on display
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        Display_MidiLoop.Show_track_all_data(track);
+                    }
 
-                // Switch on led_0
-                LOOP_metronomo.Led_ON(0);
+                    // Update menu and pointer
+                    Pointer_MidiLoop.Show_pointer(false);
+                    LOOP_select_menu_elements();
+                    Display_MidiLoop.Show_menu();
+                    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
 
-                // Setup metronomo
-                LOOP_metronomo.Setup(LOOP_time);
+                    Clear_UI_events();
 
-                // restart clock
-                LOOP_restart_clock();
+                    // Switch off all tracks LEDs on display
+                    Loop_led_set.Request_all_LED_switch_off();
 
-                // Set first event for each track
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    LOOP_play_event[track] = 0;
-                }
+                    if (LOOP_time > 0)
+                    {
+                        LOOP_metronomo.Led_ON(0);
+                        LOOP_metronomo.Setup(LOOP_time);
+                    }
 
-                // Sort events by timestamp
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    LOOP_set_time_order(track);
-                }
+                    // restart clock
+                    LOOP_restart_clock();
 
-                // Simulate all tracks Start/Stop, with all tracks active
-                LOOP_run_button_state = false;
+                    // Set first event for each track
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        LOOP_play_event[track] = 0;
+                    }
 
-                // Save track states before stopping
-                for (auto track = 0; track < TRACKS; ++track)
-                {
-                    LOOP_track_run_memo[track] = LOOP_events[track] > 0;
-                    LOOP_track_run[track] = false;
+                    // Sort events by timestamp
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        LOOP_set_time_order(track);
+                    }
+
+                    // Simulate all tracks Start/Stop, with all tracks active
+                    LOOP_run_button_state = LOOP_events[MASTER_TRACK] == 0;
+
+                    // Save track states before stopping
+                    for (auto track = 0; track < TRACKS; ++track)
+                    {
+                        LOOP_track_run_memo[track] = LOOP_events[track] > 0;
+                        LOOP_track_run[track] = false;
+                    }
                 }
 
                 // Report
-                Serial.println("Loop uploaded; data in RAM:");
-                LOOP_Print_midi_loop_complete_data(LOOP_id);
+                if (loaded)
+                {
+                    Serial.println("Loop uploaded; data in RAM:");
+                    LOOP_Print_midi_loop_complete_data(LOOP_id);
+                }
+                else
+                {
+                    Serial.println(F("Loop import failed."));
+                }
             }
         }
 
@@ -6733,6 +6757,10 @@ void loop()
                     // Learning
                     while (LOOP_learn_flag)
                     {
+                        if (Display_MidiLoop.Update_save_failed())
+                        {
+                            Pointer_MidiLoop.Show_pointer(true);
+                        }
                         Shifters_manager.Update();
 
                         // Stop learning
@@ -6869,7 +6897,7 @@ void loop()
                         Serial.println(" **************** ");
                         Serial.print("eventi:");
                         Serial.println(LOOP_events[LOOP_learning_track]);
-                        for (auto event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
+                        for (uint32_t event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
                         {
                             Serial.print(event);
                             Serial.print(" time:");
@@ -6885,7 +6913,7 @@ void loop()
                         }
 
                         Serial.print("Ordine temporale degli eventi: ");
-                        for (auto event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
+                        for (uint32_t event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
                         {
                             Serial.print(LOOP_time_order[LOOP_learning_track][event]);
                             Serial.print(" - ");
@@ -7004,7 +7032,7 @@ void loop()
                             Serial.println(jump);
 
                             AudioNoInterrupts();
-                            for (auto event = 0; event < LOOP_events[track]; ++event)
+                            for (uint32_t event = 0; event < LOOP_events[track]; ++event)
                             {
                                 LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
                             }
@@ -7032,7 +7060,7 @@ void loop()
                             int jump = LOOP_time - LOOP_slide[track];
 
                             AudioNoInterrupts();
-                            for (auto event = 0; event < LOOP_events[track]; ++event)
+                            for (uint32_t event = 0; event < LOOP_events[track]; ++event)
                             {
                                 LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
                             }
@@ -7126,9 +7154,17 @@ void loop()
 
                     case value_LOOP_Save:
                     {
-                        LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
-
+                        const int saved_loop_id = LOOP_id == NEW_LOOP ? LOOP_Get_first_loop_id_free() : LOOP_id;
+                        if (saved_loop_id < 0 || !LOOP_Copy_midi_loop_from_RAM_to_SD(saved_loop_id))
+                        {
+                            Serial.println(F("Loop save failed; RAM loop remains unsaved."));
+                            Display_MidiLoop.Show_save_failed();
+                            Clear_UI_events();
+                            break;
+                        }
+                        LOOP_id = saved_loop_id;
                         LOOP_original = true;
+                        Display_MidiLoop.Show_loop_id();
 
                         // Update menu and pointerMenu
                         Pointer_MidiLoop.Show_pointer(false);
@@ -7146,9 +7182,14 @@ void loop()
                         result = LOOP_Get_first_loop_id_free();
                         if (result >= 0)
                         {
+                            if (!LOOP_Copy_midi_loop_from_RAM_to_SD(result))
+                            {
+                                Serial.println(F("Loop Save As New failed; loop ID unchanged."));
+                                Display_MidiLoop.Show_save_failed();
+                                Clear_UI_events();
+                                break;
+                            }
                             LOOP_id = result;
-                            LOOP_Print_midi_loop_complete_data(LOOP_id);
-                            LOOP_Copy_midi_loop_from_RAM_to_SD(LOOP_id);
 
                             // Update menu
                             LOOP_original = true;
@@ -7165,12 +7206,22 @@ void loop()
 
                             Clear_UI_events();
                         }
+                        else
+                        {
+                            Display_MidiLoop.Show_save_failed();
+                            Clear_UI_events();
+                        }
                     }
                     break;
 
                     case value_LOOP_Delete:
                     {
-                        LOOP_Delete_midi_loop_from_SD(LOOP_id);
+                        if (LOOP_id != NEW_LOOP && !LOOP_Delete_midi_loop_from_SD(LOOP_id))
+                        {
+                            Serial.println(F("Loop delete failed."));
+                            Clear_UI_events();
+                            break;
+                        }
 
                         // new
                         LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
@@ -7424,6 +7475,7 @@ void loop()
         {
             Display_Manager.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
+            Require_FRAM(Archive.Save_key_step(static_cast<uint8_t>(key_step)));
         }
 
         // Set Prima ottava
@@ -7441,7 +7493,7 @@ void loop()
             optimization = optimization_cache;
             AudioInterrupts();
 
-            Archive.Save_optimization(optimization);
+            Require_FRAM(Archive.Save_optimization(optimization));
             Display_Manager.SETUP_show_Optimization_value();
         }
 
@@ -7484,15 +7536,19 @@ void loop()
                 // break;
 
             case 4: // import RAW files from SD
+            {
+                const bool resume_controls = Trigger_0.Is_running();
                 if (!P_Quiesce_audio_players())
                 {
                     break;
                 }
 
-                if (SET_Copy_raw_files_from_SD_to_Flash())
+                bool flash_changed = false;
+                if (SET_Copy_raw_files_from_SD_to_Flash(flash_changed))
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
+                    File_scanner.Read_all_file_data();
 
                     // switch off Tools LED
                     TOOLS_pushbutton = false;
@@ -7502,21 +7558,30 @@ void loop()
                 }
                 else
                 {
-                    AudioNoInterrupts();
-                    const bool ready = S_Fill_all_tables();
-                    if (ready)
+                    // Cancellation can resume the old inventory; a failed destructive import cannot.
+                    if (!flash_changed && resume_controls)
                     {
-                        Midi_reader.Start();
-                        Trigger_0.Start();
-                        Trigger_1.Start();
+                        AudioNoInterrupts();
+                        const bool ready = S_Fill_all_tables();
+                        if (ready)
+                        {
+                            Midi_reader.Start();
+                            Trigger_0.Start();
+                            Trigger_1.Start();
+                        }
+                        AudioInterrupts();
                     }
-                    AudioInterrupts();
+                    if (flash_changed)
+                    {
+                        Serial.println(F("RAW import failed; audio remains stopped. Retry the import."));
+                    }
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                 }
                 break;
+            }
 
-            case 5: // Setup (all EEPROM content) import from lilla.txt (in SD)
+            case 5: // Restore configuration and Recording audio from the backup root.
                 Display_Manager.Confirm_config_import_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7530,38 +7595,38 @@ void loop()
                 // check SD presence
                 if (!SD.begin(BUILTIN_SDCARD))
                 {
-                    Display_Manager.SD_missing(ILI9341_BLACK);
-                    delay(5000);
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                     break;
                 }
-                if (!SD.exists("/LILLASET/lilla.txt"))
+                if (!SD.exists("/LILLABACKUP/LILLA_CONFIG.fram"))
                 {
-                    Display_Manager.Config_import_FILE_error_popup();
-                    delay(5000);
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                     break;
                 }
                 else
                 {
-                    Display_Manager.Config_import_REBOOT_popup();
-
-                    File file = SD.open("/LILLASET/lilla.txt"); // apertura file esistente
-                    if (file)
-                    {
-                        Archive.Save_setup_file(file);
-                        file.close();
-                        Serial.println("Lilla setup has been copied from lilla.txt to EEPROM");
-                    }
-
                     if (!P_Quiesce_audio_players())
                     {
                         break;
                     }
-                    // Imported recording metadata replaces the previous inventory only after players stop.
-                    DS_seed_all_Recordings();
+                    bool config_error = false;
+                    if (!BACKUP_Restore(&config_error))
+                    {
+                        if (config_error)
+                        {
+                            Display_Manager.SETUP_show_SETUP_page();
+                            Display_Manager.SETUP_show_frame(SET_menu);
+                            break;
+                        }
+                        Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /LILLABACKUP."));
+                        Display_Manager.Config_import_FILE_error_popup();
+                        delay(5000);
+                        Reload_system_state();
+                        break;
+                    }
+                    Serial.println(F("Configuration and Recording audio restored and verified."));
 
                     // switch off Tools LED
                     TOOLS_pushbutton = false;
@@ -7571,7 +7636,7 @@ void loop()
                 }
                 break;
 
-            case 6: // Setup (all EEPROM content) export to SD card (lillaold.txt)
+            case 6: // Create a new numbered backup with Recording audio.
                 Display_Manager.Confirm_config_export_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7585,32 +7650,15 @@ void loop()
                 // check SD presence
                 if (SD.begin(BUILTIN_SDCARD))
                 {
-                    if (!SD.exists("/LILLASET"))
+                    if (BACKUP_Export())
                     {
-                        SD.mkdir("/LILLASET");
-                        Serial.println(F("/LILLASET directory created"));
-                    }
-
-                    if (SD.open("/LILLASET/lillaold.txt"))
-                    {
-                        SD.remove("/LILLASET/lillaold.txt");
-                        Serial.println(F("existing lillaold.txt has been deleted"));
-                    }
-
-                    File file = SD.open("/LILLASET/lillaold.txt", FILE_WRITE); // creazione del file destinazione
-                    if (file)
-                    {
-                        Serial.println(F("new lillaold.txt has been created"));
-                        Archive.Copy_setup_from_Eeprom_to_SD(file);
-                        file.close();
                         Display_Manager.Config_export_save_popup();
-                        delay(5000);
                     }
                     else
                     {
                         Display_Manager.Config_export_SD_error_popup();
-                        delay(5000);
                     }
+                    delay(5000);
                     Display_Manager.SETUP_show_SETUP_page();
                     Display_Manager.SETUP_show_frame(SET_menu);
                 }
@@ -7649,7 +7697,7 @@ void loop()
                 {
                     break;
                 }
-                Factory_setup_Eeprom();
+                Factory_setup_FRAM();
                 Reload_system_state();
                 break;
 
@@ -7668,7 +7716,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
                 Switch_to_MIXER();
                 break;
@@ -7679,7 +7727,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 Golive_DELAY_SETTINGS();
@@ -7694,7 +7742,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 Golive_MIDI_MONITOR();
@@ -7716,7 +7764,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 switch (Lilla_state_0)
@@ -7745,7 +7793,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 switch (Lilla_state_0)
@@ -7775,7 +7823,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
 
                 switch (Lilla_state_0)
@@ -7804,7 +7852,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Archive.Save_first_octave(first_octave);
+                    Require_FRAM(Archive.Save_first_octave(first_octave));
                 }
                 switch (Lilla_state_0)
                 {
@@ -8023,46 +8071,19 @@ void P_Reset_all_maps_Instrument_for_notes()
 FLASHMEM
 void P_Delete_all_Patches_and_Sounds(void)
 {
+    const Patch_struct empty_patch{};
+
     for (auto patch_id = 0; patch_id < PATCHES_MAX; ++patch_id)
     {
-        Patch[patch_id].used = false;
-        Patch[patch_id].instruments = 0; // number of instruments in the patch_id
-        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-        {
-            Patch[patch_id].Instrument[instrument_id].used = false;
-            Patch[patch_id].Instrument[instrument_id].sound_id = 0;
-            Patch[patch_id].Instrument[instrument_id].from_note = 0;
-            Patch[patch_id].Instrument[instrument_id].to_note = 0;
-            Patch[patch_id].Instrument[instrument_id].root_key = 0;
-            Patch[patch_id].Instrument[instrument_id].precedence = 0;
-            Patch[patch_id].Instrument[instrument_id].lock = 0;
-
-            Patch[patch_id].Instrument[instrument_id].Filter.use = 0;        // yes/no
-            Patch[patch_id].Instrument[instrument_id].Filter.type = 0;       // bit4,5:filter_type
-            Patch[patch_id].Instrument[instrument_id].Filter.pivot = 0;      // 0 --> 100 filter frequency/note frequency
-            Patch[patch_id].Instrument[instrument_id].Filter.resonance = 0;  // 0 --> 40
-            Patch[patch_id].Instrument[instrument_id].Filter.modulation = 0; // bit1,2,3:modulation
-            Patch[patch_id].Instrument[instrument_id].Filter.index = 0;      // 1 --> 20 modulation_index
-            Patch[patch_id].Instrument[instrument_id].Filter.frequency_time = 0;
-        }
+        Patch[patch_id] = empty_patch;
     }
+
+    Sound_struct empty_sound{};
+    empty_sound.data = 2;
 
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
-        Sound[sound_id].used = false;
-        Sound[sound_id].file = 0;
-        Sound[sound_id].mode = 0;
-        Sound[sound_id].pitch = 0;
-        Sound[sound_id].A = 0;
-        Sound[sound_id].B = 0;
-        Sound[sound_id].Noclick = 0;
-        Sound[sound_id].pan = 0;
-        Sound[sound_id].data = 2;
-        Sound[sound_id].attack = 0;
-        Sound[sound_id].decay = 0;
-        Sound[sound_id].sustain = 0;
-        Sound[sound_id].release = 0;
-        Sound[sound_id].gain = 0; // 20 means gain = 1.0
+        Sound[sound_id] = empty_sound;
     }
 }
 
@@ -8070,7 +8091,7 @@ void P_Read_all_Patches(void)
 {
     for (auto patch_id = 0; patch_id < PATCHES_MAX; ++patch_id)
     {
-        Archive.Read_Patch(patch_id);
+        Require_FRAM(Archive.Read_Patch(patch_id));
     }
 }
 
@@ -8117,7 +8138,7 @@ uint8_t P_Get_next_Patch_id_existing(void)
 
 uint8_t P_Get_previous_Patch_id_existing(void)
 {
-    int8_t patch_id = Patch_id;
+    int patch_id = Patch_id;
     do
     {
         --patch_id;
@@ -8228,6 +8249,8 @@ bool P_Ask_if_delete_this_Patch(void)
 
 bool P_Jump_to_Patch(uint8_t next_patch)
 {
+    Delay_data_struct next_delay{};
+    Require_FRAM(Archive.Read_Delay(next_patch, next_delay));
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t next_tables_mask = 0;
     if (!P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask, true))
@@ -8250,6 +8273,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
     Players_Manager.Release_softly_all_players(Patch_id);
     Players_statistics.Reset_total_Players_per_instrument();
     Patch_id = next_patch;
+    Delay_manager.New_values(&next_delay);
     P_Update_all_maps_Instrument_for_notes();
     Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
     uint8_t active_bank_mask = 0;
@@ -8273,6 +8297,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
 
 bool P_Save_current_patch_as_new(void)
 {
+    const Delay_data_struct cloned_delay = Delay_data;
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
     const PatchEditSnapshot previous;
@@ -8325,9 +8350,9 @@ bool P_Save_current_patch_as_new(void)
     }
     // Persistent writes follow successful publication, so a table error cannot save a half-applied clone.
     S_Save_all_Sounds_changed();
-    Archive.Save_Patch(Patch_id);
+    Require_FRAM(Archive.Save_Patch(Patch_id));
+    Require_FRAM(Archive.Save_Delay(Patch_id, cloned_delay));
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
-    Archive.Copy_patch_Delay_data_from_RAM_to_SD(Patch_id);
     P_Update_Patches_number();
     Patch_cache_P = Patch[Patch_id];
     S_Copy_all_Sound_to_Sound_cache_P();
@@ -8458,7 +8483,10 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
     static float displayed_pitch_limit = -1.0f;
     static int displayed_voices = -1;
     const uint32_t now_ms = millis();
-    if (!force && static_cast<uint32_t>(now_ms - last_ms) < 20u) { return; }
+    if (!force && static_cast<uint32_t>(now_ms - last_ms) < 20u)
+    {
+        return;
+    }
     last_ms = now_ms;
     const auto &preset = Preset[Instrument_id];
     const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
@@ -8494,7 +8522,7 @@ void S_Save_all_Sounds_changed(void)
         // Sound which have been changed only for .used
         if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
         {
-            Archive.Save_Sound(sound_id);
+            Require_FRAM(Archive.Save_Sound(sound_id));
             Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
             Serial.println(sound_id);
         }
@@ -8502,8 +8530,8 @@ void S_Save_all_Sounds_changed(void)
         // Sound used which have been changed
         else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
         {
-            Archive.Save_Sound(sound_id);
-            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su EEPROM per per sound_id: ");
+            Require_FRAM(Archive.Save_Sound(sound_id));
+            Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su FRAM per sound_id: ");
             Serial.println(sound_id);
         }
     }
@@ -8517,7 +8545,7 @@ void S_Pull_all_Sound_from_Sound_cache_P(void)
     }
 }
 
-uint8_t S_Get_sounds_free(void)
+uint16_t S_Get_sounds_free(void)
 {
     auto result = 0;
 
@@ -8535,7 +8563,7 @@ void S_Read_all_Sounds(void)
 {
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
-        Archive.Read_Sound(sound_id);
+        Require_FRAM(Archive.Read_Sound(sound_id));
     }
 }
 
@@ -8551,7 +8579,7 @@ uint8_t S_Get_midi_channel_from_Sound(int sound_id)
     return ((Sound[sound_id].data & 30) >> 1);
 }
 
-int8_t S_Get_Patch_id_free(void)
+int S_Get_Patch_id_free(void)
 {
     for (auto local_patch = 0; local_patch < PATCHES_MAX; ++local_patch)
     {
@@ -8563,7 +8591,7 @@ int8_t S_Get_Patch_id_free(void)
     return -1;
 }
 
-int8_t S_Get_sound_free(void)
+int S_Get_sound_free(void)
 {
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
@@ -9153,7 +9181,7 @@ void DS_seed_all_Recordings(void)
         Recording[i].seconds = 0.0; // float
         Recording[i].stereo = 0;
         Recording[i].consistent = true;
-        Archive.Save_DS_Recording(i);
+        Require_FRAM(Archive.Save_DS_Recording(i));
         Serial.print(F("Seeded Recording: "));
         Serial.println(i);
     }
@@ -9178,35 +9206,39 @@ void DS_update_recordings(void)
     Serial.println();
 }
 
-void DS_read_all_Recordings(void)
+byte DS_read_all_Recordings(void)
 {
     for (auto i = 0; i < RECORDINGS; ++i)
     {
-        DS_read_Recording(i);
+        const byte result = DS_read_Recording(i);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
     }
+    return LillaFRAM_2x512::ERROR_0;
 }
 
-void DS_read_Recording(int recording)
+byte DS_read_Recording(int recording)
 {
     if (recording >= 0 && recording < RECORDINGS)
     {
-        Archive.Read_DS_Recording(recording, EEPROM_Recording[recording]);
-
-        Recording[recording].first_packet = EEPROM_Recording[recording].first_packet;
-        Recording[recording].packets = EEPROM_Recording[recording].packets;
-        Recording[recording].stereo = bitRead(EEPROM_Recording[recording].info, 1);
-        Recording[recording].consistent = bitRead(EEPROM_Recording[recording].info, 0);
+        const byte result = Archive.Read_DS_Recording(recording);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
         Recording[recording].bytes = 2 * DS_get_samples_in_Recording(recording);
         Recording[recording].seconds = DS_get_Recording_seconds(recording);
 
-        Serial.print(F("Read from EEPROM Recording: "));
-        Serial.print(recording);
-        Serial.print(F(" from location: "));
-        Serial.println(Archive.GET_location_of_DS_Recording(recording));
+        Serial.print(F("Read from FRAM Recording: "));
+        Serial.println(recording);
         P_Recording(recording);
+        return LillaFRAM_2x512::ERROR_0;
     }
-    else
-        Serial.println(F("***** WARNING! --> DS_read_Recording: 'recording' out of range"));
+
+    Serial.println(F("***** WARNING! --> DS_read_Recording: 'recording' out of range"));
+    return LillaFRAM_2x512::ERROR_11;
 }
 
 float DS_get_Recording_seconds(int value)
@@ -9780,7 +9812,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
+                Require_FRAM(Archive.Save_DS_Recording(recording));
                 DS_read_Recording(recording); // only to update .bytes and .seconds
             }
 
@@ -9944,7 +9976,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
+                Require_FRAM(Archive.Save_DS_Recording(recording));
                 DS_read_Recording(recording); // only to update .bytes and .seconds
             }
 
@@ -9973,18 +10005,25 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 
 void Switch_to_PERFORMANCE_patch_old(void)
 {
+    Delay_data_struct next_delay{};
+    Require_FRAM(Archive.Read_Delay(Patch_id_old, next_delay));
     AudioNoInterrupts();
     if (!P_Rebuild_patch_old())
     {
         AudioInterrupts();
         return;
     }
+    Delay_manager.New_values(&next_delay);
     AudioInterrupts();
     Golive_with_PERFORMANCE(Patch_id);
 }
 
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void)
 {
+    if (Patch_id < PATCHES_MAX)
+    {
+        Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+    }
     AudioNoInterrupts();
     LOOP_stop_all_midi_tracks();
     AudioInterrupts();
@@ -10031,18 +10070,6 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             LiveSampler.Stop();
             Switch_to_PERFORMANCE_patch_old();
 
-            // Patch Delay: look for delay_<patch_id> in SD
-            if (Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id))
-            {
-                Serial.println(F("Smooth changing of delay values COULD start..."));
-
-                Delay_data_struct delay_final;
-                Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(delay_final);
-
-                AudioNoInterrupts();
-                Delay_manager.New_values(&delay_final); // call using AudioNoInterrupt()
-                AudioInterrupts();
-            }
         }
     }
     else
@@ -10095,7 +10122,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
                 Recording[recording].consistent = true;
 
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
+                Require_FRAM(Archive.Save_DS_Recording(recording));
                 DS_read_Recording(recording); // call for updating .bytes and .seconds
             }
 
@@ -10214,6 +10241,7 @@ void LOOP_reset_all_data(void)
 {
     LOOP_time = 0;
     LOOP_stretch_int = 100;
+    LOOP_stretch = 1.0f;
     for (auto track = 0; track < TRACKS; ++track)
     {
         LOOP_events[track] = 0;        // numero di eventi nel track
@@ -10287,14 +10315,15 @@ void LOOP_select_menu_elements(void)
         Menu_LOOP[2] = false; // Save as New
     }
 
-    if (LOOP_id == -1) // nuovo loop
+    if (LOOP_id == NEW_LOOP) // nuovo loop
     {
         Menu_LOOP[0] = false; // New
-        Menu_LOOP[1] = false; // Save
-        // Menu_LOOP[3] = false; // Delete
-
+        Menu_LOOP[2] = false; // Save as New
         if (LOOP_events[0] == 0)  // nuovo loop vuoto
-            Menu_LOOP[2] = false; // Save as New
+        {
+            Menu_LOOP[1] = false; // Save
+            Menu_LOOP[3] = false; // Delete
+        }
     }
 
     LOOP_menu_max = Menu_LOOP[0] + Menu_LOOP[1] + Menu_LOOP[2] + Menu_LOOP[3] - 1;
@@ -10368,10 +10397,10 @@ void LOOP_set_time_order(int track)
     else if (LOOP_events[track] > 1)
     {
         // Trova l'indice associato al primo evento rispetto al tempo normalizzato
-        int min_time_index = 0; // indice cercato
+        uint32_t min_time_index = 0; // indice cercato
         int min_time = LOOP_element[track][0].time;
 
-        for (auto i = 1; i < LOOP_events[track]; ++i)
+        for (uint32_t i = 1; i < LOOP_events[track]; ++i)
         {
             if (LOOP_element[track][i].time < min_time)
             {
@@ -10386,7 +10415,7 @@ void LOOP_set_time_order(int track)
         LOOP_time_order[track][0] = evento successivo
         */
 
-        for (auto i = 0; i < LOOP_events[track]; ++i)
+        for (uint32_t i = 0; i < LOOP_events[track]; ++i)
         {
             LOOP_time_order[track][i] = (min_time_index + i) % LOOP_events[track];
         }
@@ -10410,7 +10439,7 @@ void LOOP_restart_procedure(int track)
     else
     {
         LOOP_clock_memo = LOOP_normalized_time();
-        for (auto i = 0; i < LOOP_events[track]; ++i)
+        for (uint32_t i = 0; i < LOOP_events[track]; ++i)
         {
             if (LOOP_element[track][LOOP_time_order[track][i]].time >= LOOP_clock_memo)
             {
@@ -10446,22 +10475,22 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     Serial.print("uint16_t LOOP_time: ");
     Serial.println(LOOP_time);
 
-    // byte LOOP_events[TRACKS]
-    Serial.println("byte LOOP_events[TRACKS]");
+    // uint32_t LOOP_events[TRACKS]
+    Serial.println("uint32_t LOOP_events[TRACKS]");
     for (auto i = 0; i < TRACKS; ++i)
     {
         Serial.println(LOOP_events[i]);
     }
 
     // int LOOP_slide[TRACKS]
-    Serial.println("int LOOP_slide[6]");
+    Serial.println("int LOOP_slide[TRACKS]");
     for (auto i = 0; i < TRACKS; ++i)
     {
         Serial.println(LOOP_slide[i]);
     }
 
     // int LOOP_pitch_int[TRACKS]
-    Serial.println("int LOOP_pitch_int[6]");
+    Serial.println("int LOOP_pitch_int[TRACKS]");
     for (auto i = 0; i < TRACKS; ++i)
     {
         Serial.println(LOOP_pitch_int[i]);
@@ -10474,7 +10503,7 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     // LOOP_element[TRACKS][LOOP_EVENTS]
     for (byte track = 0; track < TRACKS; ++track)
     {
-        for (auto event = 0; event < LOOP_events[track]; ++event)
+        for (uint32_t event = 0; event < LOOP_events[track]; ++event)
         {
             Serial.print("*** LOOP_element[");
             Serial.print(track);
@@ -10503,260 +10532,289 @@ String LOOP_Filename_midi_loop(int loop_id)
     return String(filename + ".loop");
 }
 
-bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
+// Loop SD v1: magic line, uint32_t track count, uint16_t duration, uint32_t event counts,
+// int32_t slides/pitches/stretch, then 8-byte events. Little-endian bytes, one decimal byte per line.
+// Legacy files omit magic/track count and use uint8_t event counts; malformed 24-byte arrays are rejected.
+static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 1\r\n";
+static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
+
+FLASHMEM
+static bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size)
 {
-    if (SD.begin(BUILTIN_SDCARD))
+    auto *bytes = static_cast<uint8_t *>(destination);
+    for (size_t i = 0; i < size; ++i)
     {
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-
-        if (!SD.exists("/LILLALOOP"))
+        unsigned int value = 0;
+        unsigned int digits = 0;
+        int c = file.read();
+        while (c >= '0' && c <= '9' && digits < 3)
         {
-            SD.mkdir("/LILLALOOP");
-            Serial.println(F("LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id) - /LILLALOOP directory created"));
+            value = value * 10 + c - '0';
+            ++digits;
+            c = file.read();
         }
-
-        const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
+        if (c == '\r')
         {
-            SD.remove(full_path_);
-
-            Serial.print(F("LOOP_Copy_midi_loop_from_RAM_to_SD - existing "));
-            Serial.print(full_path);
-            Serial.println(" has been deleted.");
+            c = file.read();
         }
-
-        Serial.print(F("LOOP_Copy_midi_loop_from_RAM_to_SD - this midi_loop will be saved as: "));
-        Serial.println(full_path);
-
-        File file = SD.open(full_path_, FILE_WRITE); // creazione del file vuoto
-        if (file)
+        if (digits == 0 || value > 255 || c != '\n')
         {
-            LOOP_Compile_midi_loop_file(loop_id, file);
-            file.close();
-            return true;
+            return false;
         }
-        else
+        bytes[i] = static_cast<uint8_t>(value);
+    }
+    return true;
+}
+
+FLASHMEM
+static bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size)
+{
+    const auto *bytes = static_cast<const uint8_t *>(source);
+    for (size_t i = 0; i < size; ++i)
+    {
+        const size_t expected = (bytes[i] >= 100 ? 3 : (bytes[i] >= 10 ? 2 : 1)) + 2;
+        if (file.println(bytes[i]) != expected)
         {
             return false;
         }
     }
-    else
-    {
-        Serial.println(F("Copy_Patch_Delay_data_from_SD_to_Eeprom - SD not present!"));
-        return false;
-    }
+    return true;
 }
 
-void LOOP_Compile_midi_loop_file(int loop_id, File &file) // private
+FLASHMEM
+bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 {
-    const byte *data; // = (const byte *)(const void *)&Delay_data;
-
-    // uint16_t LOOP_time - total bytes: 2
-    data = (const byte *)(const void *)&LOOP_time;
-    for (auto i = 0; i < 2; ++i)
+    const bool versioned = file.peek() == 'L';
+    if (versioned)
     {
-        file.println(*(data + i));
-        Serial.println(*(data + i));
-    }
-
-    // byte LOOP_events[TRACKS] - total bytes: 1 per each track
-    data = &LOOP_events[0];
-    for (auto i = 0; i < TRACKS; ++i)
-    {
-        file.println(*(data + i));
-    }
-
-    // int LOOP_slide[TRACKS]  - total bytes: 4 per each track
-    data = (const byte *)(const void *)&LOOP_slide[0];
-    for (auto i = 0; i < 24; ++i)
-    {
-        file.println(*(data + i));
-    }
-
-    // int LOOP_pitch_int[TRACKS] - total bytes: 4 per each track
-    data = (const byte *)(const void *)&LOOP_pitch_int[0];
-    for (auto i = 0; i < 24; ++i)
-    {
-        file.println(*(data + i));
-    }
-
-    // int LOOP_stretch - total bytes: 4
-    data = (const byte *)(const void *)&LOOP_stretch_int;
-    for (auto i = 0; i < 4; ++i)
-    {
-        file.println(*(data + i));
-        Serial.println(*(data + i));
-    }
-
-    // LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS]
-    for (byte track = 0; track < TRACKS; ++track)
-    {
-        for (auto event = 0; event < LOOP_events[track]; ++event)
+        for (size_t i = 0; i < sizeof(LOOP_SD_MAGIC) - 1; ++i)
         {
-            data = (const byte *)(const void *)&LOOP_element[track][event];
-            for (auto i = 0; i < LOOP_struct_bytes; ++i)
-            {
-                file.println(*(data + i));
-            }
-        }
-    }
-}
-
-bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id) // public
-{
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-
-        if (SD.exists(full_path_))
-        {
-            Serial.print(F("LOOP_Copy_midi_loop_from_SD_to_RAM - midi loop file "));
-            Serial.print(full_path);
-            Serial.println(F(" found; now starts data import."));
-
-            File file = SD.open(full_path_);
-            if (file)
-            {
-                LOOP_Copy_midi_loop_from_SD_to_RAM_local(file);
-                file.close();
-                LOOP_original = true;
-                return true;
-            }
-            else
+            if (file.read() != LOOP_SD_MAGIC[i])
             {
                 return false;
             }
         }
-        else
+        uint32_t tracks = 0;
+        if (!LOOP_Read_bytes(file, &tracks, sizeof(tracks)) || tracks != TRACKS)
         {
-            Serial.println(F("LOOP_Copy_midi_loop_from_SD_to_RAM - midi loop file not found on SD!"));
             return false;
         }
     }
-    else
+    uint16_t duration = 0;
+    uint32_t counts[TRACKS] = {};
+    int slides[TRACKS], pitches[TRACKS], stretch;
+    if (!LOOP_Read_bytes(file, &duration, sizeof(duration)))
     {
-        Serial.println(F("LOOP_Copy_midi_loop_from_SD_to_RAM - ERROR - SD not present!"));
         return false;
     }
-}
-
-void LOOP_Copy_midi_loop_from_SD_to_RAM_local(File &file)
-{
-    String string_byte;
-    uint8_t value_b[4];
-
-    // uint16_t LOOP_time
-    for (auto b = 0; b < 2; ++b)
+    for (int track = 0; track < TRACKS; ++track)
     {
-        string_byte = file.readStringUntil('\n');
-        value_b[b] = string_byte.toInt();
-    }
-    memcpy(&LOOP_time, value_b, 2);
-    // LOOP_time = (value_b[1] << 8) | value_b[0];
-
-    // byte LOOP_events[TRACKS]
-    for (auto i = 0; i < TRACKS; ++i)
-    {
-        string_byte = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-        LOOP_events[i] = string_byte.toInt();
-    }
-
-    // int LOOP_slide[TRACKS]
-    for (auto i = 0; i < TRACKS; ++i)
-    {
-        for (auto b = 0; b < 4; ++b)
+        // Keep this bound in both passes: never trust an SD count as an array bound.
+        if (!LOOP_Read_bytes(file, &counts[track], versioned ? sizeof(uint32_t) : sizeof(uint8_t)) || counts[track] > LOOP_EVENTS)
         {
-            string_byte = file.readStringUntil('\n');
-            value_b[b] = string_byte.toInt();
+            return false;
         }
-        memcpy(&LOOP_slide[i], value_b, 4);
     }
-
-    // int LOOP_pitch_int[TRACKS]
-    for (auto i = 0; i < TRACKS; ++i)
+    if (!LOOP_Read_bytes(file, slides, sizeof(slides)) || !LOOP_Read_bytes(file, pitches, sizeof(pitches)) || !LOOP_Read_bytes(file, &stretch, sizeof(stretch)))
     {
-        for (auto b = 0; b < 4; ++b)
+        return false;
+    }
+    if (!load)
+    {
+        if (duration == 0 || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
         {
-            string_byte = file.readStringUntil('\n');
-            value_b[b] = string_byte.toInt();
+            return false;
         }
-        memcpy(&LOOP_pitch_int[i], value_b, 4);
-    }
-
-    // int LOOP_stretch_int
-    for (auto b = 0; b < 4; ++b)
-    {
-        string_byte = file.readStringUntil('\n');
-        value_b[b] = string_byte.toInt();
-    }
-    memcpy(&LOOP_stretch_int, value_b, 4);
-
-    LOOP_stretch = static_cast<float>(LOOP_stretch_int) / 100.0f;
-
-    // LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS] -> 8 bytes
-    for (auto track = 0; track < TRACKS; ++track)
-    {
-        for (auto event = 0; event < LOOP_events[track]; ++event)
+        for (int track = 0; track < TRACKS; ++track)
         {
-            // int time
-            for (auto b = 0; b < 4; ++b)
+            if (slides[track] < 0 || slides[track] >= duration || pitches[track] < -24 || pitches[track] > 24)
             {
-                string_byte = file.readStringUntil('\n');
-                value_b[b] = string_byte.toInt();
+                return false;
             }
-            memcpy(&LOOP_element[track][event].time, value_b, 4);
-
-            // uint8_t midi_channel
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].midi_channel = string_byte.toInt();
-
-            // uint8_t note_number
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].note_number = string_byte.toInt();
-
-            // uint8_t velocity
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].velocity = string_byte.toInt();
-
-            // bool note_on velocity
-            string_byte = file.readStringUntil('\n');
-            LOOP_element[track][event].note_on = string_byte.toInt();
         }
     }
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        for (uint32_t event = 0; event < counts[track]; ++event)
+        {
+            uint8_t bytes[8];
+            if (!LOOP_Read_bytes(file, bytes, sizeof(bytes)))
+            {
+                return false;
+            }
+            int time;
+            memcpy(&time, bytes, sizeof(time));
+            if (!load && (time < 0 || time > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
+            {
+                return false;
+            }
+            if (load)
+            {
+                LOOP_element[track][event] = {time, bytes[4], bytes[5], bytes[6], bytes[7] != 0};
+            }
+        }
+    }
+    if (file.getError() || file.curPosition() != file.fileSize())
+    {
+        return false;
+    }
+    if (load)
+    {
+        LOOP_time = duration;
+        memcpy(LOOP_events, counts, sizeof(counts));
+        memcpy(LOOP_slide, slides, sizeof(slides));
+        memcpy(LOOP_pitch_int, pitches, sizeof(pitches));
+        LOOP_stretch_int = stretch;
+        LOOP_stretch = static_cast<float>(stretch) / 100.0f;
+    }
+    return true;
 }
 
+FLASHMEM
+bool LOOP_Compile_midi_loop_file(FsFile &file)
+{
+    const uint32_t tracks = TRACKS;
+    if (file.write(LOOP_SD_MAGIC, sizeof(LOOP_SD_MAGIC) - 1) != sizeof(LOOP_SD_MAGIC) - 1 || !LOOP_Write_bytes(file, &tracks, sizeof(tracks)))
+    {
+        return false;
+    }
+    if (!LOOP_Write_bytes(file, &LOOP_time, sizeof(LOOP_time)) || !LOOP_Write_bytes(file, LOOP_events, sizeof(LOOP_events)) || !LOOP_Write_bytes(file, LOOP_slide, sizeof(LOOP_slide)) || !LOOP_Write_bytes(file, LOOP_pitch_int, sizeof(LOOP_pitch_int)) || !LOOP_Write_bytes(file, &LOOP_stretch_int, sizeof(LOOP_stretch_int)))
+    {
+        return false;
+    }
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        if (LOOP_events[track] > LOOP_EVENTS)
+        {
+            return false;
+        }
+        for (uint32_t event = 0; event < LOOP_events[track]; ++event)
+        {
+            if (!LOOP_Write_bytes(file, &LOOP_element[track][event], sizeof(LOOP_struct)))
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+FLASHMEM
+static bool LOOP_Recover_SD_file(const String &path)
+{
+    const String backup = path + ".bak";
+    return SD.exists(path.c_str()) || !SD.exists(backup.c_str()) || SD.rename(backup.c_str(), path.c_str());
+}
+
+FLASHMEM
+bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
+{
+    if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
+    {
+        return false;
+    }
+    if (!SD.exists("/LILLALOOP") && !SD.mkdir("/LILLALOOP"))
+    {
+        return false;
+    }
+    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    const String temporary = path + ".tmp";
+    const String backup = path + ".bak";
+    if (!LOOP_Recover_SD_file(path))
+    {
+        return false;
+    }
+    FsFile file = SD.sdfs.open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+    if (!file)
+    {
+        return false;
+    }
+    const bool written = LOOP_Compile_midi_loop_file(file) && file.sync();
+    const bool closed = file.close();
+    if (!written || !closed)
+    {
+        return false;
+    }
+    file = SD.sdfs.open(temporary.c_str(), O_RDONLY);
+    const bool verified = file && LOOP_Read_midi_loop_file(file, false);
+    file.close();
+    if (!verified)
+    {
+        return false;
+    }
+    const bool had_previous = SD.exists(path.c_str());
+    if (had_previous)
+    {
+        if (SD.exists(backup.c_str()) && !SD.remove(backup.c_str()))
+        {
+            return false;
+        }
+        if (!SD.rename(path.c_str(), backup.c_str()))
+        {
+            return false;
+        }
+    }
+    if (!SD.rename(temporary.c_str(), path.c_str()))
+    {
+        if (had_previous && !SD.rename(backup.c_str(), path.c_str()))
+        {
+            Serial.println(F("Loop replacement failed; previous loop retained in .loop.bak."));
+        }
+        return false;
+    }
+    return true; // Keep .bak until the next successful replacement or explicit deletion.
+}
+
+FLASHMEM
+bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id)
+{
+    if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
+    {
+        return false;
+    }
+    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    if (!LOOP_Recover_SD_file(path))
+    {
+        return false;
+    }
+    FsFile file = SD.sdfs.open(path.c_str(), O_RDONLY);
+    if (!file || !LOOP_Read_midi_loop_file(file, false) || !file.seekSet(0))
+    {
+        return false; // No active-loop data has been changed.
+    }
+    LOOP_stop_and_reset_runnig_loop_data();
+    // Same reader, no second semantic validation and no full-loop staging buffer.
+    const bool loaded = LOOP_Read_midi_loop_file(file, true);
+    file.close();
+    if (!loaded)
+    {
+        LOOP_reset_all_data(); // A read failure must never expose partially loaded events to playback.
+        LOOP_id = NEW_LOOP;
+        LOOP_original = false;
+        return false;
+    }
+    LOOP_original = true;
+    return true;
+}
+
+FLASHMEM
 bool LOOP_Delete_midi_loop_from_SD(int loop_id)
 {
-    if (SD.begin(BUILTIN_SDCARD))
+    if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
     {
-        if (!SD.exists("/LILLALOOP"))
+        return false;
+    }
+    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    // Remove sidecars first so a deleted loop cannot be rediscovered through its backup.
+    for (const char *suffix : {".tmp", ".bak", ""})
+    {
+        const String target = path + suffix;
+        if (SD.exists(target.c_str()) && !SD.remove(target.c_str()))
         {
-            Serial.println(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - file doesn't exist."));
-            return true;
-        }
-
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-
-        if (SD.exists(full_path_))
-        {
-            SD.remove(full_path_);
-            Serial.print(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - file removed."));
-            return true;
-        }
-        else
-        {
-            Serial.println(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - file doesn't exist."));
-            return true;
+            return false;
         }
     }
-
-    Serial.print(F("LOOP_Delete_midi_loop_from_SD(int loop_id) - ERROR - SD not present!"));
-    return false;
+    return true;
 }
 
 bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
@@ -10773,7 +10831,7 @@ bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
 
-        if (SD.exists(full_path_))
+        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
         {
             return true;
         }
@@ -10797,14 +10855,14 @@ int LOOP_Get_first_loop_id_free(void)
     else if (!SD.exists("/LILLALOOP"))
     {
         Serial.println(F("LOOP_Get_first_loop_id_free(void) - no .loop file in SD."));
-        return -2;
+        return 0; // The export procedure creates the directory on the first save.
     }
     for (auto loop_id = 0; loop_id < MIDI_LOOP_FILES; ++loop_id)
     {
         String filename = LOOP_Filename_midi_loop(loop_id);
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
-        if (!SD.exists(full_path_))
+        if (!SD.exists(full_path_) && !SD.exists((full_path + ".bak").c_str()))
         {
             Serial.print(F("LOOP_Get_first_loop_id_free(void) - loop_id: "));
             Serial.println(loop_id);
@@ -10832,7 +10890,7 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id)
         String filename = LOOP_Filename_midi_loop(next_loop);
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
+        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
         {
             return next_loop;
         }
@@ -10864,7 +10922,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
         String filename = LOOP_Filename_midi_loop(previous_loop);
         String full_path = String("/LILLALOOP/" + filename);
         const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_))
+        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
         {
             return previous_loop;
         }
@@ -10979,26 +11037,76 @@ void VFS_Print_allocation(void)
     Serial.println();
 }
 
-void VFS_Compile_FAT_table(void)
+// VFS operations run without audio callbacks, which could otherwise access the same SPI Flash.
+struct VFS_Audio_guard
 {
-    // reset array
-    VFS_Reset_FAT_table();
-
-    for (auto i = 0; i < RECORDINGS; ++i)
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    bool successful = false;
+    VFS_Audio_guard() { AudioNoInterrupts(); }
+    bool Complete() { successful = true; return true; }
+    ~VFS_Audio_guard()
     {
-        int last_packet = Recording[i].first_packet + Recording[i].packets * (Recording[i].stereo ? 2 : 1) - 1;
-        if (Recording[i].consistent && Recording[i].packets > 0)
+        if (successful && enabled && SerialFlash.ready())
         {
-            for (auto j = Recording[i].first_packet; j <= last_packet; ++j)
+            AudioInterrupts();
+        }
+    }
+};
+
+FLASHMEM
+void Require_VFS(bool result)
+{
+    if (result)
+    {
+        return;
+    }
+    Serial.println(F("VFS operation failed; restart required. Incomplete recordings remain marked in FRAM."));
+    AudioNoInterrupts();
+    Trigger_0.Stop();
+    Trigger_1.Stop();
+    Midi_reader.Stop();
+    while (true)
+    {
+        delay(10);
+    }
+}
+
+FLASHMEM
+static bool VFS_Valid_span(const VFS_Recording &entry)
+{
+    const int channels = entry.stereo ? 2 : 1;
+    return entry.packets >= 0 && entry.packets <= DS_VFS_packets / channels && (entry.packets == 0 || (entry.first_packet >= DS_First_packet && entry.first_packet <= DS_VFS_packets - entry.packets * channels));
+}
+
+FLASHMEM
+bool VFS_Compile_FAT_table(void)
+{
+    if (DS_First_packet < 0 || DS_VFS_packets < DS_First_packet || DS_VFS_packets > VFS_PACKETS_DS)
+    {
+        return false;
+    }
+    VFS_Reset_FAT_table();
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        const auto &entry = Recording[id];
+        if (!VFS_Valid_span(entry))
+        {
+            return false;
+        }
+        if (entry.consistent)
+        {
+            const int end = entry.first_packet + entry.packets * (entry.stereo ? 2 : 1);
+            for (int packet = entry.first_packet; packet < end; ++packet)
             {
-                VFS_FAT_table[j] = i;
-                Serial.print(F("VFS_Compile_FAT_table() --> Packet: "));
-                Serial.print(j);
-                Serial.print(F(" Recording: "));
-                Serial.print(i);
+                if (VFS_FAT_table[packet] != -1)
+                {
+                    return false; // Never erase or move recordings with overlapping ownership.
+                }
+                VFS_FAT_table[packet] = id;
             }
         }
     }
+    return true;
 }
 
 void VFS_Reset_FAT_table(void)
@@ -11044,7 +11152,7 @@ void VFS_Erase_all_packets(void)
     {
         if (SerialFlash.exists(name_packet[i]))
         {
-            VFS_Erase_packet(i);
+            Require_VFS(VFS_Erase_packet(i));
         }
     }
     Serial.println(F("*** Finished *** "));
@@ -11056,148 +11164,337 @@ void VFS_Erase_all_packets_for_DS(void)
     Serial.println("*** Erase ALL Packets for Direct Sampling and VFS_FAT ***");
     for (auto i = DS_First_packet; i <= DS_Last_packet; ++i)
     {
-        VFS_Erase_packet(i);
+        Require_VFS(VFS_Erase_packet(i));
     }
     Serial.println(F("*** Finished *** "));
     Serial.println();
 }
 
-void VFS_Erase_packet(int value)
-{
-    Serial.print("Erase Packet: ");
-    Serial.println(value);
-    SerialFlashFile Packet;
-    Packet = SerialFlash.open(name_packet[value]);
-    Packet.erase();
-    Packet.close();
+static constexpr uint32_t VFS_FLASH_TIMEOUT_MS = 10000;
+static constexpr uint32_t VFS_COPY_BYTES = 256;
 
-    if (value <= DS_Last_packet)
+FLASHMEM
+static bool VFS_Wait_flash(void)
+{
+    const uint32_t start = millis();
+    while (!SerialFlash.ready())
+    {
+        if (static_cast<uint32_t>(millis() - start) >= VFS_FLASH_TIMEOUT_MS)
+        {
+            return false;
+        }
+        delay(1);
+    }
+    return true;
+}
+
+FLASHMEM
+static bool VFS_Open_packet(int id, SerialFlashFile &file)
+{
+    if (id < 0 || id >= VFS_PACKETS_MAX || !VFS_Wait_flash())
+    {
+        return false;
+    }
+    file = SerialFlash.open(name_packet[id]);
+    const uint32_t block = SerialFlash.blockSize();
+    return file && file.size() == PACKET_DIM && block > 0 && PACKET_DIM % block == 0 && file.getFlashAddress() % block == 0;
+}
+
+FLASHMEM
+static bool VFS_Packet_is_blank(SerialFlashFile &file, bool &blank)
+{
+    uint8_t buffer[VFS_COPY_BYTES];
+    blank = false;
+    file.seek(0);
+    for (uint32_t offset = 0; offset < PACKET_DIM; offset += sizeof(buffer))
+    {
+        if (!VFS_Wait_flash() || file.read(buffer, sizeof(buffer)) != sizeof(buffer))
+        {
+            return false;
+        }
+        for (uint8_t value : buffer)
+        {
+            if (value != 0xFF)
+            {
+                return true;
+            }
+        }
+    }
+    blank = true;
+    return true;
+}
+
+FLASHMEM
+bool VFS_Erase_packet(int value)
+{
+    VFS_Audio_guard audio_guard;
+    SerialFlashFile file;
+    if (!VFS_Open_packet(value, file))
+    {
+        return false;
+    }
+    // Issue one physical erase at a time so the driver's internal wait cannot hide a timeout.
+    const uint32_t block = SerialFlash.blockSize();
+    for (uint32_t offset = 0; offset < PACKET_DIM; offset += block)
+    {
+        SerialFlash.eraseBlock(file.getFlashAddress() + offset);
+        if (!VFS_Wait_flash())
+        {
+            return false;
+        }
+    }
+    bool blank = false;
+    if (!VFS_Packet_is_blank(file, blank) || !blank)
+    {
+        return false;
+    }
+    if (value >= DS_First_packet && value < DS_VFS_packets)
     {
         VFS_FAT_table[value] = -1;
     }
+    return audio_guard.Complete();
 }
 
-void VFS_Clean_up_VFS(void) // Deletes packets occupied by not-consistent recording, delete recording, save recording
+FLASHMEM
+static bool VFS_Save_recording_verified(int id)
 {
-    Serial.println("*** VFS_Clean_up_VFS ***");
-
-    // erase Packets occupied by inconsistent Recordings
-    for (auto i = 0; i < RECORDINGS; ++i)
+    const VFS_Recording expected = Recording[id];
+    if (Archive.Save_DS_Recording(id) != LillaFRAM_2x512::ERROR_0)
     {
-        if (!Recording[i].consistent)
+        return false;
+    }
+    const byte result = Archive.Read_DS_Recording(id); // Uses the public CRC-checked reader.
+    const auto &stored = Recording[id];
+    const bool verified = result == LillaFRAM_2x512::ERROR_0 && stored.first_packet == expected.first_packet && stored.packets == expected.packets && stored.stereo == expected.stereo && stored.consistent == expected.consistent;
+    Recording[id] = expected;
+    return verified;
+}
+
+FLASHMEM
+bool VFS_Clean_up_orphan_packets(void)
+{
+    VFS_Audio_guard audio_guard;
+    if (!VFS_Compile_FAT_table())
+    {
+        return false;
+    }
+    for (int packet = DS_First_packet; packet < DS_VFS_packets; ++packet)
+    {
+        if (VFS_FAT_table[packet] == -1)
         {
-            Serial.print(F("Found NON consistent Recording: "));
-            Serial.print(i);
-            Serial.println(F(". Now associated Packets will be erased:"));
-            // find all Packets registered "i" and erase
-            int last_packet = Recording[i].first_packet + Recording[i].packets * (Recording[i].stereo ? 2 : 1);
-            for (auto j = Recording[i].first_packet; j < last_packet; ++j)
+            SerialFlashFile file;
+            bool blank = false;
+            if (!VFS_Open_packet(packet, file) || !VFS_Packet_is_blank(file, blank))
             {
-                VFS_Erase_packet(j);
+                return false;
             }
-
-            // ricompila il recording come consistent
-            Serial.println(F("Now delete Recording... "));
-            Recording[i].first_packet = 0;
-            Recording[i].packets = 0;
-            Recording[i].bytes = 0;
-            Recording[i].seconds = 0.0f;
-            Recording[i].stereo = 0;
-            Recording[i].consistent = true;
-
-            // salva su EEPROM
-            Serial.println(F("Now save Recording... "));
-            Archive.Save_DS_Recording(i);
+            if (!blank && !VFS_Erase_packet(packet))
+            {
+                return false;
+            }
         }
     }
-    Serial.println(F("*** Finished *** "));
-    Serial.println();
+    return audio_guard.Complete();
 }
 
-void VFS_Defragment(void) // updates VFS_FAT_table, moves packets, updates recording, save recording, again updates VFS_FAT_table
+FLASHMEM
+bool VFS_Clean_up_VFS(void)
 {
-    Serial.println("*** VFS_Defragment  ***");
-    VFS_Compile_FAT_table();
-
-    // Packet     1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
-    // Recording  a a a a _ _ _ _ _ _  cL cR cL cR cL cR cL cR _  _  _  d  d  d  d  d  _  _
-
-    for (auto i = DS_First_packet; i < DS_VFS_packets; ++i)
+    VFS_Audio_guard audio_guard;
+    if (!VFS_Compile_FAT_table())
     {
-        if (VFS_FAT_table[i] == -1) // i == 5
+        return false;
+    }
+    bool pending = false;
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        if (!Recording[id].consistent)
         {
-            for (auto j = i; j < DS_VFS_packets; ++j) // j = 5 -->
+            // Also covers runtime Delete: persist intent before the first Flash change.
+            if (!VFS_Save_recording_verified(id))
             {
-                if (VFS_FAT_table[j] >= 0) // j == 11
+                return false;
+            }
+            pending = true;
+        }
+    }
+    if (!pending)
+    {
+        return audio_guard.Complete();
+    }
+    // Keep every pending marker until originals AND orphaned destinations are erased.
+    // A second power loss during cleanup will therefore cause cleanup to run again.
+    if (!VFS_Clean_up_orphan_packets())
+    {
+        return false;
+    }
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        if (!Recording[id].consistent)
+        {
+            const VFS_Recording previous = Recording[id];
+            Recording[id] = {};
+            Recording[id].consistent = true;
+            if (!VFS_Save_recording_verified(id))
+            {
+                Recording[id] = previous;
+                return false;
+            }
+        }
+    }
+    return audio_guard.Complete();
+}
+
+FLASHMEM
+static bool VFS_Packet_used_bytes(SerialFlashFile &file, uint32_t &used)
+{
+    uint8_t buffer[VFS_COPY_BYTES];
+    for (uint32_t end = PACKET_DIM; end > 0; end -= sizeof(buffer))
+    {
+        file.seek(end - sizeof(buffer));
+        if (!VFS_Wait_flash() || file.read(buffer, sizeof(buffer)) != sizeof(buffer))
+        {
+            return false;
+        }
+        for (int i = sizeof(buffer) - 1; i >= 0; --i)
+        {
+            if (buffer[i] != 0xFF)
+            {
+                used = (end - sizeof(buffer) + i + 2) & ~1U; // Preserve the complete final 16-bit sample.
+                return true;
+            }
+        }
+    }
+    used = 0;
+    return true;
+}
+
+FLASHMEM
+bool VFS_Shift_file(int to_packet, int recording_id)
+{
+    VFS_Audio_guard audio_guard;
+    if (recording_id < 0 || recording_id >= RECORDINGS)
+    {
+        return false;
+    }
+    const auto &entry = Recording[recording_id];
+    if (!VFS_Valid_span(entry) || entry.consistent || entry.packets == 0 || to_packet < DS_First_packet || to_packet >= entry.first_packet)
+    {
+        return false;
+    }
+    const int from_packet = entry.first_packet;
+    const int channels = entry.stereo ? 2 : 1;
+    const int packets = entry.packets * channels;
+    uint8_t source[VFS_COPY_BYTES], actual[VFS_COPY_BYTES];
+    for (int i = 0; i < packets; ++i)
+    {
+        SerialFlashFile from, to;
+        if (!VFS_Open_packet(from_packet + i, from) || !VFS_Open_packet(to_packet + i, to))
+        {
+            return false;
+        }
+        uint32_t used = PACKET_DIM;
+        // Runtime byte counts are inferred, not stored. Inspect each channel's actual tail independently.
+        if (i / channels == entry.packets - 1 && !VFS_Packet_used_bytes(from, used))
+        {
+            return false;
+        }
+        if (!VFS_Erase_packet(to_packet + i))
+        {
+            return false;
+        }
+        from.seek(0);
+        to.seek(0);
+        for (uint32_t offset = 0; offset < used; offset += VFS_COPY_BYTES)
+        {
+            const uint32_t count = used - offset < VFS_COPY_BYTES ? used - offset : VFS_COPY_BYTES;
+            if (!VFS_Wait_flash() || from.read(source, count) != count || to.write(source, count) != count || !VFS_Wait_flash())
+            {
+                return false;
+            }
+            to.seek(offset);
+            if (to.read(actual, count) != count || memcmp(source, actual, count) != 0)
+            {
+                return false;
+            }
+        }
+    }
+    // Overlapping source packets are already destinations: erase only the abandoned source tail.
+    const int tail = from_packet > to_packet + packets ? from_packet : to_packet + packets;
+    for (int packet = tail; packet < from_packet + packets; ++packet)
+    {
+        if (!VFS_Erase_packet(packet))
+        {
+            return false;
+        }
+    }
+    return audio_guard.Complete();
+}
+
+FLASHMEM
+bool VFS_Defragment(void)
+{
+    VFS_Audio_guard audio_guard;
+    if (!VFS_Compile_FAT_table())
+    {
+        return false;
+    }
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        if (!Recording[id].consistent)
+        {
+            return false; // Cleanup must precede compaction.
+        }
+    }
+    int destination = DS_First_packet;
+    int source = DS_First_packet;
+    while (source < DS_VFS_packets)
+    {
+        const int id = VFS_FAT_table[source];
+        if (id < 0)
+        {
+            ++source;
+            continue;
+        }
+        auto &entry = Recording[id];
+        const int packets = entry.packets * (entry.stereo ? 2 : 1);
+        if (destination < source)
+        {
+            // Check file geometry before changing the persistent validity marker.
+            for (int i = 0; i < packets; ++i)
+            {
+                SerialFlashFile from, to;
+                if (!VFS_Open_packet(source + i, from) || !VFS_Open_packet(destination + i, to))
                 {
-                    Serial.print("Space free found from Packet: ");
-                    Serial.print(i);
-                    Serial.print(" to Packet: ");
-                    Serial.println(j - 1);
-
-                    int to_packet = i;                                                                        // 5
-                    int from_packet = j;                                                                      // 11
-                    int recording_id = VFS_FAT_table[j];                                                      // c
-                    int packets = Recording[recording_id].packets * (Recording[recording_id].stereo ? 2 : 1); // 8
-
-                    Serial.print("Recording: ");
-                    P_Recording(recording_id);
-                    Serial.println("will be moved down.");
-
-                    Recording[recording_id].consistent = false;
-                    VFS_Shift_file(to_packet, from_packet, packets); // MOVE_file_VFS(int to_packet, int from_packet, int packets)
-
-                    // Packet     1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
-                    // Recording  a a a a cLcRcLcRcLcR cL cR _  _  _  _  _  _  _  _  _  d  d  d  d  d  _  _
-
-                    // update runtime info and Save
-                    Recording[recording_id].first_packet = to_packet;
-                    Recording[recording_id].consistent = true;
-                    Archive.Save_DS_Recording(recording_id);
-
-                    Serial.print("Now this is Recording: ");
-                    P_Recording(recording_id);
-
-                    // update VFS_FAT ad run again
-                    VFS_Compile_FAT_table();
-
-                    i = i + packets - 1; // = 5 + 8 - 1  = 12
-                    break;
+                    return false;
                 }
             }
+            entry.consistent = false;
+            if (!VFS_Save_recording_verified(id) || !VFS_Shift_file(destination, id))
+            {
+                return false;
+            }
+            entry.first_packet = destination;
+            entry.consistent = true;
+            if (!VFS_Save_recording_verified(id))
+            {
+                entry.first_packet = source;
+                entry.consistent = false;
+                return false;
+            }
+            for (int i = source; i < source + packets; ++i)
+            {
+                VFS_FAT_table[i] = -1;
+            }
+            for (int i = destination; i < destination + packets; ++i)
+            {
+                VFS_FAT_table[i] = id;
+            }
         }
+        destination += packets;
+        source += packets;
     }
-    Serial.println(F("*** Finished *** "));
-    Serial.println();
-    return;
-}
-
-void VFS_Shift_file(int to_packet, int from_packet, int packets)
-{
-    int16_t basket[AUDIO_BLOCK_SAMPLES];
-    SerialFlashFile Packet_from;
-    SerialFlashFile Packet_to;
-
-    for (auto i = 0; i < packets; ++i)
-    {
-        Serial.print("moving packet: ");
-        Serial.println(from_packet + i);
-        Packet_from = SerialFlash.open(name_packet[from_packet + i]);
-        Packet_to = SerialFlash.open(name_packet[to_packet + i]);
-        Packet_to.erase();
-        // Packet_from.seek(0); // unnecessary
-        // Packet_to.seek(0);  // unnecessary
-        for (auto block = 0; block < 256; ++block)
-        {
-            // Packet_from.seek(block * 256); // included in .read function
-            Packet_from.read(basket, 256);
-            // Packet_to.seek(block * 256); // included in .write function
-            Packet_to.write(basket, 256);
-        }
-        Packet_from.erase();
-        Packet_from.close();
-        Packet_to.close();
-    }
+    return audio_guard.Complete();
 }
 
 void VFS_Print_FAT(void)
@@ -11216,6 +11513,371 @@ void VFS_Print_FAT(void)
 // ***************************************************************************************************************
 // **********************************            STANDARD RAW FILES             **********************************
 // ***************************************************************************************************************
+
+// Complete SD backups: metadata v3 binds every audio channel by length and CRC.
+// RAW files preserve full allocated packets, including erased tails, without trusting inferred runtime lengths.
+static constexpr char BACKUP_ROOT[] = "/LILLABACKUP";
+static constexpr char BACKUP_CONFIG[] = "LILLA_CONFIG.fram";
+
+FLASHMEM
+static uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size)
+{
+    for (size_t i = 0; i < size; ++i)
+    {
+        crc ^= data[i];
+        for (uint8_t bit = 0; bit < 8; ++bit)
+        {
+            crc = (crc >> 1) ^ ((crc & 1U) ? 0xEDB88320UL : 0UL);
+        }
+    }
+    return crc;
+}
+
+FLASHMEM
+static void BACKUP_Audio_path(char *path, size_t size, const char *directory, int id, int channel)
+{
+    snprintf(path, size, "%s/REC_%02d_%c.raw", directory, id, channel == 0 ? 'L' : 'R');
+}
+
+FLASHMEM
+static bool BACKUP_Verify_audio(const char *path, uint32_t bytes, uint32_t expected_crc)
+{
+    FsFile file = SD.sdfs.open(path, O_RDONLY);
+    if (!file || file.fileSize() != bytes)
+    {
+        return false;
+    }
+    uint8_t buffer[VFS_COPY_BYTES];
+    uint32_t crc = 0xFFFFFFFFUL;
+    for (uint32_t offset = 0; offset < bytes; offset += sizeof(buffer))
+    {
+        const uint32_t count = bytes - offset < sizeof(buffer) ? bytes - offset : sizeof(buffer);
+        if (file.read(buffer, count) != static_cast<int>(count))
+        {
+            return false;
+        }
+        crc = BACKUP_Update_crc(crc, buffer, count);
+    }
+    return !file.getError() && (crc ^ 0xFFFFFFFFUL) == expected_crc;
+}
+
+FLASHMEM
+static bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bool restore, uint32_t &crc)
+{
+    uint8_t buffer[VFS_COPY_BYTES], actual[VFS_COPY_BYTES];
+    crc = 0xFFFFFFFFUL;
+    for (int packet = 0; packet < entry.packets; ++packet)
+    {
+        SerialFlashFile flash;
+        const int id = entry.first_packet + packet * (entry.stereo ? 2 : 1) + channel;
+        if (!VFS_Open_packet(id, flash))
+        {
+            return false;
+        }
+        for (uint32_t offset = 0; offset < PACKET_DIM; offset += sizeof(buffer))
+        {
+            if (!VFS_Wait_flash())
+            {
+                return false;
+            }
+            if (restore)
+            {
+                if (file.read(buffer, sizeof(buffer)) != sizeof(buffer) || flash.write(buffer, sizeof(buffer)) != sizeof(buffer) || !VFS_Wait_flash())
+                {
+                    return false;
+                }
+                flash.seek(offset);
+                if (flash.read(actual, sizeof(actual)) != sizeof(actual) || memcmp(buffer, actual, sizeof(buffer)) != 0)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (flash.read(buffer, sizeof(buffer)) != sizeof(buffer) || file.write(buffer, sizeof(buffer)) != sizeof(buffer))
+                {
+                    return false;
+                }
+            }
+            crc = BACKUP_Update_crc(crc, buffer, sizeof(buffer));
+        }
+    }
+    crc ^= 0xFFFFFFFFUL;
+    return !file.getError();
+}
+
+FLASHMEM
+static bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio = false, bool *config_error = nullptr)
+{
+    char path[64];
+    snprintf(path, sizeof(path), "%s/%s", directory, BACKUP_CONFIG);
+    File config = SD.open(path);
+    if (!config || !Archive.Read_backup_audio(config, audio, entries))
+    {
+        if (config_error != nullptr)
+        {
+            *config_error = true;
+        }
+        return false;
+    }
+    config.close();
+    // Recovery runs before runtime loading: probe physical packets, not the old FRAM addresses.
+    capacity = 0;
+    bool gap = false;
+    for (int packet = 0; packet < VFS_PACKETS_MAX; ++packet)
+    {
+        if (!SerialFlash.exists(name_packet[packet]))
+        {
+            gap = true;
+            continue;
+        }
+        SerialFlashFile flash;
+        if (gap || !VFS_Open_packet(packet, flash))
+        {
+            return false;
+        }
+        ++capacity;
+    }
+    uint32_t required = 0;
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        for (int channel = 0; channel < 2; ++channel)
+        {
+            if (audio[id].bytes[channel] > 0)
+            {
+                BACKUP_Audio_path(path, sizeof(path), directory, id, channel);
+                if (!BACKUP_Verify_audio(path, audio[id].bytes[channel], audio[id].crc32[channel]))
+                {
+                    if (!discard_invalid_audio)
+                    {
+                        return false;
+                    }
+                    // Discard the whole Recording, including both stereo channels; never retry its audio.
+                    entries[id] = {};
+                    entries[id].consistent = true;
+                    audio[id] = {};
+                    Serial.print(F("Restore: cleared Recording with missing or invalid audio: "));
+                    Serial.println(id);
+                    break;
+                }
+            }
+        }
+        required += entries[id].packets * (entries[id].stereo ? 2U : 1U);
+    }
+    return required <= static_cast<uint32_t>(capacity);
+}
+
+FLASHMEM
+static bool BACKUP_Export_files(void)
+{
+    if (!SD.begin(BUILTIN_SDCARD) || Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
+    {
+        return false;
+    }
+    if (!SD.exists(BACKUP_ROOT) && !SD.mkdir(BACKUP_ROOT))
+    {
+        return false;
+    }
+    uint32_t highest = 0;
+    File directory = SD.open(BACKUP_ROOT);
+    if (!directory || !directory.isDirectory())
+    {
+        return false;
+    }
+    while (true)
+    {
+        File entry = directory.openNextFile();
+        if (!entry)
+        {
+            break;
+        }
+        const char *name = entry.name();
+        const char *slash = strrchr(name, '/');
+        name = slash ? slash + 1 : name;
+        const size_t length = strlen(name);
+        if (length == 6 || (length == 10 && strcmp(name + 6, ".tmp") == 0))
+        {
+            uint32_t number = 0;
+            bool numeric = true;
+            for (int i = 0; i < 6; ++i)
+            {
+                numeric &= name[i] >= '0' && name[i] <= '9';
+                number = number * 10 + (numeric ? name[i] - '0' : 0);
+            }
+            if (numeric && number > highest)
+            {
+                highest = number;
+            }
+        }
+        entry.close();
+    }
+    directory.close();
+    if (highest >= 999999)
+    {
+        return false;
+    }
+    char temporary[40], destination[40], path[64];
+    snprintf(temporary, sizeof(temporary), "%s/%06lu.tmp", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
+    snprintf(destination, sizeof(destination), "%s/%06lu", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
+    if (SD.exists(temporary) || SD.exists(destination) || !SD.mkdir(temporary))
+    {
+        return false;
+    }
+    ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
+    VFS_Recording entries[RECORDINGS]{};
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        const VFS_Recording runtime = Recording[id];
+        const byte result = Archive.Read_DS_Recording(id);
+        entries[id] = Recording[id];
+        Recording[id] = runtime;
+        if (result != LillaFRAM_2x512::ERROR_0 || !entries[id].consistent || !VFS_Valid_span(entries[id]))
+        {
+            return false;
+        }
+        const auto &entry = entries[id];
+        if (entry.packets == 0)
+        {
+            continue;
+        }
+        for (int earlier = 0; earlier < id; ++earlier)
+        {
+            const auto &other = entries[earlier];
+            if (other.packets > 0 && entry.first_packet < other.first_packet + other.packets * (other.stereo ? 2 : 1) && other.first_packet < entry.first_packet + entry.packets * (entry.stereo ? 2 : 1))
+            {
+                return false;
+            }
+        }
+        for (int channel = 0; channel < (entry.stereo ? 2 : 1); ++channel)
+        {
+            BACKUP_Audio_path(path, sizeof(path), temporary, id, channel);
+            FsFile file = SD.sdfs.open(path, O_WRONLY | O_CREAT | O_EXCL);
+            if (!file)
+            {
+                return false;
+            }
+            audio[id].bytes[channel] = static_cast<uint32_t>(entry.packets) * PACKET_DIM;
+            const bool written = BACKUP_Copy_audio(file, entry, channel, false, audio[id].crc32[channel]) && file.sync();
+            const bool closed = file.close();
+            if (!written || !closed)
+            {
+                return false;
+            }
+        }
+    }
+    // Written last: an interrupted audio export never acquires a complete configuration file.
+    snprintf(path, sizeof(path), "%s/%s", temporary, BACKUP_CONFIG);
+    File config = SD.open(path, FILE_WRITE);
+    const bool saved = config && Archive.Save_FRAM_backup(config, audio);
+    config.close();
+    int capacity = 0;
+    if (!saved || !BACKUP_Verify_directory(temporary, audio, entries, capacity) || !SD.rename(temporary, destination))
+    {
+        return false;
+    }
+    Serial.print(F("Complete backup saved: "));
+    Serial.println(destination);
+    return true;
+}
+
+FLASHMEM
+bool BACKUP_Export(void)
+{
+    VFS_Audio_guard guard;
+    const bool saved = BACKUP_Export_files();
+    guard.Complete(); // An SD export failure has not changed the live archive.
+    return saved;
+}
+
+FLASHMEM
+static bool BACKUP_Restore_files(bool &changed, bool &config_error)
+{
+    if (!SD.begin(BUILTIN_SDCARD))
+    {
+        config_error = true;
+        return false;
+    }
+    if (!VFS_Wait_flash())
+    {
+        return false;
+    }
+    ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
+    VFS_Recording entries[RECORDINGS]{};
+    int capacity = 0;
+    if (!BACKUP_Verify_directory(BACKUP_ROOT, audio, entries, capacity, true, &config_error))
+    {
+        return false;
+    }
+    char path[64];
+    snprintf(path, sizeof(path), "%s/%s", BACKUP_ROOT, BACKUP_CONFIG);
+    File config = SD.open(path);
+    if (!config || !Archive.Verify_FRAM_backup(config))
+    {
+        config_error = true;
+        return false;
+    }
+    changed = true; // Even a torn state-marker write requires recovery rather than resuming playback.
+    if (!Archive.Restore_FRAM_backup(config, false))
+    {
+        return false;
+    }
+    config.close();
+    DS_First_packet = 0;
+    DS_VFS_packets = capacity;
+    DS_Last_packet = capacity - 1;
+    VFS_packets = capacity;
+    // Existing RAW library files are untouched; only the VFS packet area is replaced.
+    for (int packet = 0; packet < capacity; ++packet)
+    {
+        if (!VFS_Erase_packet(packet))
+        {
+            return false;
+        }
+    }
+    int destination = 0;
+    for (int id = 0; id < RECORDINGS; ++id)
+    {
+        auto &entry = entries[id];
+        entry.first_packet = entry.packets > 0 ? destination : 0;
+        for (int channel = 0; channel < (entry.stereo ? 2 : 1) && entry.packets > 0; ++channel)
+        {
+            BACKUP_Audio_path(path, sizeof(path), BACKUP_ROOT, id, channel);
+            FsFile file = SD.sdfs.open(path, O_RDONLY);
+            uint32_t crc = 0;
+            if (!file || file.fileSize() != audio[id].bytes[channel] || !BACKUP_Copy_audio(file, entry, channel, true, crc) || crc != audio[id].crc32[channel])
+            {
+                return false;
+            }
+        }
+        Recording[id] = entry;
+        if (!VFS_Save_recording_verified(id))
+        {
+            return false;
+        }
+        destination += entry.packets * (entry.stereo ? 2 : 1);
+    }
+    return Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
+}
+
+FLASHMEM
+bool BACKUP_Restore(bool *config_error)
+{
+    VFS_Audio_guard guard;
+    bool changed = false;
+    bool invalid_config = false;
+    const bool restored = BACKUP_Restore_files(changed, invalid_config);
+    if (config_error != nullptr)
+    {
+        *config_error = invalid_config;
+    }
+    if (restored || !changed)
+    {
+        guard.Complete();
+    }
+    return restored;
+}
+
+// End complete SD backups.
 
 int Get_next_raw_file_in_flash(int file)
 {
@@ -11601,17 +12263,14 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
 // **********************************               FACTORY SETUP               **********************************
 // ***************************************************************************************************************
 FLASHMEM
-void Factory_setup_Eeprom(void)
+void Factory_setup_FRAM(void)
 {
-    // la funzione cancella
-
-    // cancella l'intero contenuto della EEPROM (EEPROM emulation memory all'interno della Flash 8M del T4.1)
-    Archive.Reset_EEPROM();
+    Require_FRAM(Archive.Factory_reset_FRAM(false));
 
     // cancella gli array descrittivi di Patch e Sound
     P_Delete_all_Patches_and_Sounds();
 
-    // definisci una Patch[0] al solo scopo di salvarla su EEPROM
+    // Definisce e salva la Patch iniziale in FRAM.
     Patch[0].used = true;
     Patch[0].instruments = 1; // number of instruments in the patch_id
     Patch[0].Instrument[0].used = 1;
@@ -11631,15 +12290,15 @@ void Factory_setup_Eeprom(void)
     Patch[0].Instrument[0].Filter.frequency_time = 5; // 0 --> 20
 
     Patch_id = 0;
-    Archive.Save_Patch(Patch_id);
+    Require_FRAM(Archive.Save_Patch(Patch_id));
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
     Serial.println(F("Patch[0] Saved"));
 
-    // inizializza l'array descrittivo delle registrazioni (Direct Sampler) e salva su EEPROM
+    // Inizializza e salva in FRAM i metadati del Direct Sampler.
     DS_seed_all_Recordings();
 
-    // definisci un Sound[0] al solo scopo di salvarlo su EEPROM
+    // Definisce e salva il Sound iniziale in FRAM.
     Sound[0].used = true;
     Sound[0].file = 0;
     Sound[0].mode = 0;
@@ -11656,15 +12315,15 @@ void Factory_setup_Eeprom(void)
     Sound[0].gain = 12; // 20 means gain = 1.0
     Serial.println(F("Saving Sound[0]"));
     Sound_id = 0;
-    Archive.Save_Sound(Sound_id);
+    Require_FRAM(Archive.Save_Sound(Sound_id));
 
-    // salva su EEPROM l'ottava del NoteNumber 0 (prima ottava)
-    Archive.Save_first_octave(-2);
+    // Salva in FRAM l'ottava del NoteNumber 0.
+    Require_FRAM(Archive.Save_first_octave(-2));
 
     // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
-    Archive.Save_optimization(DEFAULT_OPTIMIZATION);
+    Require_FRAM(Archive.Save_optimization(DEFAULT_OPTIMIZATION));
 
-    // assegna i parametri per il Delay al solo scopo di salvarli su EEPROM
+    // Assegna e salva in FRAM i parametri iniziali del Delay.
     Delay_data.samples = 20;                  // value ; 0 --> 99
     Delay_data.samples_LR = 0;                // value L/R ; -10 --> 10
     Delay_data.instrument_route = 0b00000000; // all Instruments are NOT routed to Delay
@@ -11673,10 +12332,11 @@ void Factory_setup_Eeprom(void)
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 5;
-    Archive.Save_Delay_to_Eeprom(Delay_data);
+    Require_FRAM(Archive.Save_Delay(0, Delay_data));
 
     // cancella il contenute dei packet sulla Flash aggiuntiva
     VFS_Erase_all_packets();
+    Require_FRAM(Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY));
 }
 
 FLASHMEM
@@ -12223,25 +12883,14 @@ void Golive_MIXER(void)
 // ****************************                         SETTINGS                        **************************
 // ***************************************************************************************************************
 
-void CC_Save_settings(void)
+byte CC_Save_settings(void)
 {
     Midi_reader.Stop();
-
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        if (CC_Sound_gain[instrument_id] != CC_Sound_gain_cache[instrument_id])
-        {
-            Archive.Save_CC_Sound_gain(instrument_id, CC_Sound_gain[instrument_id]);
-        }
-    }
-
-    if (CC_lowpass_filter_value != CC_lowpass_filter_cache)
-    {
-        Archive.Save_CC_lowpass_filter(CC_lowpass_filter_value);
-    }
+    const byte result = Archive.Save_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
 
     Players_Manager.Stop_all_players();
     Midi_reader.Start();
+    return result;
 }
 
 void SET_Ask_if_IMPORT_EXPORT_setup(void)
@@ -12293,12 +12942,9 @@ void SET_Ask_if_FACTORY_RESET(void)
 // ****************************                 CONTROL CHANGE ASSIGNENT                **************************
 // ***************************************************************************************************************
 
-void CC_Read_all_Sound_gain()
+byte CC_Read_all_Sound_gain()
 {
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        Archive.Read_CC_Sound_gain(instrument_id, CC_Sound_gain[instrument_id]);
-    }
+    return Archive.Read_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
 }
 
 // ***************************************************************************************************************
@@ -12306,8 +12952,9 @@ void CC_Read_all_Sound_gain()
 // ***************************************************************************************************************
 
 FLASHMEM
-bool SET_Copy_raw_files_from_SD_to_Flash()
+bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
 {
+    flash_changed = false;
     int row;
 
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_titolo();
@@ -12332,7 +12979,15 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
+    bool SD_has_zero_raw = false;
     File rootdir = SD.open("/LILLARAW");
+    if (!rootdir || !rootdir.isDirectory())
+    {
+        rootdir.close();
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        delay(4000);
+        return false;
+    }
     while (1)
     {
         // open a file from the SD card
@@ -12342,8 +12997,15 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
             break;
         }
 
-        SD_raw_volume += f.size();
-        ++SD_raw_files;
+        if (!f.isDirectory())
+        {
+            SD_raw_volume += f.size();
+            ++SD_raw_files;
+            if (strcasecmp(f.name(), "0.raw") == 0 && f.size() >= sizeof(int16_t) && f.size() % sizeof(int16_t) == 0)
+            {
+                SD_has_zero_raw = true;
+            }
+        }
         f.close();
     }
     rootdir.close();
@@ -12447,6 +13109,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
     // Start erasing flash chip
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_job_start();
 
+    flash_changed = true;
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);
     elapsedMillis dotMillis = 0;
     int percentage = 0;
@@ -12463,23 +13126,53 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
         }
     }
 
-    // Start copying RAW files from SD to Flash chip
+    // Create the fallback first so other imports cannot consume its space.
     Display_Manager.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
-    rootdir = SD.open("/LILLARAW");
     row = 2;
+    if (!SD_has_zero_raw)
+    {
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
+        if (!ZeroRaw_ensure_file())
+        {
+            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            delay(4000);
+            return false;
+        }
+        Serial.println(F("0.raw reconstructed from firmware: 44100 samples, 88200 bytes."));
+    }
+
+    // Start copying RAW files from SD to Flash chip.
+    rootdir = SD.open("/LILLARAW");
+    if (!rootdir || !rootdir.isDirectory())
+    {
+        rootdir.close();
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        delay(4000);
+        return false;
+    }
     while (1)
     {
-        // open a file from the SD/LILLARAW
         File f = rootdir.openNextFile();
         if (!f)
         {
             break;
         }
+        if (f.isDirectory())
+        {
+            f.close();
+            continue;
+        }
 
-        const char *filename = f.name();
-        unsigned long length = f.size();
+        const bool is_zero_raw = strcasecmp(f.name(), "0.raw") == 0;
+        const char *filename = is_zero_raw ? "0.raw" : f.name();
+        const unsigned long length = f.size();
+        if (is_zero_raw && (length < sizeof(int16_t) || length % sizeof(int16_t) != 0))
+        {
+            f.close();
+            continue; // An empty or truncated PCM sample cannot replace the fallback.
+        }
 
-        row++;
+        ++row;
         if (row > 14)
         {
             Display_Manager.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
@@ -12487,37 +13180,54 @@ bool SET_Copy_raw_files_from_SD_to_Flash()
         }
         Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_to_copy(row, filename, length);
 
-        // create the (empty) file on the Flash chip, than copy data
-        if (SerialFlash.create(filename, length))
+        if (!SerialFlash.create(filename, length))
         {
-            SerialFlashFile ff = SerialFlash.open(filename);
-            if (ff)
-            {
-                // copy data loop
-                unsigned long count = 0;
-                while (count < length)
-                {
-                    char buf[256];
-                    unsigned int n;
-                    n = f.read(buf, 256);
-                    ff.write(buf, n);
-                    count = count + n;
-                }
-                ff.close();
-            }
-            else
-            {
-                Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
-            }
+            f.close();
+            rootdir.close();
+            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
+            delay(4000);
+            return false;
         }
 
-        else
+        SerialFlashFile ff = SerialFlash.open(filename);
+        bool copied = static_cast<bool>(ff);
+        unsigned long count = 0;
+        while (copied && count < length)
         {
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
+            char buf[256];
+            const unsigned long remaining = length - count;
+            const unsigned int bytes = remaining < sizeof(buf) ? remaining : sizeof(buf);
+            const int n = f.read(buf, bytes);
+            if (n <= 0 || static_cast<unsigned int>(n) > bytes || ff.write(buf, static_cast<uint32_t>(n)) != static_cast<uint32_t>(n))
+            {
+                copied = false;
+                break;
+            }
+            count += static_cast<unsigned int>(n);
+        }
+        SerialFlash.wait();
+        ff.close();
+        if (!copied)
+        {
+            SerialFlash.remove(filename);
+            f.close();
+            rootdir.close();
+            Serial.println(F("RAW import failed while reading SD or writing Flash."));
+            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            delay(4000);
+            return false;
         }
         f.close();
     }
     rootdir.close();
+
+    // The required file must exist before reporting success and rebuilding the VFS.
+    if (!ZeroRaw_ensure_file())
+    {
+        Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+        delay(4000);
+        return false;
+    }
     delay(10);
 
     // Display RAW files list
@@ -13071,6 +13781,28 @@ void Reload_system_state(void)
         return;
     }
 
+    if (Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.println(F("FRAM archive unavailable: interrupted restore, invalid header or I/O error. Automatic repair is blocked."));
+        Serial.println(F("Place LILLA_CONFIG.fram and its REC files in /LILLABACKUP. Press Select to retry the complete restore."));
+        Display_Manager.FRAM_recovery_popup();
+        bool recovered = false;
+        while (!recovered)
+        {
+            Shifters_manager.Update();
+            if (Read_pushbutton(EN_PB_Select))
+            {
+                bool config_error = false;
+                recovered = BACKUP_Restore(&config_error);
+                if (!config_error)
+                {
+                    Serial.println(recovered ? F("Configuration and audio restored.") : F("Restore failed. Check the backup files and press Select to retry."));
+                }
+            }
+            delay(10);
+        }
+    }
+
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB
     verified_flash_memory_MB = Get_flash_size() / 1048576;
@@ -13097,12 +13829,6 @@ void Reload_system_state(void)
     Serial.println();
 
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
-    // Print EEPROM content
-    Serial.println("Print_EEPROM_content()");
-    if (false)
-    {
-        Archive.Print_EEPROM_content();
-    }
     // Resets all Recording and erase all DS_VFS_Packets
     if (false)
     {
@@ -13115,10 +13841,45 @@ void Reload_system_state(void)
     }
     // |||||||||||||||||       END TOOLS      ||||||||||||||||||||
 
-    // Read all Recordings (from EEPROM)
-    DS_read_all_Recordings(); // reads from EEPROM and print all Recordings
-    VFS_Clean_up_VFS();       // se ci sono recording non consistent cancella packets e recording
-    VFS_Defragment();         // Prima aggiorna la VFS_FAT_table; in base a questa se ci sono buchi nel VFS li chiude, aggiornando i Recording e salvandoli, infine aggiornando VFS_FAT_table
+    ArchivingManager::FRAM_System_repair_report system_repair_report;
+    const byte system_repair_result = Archive.Repair_System_in_FRAM(system_repair_report);
+
+    if (system_repair_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM System repair failed, error "));
+        Serial.println(system_repair_result);
+        while (true) { delay(1000); }
+    }
+
+    Serial.print(F("FRAM System repair: defaulted="));
+    Serial.println(system_repair_report.defaulted ? F("yes") : F("no"));
+
+    ArchivingManager::FRAM_Recording_repair_report recording_repair_report;
+    const byte recording_repair_result = Archive.Repair_Recordings_in_FRAM(recording_repair_report);
+
+    if (recording_repair_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM Recording repair failed: Recording "));
+        Serial.print(recording_repair_report.failed_id);
+        Serial.print(F(", error "));
+        Serial.println(recording_repair_result);
+        while (true) { delay(1000); }
+    }
+
+    Serial.print(F("FRAM Recording repair: cleared Recordings="));
+    Serial.println(recording_repair_report.cleared_recordings);
+
+    const byte recording_load_result = DS_read_all_Recordings();
+    if (recording_load_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM Recording load failed, error "));
+        Serial.println(recording_load_result);
+        while (true) { delay(1000); }
+    }
+
+    Require_VFS(VFS_Clean_up_VFS());
+    // CRC repair also leaves a durable inconsistent marker; cleanup handles every orphan before clearing it.
+    Require_VFS(VFS_Defragment());
     DS_update_recordings();
 
     // Print VFS FAT table
@@ -13129,16 +13890,68 @@ void Reload_system_state(void)
     LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
 
     // *******************   CORE ARRAYS  ************************
+    ArchivingManager::FRAM_Repair_report repair_report;
+
+    const byte repair_result = Archive.Repair_Patch_Sound_in_FRAM(repair_report);
+
+    Serial.print(F("FRAM repair: cleared Patches="));
+    Serial.print(repair_report.cleared_patches);
+    Serial.print(F(", cleared Sounds="));
+    Serial.print(repair_report.cleared_sounds);
+    Serial.print(F(", defaulted Sounds="));
+    Serial.println(repair_report.defaulted_sounds);
+
+    if (repair_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM repair failed: "));
+        Serial.print(repair_report.failed_sound ? F("Sound ") : F("Patch "));
+        Serial.print(repair_report.failed_id);
+        Serial.print(F(", error "));
+        Serial.println(repair_result);
+        while (true) { delay(1000); }
+    }
     P_Delete_all_Patches_and_Sounds();
 
-    S_Read_all_Sounds(); // compila tutti i Sound leggendo dalla EEPROM
+    uint16_t failed_metadata_id = 0;
+    bool failed_sound = false;
+    const byte metadata_result = Archive.Load_Patch_Sound_from_FRAM(failed_metadata_id, failed_sound);
+    if (metadata_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM metadata load failed: "));
+        Serial.print(failed_sound ? F("Sound ") : F("Patch "));
+        Serial.print(failed_metadata_id);
+        Serial.print(F(", error "));
+        Serial.println(metadata_result);
+        while (true) { delay(1000); }
+    }
     S_Copy_all_Sound_to_Sound_cache_P();
-    P_Read_all_Patches(); // compila tutte le Patch leggendo dalla EEPROM
+    Serial.println(F("FRAM -> RAM2: 200 Patches and 800 Sounds loaded, CRC verified"));
 
-    Archive.Read_optimization(optimization);
-    Archive.Read_first_octave(first_octave);
-    CC_Read_all_Sound_gain();
-    Archive.Read_CC_lowpass_filter(CC_lowpass_filter_value);
+    byte system_settings_result = Archive.Read_optimization(optimization);
+
+    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
+    {
+        system_settings_result = Archive.Read_first_octave(first_octave);
+    }
+
+    uint8_t stored_key_step = 0;
+    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
+    {
+        system_settings_result = Archive.Read_key_step(stored_key_step);
+    }
+    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
+    {
+        system_settings_result = CC_Read_all_Sound_gain();
+    }
+    if (system_settings_result != LillaFRAM_2x512::ERROR_0)
+    {
+        Serial.print(F("FRAM System settings load failed, error "));
+        Serial.println(system_settings_result);
+        while (true) { delay(1000); }
+    }
+
+    key_step = stored_key_step;
+    Calc_pitch_from_note(key_step);
 
     P_Update_Patches_number(); // aggiorna patches_number (numero di patchi disponibili)
     Patch_id = P_Get_first_Patch_id_existing();
@@ -13161,9 +13974,6 @@ void Reload_system_state(void)
     Delay_L.DELAY_fifo = DELAY_fifo_L;
     Delay_R.DELAY_fifo = DELAY_fifo_R;
 
-    // Tries to copy patch delay data from da SD to EEPROM
-    Archive.Copy_patch_Delay_data_from_SD_to_Eeprom(Patch_id);
-
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
     if (false)
     {
@@ -13176,13 +13986,14 @@ void Reload_system_state(void)
         Delay_data.modulation_phase_LR = 0;
         Delay_data.loop_gain = 5;
 
-        // Salva i parametri per il Delay su EEPROM
-        Archive.Save_Delay_to_Eeprom(Delay_data);
+        if (Patch_id < PATCHES_MAX)
+        {
+            Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+        }
     }
     // |||||||||||||||||       END TOOLS      ||||||||||||||||||||
 
-    // Reads delay data from EEPROM
-    Archive.Copy_patch_Delay_data_from_Eeprom_to_Ram(Delay_data);
+    Require_FRAM(Archive.Read_Delay(Patch_id, Delay_data));
     Calc_Delay_values(Delay_data);
 
     // Transmits data to Delay objects
@@ -13246,7 +14057,6 @@ void Reload_system_state(void)
 
     // *******************    COVER PAGE    **********************
     Display_Manager.Lilla_cover_slow();
-    // Display_Manager.Lilla_cover_saturate();
 
     // ****************    DEFINE STARTUP MODE     ************
     if (!Startup_mode())
@@ -13368,9 +14178,9 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
 
     // Entry requires IRQ_SOFTWARE to be enabled, so each critical-section exit restores that state.
     static constexpr unsigned int CYCLE_TIME_LIMIT = 1700; // Latest permitted copy start within the audio cycle, in microseconds.
-    static uint32_t last_cycle = 0; // Last audio cycle in which background loading attempted work.
-    static uint32_t blocked_since_ms = 0; // Start of the current cache-reclamation grace period.
-    static uint16_t blocked_mask = 0; // Retiring caches currently blocking a pending load.
+    static uint32_t last_cycle = 0;                        // Last audio cycle in which background loading attempted work.
+    static uint32_t blocked_since_ms = 0;                  // Start of the current cache-reclamation grace period.
+    static uint16_t blocked_mask = 0;                      // Retiring caches currently blocking a pending load.
     PatchCacheManager::CopyJob job;
 
     AudioNoInterrupts(); // Take a coherent snapshot while the audio callback cannot change player references.
@@ -13385,8 +14195,8 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     }
     last_cycle = cycle;
     PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask()); // Reuse retired buffers only after every player has released them.
-    const bool copying = PatchCache_Manager.Prepare_copy(job);                          // Reserve the next chunk; incomplete files remain unavailable to players.
-    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();  // Request space only when pending work cannot obtain a free cache.
+    const bool copying = PatchCache_Manager.Prepare_copy(job);                                  // Reserve the next chunk; incomplete files remain unavailable to players.
+    const uint16_t reclaim_mask = copying ? 0 : PatchCache_Manager.Get_reclaim_mask();          // Request space only when pending work cannot obtain a free cache.
 
     if (reclaim_mask != blocked_mask)
     {
@@ -13402,8 +14212,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
         AudioStartUsingSPI(); // Register Flash bus use before allowing audio callbacks to run again.
     }
     AudioInterrupts(); // Perform the Flash transfer outside the audio critical section.
-    
-    
+
     if (!copying)
     {
         return;
@@ -13411,7 +14220,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples); // Copy only this reserved chunk into PSRAM, with audio interrupts enabled.
 
     AudioNoInterrupts();
-    AudioStopUsingSPI();                            // Balance the SPI reservation even when the Flash read fails.
+    AudioStopUsingSPI();                                               // Balance the SPI reservation even when the Flash read fails.
     const bool ready = PatchCache_Manager.Complete_copy(job, success); // Publish only a fully copied file; failed reads leave playback on Flash.
     if (ready)
     {

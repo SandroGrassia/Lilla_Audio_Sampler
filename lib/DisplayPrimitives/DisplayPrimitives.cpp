@@ -53,11 +53,11 @@ void Frame_by_pixels_on_RED(const int X, const int Y, const int chars, const boo
     tft.drawRect(X - 4, Y - 4, (6 * chars) + 7, Frame_heigh, (show ? ILI9341_WHITE : ILI9341_RED)); // drawRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color)
 }
 
-void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color)
+void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color, int y_offset)
 {
     int L_POPUP = display_coordinate_x(text.length() + 4); // lunghezza
     int H_POPUP = display_coordinate_y(3);                 // altezza
-    int Y_POPUP = (240 - H_POPUP) / 2;
+    int Y_POPUP = (240 - H_POPUP) / 2 + y_offset;
     int X_POPUP = (320 - L_POPUP) / 2;
     int Y_POPUP_TXT = 20; // riga testo
 

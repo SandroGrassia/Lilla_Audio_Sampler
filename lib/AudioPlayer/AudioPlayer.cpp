@@ -552,8 +552,9 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     main_settings_editing_flag = true;
 }
 
-void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint8_t sound_id_in, uint8_t note_in)
+void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in)
 {
+    pending_note_released = false;
     pitch_note_wait = pitch_note_in;
     velocity_gain_wait = velocity_in;
     patch_id_wait = patch_in;
@@ -709,10 +710,47 @@ void AudioPlayer::Start_playing(void)
     idle = false;
     state = RUNNING;
     My_LED(true);
+    if (pending_note_released)
+    {
+        pending_note_released = false;
+        ADSR->Release_note();
+        power_on = false;
+        state = FADING;
+        My_LED(false);
+    }
+}
+
+void AudioPlayer::Enforce_cycle_deadline(void)
+{
+    if (state == IDLE || audio_update_time_micros < AUDIO_PLAYER_DEADLINE_US)
+    {
+        return;
+    }
+    if (audio_player_emergency_stops != UINT32_MAX)
+    {
+        audio_player_emergency_stops = audio_player_emergency_stops + 1;
+    }
+    idle = true;
+    power_on = false;
+    state = IDLE;
+    warmup_for_play_again_flag = false;
+    restart_flag = false;
+    pending_note_released = false;
+    main_settings_editing_flag = false;
+    patch_release_pending = false;
+    Close_source();
+    My_LED(false);
 }
 
 void AudioPlayer::Release_note(void) // release note, fires ADSR "release"
 {
+    if (Has_pending_note())
+    {
+        pending_note_released = true;
+        power_on = false;
+        time_stamp = millis();
+        return;
+    }
     if (state == IDLE)
     {
         return;
@@ -778,11 +816,7 @@ void AudioPlayer::update(void)
             My_LED(false);
         }
     }
-    // Reset security_timer timer
-    if (identity == 0)
-    {
-        security_timer = 0;
-    }
+    Enforce_cycle_deadline(); // Check before allocating buffers or harvesting audio; never reset the shared clock here.
 
     audio_block_t *block_L, *block_R;
     int16_t I_basket_L_sample, I_basket_H_sample; // indexes of samples in sample_basket
@@ -807,22 +841,6 @@ void AudioPlayer::update(void)
     if (block_R == NULL)
     {
         return;
-    }
-
-    // AudioStrem protection
-    if (security_timer > 2800)
-    {
-        Serial.println("*PROTECT*");
-
-        if (state != IDLE)
-        {
-
-            idle = true;
-            power_on = false;
-            state = IDLE;
-            Close_source();
-            My_LED(false);
-        }
     }
 
     if (state == IDLE)
@@ -898,7 +916,7 @@ void AudioPlayer::update(void)
             vibrato_array_element_float += VIBRATO_STEP;
             vibrato_array_element = ((uint8_t)vibrato_array_element_float) % 32;
             *vibrato_array_last_element_ptr = vibrato_array_element;
-            pitch_vibrato = *(vibrato_array_ptr + vibrato_array_element);
+            pitch_vibrato = 1.0f + (*(vibrato_array_ptr + vibrato_array_element) - 1.0f) * modulation_depth;
         }
 
         Update_pitch();
@@ -1503,7 +1521,7 @@ void AudioPlayer::update(void)
             Serial.print(" - pitch:");
             Serial.print(pitch);
             Serial.print(" - REAL execution_time:");
-            Serial.print(security_timer);
+            Serial.print(audio_update_time_micros);
             Serial.println();
         }
 
@@ -2492,6 +2510,12 @@ void AudioPlayer::Set_vibrato_flag(bool value)
             return;
         }
     }
+}
+
+void AudioPlayer::Set_modulation(uint8_t value)
+{
+    modulation_depth = value / 127.0f;
+    Set_vibrato_flag(value != 0);
 }
 
 void AudioPlayer::Set_mix_samples(uint8_t value)

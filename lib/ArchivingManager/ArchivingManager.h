@@ -9,7 +9,6 @@
 #include <Arduino.h>
 #include "SharedDelay.h"
 #include "SharedVFS.h"
-#include <EEPROM.h>
 #include <SD.h>
 #include <FS.h>
 #include "config.h"
@@ -22,42 +21,13 @@ class ArchivingManager
 private:
 #define AUDIO_BOARD_SDCARD 10
 
-    // Locations of settings data in emulated EEPROM memory (dimension T4.1: 4284 byte)
-    static constexpr int EEPROM_BYTES = 4284;          // Teensy 4.1 EEPROM total byte
-    static constexpr int LOCATION_PATCH = 0;           // location in EEPROM of Patch[0]   --> 24 patches_number x 90 bytes = 2160 byte
-    static constexpr int LOCATION_RECORDING = 2160;    // location in EEPROM of Recording[0] --> 30 recordings x 4 bytes = 120 byte
-    static constexpr int LOCATION_SOUND = 2280;        // location in EEPROM of Sound[0]     --> 85 sounds x 22 bytes = 2200 byte
-    static constexpr int LOCATION_OPTIMIZATION = 4235; // Profile index 0..2: 16, 12 or 10 file voices, with source-dependent pitch limits.
-    static constexpr int LOCATION_FIRST_OCTAVE = 4236; // 1 byte   int8_t -2 --> 0
-    static constexpr int LOCATION_DELAY = 4237;        // 17 byte
-    static constexpr int LOCATION_CC_SETTINGS = 4254;  // 31 byte
-
-    template <class T>
-    int Eeprom_writeAnything(const size_t, const T &value);
-    template <class T>
-    int Eeprom_readAnything(const size_t, T &value); // il valore di ritorno e' value (che viene modificato)
-
-    void Eeprom_write_uint8_t(const size_t address, const uint8_t &value);
-    void Eeprom_write_int8_t(const size_t address, const int8_t &value);
-    void Eeprom_read_uint8_t(const size_t address, uint8_t &destination);
-    void Eeprom_read_int8_t(const size_t address, int8_t &destination);
-    uint16_t Get_location_of_Sound(const uint8_t &sound_id);
-    uint16_t GET_location_of_Patch(const uint8_t &patch_id);
-
-    String Filename_patch_Delay(const int patch_id);
     String Filename_Patch(const int patch_id);
     String Filename_Sound(const int patch_id, const int instrument_id);
 
     static constexpr size_t PATCH_PATH_SIZE = 32;
     bool Is_SD_inserted(void);
-    void Copy_Delay_data_from_RAM_to_SD(File &file);
-    void Copy_Delay_data_from_Eeprom_to_SD(File &file);
-    void Copy_Delay_data_from_SD_to_Eeprom(File &file);
-    void Print_Delay_data_reading_from_Eeprom(void);
-
-    void Copy_Delay_data_from_SD_to_RAM(File &file);
-    void Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
-    void Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
+    bool Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
+    bool Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
     void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
     void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
 
@@ -68,35 +38,6 @@ private:
         uint16_t version;
         uint16_t payloadSize;
     };
-
-    struct EEPROM_Instrument_filter_data_struct // 5 bytes
-    {
-        uint8_t data;           // bit0:use  bit1,2,3:modulation  bit4,5:filter_type
-        uint8_t pivot;          // 0 --> 30 filter frequency/note frequency
-        uint8_t resonance;      // 0 --> 40
-        uint8_t index;          // 1 --> 20
-        uint8_t frequency_time; // 0 --> 20
-    };
-
-    struct EEPROM_Instrument_struct // 11 bytes
-    {
-        bool used;
-        uint8_t sound_id;
-        uint8_t root_key;
-        uint8_t from_note;
-        uint8_t to_note;
-        uint8_t info;                                // bit0: precedence, bit1: lock
-        EEPROM_Instrument_filter_data_struct Filter; // 5 bytes
-    };
-
-    struct EEPROM_Patch_struct // 90 bytes
-    {
-        bool used; // 0:deleted  1:active
-        uint8_t instruments;
-        EEPROM_Instrument_struct Instrument[8]; // 8X11= 88 bytes
-    } __attribute__((__packed__));              // https://cs50.stackexchange.com/questions/22297/i-am-getting-an-unexpected-sizeof-error
-    EEPROM_Patch_struct EEPROM_Patch;
-    static constexpr int SIZE_OF_EEPROM_PATCH = sizeof(EEPROM_Patch);
 
     struct alignas(4) FRAM_Instrument_filter_struct // 8 byte
     {
@@ -167,13 +108,14 @@ private:
         uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..27, written after the payload.
     };
 
-    struct alignas(4) FRAM_Recording_struct // 8 byte
+    struct alignas(4) FRAM_Recording_struct // 12 byte
     {
         uint16_t first_packet;
         uint16_t packets;
         uint8_t stereo;
         uint8_t consistent;
         uint8_t reserved[2];
+        uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..7, written after the payload.
     };
 
     struct alignas(4) FRAM_CC_settings_struct // 16 byte
@@ -187,9 +129,11 @@ private:
     {
         uint8_t optimization;
         int8_t first_octave;
-        uint8_t reserved_alignment[2];
+        uint8_t key_step;
+        uint8_t reserved_alignment;
         FRAM_CC_settings_struct CC_settings;
-        uint8_t reserved[236];
+        uint8_t reserved[232];
+        uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..251, including CC_settings, written after the payload.
     };
 
     /*
@@ -200,17 +144,17 @@ private:
     0x00000–0x000FF	256	        Header
     0x00100–0x096FF	38.400	    200 Patch
     0x09700–0x0FAFF	25.600	    800 Sound
-    0x0FB00–0x0FBEF	240	        30 Recording
-    0x0FBF0–0x0FBFF	16	        Allineamento riservato
-    0x0FC00–0x0FCFF	256	        System
-    0x0FD00–0x1FFFF	66.304	    Libero
+    0x0FB00–0x0FC67	360	        30 Recording
+    0x0FC68–0x0FCFF	152	        Allineamento riservato
+    0x0FD00–0x0FDFF	256	        System
+    0x0FE00–0x1FFFF	66.048	    Libero
 
-    FRAM 0: 768 byte liberi
+    FRAM 0: 512 byte liberi
     FRAM 1: 65.536 byte liberi
-    Totale: 66.304 byte = 64,75 KiB
+    Totale: 66.048 byte = 64,5 KiB
 
     intervalli liberi
-    FRAM 0: 0x0FD00–0x0FFFF
+    FRAM 0: 0x0FE00–0x0FFFF
     FRAM 1: 0x10000–0x1FFFF
     */
 
@@ -227,12 +171,22 @@ private:
     static constexpr uint32_t FRAM_SOUND_BYTES = FRAM_SOUNDS * sizeof(FRAM_Sound_struct); // 0x06400
 
     static constexpr uint32_t FRAM_RECORDING_ADDRESS = FRAM_SOUND_ADDRESS + FRAM_SOUND_BYTES;    // 0x0FB00
-    static constexpr uint32_t FRAM_RECORDING_BYTES = RECORDINGS * sizeof(FRAM_Recording_struct); // 0x000F0
+    static constexpr uint32_t FRAM_RECORDING_BYTES = RECORDINGS * sizeof(FRAM_Recording_struct); // 0x00168
 
-    static constexpr uint32_t FRAM_SYSTEM_ADDRESS = 0x0FC00;
+    static constexpr uint32_t FRAM_SYSTEM_ADDRESS = 0x0FD00;
     static constexpr uint32_t FRAM_SYSTEM_BYTES = sizeof(FRAM_System_struct); // 0x00100
 
-    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FD00
+    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FE00
+
+    struct alignas(4) FRAM_Backup_header_struct
+    {
+        uint8_t magic[8];
+        uint16_t version;
+        uint16_t header_bytes;
+        uint32_t payload_bytes;
+        uint32_t payload_crc32;
+    };
+    static constexpr uint16_t FRAM_BACKUP_VERSION = 2;
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);
     static_assert(sizeof(FRAM_Sound_struct) == 32);
@@ -241,10 +195,13 @@ private:
     static_assert(sizeof(FRAM_Instrument_filter_struct) == 8);
     static_assert(sizeof(FRAM_Instrument_struct) == 16);
     static_assert(sizeof(FRAM_Patch_delay_struct) == 28);
-    static_assert(sizeof(FRAM_Recording_struct) == 8);
+    static_assert(sizeof(FRAM_Recording_struct) == 12);
+    static_assert(offsetof(FRAM_Recording_struct, crc32) == 8);
     static_assert(sizeof(FRAM_CC_settings_struct) == 16);
     static_assert(sizeof(FRAM_System_struct) == 256);
+    static_assert(offsetof(FRAM_System_struct, key_step) == 2);
     static_assert(offsetof(FRAM_System_struct, CC_settings) == 4);
+    static_assert(offsetof(FRAM_System_struct, crc32) == 252);
     static_assert(offsetof(FRAM_Patch_struct, Instrument) == 32);
     static_assert(offsetof(FRAM_Patch_struct, Delay) == 160);
     static_assert(offsetof(FRAM_Patch_struct, crc32) == 188);
@@ -263,47 +220,78 @@ private:
 public:
     ArchivingManager(void) {}
 
-    void Save_CC_lowpass_filter(const int CC_lowpass_filter);
-    void Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter);
-    void Save_optimization(const uint8_t optimization);
-    void Read_optimization(uint8_t &optimization);
-    void Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);
-    void Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument);
-    void Copy_patch_Delay_data_from_Eeprom_to_Ram(Delay_data_struct &Delay_data);
-    void Save_Delay_to_Eeprom(const Delay_data_struct &Delay_data);
-    void Read_first_octave(int8_t &first_octave);
-    void Save_first_octave(const int8_t first_octave);
-    void Save_Sound(const int sound_id);
+    byte Save_CC_lowpass_filter(const int CC_lowpass_filter);
+    byte Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter);
+    byte Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter);
+    byte Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter);
+    byte Save_optimization(const uint8_t optimization);
+    byte Read_optimization(uint8_t &optimization);
+    byte Save_key_step(const uint8_t key_step);
+    byte Read_key_step(uint8_t &key_step);
+    byte Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);
+    byte Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument);
+    byte Read_Delay(uint8_t patch_id, Delay_data_struct &Delay_data);
+    byte Save_Delay(uint8_t patch_id, const Delay_data_struct &Delay_data);
+    byte Read_first_octave(int8_t &first_octave);
+    byte Save_first_octave(const int8_t first_octave);
+    byte Save_Sound(const int sound_id);
     bool Validate_Sound_AB_file_raw(uint32_t sound_id);
-    void Read_Sound(const int sound_id);
-    void Save_Patch(const int patch_id);
-    void Read_Patch(const int patch_id);
-    void Save_DS_Recording(const int recording);
-    void Save_DS_Recording(const int &recording, const EEPROM_VFS_Recording &EEPROM_Rec_recording);
-    void Read_DS_Recording(const int &recording, EEPROM_VFS_Recording &EEPROM_Rec_recording);
-    void Save_setup_file(File &file);              // File e' l'oggetto file incluso in FS.h
-    void Copy_setup_from_Eeprom_to_SD(File &file); // File e' l'oggetto file incluso in FS.h
-    void Reset_EEPROM(void);
-    void Print_EEPROM_content(void);
-
-    void Copy_patch_Delay_data_from_Eeprom_to_SD(const int patch_id);
-    void Copy_patch_Delay_data_from_RAM_to_SD(const int patch_id);
-    bool Copy_patch_Delay_data_from_SD_to_RAM(const int patch_id);
-    bool Copy_patch_Delay_data_from_SD_to_Eeprom(const int patch_id);
-    void Print_patch_Delay_file_reading_from_SD(const int patch_id);
-    bool Delete_patch_Delay_data_in_SD(const int patch_id);
-
+    byte Read_Sound(const int sound_id);
+    byte Save_Patch(const int patch_id);
+    byte Read_Patch(const int patch_id);
+    byte Save_DS_Recording(const int recording);
+    byte Read_DS_Recording(const int recording);
     bool Copy_Patch_from_RAM_to_SD(const int patch_id);
     bool Copy_Patch_from_SD_to_RAM(const int patch_id);
 
     bool Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id);
     bool Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id);
 
-    int GET_location_of_DS_Recording(const int &recording);
-
     bool Save_Patch_from_RAM_to_SD(const int patch_id);
     bool Resume_Patch_from_SD_to_RAM(const int patch_id);
 
+    byte Factory_reset_FRAM(bool publish_ready = true);
+    byte Check_FRAM_archive();
+    byte Set_FRAM_archive_state(uint32_t state);
+    struct Recording_backup_audio
+    {
+        uint32_t bytes[2];
+        uint32_t crc32[2];
+    };
+    static_assert(sizeof(Recording_backup_audio) == 16);
+    bool Verify_FRAM_backup(File &file);
+    bool Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings);
+    static constexpr uint32_t RESTORE_IN_PROGRESS = 0x52535452;
+    static constexpr uint32_t ARCHIVE_READY = 0x52454144;
+    bool Save_FRAM_backup(File &file, const Recording_backup_audio *audio = nullptr);
+    bool Restore_FRAM_backup(File &file, bool publish_ready = true);
+    struct FRAM_Repair_report
+    {
+        uint16_t cleared_patches = 0;
+        uint16_t cleared_sounds = 0;
+        uint16_t defaulted_sounds = 0;
+        uint16_t failed_id = UINT16_MAX;
+        bool failed_sound = false;
+    };
+    // Startup only, before runtime loading. Repairs FRAM without changing the RAM model.
+    byte Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report);
+    struct FRAM_Recording_repair_report
+    {
+        uint8_t cleared_recordings = 0;
+        uint8_t failed_id = UINT8_MAX;
+    };
+    // Startup only. CRC-corrupt Recording metadata is replaced with an empty, inconsistent cleanup marker.
+    byte Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report);
+    struct FRAM_System_repair_report
+    {
+        bool defaulted = false;
+    };
+    // Startup only. A CRC-corrupt System record is replaced with safe defaults.
+    byte Repair_System_in_FRAM(FRAM_System_repair_report &report);
+    // Startup only: clears runtime arrays on failure and reports the failing record ID.
+    byte Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound);
+    static constexpr byte FRAM_ERROR_VERIFY = 13;
+    static constexpr byte FRAM_ERROR_SOURCE = 14;
     static constexpr byte FRAM_ERROR_CRC = 12; // Stored Patch or Sound checksum does not match its payload.
 
     // Patch reads validate the CRC before publishing data; writes calculate and store the CRC last.

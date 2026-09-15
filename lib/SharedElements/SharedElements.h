@@ -118,8 +118,8 @@ static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
 static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
 static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
 static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
-extern volatile uint32_t audio_update_cycle; // Advances once per running audio control cycle.
-extern elapsedMicros audio_update_time_micros; // usata per calcolare il tempo disponibile per la copia
+extern volatile uint32_t audio_update_cycle; // Advances every audio cycle, including paused control callbacks.
+extern elapsedMicros audio_update_time_micros; // Shared elapsed time from Trigger 0: Player protection, crossfades and background copies.
 
 
 // PATCH
@@ -138,7 +138,7 @@ static constexpr uint8_t SIZE_OF_INSTRUMENT_FILTER_DATA = sizeof(Instrument_filt
 struct Instrument_struct
 {
     bool used;
-    uint8_t sound_id;
+    uint16_t sound_id;
     uint8_t root_key;
     uint8_t from_note;
     uint8_t to_note;
@@ -146,15 +146,15 @@ struct Instrument_struct
     bool lock;
     Instrument_filter_data_struct Filter;
 };
-static constexpr uint8_t SIZE_OF_INSTRUMENT = sizeof(Instrument_struct); // 14
+static constexpr uint8_t SIZE_OF_INSTRUMENT = sizeof(Instrument_struct); // 16, including alignment for sound_id
 
 struct Patch_struct
 {
     bool used;
     uint8_t instruments;
     Instrument_struct Instrument[INSTRUMENTS];
-} __attribute__((__packed__));
-static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 14 = 114
+};
+static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 16 = 130
 
 extern Patch_struct Patch[PATCHES_MAX + 1]; // last used by Direct Sampling for "preascolto" and Live Sampling
 
@@ -327,7 +327,7 @@ extern float pan_gain_L_table[33];
 extern float pan_gain_R_table[33];
 
 // funzioni
-inline uint8_t Get_sound_id(int patch_id, int instrument_id)
+inline uint16_t Get_sound_id(int patch_id, int instrument_id)
 {
     return Patch[patch_id].Instrument[instrument_id].sound_id;
 }
@@ -369,7 +369,7 @@ struct Preset_struct
 extern Preset_struct Preset[INSTRUMENTS];
 
 // AUDIOPLAYER
-extern elapsedMicros security_timer;            // Protezione Audiostream update()
+extern volatile uint32_t audio_player_emergency_stops; // Saturating count of voices stopped by the audio deadline; no IRQ serial logging.
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id); // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative

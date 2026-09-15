@@ -23,7 +23,7 @@ void DisplayManager::Lilla_cover_slow(void)
     }
 
     // fade-out
-    delay(4000);
+    delay(6000);
     for (auto i = 50; i >= 0; --i)
     {
         Cover_text(i / 50.0f);
@@ -356,21 +356,28 @@ void DisplayManager::Logo(float light)
 void DisplayManager::Cover_text(float light)
 {
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
-    tft.setCursor(display_coordinate_x(13), display_coordinate_y(12));
+    tft.setCursor(display_coordinate_x(13), Text_position_DY);
     tft.print("UPDATE ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
     tft.print(FIRMWARE_VERSION);
 
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
-    tft.setCursor(display_coordinate_x(13), display_coordinate_y(13) - 4);
-    tft.print("AUDIO MEMORY ");
+    tft.setCursor(display_coordinate_x(13), Text_position_DY + 11);
+    tft.print("AUDIO REPOSITORY ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
     tft.print(verified_flash_memory_MB);
     tft.print("MB");
 
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
-    tft.setCursor(display_coordinate_x(13), display_coordinate_y(14) - 8);
-    tft.print("LIVE SAMPLER MEMORY ");
+    tft.setCursor(display_coordinate_x(13), Text_position_DY + 22);
+    tft.print("AUDIO RAM ");
+    tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
+    tft.print(PSRAM_TOTAL_SAMPLES * sizeof(int16_t) / (1UL << 20));
+    tft.print("MB");
+
+    tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
+    tft.setCursor(display_coordinate_x(13), Text_position_DY + 33);
+    tft.print("LIVE SAMPLER CACHE ");
     tft.setTextColor(Calc_color(ILI9341_WHITE, light)); // 16-bit ('565') color settings
     tft.print("16MB");
 }
@@ -937,9 +944,9 @@ void DisplayManager::SETUP_show_SETUP_page(void)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.print(F("IMPORT RAW FILES FROM /LILLARAW"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
-    tft.print(F("IMPORT CONFIGURATION FROM /LILLASET/lilla.txt"));
+    tft.print(F("RESTORE CONFIG + AUDIO FROM /LILLABACKUP ROOT"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
-    tft.print(F("EXPORT CONFIGURATION TO /LILLASET/lillaold.txt"));
+    tft.print(F("NEW NUMBERED BACKUP IN /LILLABACKUP"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
     tft.print(F("FACTORY RESET"));
 
@@ -1174,7 +1181,7 @@ void DisplayManager::Confirm_config_import_popup(void)
     tft.setTextColor(ILI9341_WHITE);
 
     //       ("01234567890123456789012345678901234567891098765"); // 45 char
-    tft.print(F("    WARNING: IMPORT CONFIGURATION FROM SD"));
+    tft.print(F("    RESTORE CONFIGURATION + RECORDING AUDIO"));
     tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 15);
     tft.print(F(" WILL DELETE PATCHES, SOUNDS AND RECORDINGS!")); // 43
     tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 30);
@@ -1289,6 +1296,34 @@ void DisplayManager::SD_missing(uint16_t color)
 }
 
 FLASHMEM
+void DisplayManager::FRAM_io_error_popup(void)
+{
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.setCursor(10, 70);
+    tft.println(F("FRAM ACCESS FAILED - OPERATION STOPPED"));
+    tft.setCursor(10, 100);
+    tft.println(F("Data may not have been saved."));
+    tft.setCursor(10, 130);
+    tft.println(F("Check FRAM connections and restart."));
+}
+
+void DisplayManager::FRAM_recovery_popup(void)
+{
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.setCursor(10, 70);
+    tft.println(F("ARCHIVE UNAVAILABLE - RESTORE REQUIRED"));
+    tft.setCursor(10, 100);
+    tft.println(F("Put backup files in /LILLABACKUP root"));
+    tft.setCursor(10, 130);
+    tft.println(F("LILLA_CONFIG.fram + REC audio files"));
+    tft.setCursor(10, 150);
+    tft.println(F("SELECT or serial R: retry full restore"));
+}
+
 void DisplayManager::Config_import_FILE_error_popup(void)
 {
     L_POPUP = display_coordinate_x(35);
@@ -1302,7 +1337,7 @@ void DisplayManager::Config_import_FILE_error_popup(void)
     tft.setTextColor(ILI9341_YELLOW);
 
     //       ("01234567890123456789012345678901234");
-    tft.print(F("  SD/LILLASET/lilla.txt NOT FOUND"));
+    tft.print(F(" INVALID BACKUP OR NOT ENOUGH FLASH"));
 }
 
 FLASHMEM
@@ -1319,7 +1354,7 @@ void DisplayManager::Config_import_REBOOT_popup(void)
     tft.setTextColor(ILI9341_WHITE);
 
     //           ("01234567890123456789012345678901234567");
-    tft.print(F(" LOADING NEW CONFIGURATION AND REBOOT"));
+    tft.print(F(" RESTORING CONFIGURATION AND AUDIO"));
 }
 
 FLASHMEM
@@ -1358,9 +1393,9 @@ void DisplayManager::Confirm_config_export_popup(void)
     tft.setTextColor(ILI9341_WHITE);
 
     //         ("012345678901234567890123456789012345678901234567890");
-    tft.print(F("        WARNING: EXPORT CONFIGURATION TO SD"));
+    tft.print(F("       SAVE CONFIGURATION + RECORDING AUDIO"));
     tft.setCursor(X_POPUP, Y_POPUP + Y_POPUP_TXT + 15);
-    tft.print(F("  WILL DELETE A PREVIOUS CONFIGURATION FILE SAVED")); // 43
+    tft.print(F("       PREVIOUS BACKUPS WILL NOT BE DELETED"));
     tft.setCursor(X_POPUP, Y_POPUP + Y_POPUP_TXT + 30);
     tft.print(F("        DO YOU REALLY WANT TO PROCEED?"));
     tft.setTextColor(ILI9341_YELLOW);
@@ -1384,7 +1419,7 @@ void DisplayManager::Config_export_SD_error_popup(void)
     tft.setTextColor(ILI9341_YELLOW);
 
     //       ("012345678901234567890123456");
-    tft.print(F(" INSUFFICIENT SPACE IN SD"));
+    tft.print(F(" BACKUP FAILED - CHECK LOG"));
 }
 
 FLASHMEM
@@ -1401,7 +1436,7 @@ void DisplayManager::Config_export_save_popup(void)
     tft.setTextColor(ILI9341_WHITE);
 
     //       ("01234567890123456789012345678901234567890123456789");
-    tft.print(F("  CONFIGURATION SAVED: SD/LILLASET/lillaold.txt"));
+    tft.print(F(" NUMBERED BACKUP SAVED IN /LILLABACKUP"));
 }
 
 FLASHMEM

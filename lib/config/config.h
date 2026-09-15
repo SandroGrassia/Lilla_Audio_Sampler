@@ -39,13 +39,16 @@ static constexpr int GATE_OUT_pin = 22;
 void Setup_GATE_pins(void);
 
 // MAIN CONSTANTS
+static constexpr int AUDIO_CYCLE_BUDGET_US = 2900; // Conservative block budget for 128 samples at 44.1 kHz.
+static constexpr int AUDIO_POST_PLAYER_RESERVE_US = 200; // Initial downstream processing margin; validate under worst-case hardware load.
+static constexpr int AUDIO_PLAYER_DEADLINE_US = AUDIO_CYCLE_BUDGET_US - AUDIO_POST_PLAYER_RESERVE_US; // Emergency cutoff measured from Trigger 0, including MIDI preparation.
 static constexpr int PLAYERS = 16;
 static constexpr int INSTRUMENTS = 8;   // mux number of Instruments per Patch
 static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari
 static constexpr int BLOCK_MIN = 674;       // Maximum span stored in AudioTables as a wavetable; longer loops are read in bounded segments.
 static constexpr int NOCLICK_DIM = 300;     // max number of samples included in cross-fade time in NoClick array creation
-static constexpr int PATCHES_MAX = 24;      // max number of Patchs stored in EEPROM
-static constexpr int SOUNDS_MAX = 85;       // max number of Sounds stored in EEPROM
+static constexpr int PATCHES_MAX = 200;     // FRAM Patch capacity
+static constexpr int SOUNDS_MAX = 800;      // FRAM Sound capacity
 static constexpr int NOTE_NUMBERS = 128;
 
 // POLYPHONY AND MAX-PITCH

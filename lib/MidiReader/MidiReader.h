@@ -11,6 +11,7 @@
 
 #include <Arduino.h>
 #include <MIDI.h>
+#include "MidiInputBatch.h"
 #include "SharedElements.h"
 #include "SharedLoop.h"
 #include "SharedMM.h"
@@ -29,7 +30,11 @@ class MidiReader
 {
 private:
     bool midi_stop_flag = true;
-    bool vibrato_flag = false;
+    MidiInputBatch batch;
+    static constexpr uint8_t Loop_events_per_track = 2; // Separate loop budget, independent of UART traffic.
+    void Collect_messages(void);
+    void Handle_message(const MidiInputMessage &message);
+    void Update_loops(void);
 
     // riferimenti esterni
     LoopMetronomo &LOOP_metronomo;

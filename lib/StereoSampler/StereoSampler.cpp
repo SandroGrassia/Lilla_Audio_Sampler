@@ -112,7 +112,21 @@ void StereoSampler::update(void)
     if (increment_packets_flag)
     {
         ++Recording[recording_id].packets;
-        Archive.Save_DS_Recording(recording_id);
+        const byte result = Archive.Save_DS_Recording(recording_id);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            storage_error = result;
+            stop();
+            if (in_block_L != nullptr)
+            {
+                release(in_block_L);
+            }
+            if (in_block_R != nullptr)
+            {
+                release(in_block_R);
+            }
+            return;
+        }
         Serial.print(F("StereoSampler - packets per channel: "));
         Serial.println(Recording[recording_id].packets);
 

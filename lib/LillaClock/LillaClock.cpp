@@ -3,20 +3,18 @@
 
 void LillaClock::update(void)
 {
+    if (identity != 0)
+    {
+        return;
+    }
+    // The audio deadline still advances while control callbacks are paused: Players keep rendering.
+    audio_update_time_micros = 0;
+    ++audio_update_cycle;
     if (!stop_flag)
     {
-        if (identity == 0)
-        {
-            audio_update_time_micros = 0;
-            ++audio_update_cycle;
-            Filter_Biquad_Manager_ptr->Update();
-            Delay_Manager_ptr->Update();
-            Midi_reader_ptr->Update();
-        }
-        else
-        {
-            Midi_reader_ptr->Update();
-        }
+        Filter_Biquad_Manager_ptr->Update();
+        Delay_Manager_ptr->Update();
+        Midi_reader_ptr->Update();
     }
 }
 
