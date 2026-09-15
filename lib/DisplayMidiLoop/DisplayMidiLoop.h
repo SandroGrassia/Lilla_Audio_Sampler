@@ -56,9 +56,9 @@ private:
 
     static constexpr int Loop_column_row_METRO[2] = {Loop_sound_id_column + 1 - Loop_chars_metro, 4};
     static constexpr int Loop_column_row_TRACK[2] = {Loop_sound_id_column + 1 - Loop_chars_track_number, 5};
-    static constexpr int Loop_column_row_SHIFT[2] = {Loop_sound_id_column + 1 - Loop_chars_shift, 6};
-    static constexpr int Loop_column_row_TRANSP[2] = {Loop_sound_id_column + 1 - Loop_chars_transpose, 7};
-    static constexpr int Loop_column_row_LEVEL[2] = {Loop_sound_id_column + 1 - Loop_chars_level, 8};
+    static constexpr int Loop_column_row_SHIFT[2] = {Loop_sound_id_column + 1 - Loop_chars_shift, 7};
+    static constexpr int Loop_column_row_TRANSP[2] = {Loop_sound_id_column + 1 - Loop_chars_transpose, 8};
+    static constexpr int Loop_column_row_LEVEL[2] = {Loop_sound_id_column + 1 - Loop_chars_level, 6};
     static constexpr int Loop_column_row_SOUND[2] = {Loop_sound_id_column + 1 - Loop_chars_sound, 9};
 
     static constexpr int Loop_column_row_track[TRACKS][2] = {
@@ -68,22 +68,22 @@ private:
         {Loop_track1_column + 3 * Loop_column_tracks_distance, 5},
     };
     static constexpr int Loop_column_row_slide[TRACKS][2] = {
-        {Loop_track1_column, 6},
-        {Loop_track1_column + Loop_column_tracks_distance, 6},
-        {Loop_track1_column + 2 * Loop_column_tracks_distance, 6},
-        {Loop_track1_column + 3 * Loop_column_tracks_distance, 6},
-    };
-    static constexpr int Loop_column_row_pitch[TRACKS][2] = {
         {Loop_track1_column, 7},
         {Loop_track1_column + Loop_column_tracks_distance, 7},
         {Loop_track1_column + 2 * Loop_column_tracks_distance, 7},
         {Loop_track1_column + 3 * Loop_column_tracks_distance, 7},
     };
-    static constexpr int Loop_column_row_level[TRACKS][2] = {
+    static constexpr int Loop_column_row_pitch[TRACKS][2] = {
         {Loop_track1_column, 8},
         {Loop_track1_column + Loop_column_tracks_distance, 8},
         {Loop_track1_column + 2 * Loop_column_tracks_distance, 8},
         {Loop_track1_column + 3 * Loop_column_tracks_distance, 8},
+    };
+    static constexpr int Loop_column_row_level[TRACKS][2] = {
+        {Loop_track1_column, 6},
+        {Loop_track1_column + Loop_column_tracks_distance, 6},
+        {Loop_track1_column + 2 * Loop_column_tracks_distance, 6},
+        {Loop_track1_column + 3 * Loop_column_tracks_distance, 6},
     };
 
     static constexpr float Loop_column_row_sound_id_0[2] = {Loop_sound_id_column, 9.8};

@@ -97,7 +97,7 @@ void PointerMidiLoop::Move_pointer(const int value)
             {
                 pointer.field_name = field_LOOP_TrackValues;
                 pointer.menu_element = value_LOOP_Menu_none;
-                pointer.track_value_element = value_LOOP_shift;
+                pointer.track_value_element = value_LOOP_level;
             }
         }
         else if (value == -1)
@@ -114,16 +114,25 @@ void PointerMidiLoop::Move_pointer(const int value)
     {
         if (value == 1)
         {
-            if (pointer.track_value_element < value_LOOP_level)
+            // Follow the display order without changing the field identifiers.
+            if (pointer.track_value_element == value_LOOP_level)
             {
-                pointer.track_value_element = static_cast<LOOP_track_value_name>(pointer.track_value_element + 1);
+                pointer.track_value_element = value_LOOP_shift;
+            }
+            else if (pointer.track_value_element == value_LOOP_shift)
+            {
+                pointer.track_value_element = value_LOOP_pitch;
             }
         }
         else if (value == -1)
         {
-            if (pointer.track_value_element > value_LOOP_shift)
+            if (pointer.track_value_element == value_LOOP_pitch)
             {
-                pointer.track_value_element = static_cast<LOOP_track_value_name>(pointer.track_value_element - 1);
+                pointer.track_value_element = value_LOOP_shift;
+            }
+            else if (pointer.track_value_element == value_LOOP_shift)
+            {
+                pointer.track_value_element = value_LOOP_level;
             }
             else
             {

@@ -28,9 +28,10 @@ void DisplaySampler::DS_confirm_EXIT_from_DS(void)
 }
 
 FLASHMEM
-void DisplaySampler::DS_page(int recording)
+void DisplaySampler::DS_page_upper(void)
 {
-    tft.fillScreen(ILI9341_BLACK);
+    const int bottom = display_coordinate_y(DS_ROW_MEMORY) - 4;
+    tft.fillRect(0, 0, 320, bottom, ILI9341_BLACK);
 
     Backgorund_red(DS_column_row_SAMPLER[0], DS_column_row_SAMPLER[1], 7);
     tft.setTextColor(ILI9341_WHITE);
@@ -41,6 +42,13 @@ void DisplaySampler::DS_page(int recording)
     tft.setTextColor(TEXT_COLOR);
     tft.print("VOLUME");
     DS_update_volume();
+}
+
+FLASHMEM
+void DisplaySampler::DS_page_lower(int recording)
+{
+    const int top = display_coordinate_y(DS_ROW_MEMORY) - 4;
+    tft.fillRect(0, top, 320, 240 - top, ILI9341_BLACK);
 
     tft.setCursor(display_coordinate_x(DS_column_row_AUDIO_MEMORY[0]), display_coordinate_y(DS_column_row_AUDIO_MEMORY[1]));
     tft.setTextColor(TEXT_COLOR);
@@ -65,7 +73,7 @@ void DisplaySampler::DS_page(int recording)
     tft.print("- FREE FOR RAW FILES ");
     DS_raw_available_memory();
 
-    DS_Recording_description(recording, true);
+    DS_Recording_description(recording, true, false);
     DS_sampler_IO();
 }
 
@@ -298,11 +306,15 @@ void DisplaySampler::DS_export_options(int file_L_RAW, int file_R_RAW, int DS_ex
 }
 
 FLASHMEM
-void DisplaySampler::DS_Recording_description(int recording, bool led)
+void DisplaySampler::DS_Recording_description(int recording, bool led, bool update_header)
 {
+    DS_recording_led_visible = led;
+    DS_recording_led_redraw = true;
     tft.setCursor(led ? display_coordinate_x(DS_column_row_RECORDING_LED[0]) : display_coordinate_x(DS_column_row_RECORDING[0]), display_coordinate_y(DS_column_row_RECORDING[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("RECORDING ");
+
+    tft.setCursor(display_coordinate_x(DS_column_row_recording[0]), display_coordinate_y(DS_column_row_recording[1])); // Align the value with its pointer frame, independently of the LED.
 
     if (recording >= 0)
     {
@@ -349,7 +361,7 @@ void DisplaySampler::DS_Recording_description(int recording, bool led)
 
     DS_recording_seconds();
 
-    if (led)
+    if (led && update_header)
     {
         DS_update_volume();
     }
@@ -459,8 +471,12 @@ void DisplaySampler::DS_show_pointer_frame(const DS_pointer_struct pointer, cons
         const int position = position_Menu_DS[pointer.menu_element];
         Frame_by_col_row(X_position_Menu_DS[position], Y_position_Menu_DS[position], dimension_voice_Menu_DS[element_Menu_DS[position]], show);
     }
-    else
+    else if (pointer.value_element == value_DS_Recording)
     {
         Frame_by_col_row(DS_column_row_recording[0], DS_column_row_recording[1], DS_chars_recording, show);
+    }
+    else if (pointer.value_element == value_DS_Gain)
+    {
+        Frame_by_pixels(DS_START_X + 4, DS_START_Y + 4, 4, show);
     }
 }

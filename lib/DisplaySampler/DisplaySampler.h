@@ -67,7 +67,7 @@ private:
 
     // character widths for Cancel_text / Cancel_text_reset_cursor calls
     static constexpr int DS_chars_volume = 4;
-    static constexpr int DS_chars_recording = 3;
+    static constexpr int DS_chars_recording = 4; // Allow the NONE label to fit with the standard frame padding.
     static constexpr int DS_chars_available_memory = 10;
     static constexpr int DS_chars_raw_available_memory = 6;
     static constexpr int DS_chars_length = 7;
@@ -89,8 +89,11 @@ private:
 public:
     DisplaySampler() {}
 
-    // Draws the full Direct Sampler page (title, memory info, IO diagram, recording description).
-    void DS_page(int recording);
+    // Clears the upper area and draws the title and volume; callers restore the menu and pointer.
+    void DS_page_upper(void);
+
+    // Draws memory, recording and IO information without touching the upper area.
+    void DS_page_lower(int recording);
 
     // Draws the LINE-IN / SAMPLER / LINE-OUT IO diagram and initialises the VU-meter.
     void DS_sampler_IO(void);
@@ -128,8 +131,8 @@ public:
     // Draws the SD export options panel showing source file names and available targets.
     void DS_export_options(int file_L_RAW, int file_R_RAW, int DS_export);
 
-    // Draws the full recording description block (number, file names, length). Pass led=true to also refresh volume.
-    void DS_Recording_description(int recording, bool led);
+    // Draws the recording description and LED space; update_header allows refreshing the header volume.
+    void DS_Recording_description(int recording, bool led, bool update_header = true);
 
     // Draws the static LENGTH label and value for the current recording.
     void DS_recording_seconds(void);

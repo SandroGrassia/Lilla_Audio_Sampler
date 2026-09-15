@@ -52,12 +52,24 @@ void PointerSampler::Move_pointer(const int value)
 
 	case field_DS_Value:
 	{
-		if (value == -1)
-		{
-			pointer.field_name = field_DS_Menu;
-			pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[DS_menu_max]);
-			change = true;
-		}
+        if (value == 1 && pointer.value_element == value_DS_Recording)
+        {
+            pointer.value_element = value_DS_Gain;
+            change = true;
+        }
+        else if (value == -1)
+        {
+            if (pointer.value_element == value_DS_Gain)
+            {
+                pointer.value_element = value_DS_Recording;
+            }
+            else
+            {
+                pointer.field_name = field_DS_Menu;
+                pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[DS_menu_max]);
+            }
+            change = true;
+        }
 	}
 	break;
 	}

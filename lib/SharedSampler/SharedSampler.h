@@ -30,6 +30,8 @@ extern int recording;
 extern int DS_gain;
 extern elapsedMillis DS_blink_timer;
 extern bool DS_blink_ON;
+extern bool DS_recording_led_visible; // Whether the current description reserves space for the playback LED.
+extern bool DS_recording_led_redraw; // Request a refresh after the recording description is drawn.
 
 // Pointer
 enum DS_field_name
@@ -54,10 +56,11 @@ enum DS_menu_element_name
     value_DS_ExportRawToSD
 };
 
-static constexpr int DS_value_names = 1;
+static constexpr int DS_value_names = 2;
 enum DS_value_name
 {
-    value_DS_Recording
+    value_DS_Recording,
+    value_DS_Gain
 };
 
 struct DS_pointer_struct
