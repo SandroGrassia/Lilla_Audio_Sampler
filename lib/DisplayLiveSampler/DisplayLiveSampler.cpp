@@ -445,7 +445,7 @@ void DisplayLiveSampler::Update_REC_LED(void)
     canvas.drawBitmap(5, display_coordinate_y(0), led_pic, 5, 8, (LS_blink_ON ? ILI9341_RED : RED_OFF));
     canvas.setCursor(display_coordinate_x(2), display_coordinate_y(0));
     canvas.setTextColor((LS_blink_ON ? ILI9341_RED : RED_OFF));
-    canvas.print("REC");
+    canvas.print("CAPTURE");
 }
 
 void DisplayLiveSampler::Draw_XY_lines(void)
