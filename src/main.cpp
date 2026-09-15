@@ -293,49 +293,47 @@ AudioConnection patchCord44(Router_R, 0, Delay_R, 1); // modulazione del delay d
 
 AudioConnection patchCord45(Router_L, 1, mixer_L, 1);
 AudioConnection patchCord46(Tone_generator, 0, mixer_L, 2);
-AudioConnection patchCord47(Trigger_0, 0, mixer_L, 3);
 
-AudioConnection patchCord48(Router_R, 1, mixer_R, 1);
-AudioConnection patchCord49(Tone_generator, 0, mixer_R, 2);
-AudioConnection patchCord50(Trigger_1, 0, mixer_R, 3);
+AudioConnection patchCord47(Router_R, 1, mixer_R, 1);
+AudioConnection patchCord48(Tone_generator, 0, mixer_R, 2);
 
-AudioConnection patchCord51(mixer_L, 0, biquad_L, 0);
-AudioConnection patchCord52(mixer_R, 0, biquad_R, 0);
+AudioConnection patchCord49(mixer_L, 0, biquad_L, 0);
+AudioConnection patchCord50(mixer_R, 0, biquad_R, 0);
 
-AudioConnection patchCord53(biquad_L, 0, MAIN_mixer_out_L, 0);
-AudioConnection patchCord54(biquad_R, 0, MAIN_mixer_out_R, 0);
+AudioConnection patchCord51(biquad_L, 0, MAIN_mixer_out_L, 0);
+AudioConnection patchCord52(biquad_R, 0, MAIN_mixer_out_R, 0);
 
-AudioConnection patchCord55(biquad_L, 0, LS_Feedback_L, 1);
-AudioConnection patchCord56(biquad_R, 0, LS_Feedback_R, 1);
+AudioConnection patchCord53(biquad_L, 0, LS_Feedback_L, 1);
+AudioConnection patchCord54(biquad_R, 0, LS_Feedback_R, 1);
 
-AudioConnection patchCord57(InputDevice, 0, LINE_IN_amplifier, 0);
-AudioConnection patchCord58(InputDevice, 1, LINE_IN_amplifier, 1);
+AudioConnection patchCord55(InputDevice, 0, LINE_IN_amplifier, 0);
+AudioConnection patchCord56(InputDevice, 1, LINE_IN_amplifier, 1);
 
-AudioConnection patchCord59(LINE_IN_amplifier, 0, PeakTracking_L, 0);
-AudioConnection patchCord60(LINE_IN_amplifier, 1, PeakTracking_R, 0);
-AudioConnection patchCord61(LINE_IN_amplifier, 0, MAIN_mixer_out_L, 1);
-AudioConnection patchCord62(LINE_IN_amplifier, 1, MAIN_mixer_out_R, 1);
+AudioConnection patchCord57(LINE_IN_amplifier, 0, PeakTracking_L, 0);
+AudioConnection patchCord58(LINE_IN_amplifier, 1, PeakTracking_R, 0);
+AudioConnection patchCord59(LINE_IN_amplifier, 0, MAIN_mixer_out_L, 1);
+AudioConnection patchCord60(LINE_IN_amplifier, 1, MAIN_mixer_out_R, 1);
 
-AudioConnection patchCord63(MAIN_mixer_out_L, 0, audio_out, 0);
-AudioConnection patchCord64(MAIN_mixer_out_R, 0, audio_out, 1);
+AudioConnection patchCord61(MAIN_mixer_out_L, 0, audio_out, 0);
+AudioConnection patchCord62(MAIN_mixer_out_R, 0, audio_out, 1);
 
-AudioConnection patchCord65(Router_L, 2, PWM_mixer_out_L, 0);
-AudioConnection patchCord66(Router_R, 2, PWM_mixer_out_R, 0);
+AudioConnection patchCord63(Router_L, 2, PWM_mixer_out_L, 0);
+AudioConnection patchCord64(Router_R, 2, PWM_mixer_out_R, 0);
 
-AudioConnection patchCord67(LINE_IN_amplifier, 0, PWM_mixer_out_L, 1);
-AudioConnection patchCord68(LINE_IN_amplifier, 1, PWM_mixer_out_R, 1);
+AudioConnection patchCord65(LINE_IN_amplifier, 0, PWM_mixer_out_L, 1);
+AudioConnection patchCord66(LINE_IN_amplifier, 1, PWM_mixer_out_R, 1);
 
-AudioConnection patchCord69(LINE_IN_amplifier, 0, LS_Feedback_L, 0);
-AudioConnection patchCord70(LINE_IN_amplifier, 1, LS_Feedback_R, 0);
+AudioConnection patchCord67(LINE_IN_amplifier, 0, LS_Feedback_L, 0);
+AudioConnection patchCord68(LINE_IN_amplifier, 1, LS_Feedback_R, 0);
 
-AudioConnection patchCord71(LS_Feedback_L, 0, LiveSampler, 0);
-AudioConnection patchCord72(LS_Feedback_R, 0, LiveSampler, 1);
+AudioConnection patchCord69(LS_Feedback_L, 0, LiveSampler, 0);
+AudioConnection patchCord70(LS_Feedback_R, 0, LiveSampler, 1);
 
-AudioConnection patchCord73(LINE_IN_amplifier, 0, DirectSampler, 0);
-AudioConnection patchCord74(LINE_IN_amplifier, 1, DirectSampler, 1);
+AudioConnection patchCord71(LINE_IN_amplifier, 0, DirectSampler, 0);
+AudioConnection patchCord72(LINE_IN_amplifier, 1, DirectSampler, 1);
 
-AudioConnection patchCord75(PWM_mixer_out_L, 0, PWM_L, 0);
-AudioConnection patchCord76(PWM_mixer_out_R, 0, PWM_R, 0);
+AudioConnection patchCord73(PWM_mixer_out_L, 0, PWM_L, 0);
+AudioConnection patchCord74(PWM_mixer_out_R, 0, PWM_R, 0);
 
 AudioControlSGTL5000 Audio_shield;
 

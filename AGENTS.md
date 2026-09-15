@@ -52,3 +52,6 @@ else
     ++report.cleared_sounds;
 }
 ```
+# Recap per Commit
+
+Anche senza indicazione esplicita, si devono intendere sempre in lingua Inglese.

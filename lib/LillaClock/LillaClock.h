@@ -19,7 +19,10 @@ private:
     bool stop_flag = true;
 
 public:
-    LillaClock(void) : AudioStream(0, NULL) {}
+    LillaClock(void) : AudioStream(0, nullptr)
+    {
+        active = true; // Keep control callbacks scheduled without audio connections.
+    }
 
     uint8_t identity;
     MidiReader *Midi_reader_ptr = nullptr;
