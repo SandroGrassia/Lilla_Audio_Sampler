@@ -184,7 +184,7 @@ struct PointerStub
     void Set_pointer_to_first_menu_element() {}
     LOOP_field_description_struct Get_pointer() { return {}; }
 } Pointer_MidiLoop;
-struct DisplayStub { void Show_menu() {} void Show_loop_id() {} } Display_MidiLoop;
+struct DisplayStub { void Show_menu() {} void Show_loop_id() {} void Show_save_failed() {} } Display_MidiLoop;
 void Clear_UI_events() {}
 void LOOP_select_menu_elements() {}
 '''

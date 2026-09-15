@@ -201,11 +201,11 @@
 // *************************************************************
 
 // Attenzione: la funzione update() e' chiamata nell'ordine in cui vengono dichiarati gli oggetti Audiostream
-LillaClock Trigger_0; // 1a Lettura midi ed esecuzione comandi
+LillaClock Trigger_0; // Collect MIDI and prepare MIDI/loop requests before the Players.
 AudioPlayer Player[PLAYERS];
 Router_16x3 Router_L;
 Router_16x3 Router_R;
-LillaClock Trigger_1; // 2a Lettura midi
+LillaClock Trigger_1; // Reserved control hook: no MIDI reads after the Players.
 CacheCycleFinalizer CacheCycle_finalizer;
 AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;

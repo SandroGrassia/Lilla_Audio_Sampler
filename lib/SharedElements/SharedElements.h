@@ -118,8 +118,8 @@ static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
 static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
 static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
 static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
-extern volatile uint32_t audio_update_cycle; // Advances once per running audio control cycle.
-extern elapsedMicros audio_update_time_micros; // usata per calcolare il tempo disponibile per la copia
+extern volatile uint32_t audio_update_cycle; // Advances every audio cycle, including paused control callbacks.
+extern elapsedMicros audio_update_time_micros; // Shared elapsed time from Trigger 0: Player protection, crossfades and background copies.
 
 
 // PATCH
@@ -369,7 +369,7 @@ struct Preset_struct
 extern Preset_struct Preset[INSTRUMENTS];
 
 // AUDIOPLAYER
-extern elapsedMicros security_timer;            // Protezione Audiostream update()
+extern volatile uint32_t audio_player_emergency_stops; // Saturating count of voices stopped by the audio deadline; no IRQ serial logging.
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id); // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative

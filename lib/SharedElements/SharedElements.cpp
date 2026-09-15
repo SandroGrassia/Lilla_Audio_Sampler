@@ -69,7 +69,7 @@ float pan_gain_R_table[33];
 Preset_struct Preset[INSTRUMENTS];
 
 // PLAYER
-elapsedMicros security_timer = 0;
+volatile uint32_t audio_player_emergency_stops = 0;
 
 // funzioni
 void Update_map_Instrument_for_notes(int from_note, int to_note, int instrument_id) // aggiorna la mappatura tra tutte Instrument e le coppie midi_channel/note_number e relative
