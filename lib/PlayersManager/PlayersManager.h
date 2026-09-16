@@ -88,6 +88,9 @@ private:
     }
 
 public:
+    enum class ReadSource : uint8_t { Flash, Psram, Ram }; // Select seek+read, zero+copy, or RAM2 copy into RAM1 respectively.
+    [[nodiscard]] static bool Get_read_time_us(ReadSource source, uint32_t samples, float &time_us); // Linear cold-cache estimate in us; zero samples cost zero, 1..9 use 10. Invalid source or count >4500 returns false and infinity. Sum separate calls for multiple reads; this excludes other Player processing.
+
     PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, AudioTables *AT, PatchCacheManager *PC) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Audio_tables_ptr(AT), Cache_manager_ptr(PC) {} // Connect players, routers, tables and the file cache owner.
     void Set_ADSR_ptr(AudioADSR* ptr); // requires &ADSR[0] from main.cpp
 
