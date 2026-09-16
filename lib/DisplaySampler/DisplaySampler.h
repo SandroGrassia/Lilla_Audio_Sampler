@@ -72,13 +72,15 @@ private:
     static constexpr int DS_chars_raw_available_memory = 6;
     static constexpr int DS_chars_length = 7;
 
-    // VU-meter bar geometry (pixel coordinates)
-    static constexpr int DS_VUMETER_BAR_X = 210;
-    static constexpr int DS_VUMETER_BAR_Y = 175;
-    static constexpr int DS_VUMETER_BAR_DISTANCE = 6;
-    static constexpr int DS_VUMETER_BAR_DX = 12; // horizontal distance between L and R bar centre lines
-    static constexpr int DS_START_Y = DS_VUMETER_BAR_Y + 13;
-    static constexpr int DS_START_X = DS_VUMETER_BAR_X - 7;
+    // Recording controls use the existing character-grid row numbering.
+    static constexpr float DS_ROW_GAIN = 9;
+    static constexpr float DS_ROW_LEVEL_L = 10;
+    static constexpr float DS_ROW_LEVEL_R = 11;
+    static constexpr float DS_COLUMN_GAIN = 14;
+    static constexpr int DS_VUMETER_BAR_X = 52;
+    static constexpr int DS_VUMETER_BAR_HEIGHT = 8;
+    static constexpr int DS_VUMETER_STEP_WIDTH = 2;
+    bool DS_recording_controls_visible = false;
 
     int DS_frame_menu_position_0 = 0;      // last highlighted menu position, used to erase the previous frame
     int DS_VU_meter_value_old[2] = {0, 0}; // previous bar height for each channel, used for incremental redraw
@@ -95,19 +97,15 @@ public:
     // Draws memory, recording and IO information without touching the upper area.
     void DS_page_lower(int recording);
 
-    // Draws the LINE-IN / SAMPLER / LINE-OUT IO diagram and initialises the VU-meter.
+    // Shows recording controls only during input monitoring and recording.
+    void DS_set_recording_controls(bool visible);
+    bool DS_has_recording_controls(void) const { return DS_recording_controls_visible; }
     void DS_sampler_IO(void);
 
     // Incrementally redraws one VU-meter bar channel. channel: 0 = L, 1 = R. value: 0 – BAR_ELEMENTS.
     void DS_bar(int channel, int value);
 
-    // Shows or hides the LINE-OUT arrow and label.
-    void DS_line_out(bool visible);
-
-    // Shows or hides the SAMPLER box and its arrow.
-    void DS_sampler_frame(bool visible);
-
-    // Draws the RECORD label in red (blinking) or dim red (off).
+    // Draws the RECORDING label in red (blinking) or dim red (off).
     void DS_sampler_txt(bool color);
 
     // Redraws the free-recording-memory value (seconds available for new recordings).
