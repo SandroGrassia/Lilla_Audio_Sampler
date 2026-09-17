@@ -1,5 +1,4 @@
 #include "LillaClock.h"
-#include "AudioTimingMonitor.h"
 #include "SharedElements.h"
 
 void LillaClock::update(void)
@@ -8,7 +7,6 @@ void LillaClock::update(void)
     {
         return;
     }
-    AudioTimingMonitor::Scope controls_timing(AudioTimingMonitor::Controls);
     // The audio deadline still advances while control callbacks are paused: Players keep rendering.
     audio_update_time_micros = 0;
     ++audio_update_cycle;

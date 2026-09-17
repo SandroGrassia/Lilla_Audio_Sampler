@@ -106,6 +106,12 @@ void PointerMidiLoop::Move_pointer(const int value)
             {
                 pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[--position]);
             }
+            else
+            {
+                pointer.field_name = field_LOOP_TrackValues;
+                pointer.menu_element = value_LOOP_Menu_none;
+                pointer.track_value_element = value_LOOP_pitch;
+            }
         }
     }
     break;
@@ -122,6 +128,12 @@ void PointerMidiLoop::Move_pointer(const int value)
             else if (pointer.track_value_element == value_LOOP_shift)
             {
                 pointer.track_value_element = value_LOOP_pitch;
+            }
+            else
+            {
+                pointer.field_name = field_LOOP_Menu;
+                pointer.menu_element = static_cast<LOOP_menu_element_name>(element_Menu_LOOP[0]);
+                pointer.track_value_element = value_LOOP_Track_none;
             }
         }
         else if (value == -1)

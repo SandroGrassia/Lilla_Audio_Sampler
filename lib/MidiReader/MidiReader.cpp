@@ -419,7 +419,7 @@ void MidiReader::Update_loops(void)
     uint8_t midi_channel;
     uint8_t note_number;
     // Eseguito se ci sono track running
-    if (Lilla_state == MIDI_LOOP || (Lilla_state_0 == MIDI_LOOP && (Lilla_state == DELAY_SETTINGS || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == MIXER)))
+    if (Lilla_state == MIDI_LOOP || (Lilla_state_0 == MIDI_LOOP && (Lilla_state == DELAY_SETTINGS || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == MIXER || Lilla_state == SETUP || Lilla_state == CC_SETTINGS)))
     {
         unsigned long LOOP_Clock_frozen = LOOP_Clock(); // congela LOOP_Clock()
 

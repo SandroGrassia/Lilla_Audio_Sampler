@@ -5,7 +5,6 @@
  */
 
 #include "AudioPlayer.h"
-#include "AudioTimingMonitor.h"
 
 int16_t AudioPlayer::samples_basket[BASKET_DIM];
 
@@ -71,7 +70,6 @@ void AudioPlayer::Retire_for_read_budget(void)
     {
         return;
     }
-    AudioTimingMonitor::Event_count(AudioTimingMonitor::BudgetRetirement);
     // Reuse already rendered audio: retirement consumes no additional Flash/PSRAM/RAM-table reads.
     if (rendered_block_valid && !budget_tail_pending)
     {
@@ -115,7 +113,7 @@ void AudioPlayer::My_LED(bool on)
             return;
         }
         led_instrument_id = instrument_id;
-        led_track = Lilla_state == MIDI_LOOP ? track : -1;
+        led_track = track >= 0 ? track : -1; // Track ownership survives navigation to Setup and other tool pages.
         if (led_track >= 0)
         {
             Players_statistics_ptr->Inc_total_Players_per_track_instrument(led_track, led_instrument_id);
@@ -811,7 +809,6 @@ void AudioPlayer::Enforce_cycle_deadline(void)
     {
         return;
     }
-    AudioTimingMonitor::Event_count(AudioTimingMonitor::DeadlineStop);
     if (audio_player_emergency_stops != UINT32_MAX)
     {
         audio_player_emergency_stops = audio_player_emergency_stops + 1;
@@ -881,12 +878,6 @@ void AudioPlayer::Update_pitch(void)
 
 void AudioPlayer::update(void)
 {
-    AudioTimingMonitor::Scope player_timing(AudioTimingMonitor::Players);
-    AudioTimingMonitor::Event_count(AudioTimingMonitor::Visited);
-    if (state != IDLE)
-    {
-        AudioTimingMonitor::Event_count(AudioTimingMonitor::ActivePlayer);
-    }
     if (read_diagnostics_enabled)
     {
         read_diagnostics = {};
@@ -898,12 +889,10 @@ void AudioPlayer::update(void)
     }
     if (budget_tail_pending)
     {
-        AudioTimingMonitor::Event_count(AudioTimingMonitor::Tail);
         audio_block_t *tail_L = allocate(); // Cached release uses the normal output channels, without touching the new voice.
         audio_block_t *tail_R = allocate(); // Keep the tail pending if either output allocation fails.
         if (tail_L == nullptr || tail_R == nullptr)
         {
-            AudioTimingMonitor::Event_count(AudioTimingMonitor::AllocationFailure);
             if (tail_L != nullptr)
             {
                 release(tail_L);
@@ -970,14 +959,12 @@ void AudioPlayer::update(void)
     block_L = allocate(); // allocate the audio blocks to transmit
     if (block_L == NULL)
     {
-        AudioTimingMonitor::Event_count(AudioTimingMonitor::AllocationFailure);
         return;
     }
 
     block_R = allocate(); // allocate the audio blocks to transmit
     if (block_R == NULL)
     {
-        AudioTimingMonitor::Event_count(AudioTimingMonitor::AllocationFailure);
         release(block_L); // Return the first allocation when the second output buffer is unavailable.
         return;
     }
@@ -1637,7 +1624,6 @@ void AudioPlayer::update(void)
             block_R->data[sample] = pan_gain_R * block[sample];
         }
 
-        AudioTimingMonitor::Event_count(AudioTimingMonitor::Rendered);
         rendered_block_valid = true; // The complete outgoing mono block is available for a source-free budget tail.
         transmit(block_L, 0);
         release(block_L);
@@ -2941,16 +2927,10 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         const int available = static_cast<int>(source_now.samples) - first_sample;
         const int end_valid = available < total_samples ? available : total_samples;
         Record_read(PlayerReadSource::Psram, total_samples, source_now.psram_ptr == nullptr || first_valid != 0 || end_valid != total_samples ? PlayerReadDiagnostics::PaddedRead : 0);
-        {
-            AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Zero);
-            memset(destination, 0, static_cast<size_t>(total_samples) * sizeof(int16_t)); // Initialize the requested range to silence so unavailable PSRAM samples remain zero after copying valid data.
-        }
+        memset(destination, 0, static_cast<size_t>(total_samples) * sizeof(int16_t)); // Initialize the requested range to silence so unavailable PSRAM samples remain zero after copying valid data.
         if (source_now.psram_ptr != nullptr && end_valid > first_valid)
         {
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Psram);
-                memcpy(destination + first_valid, source_now.psram_ptr + first_sample + first_valid, static_cast<size_t>(end_valid - first_valid) * sizeof(int16_t));
-            }
+            memcpy(destination + first_valid, source_now.psram_ptr + first_sample + first_valid, static_cast<size_t>(end_valid - first_valid) * sizeof(int16_t));
         }
         return;
     }
@@ -2997,11 +2977,8 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         if (local_last_byte < PACKET_DIM) // 1 Block is needed
         {
             Record_read(PlayerReadSource::Flash, total_bytes / 2);
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Flash);
-                rawfile.seek(local_first_byte);
-                rawfile.read(destination_byte, total_bytes);
-            }
+            rawfile.seek(local_first_byte);
+            rawfile.read(destination_byte, total_bytes);
         }
 
         else // 2 Blocks are needed - with T41@600MHz adds 40microseconds
@@ -3022,11 +2999,8 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             int second_part = total_bytes - first_part;     // 8 - 2 = 6
 
             Record_read(PlayerReadSource::Flash, first_part / 2);
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Flash);
-                rawfile.seek(local_first_byte);             // (PD - 2)
-                rawfile.read(destination_byte, first_part); // read 2 bytes
-            }
+            rawfile.seek(local_first_byte);             // (PD - 2)
+            rawfile.read(destination_byte, first_part); // read 2 bytes
             rawfile.close();
 
             packet_delta = packet_delta + (stereo_flag ? 2 : 1);   // 0 + 2 = 2
@@ -3036,11 +3010,8 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             }
             rawfile.packet_fast_open(first_packet + packet_delta); // 15
             Record_read(PlayerReadSource::Flash, second_part / 2);
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Flash);
-                rawfile.seek(0);
-                rawfile.read(destination_byte + first_part, second_part); // read 6 bytes
-            }
+            rawfile.seek(0);
+            rawfile.read(destination_byte + first_part, second_part); // read 6 bytes
 
             if (false) // it true: uncomment local_timer = 0;
             {
@@ -3070,10 +3041,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         if (last_sample <= LS_buffer_dim - 1)
         {
             Record_read(PlayerReadSource::Psram, total_samples, PlayerReadDiagnostics::LiveCopyProxy);
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Psram);
-                memcpy(destination, (FIFO + first_sample), total_bytes);
-            }
+            memcpy(destination, (FIFO + first_sample), total_bytes);
         }
 
         else
@@ -3082,25 +3050,16 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             second_part_bytes = total_bytes - 2 * first_part_samples;
             Record_read(PlayerReadSource::Psram, first_part_samples, PlayerReadDiagnostics::LiveCopyProxy);
             Record_read(PlayerReadSource::Psram, second_part_bytes / 2, PlayerReadDiagnostics::LiveCopyProxy);
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Psram);
-                memcpy(destination, (FIFO + first_sample), 2 * first_part_samples);
-            }
-            {
-                AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Psram);
-                memcpy(destination + first_part_samples, FIFO, second_part_bytes);
-            }
+            memcpy(destination, (FIFO + first_sample), 2 * first_part_samples);
+            memcpy(destination + first_part_samples, FIFO, second_part_bytes);
         }
     }
 
     else
     {
         Record_read(PlayerReadSource::Flash, total_bytes / 2);
-        {
-            AudioTimingMonitor::Scope transfer_timing(AudioTimingMonitor::Flash);
-            rawfile.seek(first_byte);
-            rawfile.read(destination_byte, total_bytes);
-        }
+        rawfile.seek(first_byte);
+        rawfile.read(destination_byte, total_bytes);
     }
 }
 

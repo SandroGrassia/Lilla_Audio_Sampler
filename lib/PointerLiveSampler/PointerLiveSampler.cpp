@@ -42,15 +42,28 @@ void PointerLiveSampler::Move_pointer(const int value)
             {
                 pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[--menu_position]);
             }
+            else
+            {
+                pointer.field_name = field_LS_Value;
+                pointer.value_element = static_cast<LS_value_name>(LS_value_names - 1);
+            }
         }
     }
     break;
 
     case field_LS_Value:
     {
-        if (value == 1 && (pointer.value_element < (LS_value_names - 1)))
+        if (value == 1)
         {
-            pointer.value_element = static_cast<LS_value_name>(pointer.value_element + 1);
+            if (pointer.value_element < LS_value_names - 1)
+            {
+                pointer.value_element = static_cast<LS_value_name>(pointer.value_element + 1);
+            }
+            else
+            {
+                pointer.field_name = field_LS_Menu;
+                pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[0]);
+            }
         }
         else if (value == -1)
         {

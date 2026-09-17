@@ -62,6 +62,10 @@ int main()
     player.My_LED(false);
     player.My_LED(false);
     assert(stats.loop[2][1] == 0);
+    player.My_LED(true); // A background loop note starts while a tool page is displayed.
+    assert(stats.loop[2][3] == 1 && stats.performance[3] == 0);
+    player.My_LED(false);
+    assert(stats.loop[2][3] == 0);
     PerformanceLedSet leds;
     for (int i = 0; i < INSTRUMENTS; ++i)
     {

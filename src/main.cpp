@@ -9,7 +9,6 @@
 #include <type_traits>
 #include <strings.h>
 #include "ZeroRaw.h"
-#include "AudioTimingMonitor.h"
 #if defined(LILLA_READ_BENCHMARK)
 #include "ReadBenchmark.h"
 #endif
@@ -795,7 +794,7 @@ void Switch_from_PERFORMANCE_to_MIDI_LOOP(void);     // si conserva la Patch att
 void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void); // si ripristina Patch_id_old
 void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void);   // si ripristina Patch_id_old
 void Golive_SETUP(void);
-void Switch_from_MIDI_LOOP_to_SETUP(void); // si fermano i track
+void Switch_from_MIDI_LOOP_to_SETUP(void); // Keep the loop running while editing setup.
 void Golive_DELAY_SETTINGS(void);
 
 // >>>>>>>>>>> PRINT
@@ -1221,21 +1220,6 @@ void loop()
                 AudioInterrupts();
             }
             Serial.println(command == 'd' ? F("READ_DIAG: enabled/reset; play notes, then send p; D disables") : F("READ_DIAG: disabled; last/peak retained"));
-        }
-        else if (command == 't' || command == 'T')
-        {
-            if (AudioTimingMonitor::Enable(command == 't'))
-            {
-                Serial.println(command == 't' ? F("AUDIO_TIMING: enabled/reset; play stress patch, T freezes, q reports; use D to disable READ_DIAG overhead") : F("AUDIO_TIMING: frozen; q reports"));
-            }
-            else
-            {
-                Serial.println(F("AUDIO_TIMING: audio IRQ handler unavailable"));
-            }
-        }
-        else if (command == 'q')
-        {
-            AudioTimingMonitor::Print();
         }
         else if (command == 'p')
         {
@@ -3245,6 +3229,11 @@ void loop()
                 {
                     S_Set_Sound_SOLO_OFF();
                     Golive_with_PERFORMANCE(Patch_id);
+                }
+                else if (Lilla_state_0 == MIDI_LOOP)
+                {
+                    S_Set_Sound_SOLO_OFF();
+                    Golive_with_MIDI_LOOP(false);
                 }
                 else if (Lilla_state_0 == LIVE_SAMPLING)
                 {
@@ -7221,8 +7210,10 @@ void loop()
         }
 
         // Change menu item  -  uint8_t SET_menu;
-        if (Read_encoder(EN_PB_Select, SET_menu, 6, 0, 1))
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0)
         {
+            SET_menu = (SET_menu + result + 7) % 7;
             Display_Manager.SETUP_show_frame(SET_menu);
 
             Clear_UI_events();
@@ -10007,10 +9998,7 @@ void Switch_from_MIDI_LOOP_to_MIDI_MONITOR(void)
 
 void Switch_from_MIDI_LOOP_to_SETUP(void)
 {
-    AudioNoInterrupts();
-    LOOP_stop_all_midi_tracks();
-    AudioInterrupts();
-
+    Lilla_state_0 = MIDI_LOOP;
     Golive_SETUP();
 }
 

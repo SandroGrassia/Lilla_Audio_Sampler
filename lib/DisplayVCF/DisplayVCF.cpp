@@ -58,12 +58,9 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
         VCF_show_sound_gain_value(sound_id);
     }
 
-    if (Lilla_state_0 != MIDI_LOOP)
-    {
-        tft.setCursor(display_coordinate_x(VCF_column_row_RETURN[0]), display_coordinate_y(VCF_column_row_RETURN[1]));
-        tft.setTextColor(MENU_COLOR);
-        tft.print("RETURN");
-    }
+    tft.setCursor(display_coordinate_x(VCF_column_row_RETURN[0]), display_coordinate_y(VCF_column_row_RETURN[1]));
+    tft.setTextColor(MENU_COLOR);
+    tft.print("RETURN");
 
     Display_Manager.Show_all_effects();
     VCF_show_solo_value();
