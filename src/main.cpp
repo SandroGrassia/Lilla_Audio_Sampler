@@ -417,7 +417,6 @@ PointerMidiLoop Pointer_MidiLoop;
 #define AudioInterrupts() (NVIC_ENABLE_IRQ(IRQ_SOFTWARE))
 
 // Polyphony/Max Pitch
-uint8_t optimization_cache;
 int first_octave_cache;
 
 // Audio files
@@ -525,6 +524,7 @@ bool S_Fill_tables(uint8_t instrument_id);                            // Prepare
 bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete bank and preserve the previous presets if preparation fails.
 bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
+void Print_player_read_diagnostics(void); // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
 void Test_read_times(void); // Serial command b: benchmark current Flash, PSRAM and RAM reads.
 void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
 void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
@@ -541,7 +541,7 @@ bool S_Fill_all_tables(void)
     return S_Rebuild_audio_tables();
 }
 
-bool S_Rebuild_audio_tables(uint8_t edited_instrument)
+bool S_Rebuild_audio_tables(uint8_t)
 {
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t tables_mask = 0;
@@ -549,11 +549,6 @@ bool S_Rebuild_audio_tables(uint8_t edited_instrument)
     {
         audio_tables_error_pending = true;
         return false;
-    }
-    // The old preset is still published while the shared Flash/cache voice limit is checked.
-    if (edited_instrument < INSTRUMENTS)
-    {
-        Players_Manager.Verify_if_stop_players(Patch_id, edited_instrument);
     }
     if (!Players_Manager.Activate_prepared_presets(next_presets))
     {
@@ -1203,9 +1198,28 @@ void loop()
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
     P_Service_patch_cache();
-    if (Serial.available() > 0 && Serial.read() == 'b')
+    if (Serial.available() > 0)
     {
-        Test_read_times();
+        const int command = Serial.read();
+        if (command == 'b')
+        {
+            Test_read_times();
+        }
+        else if (command == 'd' || command == 'D')
+        {
+            const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+            AudioNoInterrupts();
+            Players_Manager.Enable_read_diagnostics(command == 'd');
+            if (audio_enabled)
+            {
+                AudioInterrupts();
+            }
+            Serial.println(command == 'd' ? F("READ_DIAG: enabled/reset; play notes, then send p; D disables") : F("READ_DIAG: disabled; last/peak retained"));
+        }
+        else if (command == 'p')
+        {
+            Print_player_read_diagnostics();
+        }
     }
     if (audio_tables_error_pending)
     {
@@ -7186,21 +7200,8 @@ void loop()
             Display_Manager.SETUP_show_First_octave_value();
         }
 
-        // SETUP_Optimization
-        optimization_cache = optimization;
-        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, optimization_cache, OPTIMIZATION_OPTIONS - 1, 0, 1))
-        {
-            AudioNoInterrupts();
-            Players_Manager.Stop_all_players();
-            optimization = optimization_cache;
-            AudioInterrupts();
-
-            Require_FRAM(Archive.Save_optimization(optimization));
-            Display_Manager.SETUP_show_Optimization_value();
-        }
-
         // Change menu item  -  uint8_t SET_menu;
-        if (Read_encoder(EN_PB_Select, SET_menu, 7, 0, 1))
+        if (Read_encoder(EN_PB_Select, SET_menu, 6, 0, 1))
         {
             Display_Manager.SETUP_show_frame(SET_menu);
 
@@ -7212,7 +7213,7 @@ void loop()
         {
             switch (SET_menu)
             {
-            case 3: // switch to CC Settings
+            case 2: // switch to CC Settings
                 Lilla_state = CC_SETTINGS;
 
                 display_wait = false;
@@ -7234,10 +7235,10 @@ void loop()
                 Clear_UI_events();
                 break;
 
-                // case 3: // USB access to SD card - funzionalita' MTP
+                // case 2: // USB access to SD card - funzionalita' MTP
                 // break;
 
-            case 4: // import RAW files from SD
+            case 3: // import RAW files from SD
             {
                 const bool resume_controls = Trigger_0.Is_running();
                 if (!P_Quiesce_audio_players())
@@ -7283,7 +7284,7 @@ void loop()
                 break;
             }
 
-            case 5: // Restore configuration and Recording audio from the backup root.
+            case 4: // Restore configuration and Recording audio from the backup root.
                 Display_Manager.Confirm_config_import_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7338,7 +7339,7 @@ void loop()
                 }
                 break;
 
-            case 6: // Create a new numbered backup with Recording audio.
+            case 5: // Create a new numbered backup with Recording audio.
                 Display_Manager.Confirm_config_export_popup();
                 Display_Manager.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7376,7 +7377,7 @@ void loop()
 
                 break;
 
-            case 7: // Factory reset
+            case 6: // Factory reset
                 Display_Manager.Confirm_factory_reset_popup();
                 Display_Manager.Confirm_config_import_frame(0);
 
@@ -8209,8 +8210,8 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
     last_ms = now_ms;
     const auto &preset = Preset[Instrument_id];
     const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
-    const float limit = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
-    const int voices = live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization];
+    const float limit = Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
+    const int voices = PLAYERS;
     if (force || displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
     {
         Display_Sound.Show_players_Pitch_max_value(Instrument_id); // Redraw only changed limits, except when a new page entry requires a fresh display.
@@ -8414,15 +8415,14 @@ void Update_instruments_leds()
                 if (Patch[Patch_id].Instrument[instrument_id].used) // check if i is used
                 {
                     // check led activity
-                    if (Loop_led_set.Read_LED_activity(track, instrument_id) == 2)
+                    const int activity = Loop_led_set.Consume_LED_activity(track, instrument_id);
+                    if (activity == 2)
                     {
                         Display_MidiLoop.Loop_led(track, instrument_id, true);
-                        Loop_led_set.Write_LED_activity(track, instrument_id, true);
                     }
-                    if (Loop_led_set.Read_LED_activity(track, instrument_id) == -2)
+                    if (activity == -2)
                     {
                         Display_MidiLoop.Loop_led(track, instrument_id, false);
-                        Loop_led_set.Write_LED_activity(track, instrument_id, false);
                     }
                 }
             }
@@ -8436,15 +8436,14 @@ void Update_instruments_leds()
             if (Patch[Patch_id].Instrument[instrument_id].used) // check if i is used
             {
                 // // check led activity
-                if (Performance_led_set.Read_LED_activity(instrument_id) == 2)
+                const int activity = Performance_led_set.Consume_LED_activity(instrument_id);
+                if (activity == 2)
                 {
                     Display_Manager.Led_PERFORMANCE_instrument(instrument_id, true);
-                    Performance_led_set.Write_LED_activity(instrument_id, true);
                 }
-                if (Performance_led_set.Read_LED_activity(instrument_id) == -2)
+                if (activity == -2)
                 {
                     Display_Manager.Led_PERFORMANCE_instrument(instrument_id, false);
-                    Performance_led_set.Write_LED_activity(instrument_id, false);
                 }
             }
         }
@@ -8459,15 +8458,14 @@ void Update_instruments_leds()
     else if (Lilla_state == SOUND_EDIT)
     {
         // check led activity
-        if (Performance_led_set.Read_LED_activity(Instrument_id) == 2)
+        const int activity = Performance_led_set.Consume_LED_activity(Instrument_id);
+        if (activity == 2)
         {
             Display_Manager.Led_SOUND_EDIT_instrument(Instrument_id, true);
-            Performance_led_set.Write_LED_activity(Instrument_id, true);
         }
-        if (Performance_led_set.Read_LED_activity(Instrument_id) == -2)
+        if (activity == -2)
         {
             Display_Manager.Led_SOUND_EDIT_instrument(Instrument_id, false);
-            Performance_led_set.Write_LED_activity(Instrument_id, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8479,15 +8477,14 @@ void Update_instruments_leds()
     else if (Lilla_state == INSTRUMENT_VCF)
     {
         // check led activity
-        if (Performance_led_set.Read_LED_activity(Instrument_id) == 2)
+        const int activity = Performance_led_set.Consume_LED_activity(Instrument_id);
+        if (activity == 2)
         {
             Display_Manager.Led_INSTRUMENT_VCF_instrument(Instrument_id, true);
-            Performance_led_set.Write_LED_activity(Instrument_id, true);
         }
-        if (Performance_led_set.Read_LED_activity(Instrument_id) == -2)
+        if (activity == -2)
         {
             Display_Manager.Led_INSTRUMENT_VCF_instrument(Instrument_id, false);
-            Performance_led_set.Write_LED_activity(Instrument_id, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8500,16 +8497,15 @@ void Update_instruments_leds()
     {
         // check led activity
 
-        if (Performance_led_set.Read_LED_activity(0) == 2)
+        const int activity = Performance_led_set.Consume_LED_activity(0);
+        if (activity == 2)
         {
             Display_LiveSampler.Led_LIVE_SAMPLING(true);
-            Performance_led_set.Write_LED_activity(0, true);
         }
 
-        else if (Performance_led_set.Read_LED_activity(0) == -2)
+        else if (activity == -2)
         {
             Display_LiveSampler.Led_LIVE_SAMPLING(false);
-            Performance_led_set.Write_LED_activity(0, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8521,19 +8517,15 @@ void Update_instruments_leds()
     {
 
         // Snapshot and acknowledge both instruments without losing requests from the audio IRQ.
+        const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
         AudioNoInterrupts();
-        const int left_activity = Performance_led_set.Read_LED_activity(0);
-        const int right_activity = Performance_led_set.Read_LED_activity(1);
+        const int left_activity = Performance_led_set.Consume_LED_activity(0);
+        const int right_activity = Performance_led_set.Consume_LED_activity(1);
         const bool activity_changed = abs(left_activity) == 2 || abs(right_activity) == 2;
-        if (abs(left_activity) == 2)
+        if (audio_enabled)
         {
-            Performance_led_set.Write_LED_activity(0, left_activity > 0);
+            AudioInterrupts();
         }
-        if (abs(right_activity) == 2)
-        {
-            Performance_led_set.Write_LED_activity(1, right_activity > 0);
-        }
-        AudioInterrupts();
 
         // Draw outside the IRQ lock; either active instrument keeps the shared LED on.
         if (DS_recording_led_visible && (activity_changed || DS_recording_led_redraw))
@@ -8548,7 +8540,9 @@ void Update_instruments_leds()
         }
     }
     else
+    {
         return;
+    }
 }
 
 // ***************************************************************************************************************
@@ -12157,7 +12151,6 @@ void Factory_setup_FRAM(void)
     Require_FRAM(Archive.Save_first_octave(-2));
 
     // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
-    Require_FRAM(Archive.Save_optimization(DEFAULT_OPTIMIZATION));
 
     // Assegna e salva in FRAM i parametri iniziali del Delay.
     Delay_data.samples = 20;                  // value ; 0 --> 99
@@ -13502,6 +13495,7 @@ void Startup_hardware_and_objects(void)
     // Setup Trigger
     Trigger_0.identity = 0;
     Trigger_1.identity = 1;
+    Trigger_0.Players_Manager_ptr = &Players_Manager; // Budget every rendering block, independently of MIDI activity.
     Trigger_0.Midi_reader_ptr = &Midi_reader;
     Trigger_1.Midi_reader_ptr = &Midi_reader;
     Trigger_0.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
@@ -13567,7 +13561,7 @@ void Startup_hardware_and_objects(void)
     }
 
     // CacheCycleFinalizer
-    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager, &Audio_tables);
+    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager, &Audio_tables, &Players_Manager);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************
@@ -13763,12 +13757,7 @@ void Reload_system_state(void)
     S_Copy_all_Sound_to_Sound_cache_P();
     Serial.println(F("FRAM -> RAM2: 200 Patches and 800 Sounds loaded, CRC verified"));
 
-    byte system_settings_result = Archive.Read_optimization(optimization);
-
-    if (system_settings_result == LillaFRAM_2x512::ERROR_0)
-    {
-        system_settings_result = Archive.Read_first_octave(first_octave);
-    }
+    byte system_settings_result = Archive.Read_first_octave(first_octave);
 
     uint8_t stored_key_step = 0;
     if (system_settings_result == LillaFRAM_2x512::ERROR_0)
@@ -14237,4 +14226,55 @@ void Test_read_times(void)
         }
     }
     Serial.printf("BENCH_ALIGN: complete; requested samples match; checksum=%lu\n", static_cast<unsigned long>(checksum));
+}
+
+void Print_player_read_diagnostics(void)
+{
+    DMAMEM static PlayersManager::ReadDiagnosticsSnapshot snapshots[4];
+    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    const auto budget = Players_Manager.Get_read_budget_status(); // Coherent scheduler snapshot while the audio IRQ is suspended.
+    const bool enabled = Players_Manager.Copy_read_diagnostics(snapshots[0], snapshots[1], snapshots[2], snapshots[3]);
+    if (audio_enabled)
+    {
+        AudioInterrupts();
+    }
+    Serial.printf("READ_BUDGET: limit_us=%.1f,reserved_us=%.3f,crossfade_us=%.3f,rejected_notes=%lu,retired_players=%lu,forced_protected=%lu\n", PlayerReadBudget::Limit_us, budget.reserved_us, budget.crossfade_us, static_cast<unsigned long>(budget.rejected_notes), static_cast<unsigned long>(budget.retired_players), static_cast<unsigned long>(budget.forced_protected));
+    Serial.printf("READ_DIAG: %s; observed_blocks=%lu\n", enabled ? "enabled" : "disabled", static_cast<unsigned long>(snapshots[0].blocks));
+    if (snapshots[0].blocks == 0)
+    {
+        Serial.println(F("READ_DIAG: send d, play notes, then p (report); D disables"));
+        return;
+    }
+    Serial.println(F("READ_DIAG: estimates describe reads performed in each block at actual pitch, NOT a maximum-bend reservation or full Player CPU cost"));
+    Serial.println(F("READ_DIAG: harvest_us includes assembly/reversal, counter overhead and interruptions; estimated_us models source transfers only"));
+    Serial.println(F("READ_DIAG: max_underestimate is the largest positive harvest-minus-estimate gap, including assembly/diagnostic overhead; not pure memory-model error"));
+    Serial.println(F("READ_DIAG: flags 1=RAM loop proxy, 2=Live PSRAM copy without zero-fill (proxy), 4=padding, 8=packet open unmodelled, 16=pending restart/edit, 32=restart executed"));
+    Serial.println(F("READ_DIAG: READ_DIAG_BUDGET belongs to each snapshot cycle; headroom values are before crossfades, pre_players_us includes scheduling; minimum_us is the rejected 16-sample cost"));
+    Serial.println(F("READ_DIAG: transition_kind 0=none, 1=restart, 2=edit, 3=both; mix_samples is assigned, harvests/flags describe actual execution; READ_BUDGET counters are since boot"));
+    Serial.println(F("snapshot,cycle,player,harvests,max_actual_pitch,flash_reads,flash_samples,psram_reads,psram_samples,ram_reads,ram_samples,estimated_us,harvest_us,flags,uncovered_reads,transition_kind,mix_samples,available_before_us,assigned_us,minimum_us"));
+    const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
+    const char *snapshot_names[] = {"last", "peak_estimate", "restart_peak", "max_underestimate"};
+    for (uint8_t snapshot = 0; snapshot < 4; ++snapshot)
+    {
+        const auto &data = snapshots[snapshot];
+        const char *name = snapshot_names[snapshot];
+        if (data.blocks == 0)
+        {
+            Serial.printf("READ_DIAG: %s not observed in this window\n", name);
+            continue;
+        }
+        const auto &scheduled = data.budget; // Historical allocation travels with the same last/peak/restart/gap snapshot.
+        Serial.printf("READ_DIAG_BUDGET,%s,cycle=%lu,valid=%u,limit_us=%.1f,reserved_us=%.3f,read_headroom_us=%.3f,deadline_headroom_us=%.3f,scheduler_elapsed_us=%.3f,pre_players_us=%.3f,available_us=%.3f,crossfade_us=%.3f,first_player=%u\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(scheduled.valid), PlayerReadBudget::Limit_us, scheduled.reserved_us, scheduled.read_headroom_us, scheduled.deadline_headroom_us, scheduled.scheduler_elapsed_us, scheduled.pre_players_us, scheduled.available_us, scheduled.crossfade_us, static_cast<unsigned int>(scheduled.first_player));
+        for (uint8_t player = 0; player < PLAYERS; ++player)
+        {
+            const auto &usage = data.players[player];
+            const auto &flash = usage.sources[0];
+            const auto &psram = usage.sources[1];
+            const auto &ram = usage.sources[2];
+            const uint32_t uncovered = flash.uncovered_operations + psram.uncovered_operations + ram.uncovered_operations;
+            Serial.printf("%s,%lu,%u,%u,%.4f,%lu,%lu,%lu,%lu,%lu,%lu,%.3f,%.3f,%u,%lu,%u,%u,%.3f,%.3f,%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(player), static_cast<unsigned int>(usage.harvests), static_cast<double>(usage.maximum_pitch), static_cast<unsigned long>(flash.operations), static_cast<unsigned long>(flash.samples), static_cast<unsigned long>(psram.operations), static_cast<unsigned long>(psram.samples), static_cast<unsigned long>(ram.operations), static_cast<unsigned long>(ram.samples), static_cast<double>(data.estimated_us[player]), static_cast<double>(usage.harvest_cycles / cycles_per_us), static_cast<unsigned int>(usage.flags), static_cast<unsigned long>(uncovered), static_cast<unsigned int>(scheduled.transition[player]), static_cast<unsigned int>(scheduled.mix_samples[player]), scheduled.available_before_us[player], scheduled.assigned_us[player], scheduled.minimum_us[player]);
+        }
+        Serial.printf("READ_DIAG_TOTAL,%s,cycle=%lu,estimated_us=%.3f,harvest_us=%.3f,uncovered_reads=%lu,restarted_players=%u,harvest_minus_estimate_us=%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<double>(data.total_estimated_us), static_cast<double>(data.total_harvest_us), static_cast<unsigned long>(data.uncovered_operations), static_cast<unsigned int>(data.restarted_players), static_cast<double>(data.total_harvest_us - data.total_estimated_us));
+    }
 }

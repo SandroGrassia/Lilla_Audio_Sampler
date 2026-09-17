@@ -266,17 +266,17 @@ read_times = {
 // Validated at 600 MHz over 10..4500 samples. Mean estimates, not worst-case timing guarantees.
 constexpr float Flash_read_time_us(uint32_t samples)
 {
-    return 2.2526f + 0.385575f * static_cast<float>(samples);
+    return PlayerReadBudget::Transfer_us(PlayerReadSource::Flash, samples);
 }
 
 constexpr float Psram_read_time_us(uint32_t samples)
 {
-    return 0.4655f + 0.059608f * static_cast<float>(samples);
+    return PlayerReadBudget::Transfer_us(PlayerReadSource::Psram, samples);
 }
 
 constexpr float Ram_read_time_us(uint32_t samples)
 {
-    return 0.1165f + 0.006258f * static_cast<float>(samples);
+    return PlayerReadBudget::Transfer_us(PlayerReadSource::Ram, samples);
 }
 }
 
@@ -310,6 +310,118 @@ bool PlayersManager::Get_read_time_us(ReadSource source, uint32_t samples, float
             break;
     }
     return true;
+}
+
+bool PlayersManager::Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us)
+{
+    time_us = INFINITY;
+    if (source != ReadSource::Flash && source != ReadSource::Psram && source != ReadSource::Ram)
+    {
+        return false;
+    }
+    if (usage.uncovered_operations != 0)
+    {
+        return false;
+    }
+    if (usage.operations == 0)
+    {
+        time_us = 0.0f;
+        return true;
+    }
+    // Each individual operation was range-checked by Add(); their combined sample count may exceed 4500.
+    const float extra_operations = static_cast<float>(usage.operations - 1u);
+    switch (source)
+    {
+        case ReadSource::Flash:
+            time_us = Flash_read_time_us(usage.model_samples) + extra_operations * Flash_read_time_us(0);
+            break;
+        case ReadSource::Psram:
+            time_us = Psram_read_time_us(usage.model_samples) + extra_operations * Psram_read_time_us(0);
+            break;
+        case ReadSource::Ram:
+            time_us = Ram_read_time_us(usage.model_samples) + extra_operations * Ram_read_time_us(0);
+            break;
+    }
+    return true;
+}
+
+void PlayersManager::Enable_read_diagnostics(bool enabled)
+{
+    read_diagnostics_enabled = enabled;
+    AudioPlayer::Enable_read_diagnostics(enabled);
+    if (enabled)
+    {
+        ARM_DEMCR |= ARM_DEMCR_TRCENA;
+        ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+        read_budget_diagnostics = {}; // A new observation window must not inherit an earlier allocation.
+        read_diagnostics_last = {};
+        read_diagnostics_peak = {};
+        read_diagnostics_restart = {};
+        read_diagnostics_gap = {};
+    }
+}
+
+void PlayersManager::Collect_read_diagnostics(void)
+{
+    if (!read_diagnostics_enabled)
+    {
+        return;
+    }
+    read_diagnostics_last.cycle = audio_update_cycle;
+    read_diagnostics_last.budget = read_budget_diagnostics.valid && read_budget_diagnostics.cycle == audio_update_cycle ? read_budget_diagnostics : ReadBudgetDiagnostics{}; // Never attach the latest budget to a different historical block.
+    ++read_diagnostics_last.blocks;
+    read_diagnostics_last.total_estimated_us = 0.0f;
+    read_diagnostics_last.total_harvest_us = 0.0f;
+    read_diagnostics_last.uncovered_operations = 0;
+    read_diagnostics_last.restarted_players = 0;
+    const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
+    for (uint8_t player = 0; player < PLAYERS; ++player)
+    {
+        const PlayerReadDiagnostics &usage = Player_ptr[player].Get_read_diagnostics();
+        read_diagnostics_last.players[player] = usage.cycle == audio_update_cycle ? usage : PlayerReadDiagnostics{}; // Never mix observations from different blocks.
+        const PlayerReadDiagnostics &current = read_diagnostics_last.players[player];
+        if ((current.flags & PlayerReadDiagnostics::RestartExecuted) != 0)
+        {
+            ++read_diagnostics_last.restarted_players;
+        }
+        float estimated = 0.0f;
+        for (uint8_t source = 0; source < 3; ++source)
+        {
+            float source_us;
+            if (!Get_read_usage_time_us(static_cast<ReadSource>(source), current.sources[source], source_us))
+            {
+                source_us = INFINITY;
+            }
+            estimated += source_us;
+            read_diagnostics_last.uncovered_operations += current.sources[source].uncovered_operations;
+        }
+        read_diagnostics_last.estimated_us[player] = estimated;
+        read_diagnostics_last.total_estimated_us += estimated;
+        read_diagnostics_last.total_harvest_us += static_cast<float>(current.harvest_cycles) / cycles_per_us;
+    }
+    if (read_diagnostics_peak.blocks == 0 || read_diagnostics_last.total_estimated_us > read_diagnostics_peak.total_estimated_us)
+    {
+        read_diagnostics_peak = read_diagnostics_last;
+    }
+    if (read_diagnostics_last.restarted_players != 0 && (read_diagnostics_restart.blocks == 0 || read_diagnostics_last.total_estimated_us > read_diagnostics_restart.total_estimated_us))
+    {
+        read_diagnostics_restart = read_diagnostics_last;
+    }
+    const float gap_us = read_diagnostics_last.total_harvest_us - read_diagnostics_last.total_estimated_us;
+    const float previous_gap_us = read_diagnostics_gap.total_harvest_us - read_diagnostics_gap.total_estimated_us;
+    if (read_diagnostics_last.uncovered_operations == 0 && gap_us > 0.0f && (read_diagnostics_gap.blocks == 0 || gap_us > previous_gap_us))
+    {
+        read_diagnostics_gap = read_diagnostics_last;
+    }
+}
+
+bool PlayersManager::Copy_read_diagnostics(ReadDiagnosticsSnapshot &last, ReadDiagnosticsSnapshot &peak, ReadDiagnosticsSnapshot &restart, ReadDiagnosticsSnapshot &gap) const
+{
+    last = read_diagnostics_last;
+    peak = read_diagnostics_peak;
+    restart = read_diagnostics_restart;
+    gap = read_diagnostics_gap;
+    return read_diagnostics_enabled;
 }
 
 void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
@@ -369,12 +481,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     int8_t id_player = -1;
     bool finished = false;
     const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
-    const int voice_limit = OPTIMIZATION_VOICES[optimization];
-    // A reduced profile takes effect after the old voices finish their fast release.
-    if (needs_sample && Count_sample_voices() > voice_limit)
-    {
-        return -1;
-    }
+    const int voice_limit = PLAYERS;
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
     for (auto player = 0; player < PLAYERS; ++player)
@@ -388,7 +495,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
         }
     }
 
-    if (!finished && needs_sample) // File voices share the profile budget regardless of their current storage.
+    if (!finished && needs_sample) // File voices can use all physical players regardless of their current storage.
     {
         Update_players_stistics();
 
@@ -448,7 +555,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
             }
         }
 
-        // Only an existing Flash/cache slot can be reused at the profile limit.
+        // Only an existing Flash/cache slot can be reused when all physical players are file voices.
         else
         {
             // 5A) there is a Player flash_mode from a different Patch and playing
@@ -570,6 +677,155 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     return finished ? id_player : -1;
 }
 
+PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float note_pitch) const
+{
+    const auto &preset = Preset[instrument]; // Prepared source selected for the incoming note.
+    PlayerReadBudget::Plan plan; // Match AudioPlayer's pending geometry without modifying a voice.
+    plan.live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
+    plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
+    plan.packets = !wavetable && !plan.live && preset.source.storage == Flash && preset.file >= FIRST_RECORDING_FILE;
+    plan.loop = preset.mode >= LOOP_FWD;
+    plan.pingpong = preset.mode == LOOP_FWD_REV || preset.mode == LOOP_REV_FWD;
+    plan.span = plan.live ? (plan.loop ? LS_XY_delta + 1 : LS_buffer_dim) : preset.B - preset.A + 1;
+    plan.crossfade = plan.pingpong ? 0 : preset.Noclick;
+    const float ceiling = Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
+    plan.pitch = constrain(note_pitch * preset.pitch * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
+    return plan;
+}
+
+float PlayersManager::Reserved_read_us(void) const
+{
+    float total = 0.0f; // Includes releasing voices until they actually stop reading.
+    for (int player = 0; player < PLAYERS; ++player) // At most sixteen inexpensive source forecasts.
+    {
+        total += Player_ptr[player].Reserved_read_us();
+    }
+    return total;
+}
+
+bool PlayersManager::Admit_read_budget(int target, uint8_t instrument, float incoming_us)
+{
+    if (!std::isfinite(incoming_us) || incoming_us > PlayerReadBudget::Limit_us)
+    {
+        ++budget_rejected_notes;
+        return false;
+    }
+    bool victims[PLAYERS] = {}; // Plan first: failed admission must not stop any existing note.
+    float costs[PLAYERS] = {}; // Snapshot each reservation once during selection.
+    float total = incoming_us; // Replacement and outgoing voice can run in separate blocks.
+    for (int player = 0; player < PLAYERS; ++player) // Preserve outgoing cost until explicitly retired.
+    {
+        costs[player] = Player_ptr[player].Reserved_read_us();
+        total += player == target ? fmaxf(costs[player], incoming_us) - incoming_us : costs[player];
+    }
+    if (total > PlayerReadBudget::Limit_us && costs[target] > incoming_us)
+    {
+        victims[target] = true;
+        total = incoming_us;
+        for (int player = 0; player < PLAYERS; ++player) // Recompute instead of subtracting infinity.
+        {
+            if (player != target)
+            {
+                total += costs[player];
+            }
+        }
+    }
+    while (total > PlayerReadBudget::Limit_us)
+    {
+        int best = -1; // Next eligible victim, ordered like the existing voice allocator.
+        int best_rank = 99; // Other patch, released same, released other, held same, held other.
+        for (int player = 0; player < PLAYERS; ++player) // Never replace another event already booked in this batch.
+        {
+            auto &voice = Player_ptr[player]; // Current voice metadata and protection.
+            if (player == target || victims[player] || Player_booked[player] || voice.Has_pending_note() || !voice.isPlaying())
+            {
+                continue;
+            }
+            const bool same = voice.Read_instrument() == instrument; // Same-instrument reuse retains the established protection exception.
+            const bool other_patch = voice.Assigned_patch() != Patch_id; // Outgoing patch voices are reclaimed first.
+            if (!other_patch && !same && (voice.Read_precedence() || (voice.isPoweredOn() && !Preset[instrument].precedence)))
+            {
+                continue;
+            }
+            const int rank = other_patch ? 0 : (!voice.isPoweredOn() ? (same ? 1 : 2) : (same ? 3 : 4)); // Match release and instrument priorities before age.
+            if (best < 0 || rank < best_rank || (rank == best_rank && voice.Read_time_stamp() < Player_ptr[best].Read_time_stamp()))
+            {
+                best = player;
+                best_rank = rank;
+            }
+        }
+        if (best < 0)
+        {
+            ++budget_rejected_notes;
+            return false;
+        }
+        victims[best] = true;
+        total = victims[target] ? incoming_us : fmaxf(costs[target], incoming_us);
+        for (int player = 0; player < PLAYERS; ++player) // Exclude all planned victims, including invalid source forecasts.
+        {
+            if (player != target && !victims[player])
+            {
+                total += costs[player];
+            }
+        }
+    }
+    for (int player = 0; player < PLAYERS; ++player) // Commit only after the complete candidate fits.
+    {
+        if (victims[player])
+        {
+            Player_ptr[player].Retire_for_read_budget();
+            ++budget_retired_players;
+        }
+    }
+    return true;
+}
+
+void PlayersManager::Prepare_read_budget(void)
+{
+    // Main-loop edits and cache promotion can change the forecast without a NoteOn.
+    float total = Reserved_read_us(); // Fresh full-block cost, including pending edits and replacements.
+    while (total > PlayerReadBudget::Limit_us)
+    {
+        int best = -1; // Release tails first, then unprotected held voices, protected voices only as a last resort.
+        int best_rank = 99; // Protection dominates age during forced revalidation.
+        for (int player = 0; player < PLAYERS; ++player) // Bounded scan; at most PLAYERS retirements.
+        {
+            auto &voice = Player_ptr[player]; // No mutation until the next victim is selected.
+            if (!voice.isPlaying())
+            {
+                continue;
+            }
+            const int rank = (voice.Read_precedence() ? 2 : 0) + (voice.isPoweredOn() ? 1 : 0); // Retain protected notes where possible.
+            if (best < 0 || rank < best_rank || (rank == best_rank && voice.Read_time_stamp() < Player_ptr[best].Read_time_stamp()))
+            {
+                best = player;
+                best_rank = rank;
+            }
+        }
+        if (best < 0)
+        {
+            break;
+        }
+        if (Player_ptr[best].Read_precedence())
+        {
+            ++budget_forced_protected;
+        }
+        Player_ptr[best].Retire_for_read_budget();
+        ++budget_retired_players;
+        total = Reserved_read_us();
+    }
+    budget_reserved_us = total;
+    const bool previous_batch = midi_batch_active; // Include elapsed preparation time when scheduling from the audio clock.
+    midi_batch_active = true;
+    Calculate_and_set_mix_samples();
+    midi_batch_active = previous_batch;
+    if (read_diagnostics_enabled)
+    {
+        read_budget_diagnostics.pre_players_us = static_cast<float>(audio_update_time_micros); // Include the scheduler itself in the time spent before Player rendering.
+    }
+}
+
 void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track) // after receiving a NoteOn command
 {
     if (instrument_id >= INSTRUMENTS || !Preset[instrument_id].active)
@@ -589,6 +845,11 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         return; // All eligible voices are occupied or reserved; never overwrite a different pending note.
     }
 
+    const float incoming_pitch = pitch_from_note[note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key]; // Same transposition used by Get_ready_to_play.
+    if (!Admit_read_budget(id_player, instrument_id, PlayerReadBudget::Estimate(New_read_plan(instrument_id, incoming_pitch), AUDIO_BLOCK_SAMPLES)))
+    {
+        return;
+    }
     Player_booked[id_player] = true;
 
     if (Player_ptr[id_player].State() > 0 && !restart_Player[id_player]) // sta inviando sample, cioè !idle
@@ -675,30 +936,6 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     */
     Player_ptr[id_player].Get_ready_to_play(pitch_from_note[note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key], velocity_float, Patch_id, instrument_id, Preset[instrument_id].sound_id, note_number);
 
-    // calcola update_time e trasmetti il valore al Player
-    int update_time;
-    if (Lilla_state == LIVE_SAMPLING)
-    {
-        update_time = 9.067 * Player_ptr[id_player].Read_pitch() + 35.3;
-    }
-    else
-    {
-        if (Preset[instrument_id].use_Wavetable)
-        {
-            update_time = 2.7 * Player_ptr[id_player].Read_pitch() + 31.0;
-        }
-        else
-        {
-            update_time = 48.56 * Player_ptr[id_player].Read_pitch() + 48.31;
-        }
-    }
-    if (Preset[instrument_id].Filter.use == 1)
-    {
-        update_time += 15;
-    }
-
-    Player_ptr[id_player].Write_update_time(update_time);
-
     // Gestione del Delay
     // configura su Router_L e Router_R input/output le routing_table
     if (Delay_values.instrument_route[instrument_id])
@@ -783,10 +1020,7 @@ void PlayersManager::End_midi_batch(void)
             ++players_to_restart;
         }
     }
-    if (players_to_restart > 0)
-    {
-        Calculate_and_set_mix_samples();
-    }
+    // The audio clock schedules all restarts and edits together after the complete control batch.
     midi_batch_active = false;
 }
 
@@ -1425,306 +1659,14 @@ void PlayersManager::Multicast_IF_index(int instrument_id, float value)
 
 void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrument_id)
 {
-    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id);
+    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id); // Resolve the edited table before modifying any Player.
     if (AudioTables::Needs_tables(Preset[instrument_id]) && table_pointers.bank_mask == 0)
     {
         return;
     }
-    uint8_t players_to_cross_mix = 0;
-    uint8_t mix_samples_for_Player[PLAYERS] = {0};
-    bool cross_mix_Player[PLAYERS] = {0};
-
-    for (auto player = 0; player < PLAYERS; ++player)
+    for (int player = 0; player < PLAYERS; ++player) // Geometry is committed by AudioPlayer after the next budget pass.
     {
-        mix_samples_for_Player[player] = 0;
-        cross_mix_Player[player] = false;
-    }
-
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Player_ptr[player].Apply_preset_edit(patch_id, instrument_id, Preset[instrument_id], table_pointers))
-        {
-            ++players_to_cross_mix;
-            cross_mix_Player[player] = true;
-        }
-    }
-
-    if (players_to_cross_mix > 0)
-    {
-        bool finished = false;
-        int mix_micros_span = Get_span_for_all_cross_mix();
-        // Serial.print("We have ");
-        // Serial.print(mix_micros_span);
-        // Serial.println(" micros available for ALL cross_mix.");
-
-        bool old_use_wavetable[PLAYERS];
-        float old_pitch_of_Player[PLAYERS];
-        float standard_pitch_of_Player[PLAYERS];
-
-        // calculate the standardized "flash-play" pitch: pitch of RAM-playing Players will be normalized so they can be traated as Flash-playing Players
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (cross_mix_Player[player])
-            {
-                old_use_wavetable[player] = Player_ptr[player].Read_use_Wavetable();
-                old_pitch_of_Player[player] = Player_ptr[player].Read_pitch();
-
-                if (old_use_wavetable[player])
-                {
-                    standard_pitch_of_Player[player] = old_pitch_of_Player[player] * 0.07113;
-                }
-                else
-                {
-                    standard_pitch_of_Player[player] = old_pitch_of_Player[player];
-                }
-                // Serial.print("Player:");
-                // Serial.print(player);
-                // Serial.print(" has standard_pitch:");
-                // Serial.println(standard_pitch_of_Player[player]);
-            }
-        }
-        // Serial.println();
-
-        // find highest-pitch / highest-time Player
-        int max_cross_mix_time;
-        uint8_t worst_Player = 0;
-        float max_pitch = 0;
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (cross_mix_Player[player])
-            {
-                if (standard_pitch_of_Player[player] > max_pitch)
-                {
-                    max_pitch = standard_pitch_of_Player[player];
-                    worst_Player = player;
-                }
-            }
-        }
-        // Serial.print("Worst Player (with highest pitch) is:");
-        // Serial.print(worst_Player);
-        // Serial.print(" with pitch:");
-        // Serial.println(max_pitch);
-        // Serial.println();
-
-        // 1) Try to set mix_samples = 64 for ALL Players
-        max_cross_mix_time = Get_cross_mix_time(worst_Player, 64);
-        // Serial.print("Try Case 1 - max_cross_mix_time (micros) is:");
-        // Serial.println(max_cross_mix_time);
-        // Serial.println();
-
-        if (mix_micros_span > (max_cross_mix_time * players_to_cross_mix))
-        {
-            // Serial.println("Case 1 is verified --> transmit mix_samples = 64 to Players to cross_mix.");
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (cross_mix_Player[player])
-                {
-                    cross_mix_Player[player] = false;
-                    players_to_cross_mix--;
-                    mix_samples_for_Player[player] = 32;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                    mix_micros_span -= Get_cross_mix_time(player, 32); // Get_cross_mix_time(uint8_t player, uint16_t mix_samples)
-                    // Serial.print("mix_sample 64 is given to Player ");
-                    // Serial.print(player);
-                    // Serial.print("; theorical update time is:");
-                    // Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].update_time);
-                }
-            }
-            finished = true;
-        }
-
-        // 2) Try to set mix_samples = 48 for ALL Players
-        if (!finished)
-        {
-            max_cross_mix_time = Get_cross_mix_time(worst_Player, 48);
-            // Serial.print("Try Case 2 - max_cross_mix_time (micros) is:");
-            // Serial.println(max_cross_mix_time);
-            // Serial.println();
-
-            if (mix_micros_span > (max_cross_mix_time * players_to_cross_mix))
-            {
-                // Serial.println("Case 2 is verified --> transmit mix_samples = 48 to Players to cross_mix.");
-                for (auto player = 0; player < PLAYERS; ++player)
-                {
-                    if (cross_mix_Player[player])
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 48;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                        mix_micros_span -= Get_cross_mix_time(player, 48); // Get_cross_mix_time(uint8_t player, uint16_t mix_samples)
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 48 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                }
-                finished = true;
-            }
-        }
-
-        // 3) Try to set mix_samples = 32 for ALL Players
-        if (!finished)
-        {
-            max_cross_mix_time = Get_cross_mix_time(worst_Player, 32);
-            // Serial.print("Try Case 3 - max_cross_mix_time (micros) is:");
-            // Serial.println(max_cross_mix_time);
-            // Serial.println();
-
-            if (mix_micros_span > (max_cross_mix_time * players_to_cross_mix))
-            {
-                // Serial.println("Case 3 is verified --> transmit mix_samples = 32 to Players to cross_mix.");
-                for (auto player = 0; player < PLAYERS; ++player)
-                {
-                    if (cross_mix_Player[player])
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 32;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                        mix_micros_span -= Get_cross_mix_time(player, 32); // Get_cross_mix_time(uint8_t player, uint16_t mix_samples)
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 32 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                }
-                finished = true;
-            }
-        }
-
-        if (!finished)
-        {
-            // 4: Try to assign minimum  mix_samples to Players
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (cross_mix_Player[player])
-                {
-                    if (standard_pitch_of_Player[player] <= 0.7)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 64;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 64);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 64 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 64) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 0.8)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 48;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 48);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 48 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 1.0)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 32;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 32);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 32 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 1.2)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 24;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 24);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 24 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 24) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 1.4)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 16;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 16);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 16 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 16) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    if (players_to_cross_mix == 0)
-                    {
-                        finished = true;
-                        break;
-                    }
-                    if (mix_micros_span <= 10)
-                    {
-                        // Serial.print("Available time is finished :( Players to examin are:");
-                        // Serial.println(players_to_cross_mix);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (!finished)
-        {
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (cross_mix_Player[player])
-                {
-                    cross_mix_Player[player] = false;
-                    players_to_cross_mix--;
-                    mix_samples_for_Player[player] = 5;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    // Serial.print("Mix_sample 5 is given to Player ");
-                    // Serial.println(player);
-                }
-            }
-        }
-
-        // Serial.print("FINISHED - Midi_reader: mix_samples calculation required (micros):");
-        // Serial.println(micros() - execution_time);
-        // Serial.println();
+        Player_ptr[player].Apply_preset_edit(patch_id, instrument_id, Preset[instrument_id], table_pointers);
     }
 }
 
@@ -1761,64 +1703,6 @@ void PlayersManager::Release_player(int player, int track) // after receiving a 
 {
     (Player_ptr + player)->Release_note();
     (Player_ptr + player)->Write_time_stamp(millis());
-}
-
-bool PlayersManager::Verify_if_stop_players(int patch_id, int instrument_id) // when EDITING a SOUND, each time B or A change it's MANDATORY to test if SOME Players MUST be stopped
-{
-    uint8_t players_critical = 0;
-    uint8_t players_to_stop = 0;
-    int8_t index = 0;
-
-    if ((OPTIMIZATION_VOICES[optimization] < PLAYERS) && Preset[instrument_id].use_Wavetable && Sound[Get_sound_id(patch_id, instrument_id)].file < FIRST_LIVE_SAMPLING_FILE && !Get_use_Wavetable(Get_sound_id(patch_id, instrument_id))) // A wavetable edit starts sharing the file voice budget, whether cached or not.
-    {
-        // Count file voices plus this patch/instrument's voices that will leave AudioTables.
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if ((Player_ptr + player)->isPlaying() && (((Player_ptr + player)->Read_local_patch() == patch_id && (Player_ptr + player)->Read_instrument() == instrument_id) || (Player_ptr + player)->Uses_sample_voice()))
-            {
-                players_critical++;
-            }
-        }
-
-        if (players_critical > OPTIMIZATION_VOICES[optimization]) // players in excess MUST be stopped BEFORE UPDATING A and B
-        {
-            players_to_stop = players_critical - OPTIMIZATION_VOICES[optimization];
-
-            // 1) look for a Player !power_on and playing "instrument_id": choose the OLDEST
-            while (players_to_stop > 0)
-            {
-                index = Find_oldest_player(instrument_id, false, true); // Find_oldest_player(uint8_t instrument_id, bool power_on, bool playing)
-                if (index == -1)
-                {
-                    break;
-                }
-                else
-                {
-                    (Player_ptr + index)->Fast_stop();
-                    players_to_stop--;
-                }
-            }
-
-            // 2) look for a Player power_on playing "instrument_id": choose the OLDEST
-            while (players_to_stop > 0)
-            {
-                index = Find_oldest_player(instrument_id, true, true); // Find_oldest_player(uint8_t instrument_id, bool power_on, bool playing)
-                if (index == -1)
-                {
-                    break;
-                }
-                else
-                {
-                    (Player_ptr + index)->Fast_stop();
-                    (Player_ptr + index)->Write_time_stamp(millis());
-                    players_to_stop--;
-                }
-            }
-            return true; // some Player have been stopped
-        }
-        return false; // no need to stop any Player
-    }
-    return false; // no need to stop any Player
 }
 
 void PlayersManager::Release_player(int player) // after receiving a NoteOff command
@@ -1919,28 +1803,30 @@ void PlayersManager::Release_all_players_loop(int track)
     }
 }
 
-float PlayersManager::Get_cross_mix_time(int player, int mix_samples) // restituisce il tempo (us) che si impiega a leggere i campioni che costituiscono il mix_samples, dal vecchio file e col vecchio pitch.
+float PlayersManager::Get_cross_mix_time(int player, int mix_samples)
 {
-    if ((Player_ptr + player)->Read_use_Wavetable()) // how Player read OLD FILE
+    if (mix_samples <= 0)
     {
-        return (mix_samples * (0.03 * (Player_ptr + player)->Read_pitch() + 0.2));
+        return 0.0f;
     }
-    else
-    {
-        return (mix_samples * (0.4 * (Player_ptr + player)->Read_pitch() + 0.2));
-    }
+    return Player_ptr[player].Current_read_us(mix_samples) + 0.2f * mix_samples; // Source-aware outgoing harvest plus the existing mixing allowance.
 }
 
-int PlayersManager::Get_span_for_all_cross_mix(void) // ALERT: can be used if Play_note() HAS BEEN ALREADY SENT!
+int PlayersManager::Get_span_for_all_cross_mix(void)
 {
-    int value = 0;
-
-    for (auto player = 0; player < PLAYERS; ++player)
+    const float reserved = Reserved_read_us(); // Current/pending maxima already cover zero-mix sequential restarts.
+    const float read_headroom = PlayerReadBudget::Limit_us - reserved; // Spare read allowance before the first transition.
+    const float elapsed = midi_batch_active ? static_cast<float>(audio_update_time_micros) : 0.0f; // Sample once so diagnostics describe the exact deadline decision.
+    const float deadline_headroom = midi_batch_active ? AUDIO_PLAYER_DEADLINE_US - elapsed - reserved - 700.0f : INFINITY; // Keep the existing processing allowance and main-loop behavior.
+    const float available = fminf(read_headroom, deadline_headroom); // The tighter constraint determines the crossfade pool.
+    if (read_diagnostics_enabled)
     {
-        value += Player_ptr[player].Read_update_time();
+        read_budget_diagnostics.reserved_us = reserved;
+        read_budget_diagnostics.read_headroom_us = read_headroom;
+        read_budget_diagnostics.deadline_headroom_us = deadline_headroom;
+        read_budget_diagnostics.scheduler_elapsed_us = elapsed;
     }
-
-    return (AUDIO_PLAYER_DEADLINE_US - value - (midi_batch_active ? static_cast<int>(audio_update_time_micros) : 0)); // Share the emergency deadline; include preparation only for the current audio batch.
+    return available > 0.0f ? static_cast<int>(available) : 0;
 }
 
 void PlayersManager::Multicast_reset_pitch_bend_effects(int instrument_id)
@@ -2033,298 +1919,71 @@ int PlayersManager::Get_players_using_Wavetable(void)
 
 void PlayersManager::Calculate_and_set_mix_samples(void)
 {
-    uint8_t mix_samples_for_Player[PLAYERS] = {0};
-
-    for (auto player = 0; player < PLAYERS; ++player)
+    if (read_diagnostics_enabled)
     {
-        mix_samples_for_Player[player] = 0;
+        read_budget_diagnostics = {}; // Clear decisions from the previous block, including idle Player entries.
+        read_budget_diagnostics.cycle = audio_update_cycle;
+        read_budget_diagnostics.valid = true;
+        read_budget_diagnostics.first_player = restart_mix_first_player;
     }
-
-    bool finished = false;
-
-    int mix_micros_span = Get_span_for_all_cross_mix(); // IMP! Get_span_for_all_cross_mix() CAN be called ONLY if Play_note() HAS BEEN ALREADY CALLED!
-    // Serial.print("We have ");
-    // Serial.print(mix_micros_span);
-    // Serial.println(" micros available for ALL cross_mix.");
-
-    bool old_use_wavetable[PLAYERS];
-    float old_pitch_of_Player[PLAYERS];
-    float standard_pitch_of_Player[PLAYERS];
-
-    // Calculate the standardized "flash-play" pitch: pitch of RAM-playing Players will be normalized so they can be traated as Flash-playing Players
-    for (auto player = 0; player < PLAYERS; ++player)
+    float available = Get_span_for_all_cross_mix(); // Shared pool for note restarts and geometry edits.
+    budget_crossfade_us = 0.0f;
+    if (read_diagnostics_enabled)
     {
-        if (Get_restart_player(player))
+        read_budget_diagnostics.available_us = available; // Preserve the rounded pool actually consumed below.
+    }
+    const uint8_t first = restart_mix_first_player; // Rotate scarce crossfade time without changing note selection.
+    bool assigned = false; // Advance fairness only when a transition is present.
+    for (int offset = 0; offset < PLAYERS; ++offset) // Account each additional outgoing harvest exactly once.
+    {
+        const int player = (first + offset) % PLAYERS; // Fair scheduling order.
+        auto &voice = Player_ptr[player]; // Current and pending state share one transition.
+        if (!voice.Needs_restart_mix() && !voice.Has_pending_edit())
         {
-            old_use_wavetable[player] = Player_ptr[player].Read_use_Wavetable();
-            old_pitch_of_Player[player] = Player_ptr[player].Read_pitch();
-
-            if (old_use_wavetable[player])
+            continue;
+        }
+        assigned = true;
+        if (read_diagnostics_enabled)
+        {
+            read_budget_diagnostics.transition[player] = (voice.Needs_restart_mix() ? 1u : 0u) | (voice.Has_pending_edit() ? 2u : 0u);
+            read_budget_diagnostics.available_before_us[player] = available;
+        }
+        uint8_t chosen = 0; // A zero-mix restart uses separate blocks and never needs two source harvests.
+        for (const uint8_t samples : {64, 48, 32, 24, 16}) // Longest affordable outgoing fade.
+        {
+            const float cost = Get_cross_mix_time(player, samples); // Actual outgoing source at maximum modulation.
+            if (cost <= available)
             {
-                standard_pitch_of_Player[player] = old_pitch_of_Player[player] * 0.07113;
+                chosen = samples;
+                available -= cost;
+                budget_crossfade_us += cost;
+                if (read_diagnostics_enabled)
+                {
+                    read_budget_diagnostics.assigned_us[player] = cost;
+                }
+                break;
             }
-            else
+            if (read_diagnostics_enabled && samples == 16)
             {
-                standard_pitch_of_Player[player] = old_pitch_of_Player[player];
-            }
-
-            if (false)
-            {
-                Serial.print("Player:");
-                Serial.print(player);
-                Serial.print(" has standard_pitch:");
-                Serial.println(standard_pitch_of_Player[player]);
+                read_budget_diagnostics.minimum_us[player] = cost; // No extra forecast call: record the minimum tier only when it was rejected.
             }
         }
-    }
-    // Serial.println();
-
-    // find highest-pitch / highest-time Player
-    int max_cross_mix_time;
-    uint8_t worst_Player = 0;
-    float max_pitch = 0;
-
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Get_restart_player(player))
+        if (read_diagnostics_enabled)
         {
-            if (standard_pitch_of_Player[player] > max_pitch)
-            {
-                max_pitch = standard_pitch_of_Player[player];
-                worst_Player = player;
-            }
+            read_budget_diagnostics.mix_samples[player] = chosen;
         }
+        voice.Set_mix_samples(chosen);
+        voice.Set_edit_mix_samples(chosen);
+        restart_Player[player] = false;
     }
-
-    if (false)
+    if (read_diagnostics_enabled)
     {
-        Serial.print("Worst Player (with highest pitch) is:");
-        Serial.print(worst_Player);
-        Serial.print(" with pitch:");
-        Serial.println(max_pitch);
-        Serial.println();
+        read_budget_diagnostics.crossfade_us = budget_crossfade_us;
     }
-
-    // 1) Try to set mix_samples = 64 for ALL Players
-    max_cross_mix_time = Get_cross_mix_time(worst_Player, 64);
-    // Serial.print("Try Case 1 - max_cross_mix_time (micros) is:");
-    // Serial.println(max_cross_mix_time);
-    // Serial.println();
-
-    if (mix_micros_span > (max_cross_mix_time * players_to_restart))
+    players_to_restart = 0;
+    if (assigned)
     {
-        // Serial.println("Case 1 is verified --> transmit mix_samples = 64 to Players to restart.");
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (Get_restart_player(player))
-            {
-                Cancel_restart_player(player);
-                players_to_restart--;
-                mix_samples_for_Player[player] = 64;
-                Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                mix_micros_span -= Get_cross_mix_time(player, 64);
-
-                if (false)
-                {
-                    Serial.print("mix_sample 64 is given to Player ");
-                    Serial.print(player);
-                    Serial.print("; theorical update time is:");
-                    Serial.println(Get_cross_mix_time(player, 64) + Player_ptr[player].Read_update_time());
-                }
-            }
-        }
-        finished = true;
-    }
-
-    // 2) Try to set mix_samples = 48 for ALL Players
-    if (!finished)
-    {
-        max_cross_mix_time = Get_cross_mix_time(worst_Player, 48);
-        // Serial.print("Try Case 2 - max_cross_mix_time (micros) is:");
-        // Serial.println(max_cross_mix_time);
-        // Serial.println();
-
-        if (mix_micros_span > (max_cross_mix_time * players_to_restart))
-        {
-            // Serial.println("Case 2 is verified --> transmit mix_samples = 48 to Players to restart.");
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (Get_restart_player(player))
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 48;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                    mix_micros_span -= Get_cross_mix_time(player, 48);
-                    if (false)
-                    {
-                        Serial.print("mix_sample 48 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                    }
-                }
-            }
-            finished = true;
-        }
-    }
-
-    // 3) Try to set mix_samples = 32 for ALL Players
-    if (!finished)
-    {
-        max_cross_mix_time = Get_cross_mix_time(worst_Player, 32);
-        // Serial.print("Try Case 3 - max_cross_mix_time (micros) is:");
-        // Serial.println(max_cross_mix_time);
-        // Serial.println();
-
-        if (mix_micros_span > (max_cross_mix_time * players_to_restart))
-        {
-            // Serial.println("Case 3 is verified --> transmit mix_samples = 32 to Players to restart.");
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (Get_restart_player(player))
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 32;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                    mix_micros_span -= Get_cross_mix_time(player, 32);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 32 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                    }
-                }
-            }
-            finished = true;
-        }
-    }
-
-    if (!finished)
-    {
-        // 4: Try to assign minimum  mix_samples to Players
-        const uint8_t first_player = restart_mix_first_player;
-        restart_mix_first_player = (restart_mix_first_player + 1) % PLAYERS;
-        for (int offset = 0; offset < PLAYERS; ++offset)
-        {
-            const int player = (first_player + offset) % PLAYERS;
-            if (Get_restart_player(player))
-            {
-                if (standard_pitch_of_Player[player] <= 0.7 && Get_cross_mix_time(player, 64) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 64;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 64);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 64 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 64) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 0.8 && Get_cross_mix_time(player, 48) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 48;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 48);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 48 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 1.0 && Get_cross_mix_time(player, 32) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 32;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 32);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 32 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 1.2 && Get_cross_mix_time(player, 24) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 24;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 24);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 24 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 24) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 1.4 && Get_cross_mix_time(player, 16) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 16;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 16);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 16 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 16) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                if (players_to_restart == 0)
-                {
-                    finished = true;
-                    break;
-                }
-                if (mix_micros_span <= 10)
-                {
-                    // Serial.print("Available time is finished :( Players to examin are:");
-                    // Serial.println(players_to_restart);
-                    break;
-                }
-            }
-        }
-    }
-
-    if (!finished)
-    {
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (Get_restart_player(player))
-            {
-                Cancel_restart_player(player);
-                players_to_restart--;
-                mix_samples_for_Player[player] = 0;
-                Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                // Serial.print("Mix_sample ZERO is given to Player ");
-                // Serial.println(player);
-            }
-        }
+        restart_mix_first_player = (first + 1) % PLAYERS;
     }
 }
 

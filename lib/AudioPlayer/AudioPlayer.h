@@ -23,15 +23,22 @@
 #include "Functions.h"
 #include "AudioADSR.h"
 #include "AudioTables.h"
+#include "PlayerReadDiagnostics.h"
+#include "PlayerReadBudget.h"
 
 class AudioPlayer : public AudioStream
 {
 private:
-    static constexpr int BASKET_DIM = 3100;    // la dimensione deve essere non inferiore a AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE
+    static constexpr int BASKET_DIM = 4500;    // la dimensione deve essere non inferiore a AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE
     static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + 2);
-    static_assert(MAX_PITCH_CACHE[2] <= MAX_PITCH_WAVETABLE);
+    static_assert(MAX_PITCH_PSRAM <= MAX_PITCH_WAVETABLE && MAX_PITCH_FLASH <= MAX_PITCH_WAVETABLE);
     static int16_t samples_basket[BASKET_DIM]; // cache array unico per samples copiati dai Player
     int16_t block[AUDIO_BLOCK_SAMPLES];
+    int16_t budget_tail_sample = 0; // Last rendered mono sample for a continuous source-free retirement ramp.
+    bool budget_tail_pending = false; // Emit one fading cached block before the replacement renders.
+    bool rendered_block_valid = false; // Never read an uninitialized output block when retiring a new voice.
+    float budget_tail_pan_L = 0.0f; // Preserve outgoing routing gains across a replacement start.
+    float budget_tail_pan_R = 0.0f; // Preserve outgoing routing gains across a replacement start.
     uint8_t mix_samples = 32;
     uint8_t identity;
     enum PlayerStates
@@ -278,6 +285,10 @@ private:
     int16_t *FIFO;
     int FIFO_dim;
 
+    inline static bool read_diagnostics_enabled = false;
+    PlayerReadDiagnostics read_diagnostics;
+    void Record_read(PlayerReadSource source, int count, uint16_t flags = 0);
+    void Harvest_samples(void); // Optional diagnostics wrap the unchanged source harvest paths.
     void Update_pitch(void);
     void Update_volume_gain(void);
     void Update_pan_gain(void);
@@ -294,7 +305,9 @@ private:
     void Append_reversed(int16_t *target_ptr, uint16_t first_index, int16_t *source_ptr, uint16_t N);
     void Append(int16_t *target_ptr, uint16_t first_index, int16_t *source_ptr, uint16_t N);
 
-    bool myLED;
+    bool myLED = false;
+    int led_instrument_id = 0;
+    int led_track = -1; // Captured at registration; -1 identifies the Performance counter.
     void My_LED(bool on);
 
 public:
@@ -303,6 +316,14 @@ public:
         begin();
     }
 
+    static void Enable_read_diagnostics(bool enabled) { read_diagnostics_enabled = enabled; }
+    const PlayerReadDiagnostics &Get_read_diagnostics(void) const { return read_diagnostics; } // Read from audio IRQ or with audio IRQ disabled.
+    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false) const; // Capture source geometry without reading samples; caller owns the audio IRQ.
+    float Reserved_read_us(void) const; // Maximum current/pending/edited full-block cost, with idle voices excluded.
+    float Current_read_us(uint32_t output_samples) const; // Cost of an outgoing crossfade segment.
+    void Retire_for_read_budget(void); // Release source ownership now and fade previously computed audio without further source reads.
+    void Set_edit_mix_samples(uint8_t value); // Override only a pending edit crossfade before its next render.
+    bool Has_pending_edit(void) const { return main_settings_editing_flag; } // Expose edit transitions to the shared read-budget planner.
     void begin(void);
     virtual void update(void);
     int State(void);

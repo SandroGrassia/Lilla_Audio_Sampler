@@ -320,7 +320,7 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
 
     const auto &preset = Preset[instrument_id];
     const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
-    const float max_pitch = Playback_pitch_limit(optimization, preset.use_Wavetable, preset.source.storage == Psram, live);
+    const float max_pitch = Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
     const int max_pitch_semitones = static_cast<int>(floorf(12.0f * log2f(max_pitch)));
     if (max_pitch_semitones >= 0)
     {
@@ -328,7 +328,7 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
     }
     tft.print(max_pitch_semitones);
     tft.print("st/");
-    tft.print(live || preset.use_Wavetable ? PLAYERS : OPTIMIZATION_VOICES[optimization]);
+    tft.print(PLAYERS);
 }
 
 void DisplaySound::Show_wave(int instrument_id)

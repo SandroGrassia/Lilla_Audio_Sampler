@@ -21,7 +21,47 @@
 
 class PlayersManager
 {
+public:
+    struct ReadBudgetDiagnostics // Scheduling evidence captured before rendering and retained with the matching audio block.
+    {
+        uint32_t cycle = 0; // Audio cycle in which the allocation was made.
+        bool valid = false; // False when the collector has no matching scheduling pass.
+        float reserved_us = 0.0f; // Current/pending full-block reservation used by the allocator.
+        float read_headroom_us = 0.0f; // Read limit minus reserved time, before crossfade allocation.
+        float deadline_headroom_us = 0.0f; // Deadline minus elapsed preparation, reservation and the existing 700 us processing allowance.
+        float scheduler_elapsed_us = 0.0f; // Elapsed block time at the deadline check.
+        float pre_players_us = 0.0f; // Elapsed block time after scheduling, immediately before returning to the audio clock.
+        float available_us = 0.0f; // Actual initial crossfade pool after clamping and integer rounding.
+        float crossfade_us = 0.0f; // Sum of the outgoing harvest and mixing allowances assigned in this pass.
+        uint8_t first_player = 0; // Rotation origin; reconstruct the allocation order from this index.
+        uint8_t transition[PLAYERS] = {}; // Requested transitions: 0=none, 1=restart, 2=edit, 3=both; assignment is not proof of execution.
+        uint8_t mix_samples[PLAYERS] = {}; // Crossfade samples selected for this block, zero if none was affordable.
+        float available_before_us[PLAYERS] = {}; // Remaining shared pool when each requested transition was examined.
+        float assigned_us[PLAYERS] = {}; // Time charged for the selected outgoing segment and mixing.
+        float minimum_us[PLAYERS] = {}; // Cost of the rejected 16-sample tier when a transition receives zero; otherwise zero.
+    };
+
+    struct ReadDiagnosticsSnapshot
+    {
+        PlayerReadDiagnostics players[PLAYERS];
+        float estimated_us[PLAYERS] = {};
+        float total_estimated_us = 0.0f;
+        float total_harvest_us = 0.0f;
+        uint32_t cycle = 0;
+        uint32_t blocks = 0;
+        uint32_t uncovered_operations = 0;
+        uint16_t restarted_players = 0;
+        ReadBudgetDiagnostics budget; // Copy of the scheduling evidence for this exact snapshot cycle.
+    };
+
 private:
+    ReadBudgetDiagnostics read_budget_diagnostics; // Current scheduling pass; updated only while read diagnostics are enabled.
+    ReadDiagnosticsSnapshot read_diagnostics_restart; // Highest estimated block with an actually executed restart.
+    ReadDiagnosticsSnapshot read_diagnostics_gap; // Largest positive measured-harvest minus estimated-transfer difference; only covered blocks.
+    bool read_diagnostics_enabled = false;
+    ReadDiagnosticsSnapshot read_diagnostics_last;
+    ReadDiagnosticsSnapshot read_diagnostics_peak; // Complete snapshot of the block with the largest estimated total, not a sum of independent player peaks.
+
     // puntatori esterni
     AudioPlayer *Player_ptr = nullptr;
     Router_16x3 *Router_L_ptr = nullptr;
@@ -38,6 +78,14 @@ private:
     int players_using_Wavetable = 0;
     int players_using_Psram = 0;
     uint8_t players_to_restart = 0; // numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
+
+    uint32_t budget_rejected_notes = 0; // Notes rejected without modifying the selected voices.
+    uint32_t budget_retired_players = 0; // Source-free retirements required by admission or later edits.
+    uint32_t budget_forced_protected = 0; // Last-resort retirements after an edit exceeds the budget with only protected voices left.
+    float budget_reserved_us = 0.0f; // Full-block reservation at the last scheduling pass.
+    float budget_crossfade_us = 0.0f; // Additional outgoing reads assigned for that block.
+    bool Admit_read_budget(int target, uint8_t instrument, float incoming_us); // Commit all necessary victims only after a complete feasible selection.
+    PlayerReadBudget::Plan New_read_plan(uint8_t instrument, float note_pitch) const; // Forecast the same source and geometry used by Main_settings.
 
     // Play notes
     bool Player_booked[PLAYERS] = {false};
@@ -88,8 +136,25 @@ private:
     }
 
 public:
-    enum class ReadSource : uint8_t { Flash, Psram, Ram }; // Select seek+read, zero+copy, or RAM2 copy into RAM1 respectively.
+    struct ReadBudgetStatus // Copy with audio interrupts disabled; counters run independently of READ_DIAG.
+    {
+        float reserved_us; // Last scheduled full-block reservation at maximum modulation.
+        float crossfade_us; // Additional outgoing harvest allowance.
+        uint32_t rejected_notes; // Cumulative admission failures.
+        uint32_t retired_players; // Cumulative budget-driven retirements.
+        uint32_t forced_protected; // Cumulative forced retirements after runtime changes.
+    };
+    ReadBudgetStatus Get_read_budget_status(void) const { return {budget_reserved_us, budget_crossfade_us, budget_rejected_notes, budget_retired_players, budget_forced_protected}; } // Snapshot only; no IRQ serial output.
+    float Reserved_read_us(void) const; // Sum current and pending reservations without stale idle costs.
+    void Prepare_read_budget(void); // Revalidate edits and source changes before any Player renders.
+
+    using ReadSource = PlayerReadSource; // Select seek+read, zero+copy, or RAM2 copy into RAM1 respectively.
     [[nodiscard]] static bool Get_read_time_us(ReadSource source, uint32_t samples, float &time_us); // Linear cold-cache estimate in us; zero samples cost zero, 1..9 use 10. Invalid source or count >4500 returns false and infinity. Sum separate calls for multiple reads; this excludes other Player processing.
+
+    [[nodiscard]] static bool Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us); // Sum the affine model per operation, including its fixed cost and per-read minimum.
+    void Enable_read_diagnostics(bool enabled); // Call with audio IRQ disabled; enabling resets the observation window.
+    void Collect_read_diagnostics(void); // Called after ALL Players by CacheCycleFinalizer; never changes voice selection.
+    bool Copy_read_diagnostics(ReadDiagnosticsSnapshot &last, ReadDiagnosticsSnapshot &peak, ReadDiagnosticsSnapshot &restart, ReadDiagnosticsSnapshot &gap) const; // Call with audio IRQ disabled, then print outside the critical section.
 
     PlayersManager(AudioPlayer *P, Router_16x3 *RL, Router_16x3 *RR, AudioTables *AT, PatchCacheManager *PC) : Player_ptr(P), Router_L_ptr(RL), Router_R_ptr(RR), Audio_tables_ptr(AT), Cache_manager_ptr(PC) {} // Connect players, routers, tables and the file cache owner.
     void Set_ADSR_ptr(AudioADSR* ptr); // requires &ADSR[0] from main.cpp
@@ -154,7 +219,6 @@ public:
     void Multicast_change_players_notes(int patch_id, int instrument_id);
     bool Get_use_Wavetable(int sound_id);
     int8_t Find_oldest_player(int instrument_id, bool power_on, bool playing);
-    bool Verify_if_stop_players(int patch_id, int instrument_id);
 
     void Release_player(int player);
     void Release_all_players_for_instrument(int instrument_id);
