@@ -112,9 +112,9 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.print("TRIM STEP");
     Show_Trim_step_value();
 
-    tft.setCursor(display_coordinate_x(27), display_coordinate_y(15));
+    tft.setCursor(display_coordinate_x(37), display_coordinate_y(15));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("MAX PITCH/VOICES");
+    tft.print("MAX PITCH");
     Show_players_Pitch_max_value(instrument_id);
 }
 
@@ -315,7 +315,7 @@ void DisplaySound::Show_Trim_step_value(void)
 FLASHMEM
 void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
 {
-    Cancel_text_reset_cursor(display_coordinate_x(43.5), display_coordinate_y(15), 8);
+    Cancel_text_reset_cursor(display_coordinate_x(46.5), display_coordinate_y(15), 5);
     tft.setTextColor(ILI9341_WHITE);
 
     const auto &preset = Preset[instrument_id];
@@ -327,8 +327,7 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
         tft.print("+");
     }
     tft.print(max_pitch_semitones);
-    tft.print("st/");
-    tft.print(PLAYERS);
+    tft.print("st");
 }
 
 void DisplaySound::Show_wave(int instrument_id)

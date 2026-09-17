@@ -1200,16 +1200,18 @@ void loop()
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
     P_Service_patch_cache();
+    
+    /*
     if (Serial.available() > 0)
     {
         const int command = Serial.read();
-#if defined(LILLA_READ_BENCHMARK)
+        // #if defined(LILLA_READ_BENCHMARK)
         if (command == 'b')
         {
             ReadBenchmark::Run(PatchCache_Manager, Audio_tables, Trigger_0.Is_running() && (Lilla_state != DIRECT_SAMPLING || DS_state == DS_waiting_state));
         }
         else
-#endif
+        // #endif
         if (command == 'd' || command == 'D')
         {
             const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
@@ -1226,6 +1228,8 @@ void loop()
             Print_player_read_diagnostics();
         }
     }
+    */
+
     if (audio_tables_error_pending)
     {
         audio_tables_error_pending = false;
@@ -14026,6 +14030,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
         AudioInterrupts();
         return;
     }
+
     last_cycle = cycle;
     PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask()); // Reuse retired buffers only after every player has released them.
     const bool copying = PatchCache_Manager.Prepare_copy(job);                                  // Reserve the next chunk; incomplete files remain unavailable to players.
@@ -14055,6 +14060,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     AudioNoInterrupts();
     AudioStopUsingSPI();                                               // Balance the SPI reservation even when the Flash read fails.
     const bool ready = PatchCache_Manager.Complete_copy(job, success); // Publish only a fully copied file; failed reads leave playback on Flash.
+
     if (ready)
     {
         Players_Manager.Refresh_cache_sources(); // Promote current and queued matching voices atomically to the completed PSRAM source.
@@ -14062,27 +14068,29 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     AudioInterrupts(); // Restore audio processing
 }
 
-
-
-
 void Print_player_read_diagnostics(void)
 {
     DMAMEM static PlayersManager::ReadDiagnosticsSnapshot snapshots[4];
     const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+
     AudioNoInterrupts();
     const auto budget = Players_Manager.Get_read_budget_status(); // Coherent scheduler snapshot while the audio IRQ is suspended.
     const bool enabled = Players_Manager.Copy_read_diagnostics(snapshots[0], snapshots[1], snapshots[2], snapshots[3]);
+
     if (audio_enabled)
     {
         AudioInterrupts();
     }
+
     Serial.printf("READ_BUDGET: limit_us=%.1f,reserved_us=%.3f,crossfade_us=%.3f,rejected_notes=%lu,retired_players=%lu,forced_protected=%lu\n", PlayerReadBudget::Limit_us, budget.reserved_us, budget.crossfade_us, static_cast<unsigned long>(budget.rejected_notes), static_cast<unsigned long>(budget.retired_players), static_cast<unsigned long>(budget.forced_protected));
     Serial.printf("READ_DIAG: %s; observed_blocks=%lu\n", enabled ? "enabled" : "disabled", static_cast<unsigned long>(snapshots[0].blocks));
+    
     if (snapshots[0].blocks == 0)
     {
         Serial.println(F("READ_DIAG: send d, play notes, then p (report); D disables"));
         return;
     }
+    
     Serial.println(F("READ_DIAG: estimates describe reads performed in each block at actual pitch, NOT a maximum-bend reservation or full Player CPU cost"));
     Serial.println(F("READ_DIAG: harvest_us includes assembly/reversal, counter overhead and interruptions; estimated_us models source transfers only"));
     Serial.println(F("READ_DIAG: max_underestimate is the largest positive harvest-minus-estimate gap, including assembly/diagnostic overhead; not pure memory-model error"));
@@ -14090,19 +14098,24 @@ void Print_player_read_diagnostics(void)
     Serial.println(F("READ_DIAG: READ_DIAG_BUDGET belongs to each snapshot cycle; headroom values are before crossfades, pre_players_us includes scheduling; minimum_us is the rejected 16-sample cost"));
     Serial.println(F("READ_DIAG: transition_kind 0=none, 1=restart, 2=edit, 3=both; mix_samples is assigned, harvests/flags describe actual execution; READ_BUDGET counters are since boot"));
     Serial.println(F("snapshot,cycle,player,harvests,max_actual_pitch,flash_reads,flash_samples,psram_reads,psram_samples,ram_reads,ram_samples,estimated_us,harvest_us,flags,uncovered_reads,transition_kind,mix_samples,available_before_us,assigned_us,minimum_us"));
+    
     const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
     const char *snapshot_names[] = {"last", "peak_estimate", "restart_peak", "max_underestimate"};
+    
     for (uint8_t snapshot = 0; snapshot < 4; ++snapshot)
     {
         const auto &data = snapshots[snapshot];
         const char *name = snapshot_names[snapshot];
+        
         if (data.blocks == 0)
         {
             Serial.printf("READ_DIAG: %s not observed in this window\n", name);
             continue;
         }
+        
         const auto &scheduled = data.budget; // Historical allocation travels with the same last/peak/restart/gap snapshot.
         Serial.printf("READ_DIAG_BUDGET,%s,cycle=%lu,valid=%u,limit_us=%.1f,reserved_us=%.3f,read_headroom_us=%.3f,deadline_headroom_us=%.3f,scheduler_elapsed_us=%.3f,pre_players_us=%.3f,available_us=%.3f,crossfade_us=%.3f,first_player=%u\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(scheduled.valid), PlayerReadBudget::Limit_us, scheduled.reserved_us, scheduled.read_headroom_us, scheduled.deadline_headroom_us, scheduled.scheduler_elapsed_us, scheduled.pre_players_us, scheduled.available_us, scheduled.crossfade_us, static_cast<unsigned int>(scheduled.first_player));
+        
         for (uint8_t player = 0; player < PLAYERS; ++player)
         {
             const auto &usage = data.players[player];
@@ -14112,6 +14125,7 @@ void Print_player_read_diagnostics(void)
             const uint32_t uncovered = flash.uncovered_operations + psram.uncovered_operations + ram.uncovered_operations;
             Serial.printf("%s,%lu,%u,%u,%.4f,%lu,%lu,%lu,%lu,%lu,%lu,%.3f,%.3f,%u,%lu,%u,%u,%.3f,%.3f,%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(player), static_cast<unsigned int>(usage.harvests), static_cast<double>(usage.maximum_pitch), static_cast<unsigned long>(flash.operations), static_cast<unsigned long>(flash.samples), static_cast<unsigned long>(psram.operations), static_cast<unsigned long>(psram.samples), static_cast<unsigned long>(ram.operations), static_cast<unsigned long>(ram.samples), static_cast<double>(data.estimated_us[player]), static_cast<double>(usage.harvest_cycles / cycles_per_us), static_cast<unsigned int>(usage.flags), static_cast<unsigned long>(uncovered), static_cast<unsigned int>(scheduled.transition[player]), static_cast<unsigned int>(scheduled.mix_samples[player]), scheduled.available_before_us[player], scheduled.assigned_us[player], scheduled.minimum_us[player]);
         }
+        
         Serial.printf("READ_DIAG_TOTAL,%s,cycle=%lu,estimated_us=%.3f,harvest_us=%.3f,uncovered_reads=%lu,restarted_players=%u,harvest_minus_estimate_us=%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<double>(data.total_estimated_us), static_cast<double>(data.total_harvest_us), static_cast<unsigned long>(data.uncovered_operations), static_cast<unsigned int>(data.restarted_players), static_cast<double>(data.total_harvest_us - data.total_estimated_us));
     }
 }
