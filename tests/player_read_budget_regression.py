@@ -32,6 +32,13 @@ constexpr int FIRST_RECORDING_FILE = 100, FIRST_LIVE_SAMPLING_FILE = 200;
 constexpr float MIN_PITCH = 0.1f;
 int Patch_id = 0, LS_XY_delta = 10000, LS_buffer_dim = 32768;
 uint32_t audio_update_time_micros = 0, audio_update_cycle = 1;
+namespace AudioTimingMonitor
+{
+enum Category { Flash, Psram, Zero, Players, Controls };
+enum Event { Visited, ActivePlayer, Rendered, Tail, AllocationFailure, DeadlineStop, BudgetRetirement };
+struct Scope { explicit Scope(Category) {} };
+inline void Event_count(Event) {}
+}
 enum Storage { Flash, Psram };
 struct AudioFileSource { Storage storage = Flash; };
 float constrain(float value, float low, float high) { return value < low ? low : (value > high ? high : value); }

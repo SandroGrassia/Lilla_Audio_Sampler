@@ -37,6 +37,13 @@ struct SerialStub
     void println() {}
 } Serial;
 const char *name_packet[4] = {};
+namespace AudioTimingMonitor
+{
+enum Category { Flash, Psram, Zero, Players, Controls };
+enum Event { Visited, ActivePlayer, Rendered, Tail, AllocationFailure, DeadlineStop, BudgetRetirement };
+struct Scope { explicit Scope(Category) {} };
+inline void Event_count(Event) {}
+}
 enum Storage { Flash, Psram };
 struct Source { Storage storage = Flash; uint32_t samples = 0; const int16_t *psram_ptr = nullptr; };
 struct File
