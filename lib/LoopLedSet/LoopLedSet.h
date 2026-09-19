@@ -31,7 +31,7 @@ class LoopLedSet
 {
 private:
     // riferimenti esterni
-    int8_t led_activity[TRACKS][INSTRUMENTS]; // -2: request switch-OFF   -1: led OFF    +1: led ON   -2: request switch-ON
+    volatile int8_t led_activity[TRACKS][INSTRUMENTS]; // -2: request switch-OFF   -1: led OFF    +1: led ON   -2: request switch-ON
 
 public:
     LoopLedSet()
@@ -43,5 +43,5 @@ public:
     void Request_track_LED_switch_off(int track); // 
     void Request_LED_switch(int track, int instrument_id, bool on); // called by PlayersStatistics - do NOT access to Display
     int Read_LED_activity(int track, int instrument_id); // called by main
-    void Write_LED_activity(int track, int instrument_id, bool on); // called by main
+    int Consume_LED_activity(int track, int instrument_id); // Atomically snapshot and acknowledge; draw after returning.
 };

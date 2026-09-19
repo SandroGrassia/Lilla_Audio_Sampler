@@ -3,280 +3,25 @@
 
 namespace
 {
-/*
-// Calibration: user-supplied BENCH_ALIGN capture, four individually timed reads per case at 600 MHz.
-// Use exact_mean_us: exact requested range, source address mod 4 = 2, aligned RAM1 destination.
-// Flash: seek+read (CPU source-cache state not applicable); PSRAM: memset+memcpy, cold source cache.
-// RAM: tiled AudioTables RAM2 source, memcpy with cold source cache. No expanded/aligned-read results used.
-// Cache preparation and data comparison are excluded, as are interpolation, bounds checks and other audio work.
-// Retain a cumulative maximum per column so local measurement dips cannot make larger requests cheaper.
-// These are four-read mean estimates, NOT worst-case guarantees; cold-cache preparation is only for the benchmark.
-// Recalibrate after changing clock, reader, alignment, memory placement or cache/access pattern.
-// Columns: samples, Flash_us, PSRAM_us, RAM2_us. Archived monotonic table; not compiled.
-read_times = {
-    {10, 6.040f, 0.938f, 0.149f},
-    {20, 9.865f, 1.725f, 0.230f},
-    {30, 13.766f, 2.070f, 0.297f},
-    {40, 17.566f, 2.820f, 0.342f},
-    {50, 21.398f, 3.464f, 0.409f},
-    {60, 25.305f, 3.931f, 0.473f},
-    {70, 29.135f, 4.600f, 0.555f},
-    {80, 33.187f, 5.364f, 0.614f},
-    {90, 36.775f, 5.702f, 0.660f},
-    {100, 40.655f, 6.478f, 0.735f},
-    {110, 44.845f, 6.805f, 0.787f},
-    {120, 48.248f, 7.584f, 0.860f},
-    {130, 52.030f, 8.224f, 0.914f},
-    {140, 56.144f, 8.690f, 0.971f},
-    {150, 59.742f, 9.350f, 1.059f},
-    {160, 63.553f, 10.127f, 1.111f},
-    {170, 67.628f, 10.432f, 1.150f},
-    {180, 71.429f, 11.233f, 1.241f},
-    {190, 75.115f, 11.559f, 1.304f},
-    {200, 78.936f, 12.512f, 1.350f},
-    {210, 82.752f, 13.001f, 1.420f},
-    {220, 86.830f, 13.443f, 1.482f},
-    {230, 90.603f, 14.105f, 1.555f},
-    {240, 94.338f, 14.873f, 1.620f},
-    {250, 98.138f, 15.206f, 1.662f},
-    {260, 102.377f, 15.985f, 1.733f},
-    {270, 105.871f, 16.312f, 1.785f},
-    {280, 109.588f, 17.090f, 1.862f},
-    {290, 115.428f, 17.737f, 1.913f},
-    {300, 117.904f, 18.195f, 1.972f},
-    {315, 123.528f, 20.865f, 2.081f},
-    {330, 131.067f, 20.865f, 2.151f},
-    {345, 134.742f, 20.942f, 2.278f},
-    {360, 140.736f, 21.845f, 2.352f},
-    {375, 146.655f, 22.703f, 2.479f},
-    {390, 152.398f, 23.623f, 2.559f},
-    {405, 159.559f, 24.585f, 2.660f},
-    {420, 163.547f, 25.502f, 2.735f},
-    {435, 169.615f, 26.345f, 2.842f},
-    {450, 175.005f, 27.250f, 2.915f},
-    {465, 181.140f, 28.232f, 3.040f},
-    {480, 186.568f, 29.158f, 3.113f},
-    {495, 192.778f, 29.765f, 3.203f},
-    {500, 194.038f, 30.281f, 3.243f},
-    {520, 204.072f, 31.365f, 3.350f},
-    {540, 210.580f, 32.478f, 3.481f},
-    {560, 217.384f, 33.910f, 3.624f},
-    {580, 225.657f, 35.016f, 3.732f},
-    {600, 234.949f, 36.119f, 3.863f},
-    {620, 240.417f, 37.215f, 3.973f},
-    {640, 250.161f, 38.659f, 4.123f},
-    {660, 255.913f, 39.756f, 4.246f},
-    {680, 263.520f, 40.877f, 4.350f},
-    {700, 271.347f, 41.979f, 4.482f},
-    {720, 280.931f, 43.412f, 4.624f},
-    {740, 287.294f, 44.515f, 4.734f},
-    {760, 296.295f, 45.625f, 4.863f},
-    {780, 303.051f, 46.725f, 4.969f},
-    {800, 311.217f, 48.170f, 5.113f},
-    {820, 317.303f, 49.377f, 5.243f},
-    {840, 325.138f, 50.381f, 5.350f},
-    {860, 334.461f, 51.485f, 5.700f},
-    {880, 342.819f, 52.932f, 5.700f},
-    {900, 350.618f, 54.032f, 5.734f},
-    {920, 358.408f, 55.141f, 5.866f},
-    {940, 365.548f, 56.248f, 5.969f},
-    {960, 372.937f, 57.691f, 6.114f},
-    {980, 379.086f, 58.918f, 6.243f},
-    {1000, 386.388f, 59.886f, 6.349f},
-    {1020, 394.830f, 60.996f, 6.483f},
-    {1040, 405.589f, 62.532f, 6.629f},
-    {1060, 410.724f, 63.550f, 6.733f},
-    {1080, 417.370f, 64.642f, 6.863f},
-    {1100, 426.640f, 65.989f, 6.972f},
-    {1120, 432.533f, 67.195f, 7.115f},
-    {1140, 442.971f, 70.204f, 7.246f},
-    {1160, 448.841f, 70.204f, 7.351f},
-    {1180, 457.357f, 70.496f, 7.482f},
-    {1200, 463.893f, 71.973f, 7.628f},
-    {1220, 472.563f, 73.128f, 7.735f},
-    {1240, 481.048f, 74.170f, 7.863f},
-    {1260, 487.337f, 75.248f, 7.969f},
-    {1280, 496.687f, 76.715f, 8.119f},
-    {1300, 503.489f, 77.797f, 8.244f},
-    {1320, 511.177f, 79.002f, 8.349f},
-    {1340, 519.800f, 80.020f, 8.488f},
-    {1360, 527.447f, 81.557f, 8.845f},
-    {1380, 534.778f, 82.558f, 8.845f},
-    {1400, 541.882f, 85.301f, 8.865f},
-    {1420, 549.712f, 85.301f, 8.972f},
-    {1440, 556.948f, 86.230f, 9.115f},
-    {1460, 565.762f, 87.310f, 9.242f},
-    {1480, 572.703f, 88.429f, 9.351f},
-    {1500, 580.505f, 89.525f, 9.481f},
-    {1520, 589.427f, 90.975f, 9.629f},
-    {1540, 595.090f, 92.073f, 9.740f},
-    {1560, 603.959f, 93.270f, 9.863f},
-    {1580, 610.551f, 94.294f, 9.971f},
-    {1600, 619.820f, 95.726f, 10.120f},
-    {1620, 626.253f, 96.814f, 10.243f},
-    {1640, 634.626f, 97.930f, 10.349f},
-    {1660, 641.373f, 100.650f, 10.483f},
-    {1680, 652.263f, 100.650f, 10.636f},
-    {1700, 656.307f, 101.674f, 10.737f},
-    {1720, 663.314f, 102.684f, 10.863f},
-    {1740, 671.316f, 105.749f, 10.970f},
-    {1760, 680.210f, 105.749f, 11.115f},
-    {1780, 689.238f, 106.329f, 11.243f},
-    {1800, 698.043f, 109.246f, 11.350f},
-    {1820, 706.288f, 109.246f, 11.483f},
-    {1840, 714.636f, 110.141f, 11.624f},
-    {1860, 720.932f, 112.711f, 11.960f},
-    {1880, 728.690f, 112.711f, 11.960f},
-    {1900, 734.288f, 113.301f, 11.971f},
-    {1920, 740.510f, 114.742f, 12.114f},
-    {1940, 747.577f, 115.839f, 12.243f},
-    {1960, 756.459f, 118.748f, 12.349f},
-    {1980, 764.102f, 118.748f, 12.482f},
-    {2000, 774.711f, 119.493f, 12.843f},
-    {2020, 785.433f, 120.602f, 12.843f},
-    {2040, 788.858f, 121.897f, 12.899f},
-    {2060, 793.181f, 124.380f, 12.969f},
-    {2080, 803.249f, 124.380f, 13.113f},
-    {2100, 816.244f, 125.494f, 13.256f},
-    {2120, 816.244f, 128.148f, 13.349f},
-    {2140, 824.877f, 128.148f, 13.487f},
-    {2160, 839.115f, 130.670f, 13.628f},
-    {2180, 839.132f, 130.670f, 13.733f},
-    {2200, 850.203f, 131.397f, 13.861f},
-    {2220, 860.234f, 132.320f, 13.971f},
-    {2240, 863.361f, 133.884f, 14.120f},
-    {2260, 877.612f, 134.851f, 14.246f},
-    {2280, 879.845f, 135.979f, 14.352f},
-    {2300, 891.252f, 137.065f, 14.515f},
-    {2320, 895.176f, 140.159f, 14.625f},
-    {2340, 906.773f, 140.159f, 14.733f},
-    {2360, 910.019f, 140.731f, 14.862f},
-    {2380, 921.950f, 142.042f, 14.977f},
-    {2400, 928.151f, 145.174f, 15.116f},
-    {2420, 932.708f, 145.174f, 15.258f},
-    {2440, 944.798f, 145.489f, 15.349f},
-    {2460, 948.096f, 146.592f, 15.482f},
-    {2480, 960.804f, 149.697f, 15.844f},
-    {2500, 967.407f, 149.697f, 15.844f},
-    {2520, 975.355f, 150.247f, 15.894f},
-    {2540, 980.058f, 152.968f, 15.970f},
-    {2560, 990.528f, 152.968f, 16.116f},
-    {2580, 998.514f, 153.973f, 16.257f},
-    {2600, 1006.421f, 155.075f, 18.093f},
-    {2620, 1013.180f, 156.092f, 18.093f},
-    {2640, 1020.263f, 157.523f, 18.093f},
-    {2660, 1024.629f, 158.623f, 18.093f},
-    {2680, 1035.736f, 159.743f, 18.093f},
-    {2700, 1043.965f, 160.833f, 18.093f},
-    {2720, 1052.324f, 162.277f, 18.093f},
-    {2740, 1059.076f, 163.581f, 18.093f},
-    {2760, 1067.633f, 164.580f, 18.093f},
-    {2780, 1076.064f, 167.363f, 18.093f},
-    {2800, 1082.291f, 167.363f, 18.093f},
-    {2820, 1091.223f, 169.926f, 18.093f},
-    {2840, 1096.737f, 170.997f, 18.093f},
-    {2860, 1107.362f, 170.997f, 18.093f},
-    {2880, 1111.886f, 171.806f, 18.118f},
-    {2900, 1120.446f, 172.887f, 18.249f},
-    {2920, 1126.125f, 175.808f, 18.394f},
-    {2940, 1135.277f, 175.808f, 18.482f},
-    {2960, 1145.632f, 178.146f, 18.623f},
-    {2980, 1151.746f, 178.146f, 18.741f},
-    {3000, 1160.732f, 178.757f, 18.863f},
-    {3020, 1164.818f, 181.808f, 18.969f},
-    {3040, 1175.051f, 181.808f, 19.113f},
-    {3060, 1183.405f, 182.423f, 19.242f},
-    {3080, 1188.764f, 183.613f, 19.357f},
-    {3100, 1196.569f, 186.412f, 19.514f},
-    {3120, 1207.923f, 186.412f, 19.625f},
-    {3140, 1210.776f, 187.398f, 19.733f},
-    {3160, 1221.580f, 188.281f, 21.604f},
-    {3180, 1226.605f, 189.412f, 21.604f},
-    {3200, 1238.976f, 192.602f, 21.604f},
-    {3220, 1241.902f, 192.602f, 21.604f},
-    {3240, 1254.071f, 193.205f, 21.604f},
-    {3260, 1256.682f, 194.149f, 21.604f},
-    {3280, 1267.102f, 195.709f, 21.604f},
-    {3300, 1271.657f, 198.420f, 21.604f},
-    {3320, 1282.553f, 198.420f, 21.604f},
-    {3340, 1289.666f, 200.800f, 21.604f},
-    {3360, 1297.104f, 200.800f, 21.604f},
-    {3380, 1307.469f, 201.541f, 21.604f},
-    {3400, 1315.703f, 202.727f, 21.604f},
-    {3420, 1319.055f, 203.645f, 21.604f},
-    {3440, 1328.550f, 205.180f, 21.642f},
-    {3460, 1337.526f, 206.178f, 21.733f},
-    {3480, 1343.838f, 209.116f, 21.866f},
-    {3500, 1349.255f, 209.116f, 21.973f},
-    {3520, 1359.881f, 211.409f, 22.115f},
-    {3540, 1368.428f, 212.759f, 22.245f},
-    {3560, 1373.185f, 212.759f, 22.356f},
-    {3580, 1383.325f, 214.857f, 22.481f},
-    {3600, 1390.836f, 216.758f, 22.628f},
-    {3620, 1398.974f, 216.758f, 22.734f},
-    {3640, 1404.899f, 218.400f, 22.863f},
-    {3660, 1412.966f, 218.400f, 22.984f},
-    {3680, 1423.483f, 219.348f, 23.115f},
-    {3700, 1427.634f, 220.643f, 23.242f},
-    {3720, 1437.493f, 221.548f, 23.355f},
-    {3740, 1443.949f, 222.822f, 23.482f},
-    {3760, 1451.787f, 224.288f, 23.629f},
-    {3780, 1460.643f, 226.971f, 23.735f},
-    {3800, 1467.558f, 227.996f, 23.860f},
-    {3820, 1473.785f, 227.996f, 23.970f},
-    {3840, 1482.966f, 228.856f, 24.120f},
-    {3860, 1492.497f, 229.950f, 24.252f},
-    {3880, 1499.250f, 231.267f, 24.378f},
-    {3900, 1505.471f, 232.321f, 24.482f},
-    {3920, 1513.742f, 233.746f, 24.633f},
-    {3940, 1520.622f, 234.916f, 24.735f},
-    {3960, 1527.898f, 236.044f, 24.863f},
-    {3980, 1538.535f, 236.912f, 24.968f},
-    {4000, 1543.267f, 240.012f, 25.116f},
-    {4020, 1554.944f, 240.012f, 25.242f},
-    {4040, 1560.420f, 240.732f, 25.360f},
-    {4060, 1568.816f, 241.675f, 25.488f},
-    {4080, 1574.373f, 243.319f, 25.624f},
-    {4100, 1581.327f, 244.440f, 25.738f},
-    {4120, 1590.707f, 245.512f, 26.077f},
-    {4140, 1597.213f, 248.121f, 26.077f},
-    {4160, 1607.616f, 249.653f, 26.118f},
-    {4180, 1613.552f, 249.653f, 26.243f},
-    {4200, 1619.410f, 251.703f, 26.348f},
-    {4220, 1630.839f, 251.703f, 26.482f},
-    {4240, 1635.333f, 252.616f, 26.624f},
-    {4260, 1646.272f, 255.477f, 26.742f},
-    {4280, 1652.060f, 255.477f, 26.896f},
-    {4300, 1656.363f, 257.800f, 26.970f},
-    {4320, 1668.966f, 257.800f, 27.120f},
-    {4340, 1674.868f, 258.463f, 27.246f},
-    {4360, 1681.809f, 261.365f, 27.350f},
-    {4380, 1689.931f, 261.365f, 27.486f},
-    {4400, 1696.425f, 262.138f, 27.622f},
-    {4420, 1705.457f, 263.329f, 27.733f},
-    {4440, 1714.118f, 266.166f, 27.867f},
-    {4460, 1722.261f, 266.166f, 27.979f},
-    {4480, 1728.563f, 268.656f, 28.117f},
-    {4500, 1740.056f, 268.656f, 28.245f},
-};
-*/
+// Calibration procedure and archived measurements: docs/read-calibration.md.
+
 
 // Least-squares fits to the original exact_mean_us measurements (before the table's cumulative maximum).
 // PSRAM/RAM use cold source cache; Flash uses seek+read. Units: samples -> microseconds per operation.
 // Validated at 600 MHz over 10..4500 samples. Mean estimates, not worst-case timing guarantees.
 constexpr float Flash_read_time_us(uint32_t samples)
 {
-    return 2.2526f + 0.385575f * static_cast<float>(samples);
+    return PlayerReadBudget::Transfer_us(PlayerReadSource::Flash, samples);
 }
 
 constexpr float Psram_read_time_us(uint32_t samples)
 {
-    return 0.4655f + 0.059608f * static_cast<float>(samples);
+    return PlayerReadBudget::Transfer_us(PlayerReadSource::Psram, samples);
 }
 
 constexpr float Ram_read_time_us(uint32_t samples)
 {
-    return 0.1165f + 0.006258f * static_cast<float>(samples);
+    return PlayerReadBudget::Transfer_us(PlayerReadSource::Ram, samples);
 }
 }
 
@@ -310,6 +55,118 @@ bool PlayersManager::Get_read_time_us(ReadSource source, uint32_t samples, float
             break;
     }
     return true;
+}
+
+bool PlayersManager::Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us)
+{
+    time_us = INFINITY;
+    if (source != ReadSource::Flash && source != ReadSource::Psram && source != ReadSource::Ram)
+    {
+        return false;
+    }
+    if (usage.uncovered_operations != 0)
+    {
+        return false;
+    }
+    if (usage.operations == 0)
+    {
+        time_us = 0.0f;
+        return true;
+    }
+    // Each individual operation was range-checked by Add(); their combined sample count may exceed 4500.
+    const float extra_operations = static_cast<float>(usage.operations - 1u);
+    switch (source)
+    {
+        case ReadSource::Flash:
+            time_us = Flash_read_time_us(usage.model_samples) + extra_operations * Flash_read_time_us(0);
+            break;
+        case ReadSource::Psram:
+            time_us = Psram_read_time_us(usage.model_samples) + extra_operations * Psram_read_time_us(0);
+            break;
+        case ReadSource::Ram:
+            time_us = Ram_read_time_us(usage.model_samples) + extra_operations * Ram_read_time_us(0);
+            break;
+    }
+    return true;
+}
+
+void PlayersManager::Enable_read_diagnostics(bool enabled)
+{
+    read_diagnostics_enabled = enabled;
+    AudioPlayer::Enable_read_diagnostics(enabled);
+    if (enabled)
+    {
+        ARM_DEMCR |= ARM_DEMCR_TRCENA;
+        ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+        read_budget_diagnostics = {}; // A new observation window must not inherit an earlier allocation.
+        read_diagnostics_last = {};
+        read_diagnostics_peak = {};
+        read_diagnostics_restart = {};
+        read_diagnostics_gap = {};
+    }
+}
+
+void PlayersManager::Collect_read_diagnostics(void)
+{
+    if (!read_diagnostics_enabled)
+    {
+        return;
+    }
+    read_diagnostics_last.cycle = audio_update_cycle;
+    read_diagnostics_last.budget = read_budget_diagnostics.valid && read_budget_diagnostics.cycle == audio_update_cycle ? read_budget_diagnostics : ReadBudgetDiagnostics{}; // Never attach the latest budget to a different historical block.
+    ++read_diagnostics_last.blocks;
+    read_diagnostics_last.total_estimated_us = 0.0f;
+    read_diagnostics_last.total_harvest_us = 0.0f;
+    read_diagnostics_last.uncovered_operations = 0;
+    read_diagnostics_last.restarted_players = 0;
+    const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
+    for (uint8_t player = 0; player < PLAYERS; ++player)
+    {
+        const PlayerReadDiagnostics &usage = Player_ptr[player].Get_read_diagnostics();
+        read_diagnostics_last.players[player] = usage.cycle == audio_update_cycle ? usage : PlayerReadDiagnostics{}; // Never mix observations from different blocks.
+        const PlayerReadDiagnostics &current = read_diagnostics_last.players[player];
+        if ((current.flags & PlayerReadDiagnostics::RestartExecuted) != 0)
+        {
+            ++read_diagnostics_last.restarted_players;
+        }
+        float estimated = 0.0f;
+        for (uint8_t source = 0; source < 3; ++source)
+        {
+            float source_us;
+            if (!Get_read_usage_time_us(static_cast<ReadSource>(source), current.sources[source], source_us))
+            {
+                source_us = INFINITY;
+            }
+            estimated += source_us;
+            read_diagnostics_last.uncovered_operations += current.sources[source].uncovered_operations;
+        }
+        read_diagnostics_last.estimated_us[player] = estimated;
+        read_diagnostics_last.total_estimated_us += estimated;
+        read_diagnostics_last.total_harvest_us += static_cast<float>(current.harvest_cycles) / cycles_per_us;
+    }
+    if (read_diagnostics_peak.blocks == 0 || read_diagnostics_last.total_estimated_us > read_diagnostics_peak.total_estimated_us)
+    {
+        read_diagnostics_peak = read_diagnostics_last;
+    }
+    if (read_diagnostics_last.restarted_players != 0 && (read_diagnostics_restart.blocks == 0 || read_diagnostics_last.total_estimated_us > read_diagnostics_restart.total_estimated_us))
+    {
+        read_diagnostics_restart = read_diagnostics_last;
+    }
+    const float gap_us = read_diagnostics_last.total_harvest_us - read_diagnostics_last.total_estimated_us;
+    const float previous_gap_us = read_diagnostics_gap.total_harvest_us - read_diagnostics_gap.total_estimated_us;
+    if (read_diagnostics_last.uncovered_operations == 0 && gap_us > 0.0f && (read_diagnostics_gap.blocks == 0 || gap_us > previous_gap_us))
+    {
+        read_diagnostics_gap = read_diagnostics_last;
+    }
+}
+
+bool PlayersManager::Copy_read_diagnostics(ReadDiagnosticsSnapshot &last, ReadDiagnosticsSnapshot &peak, ReadDiagnosticsSnapshot &restart, ReadDiagnosticsSnapshot &gap) const
+{
+    last = read_diagnostics_last;
+    peak = read_diagnostics_peak;
+    restart = read_diagnostics_restart;
+    gap = read_diagnostics_gap;
+    return read_diagnostics_enabled;
 }
 
 void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
@@ -369,12 +226,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     int8_t id_player = -1;
     bool finished = false;
     const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
-    const int voice_limit = OPTIMIZATION_VOICES[optimization];
-    // A reduced profile takes effect after the old voices finish their fast release.
-    if (needs_sample && Count_sample_voices() > voice_limit)
-    {
-        return -1;
-    }
+    const int voice_limit = PLAYERS;
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
     for (auto player = 0; player < PLAYERS; ++player)
@@ -388,7 +240,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
         }
     }
 
-    if (!finished && needs_sample) // File voices share the profile budget regardless of their current storage.
+    if (!finished && needs_sample) // File voices can use all physical players regardless of their current storage.
     {
         Update_players_stistics();
 
@@ -448,7 +300,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
             }
         }
 
-        // Only an existing Flash/cache slot can be reused at the profile limit.
+        // Only an existing Flash/cache slot can be reused when all physical players are file voices.
         else
         {
             // 5A) there is a Player flash_mode from a different Patch and playing
@@ -570,6 +422,155 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     return finished ? id_player : -1;
 }
 
+PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float note_pitch) const
+{
+    const auto &preset = Preset[instrument]; // Prepared source selected for the incoming note.
+    PlayerReadBudget::Plan plan; // Match AudioPlayer's pending geometry without modifying a voice.
+    plan.live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
+    plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
+    plan.packets = !wavetable && !plan.live && preset.source.storage == Flash && preset.file >= FIRST_RECORDING_FILE;
+    plan.loop = preset.mode >= LOOP_FWD;
+    plan.pingpong = preset.mode == LOOP_FWD_REV || preset.mode == LOOP_REV_FWD;
+    plan.span = plan.live ? (plan.loop ? LS_XY_delta + 1 : LS_buffer_dim) : preset.B - preset.A + 1;
+    plan.crossfade = plan.pingpong ? 0 : preset.Noclick;
+    const float ceiling = Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
+    plan.pitch = constrain(note_pitch * preset.pitch * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
+    return plan;
+}
+
+float PlayersManager::Reserved_read_us(void) const
+{
+    float total = 0.0f; // Includes releasing voices until they actually stop reading.
+    for (int player = 0; player < PLAYERS; ++player) // At most sixteen inexpensive source forecasts.
+    {
+        total += Player_ptr[player].Reserved_read_us();
+    }
+    return total;
+}
+
+bool PlayersManager::Admit_read_budget(int target, uint8_t instrument, float incoming_us)
+{
+    if (!std::isfinite(incoming_us) || incoming_us > PlayerReadBudget::Limit_us)
+    {
+        ++budget_rejected_notes;
+        return false;
+    }
+    bool victims[PLAYERS] = {}; // Plan first: failed admission must not stop any existing note.
+    float costs[PLAYERS] = {}; // Snapshot each reservation once during selection.
+    float total = incoming_us; // Replacement and outgoing voice can run in separate blocks.
+    for (int player = 0; player < PLAYERS; ++player) // Preserve outgoing cost until explicitly retired.
+    {
+        costs[player] = Player_ptr[player].Reserved_read_us();
+        total += player == target ? fmaxf(costs[player], incoming_us) - incoming_us : costs[player];
+    }
+    if (total > PlayerReadBudget::Limit_us && costs[target] > incoming_us)
+    {
+        victims[target] = true;
+        total = incoming_us;
+        for (int player = 0; player < PLAYERS; ++player) // Recompute instead of subtracting infinity.
+        {
+            if (player != target)
+            {
+                total += costs[player];
+            }
+        }
+    }
+    while (total > PlayerReadBudget::Limit_us)
+    {
+        int best = -1; // Next eligible victim, ordered like the existing voice allocator.
+        int best_rank = 99; // Other patch, released same, released other, held same, held other.
+        for (int player = 0; player < PLAYERS; ++player) // Never replace another event already booked in this batch.
+        {
+            auto &voice = Player_ptr[player]; // Current voice metadata and protection.
+            if (player == target || victims[player] || Player_booked[player] || voice.Has_pending_note() || !voice.isPlaying())
+            {
+                continue;
+            }
+            const bool same = voice.Read_instrument() == instrument; // Same-instrument reuse retains the established protection exception.
+            const bool other_patch = voice.Assigned_patch() != Patch_id; // Outgoing patch voices are reclaimed first.
+            if (!other_patch && !same && (voice.Read_precedence() || (voice.isPoweredOn() && !Preset[instrument].precedence)))
+            {
+                continue;
+            }
+            const int rank = other_patch ? 0 : (!voice.isPoweredOn() ? (same ? 1 : 2) : (same ? 3 : 4)); // Match release and instrument priorities before age.
+            if (best < 0 || rank < best_rank || (rank == best_rank && voice.Read_time_stamp() < Player_ptr[best].Read_time_stamp()))
+            {
+                best = player;
+                best_rank = rank;
+            }
+        }
+        if (best < 0)
+        {
+            ++budget_rejected_notes;
+            return false;
+        }
+        victims[best] = true;
+        total = victims[target] ? incoming_us : fmaxf(costs[target], incoming_us);
+        for (int player = 0; player < PLAYERS; ++player) // Exclude all planned victims, including invalid source forecasts.
+        {
+            if (player != target && !victims[player])
+            {
+                total += costs[player];
+            }
+        }
+    }
+    for (int player = 0; player < PLAYERS; ++player) // Commit only after the complete candidate fits.
+    {
+        if (victims[player])
+        {
+            Player_ptr[player].Retire_for_read_budget();
+            ++budget_retired_players;
+        }
+    }
+    return true;
+}
+
+void PlayersManager::Prepare_read_budget(void)
+{
+    // Main-loop edits and cache promotion can change the forecast without a NoteOn.
+    float total = Reserved_read_us(); // Fresh full-block cost, including pending edits and replacements.
+    while (total > PlayerReadBudget::Limit_us)
+    {
+        int best = -1; // Release tails first, then unprotected held voices, protected voices only as a last resort.
+        int best_rank = 99; // Protection dominates age during forced revalidation.
+        for (int player = 0; player < PLAYERS; ++player) // Bounded scan; at most PLAYERS retirements.
+        {
+            auto &voice = Player_ptr[player]; // No mutation until the next victim is selected.
+            if (!voice.isPlaying())
+            {
+                continue;
+            }
+            const int rank = (voice.Read_precedence() ? 2 : 0) + (voice.isPoweredOn() ? 1 : 0); // Retain protected notes where possible.
+            if (best < 0 || rank < best_rank || (rank == best_rank && voice.Read_time_stamp() < Player_ptr[best].Read_time_stamp()))
+            {
+                best = player;
+                best_rank = rank;
+            }
+        }
+        if (best < 0)
+        {
+            break;
+        }
+        if (Player_ptr[best].Read_precedence())
+        {
+            ++budget_forced_protected;
+        }
+        Player_ptr[best].Retire_for_read_budget();
+        ++budget_retired_players;
+        total = Reserved_read_us();
+    }
+    budget_reserved_us = total;
+    const bool previous_batch = midi_batch_active; // Include elapsed preparation time when scheduling from the audio clock.
+    midi_batch_active = true;
+    Calculate_and_set_mix_samples();
+    midi_batch_active = previous_batch;
+    if (read_diagnostics_enabled)
+    {
+        read_budget_diagnostics.pre_players_us = static_cast<float>(audio_update_time_micros); // Include the scheduler itself in the time spent before Player rendering.
+    }
+}
+
 void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track) // after receiving a NoteOn command
 {
     if (instrument_id >= INSTRUMENTS || !Preset[instrument_id].active)
@@ -589,9 +590,14 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         return; // All eligible voices are occupied or reserved; never overwrite a different pending note.
     }
 
+    const float incoming_pitch = pitch_from_note[note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key]; // Same transposition used by Get_ready_to_play.
+    if (!Admit_read_budget(id_player, instrument_id, PlayerReadBudget::Estimate(New_read_plan(instrument_id, incoming_pitch), AUDIO_BLOCK_SAMPLES)))
+    {
+        return;
+    }
     Player_booked[id_player] = true;
 
-    if (Player_ptr[id_player].State() > 0 && !restart_Player[id_player]) // sta inviando sample, cioè !idle
+    if (Player_ptr[id_player].State() > 0 && !restart_Player[id_player]) // sta inviando sample, cioÃ¨ !idle
     {
         restart_Player[id_player] = true;
         ++players_to_restart;
@@ -674,30 +680,6 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     (se interrogato Player[player].is_playing == true);
     */
     Player_ptr[id_player].Get_ready_to_play(pitch_from_note[note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key], velocity_float, Patch_id, instrument_id, Preset[instrument_id].sound_id, note_number);
-
-    // calcola update_time e trasmetti il valore al Player
-    int update_time;
-    if (Lilla_state == LIVE_SAMPLING)
-    {
-        update_time = 9.067 * Player_ptr[id_player].Read_pitch() + 35.3;
-    }
-    else
-    {
-        if (Preset[instrument_id].use_Wavetable)
-        {
-            update_time = 2.7 * Player_ptr[id_player].Read_pitch() + 31.0;
-        }
-        else
-        {
-            update_time = 48.56 * Player_ptr[id_player].Read_pitch() + 48.31;
-        }
-    }
-    if (Preset[instrument_id].Filter.use == 1)
-    {
-        update_time += 15;
-    }
-
-    Player_ptr[id_player].Write_update_time(update_time);
 
     // Gestione del Delay
     // configura su Router_L e Router_R input/output le routing_table
@@ -783,10 +765,7 @@ void PlayersManager::End_midi_batch(void)
             ++players_to_restart;
         }
     }
-    if (players_to_restart > 0)
-    {
-        Calculate_and_set_mix_samples();
-    }
+    // The audio clock schedules all restarts and edits together after the complete control batch.
     midi_batch_active = false;
 }
 
@@ -1425,306 +1404,14 @@ void PlayersManager::Multicast_IF_index(int instrument_id, float value)
 
 void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrument_id)
 {
-    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id);
+    const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id); // Resolve the edited table before modifying any Player.
     if (AudioTables::Needs_tables(Preset[instrument_id]) && table_pointers.bank_mask == 0)
     {
         return;
     }
-    uint8_t players_to_cross_mix = 0;
-    uint8_t mix_samples_for_Player[PLAYERS] = {0};
-    bool cross_mix_Player[PLAYERS] = {0};
-
-    for (auto player = 0; player < PLAYERS; ++player)
+    for (int player = 0; player < PLAYERS; ++player) // Geometry is committed by AudioPlayer after the next budget pass.
     {
-        mix_samples_for_Player[player] = 0;
-        cross_mix_Player[player] = false;
-    }
-
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Player_ptr[player].Apply_preset_edit(patch_id, instrument_id, Preset[instrument_id], table_pointers))
-        {
-            ++players_to_cross_mix;
-            cross_mix_Player[player] = true;
-        }
-    }
-
-    if (players_to_cross_mix > 0)
-    {
-        bool finished = false;
-        int mix_micros_span = Get_span_for_all_cross_mix();
-        // Serial.print("We have ");
-        // Serial.print(mix_micros_span);
-        // Serial.println(" micros available for ALL cross_mix.");
-
-        bool old_use_wavetable[PLAYERS];
-        float old_pitch_of_Player[PLAYERS];
-        float standard_pitch_of_Player[PLAYERS];
-
-        // calculate the standardized "flash-play" pitch: pitch of RAM-playing Players will be normalized so they can be traated as Flash-playing Players
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (cross_mix_Player[player])
-            {
-                old_use_wavetable[player] = Player_ptr[player].Read_use_Wavetable();
-                old_pitch_of_Player[player] = Player_ptr[player].Read_pitch();
-
-                if (old_use_wavetable[player])
-                {
-                    standard_pitch_of_Player[player] = old_pitch_of_Player[player] * 0.07113;
-                }
-                else
-                {
-                    standard_pitch_of_Player[player] = old_pitch_of_Player[player];
-                }
-                // Serial.print("Player:");
-                // Serial.print(player);
-                // Serial.print(" has standard_pitch:");
-                // Serial.println(standard_pitch_of_Player[player]);
-            }
-        }
-        // Serial.println();
-
-        // find highest-pitch / highest-time Player
-        int max_cross_mix_time;
-        uint8_t worst_Player = 0;
-        float max_pitch = 0;
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (cross_mix_Player[player])
-            {
-                if (standard_pitch_of_Player[player] > max_pitch)
-                {
-                    max_pitch = standard_pitch_of_Player[player];
-                    worst_Player = player;
-                }
-            }
-        }
-        // Serial.print("Worst Player (with highest pitch) is:");
-        // Serial.print(worst_Player);
-        // Serial.print(" with pitch:");
-        // Serial.println(max_pitch);
-        // Serial.println();
-
-        // 1) Try to set mix_samples = 64 for ALL Players
-        max_cross_mix_time = Get_cross_mix_time(worst_Player, 64);
-        // Serial.print("Try Case 1 - max_cross_mix_time (micros) is:");
-        // Serial.println(max_cross_mix_time);
-        // Serial.println();
-
-        if (mix_micros_span > (max_cross_mix_time * players_to_cross_mix))
-        {
-            // Serial.println("Case 1 is verified --> transmit mix_samples = 64 to Players to cross_mix.");
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (cross_mix_Player[player])
-                {
-                    cross_mix_Player[player] = false;
-                    players_to_cross_mix--;
-                    mix_samples_for_Player[player] = 32;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                    mix_micros_span -= Get_cross_mix_time(player, 32); // Get_cross_mix_time(uint8_t player, uint16_t mix_samples)
-                    // Serial.print("mix_sample 64 is given to Player ");
-                    // Serial.print(player);
-                    // Serial.print("; theorical update time is:");
-                    // Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].update_time);
-                }
-            }
-            finished = true;
-        }
-
-        // 2) Try to set mix_samples = 48 for ALL Players
-        if (!finished)
-        {
-            max_cross_mix_time = Get_cross_mix_time(worst_Player, 48);
-            // Serial.print("Try Case 2 - max_cross_mix_time (micros) is:");
-            // Serial.println(max_cross_mix_time);
-            // Serial.println();
-
-            if (mix_micros_span > (max_cross_mix_time * players_to_cross_mix))
-            {
-                // Serial.println("Case 2 is verified --> transmit mix_samples = 48 to Players to cross_mix.");
-                for (auto player = 0; player < PLAYERS; ++player)
-                {
-                    if (cross_mix_Player[player])
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 48;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                        mix_micros_span -= Get_cross_mix_time(player, 48); // Get_cross_mix_time(uint8_t player, uint16_t mix_samples)
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 48 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                }
-                finished = true;
-            }
-        }
-
-        // 3) Try to set mix_samples = 32 for ALL Players
-        if (!finished)
-        {
-            max_cross_mix_time = Get_cross_mix_time(worst_Player, 32);
-            // Serial.print("Try Case 3 - max_cross_mix_time (micros) is:");
-            // Serial.println(max_cross_mix_time);
-            // Serial.println();
-
-            if (mix_micros_span > (max_cross_mix_time * players_to_cross_mix))
-            {
-                // Serial.println("Case 3 is verified --> transmit mix_samples = 32 to Players to cross_mix.");
-                for (auto player = 0; player < PLAYERS; ++player)
-                {
-                    if (cross_mix_Player[player])
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 32;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                        mix_micros_span -= Get_cross_mix_time(player, 32); // Get_cross_mix_time(uint8_t player, uint16_t mix_samples)
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 32 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                }
-                finished = true;
-            }
-        }
-
-        if (!finished)
-        {
-            // 4: Try to assign minimum  mix_samples to Players
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (cross_mix_Player[player])
-                {
-                    if (standard_pitch_of_Player[player] <= 0.7)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 64;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 64);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 64 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 64) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 0.8)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 48;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 48);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 48 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 1.0)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 32;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 32);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 32 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 1.2)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 24;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 24);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 24 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 24) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    else if (standard_pitch_of_Player[player] <= 1.4)
-                    {
-                        cross_mix_Player[player] = false;
-                        players_to_cross_mix--;
-                        mix_samples_for_Player[player] = 16;
-                        Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                        mix_micros_span -= Get_cross_mix_time(player, 16);
-
-                        if (false)
-                        {
-                            Serial.print("mix_sample 16 is given to Player ");
-                            Serial.print(player);
-                            Serial.print("; theorical update time is:");
-                            Serial.println(Get_cross_mix_time(player, 16) + Player_ptr[player].Read_update_time());
-                        }
-                    }
-                    if (players_to_cross_mix == 0)
-                    {
-                        finished = true;
-                        break;
-                    }
-                    if (mix_micros_span <= 10)
-                    {
-                        // Serial.print("Available time is finished :( Players to examin are:");
-                        // Serial.println(players_to_cross_mix);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (!finished)
-        {
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (cross_mix_Player[player])
-                {
-                    cross_mix_Player[player] = false;
-                    players_to_cross_mix--;
-                    mix_samples_for_Player[player] = 5;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    // Serial.print("Mix_sample 5 is given to Player ");
-                    // Serial.println(player);
-                }
-            }
-        }
-
-        // Serial.print("FINISHED - Midi_reader: mix_samples calculation required (micros):");
-        // Serial.println(micros() - execution_time);
-        // Serial.println();
+        Player_ptr[player].Apply_preset_edit(patch_id, instrument_id, Preset[instrument_id], table_pointers);
     }
 }
 
@@ -1761,64 +1448,6 @@ void PlayersManager::Release_player(int player, int track) // after receiving a 
 {
     (Player_ptr + player)->Release_note();
     (Player_ptr + player)->Write_time_stamp(millis());
-}
-
-bool PlayersManager::Verify_if_stop_players(int patch_id, int instrument_id) // when EDITING a SOUND, each time B or A change it's MANDATORY to test if SOME Players MUST be stopped
-{
-    uint8_t players_critical = 0;
-    uint8_t players_to_stop = 0;
-    int8_t index = 0;
-
-    if ((OPTIMIZATION_VOICES[optimization] < PLAYERS) && Preset[instrument_id].use_Wavetable && Sound[Get_sound_id(patch_id, instrument_id)].file < FIRST_LIVE_SAMPLING_FILE && !Get_use_Wavetable(Get_sound_id(patch_id, instrument_id))) // A wavetable edit starts sharing the file voice budget, whether cached or not.
-    {
-        // Count file voices plus this patch/instrument's voices that will leave AudioTables.
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if ((Player_ptr + player)->isPlaying() && (((Player_ptr + player)->Read_local_patch() == patch_id && (Player_ptr + player)->Read_instrument() == instrument_id) || (Player_ptr + player)->Uses_sample_voice()))
-            {
-                players_critical++;
-            }
-        }
-
-        if (players_critical > OPTIMIZATION_VOICES[optimization]) // players in excess MUST be stopped BEFORE UPDATING A and B
-        {
-            players_to_stop = players_critical - OPTIMIZATION_VOICES[optimization];
-
-            // 1) look for a Player !power_on and playing "instrument_id": choose the OLDEST
-            while (players_to_stop > 0)
-            {
-                index = Find_oldest_player(instrument_id, false, true); // Find_oldest_player(uint8_t instrument_id, bool power_on, bool playing)
-                if (index == -1)
-                {
-                    break;
-                }
-                else
-                {
-                    (Player_ptr + index)->Fast_stop();
-                    players_to_stop--;
-                }
-            }
-
-            // 2) look for a Player power_on playing "instrument_id": choose the OLDEST
-            while (players_to_stop > 0)
-            {
-                index = Find_oldest_player(instrument_id, true, true); // Find_oldest_player(uint8_t instrument_id, bool power_on, bool playing)
-                if (index == -1)
-                {
-                    break;
-                }
-                else
-                {
-                    (Player_ptr + index)->Fast_stop();
-                    (Player_ptr + index)->Write_time_stamp(millis());
-                    players_to_stop--;
-                }
-            }
-            return true; // some Player have been stopped
-        }
-        return false; // no need to stop any Player
-    }
-    return false; // no need to stop any Player
 }
 
 void PlayersManager::Release_player(int player) // after receiving a NoteOff command
@@ -1919,28 +1548,30 @@ void PlayersManager::Release_all_players_loop(int track)
     }
 }
 
-float PlayersManager::Get_cross_mix_time(int player, int mix_samples) // restituisce il tempo (us) che si impiega a leggere i campioni che costituiscono il mix_samples, dal vecchio file e col vecchio pitch.
+float PlayersManager::Get_cross_mix_time(int player, int mix_samples)
 {
-    if ((Player_ptr + player)->Read_use_Wavetable()) // how Player read OLD FILE
+    if (mix_samples <= 0)
     {
-        return (mix_samples * (0.03 * (Player_ptr + player)->Read_pitch() + 0.2));
+        return 0.0f;
     }
-    else
-    {
-        return (mix_samples * (0.4 * (Player_ptr + player)->Read_pitch() + 0.2));
-    }
+    return Player_ptr[player].Current_read_us(mix_samples) + 0.2f * mix_samples; // Source-aware outgoing harvest plus the existing mixing allowance.
 }
 
-int PlayersManager::Get_span_for_all_cross_mix(void) // ALERT: can be used if Play_note() HAS BEEN ALREADY SENT!
+int PlayersManager::Get_span_for_all_cross_mix(void)
 {
-    int value = 0;
-
-    for (auto player = 0; player < PLAYERS; ++player)
+    const float reserved = Reserved_read_us(); // Current/pending maxima already cover zero-mix sequential restarts.
+    const float read_headroom = PlayerReadBudget::Limit_us - reserved; // Spare read allowance before the first transition.
+    const float elapsed = midi_batch_active ? static_cast<float>(audio_update_time_micros) : 0.0f; // Sample once so diagnostics describe the exact deadline decision.
+    const float deadline_headroom = midi_batch_active ? AUDIO_PLAYER_DEADLINE_US - elapsed - reserved - 700.0f : INFINITY; // Keep the existing processing allowance and main-loop behavior.
+    const float available = fminf(read_headroom, deadline_headroom); // The tighter constraint determines the crossfade pool.
+    if (read_diagnostics_enabled)
     {
-        value += Player_ptr[player].Read_update_time();
+        read_budget_diagnostics.reserved_us = reserved;
+        read_budget_diagnostics.read_headroom_us = read_headroom;
+        read_budget_diagnostics.deadline_headroom_us = deadline_headroom;
+        read_budget_diagnostics.scheduler_elapsed_us = elapsed;
     }
-
-    return (AUDIO_PLAYER_DEADLINE_US - value - (midi_batch_active ? static_cast<int>(audio_update_time_micros) : 0)); // Share the emergency deadline; include preparation only for the current audio batch.
+    return available > 0.0f ? static_cast<int>(available) : 0;
 }
 
 void PlayersManager::Multicast_reset_pitch_bend_effects(int instrument_id)
@@ -2033,298 +1664,71 @@ int PlayersManager::Get_players_using_Wavetable(void)
 
 void PlayersManager::Calculate_and_set_mix_samples(void)
 {
-    uint8_t mix_samples_for_Player[PLAYERS] = {0};
-
-    for (auto player = 0; player < PLAYERS; ++player)
+    if (read_diagnostics_enabled)
     {
-        mix_samples_for_Player[player] = 0;
+        read_budget_diagnostics = {}; // Clear decisions from the previous block, including idle Player entries.
+        read_budget_diagnostics.cycle = audio_update_cycle;
+        read_budget_diagnostics.valid = true;
+        read_budget_diagnostics.first_player = restart_mix_first_player;
     }
-
-    bool finished = false;
-
-    int mix_micros_span = Get_span_for_all_cross_mix(); // IMP! Get_span_for_all_cross_mix() CAN be called ONLY if Play_note() HAS BEEN ALREADY CALLED!
-    // Serial.print("We have ");
-    // Serial.print(mix_micros_span);
-    // Serial.println(" micros available for ALL cross_mix.");
-
-    bool old_use_wavetable[PLAYERS];
-    float old_pitch_of_Player[PLAYERS];
-    float standard_pitch_of_Player[PLAYERS];
-
-    // Calculate the standardized "flash-play" pitch: pitch of RAM-playing Players will be normalized so they can be traated as Flash-playing Players
-    for (auto player = 0; player < PLAYERS; ++player)
+    float available = Get_span_for_all_cross_mix(); // Shared pool for note restarts and geometry edits.
+    budget_crossfade_us = 0.0f;
+    if (read_diagnostics_enabled)
     {
-        if (Get_restart_player(player))
+        read_budget_diagnostics.available_us = available; // Preserve the rounded pool actually consumed below.
+    }
+    const uint8_t first = restart_mix_first_player; // Rotate scarce crossfade time without changing note selection.
+    bool assigned = false; // Advance fairness only when a transition is present.
+    for (int offset = 0; offset < PLAYERS; ++offset) // Account each additional outgoing harvest exactly once.
+    {
+        const int player = (first + offset) % PLAYERS; // Fair scheduling order.
+        auto &voice = Player_ptr[player]; // Current and pending state share one transition.
+        if (!voice.Needs_restart_mix() && !voice.Has_pending_edit())
         {
-            old_use_wavetable[player] = Player_ptr[player].Read_use_Wavetable();
-            old_pitch_of_Player[player] = Player_ptr[player].Read_pitch();
-
-            if (old_use_wavetable[player])
+            continue;
+        }
+        assigned = true;
+        if (read_diagnostics_enabled)
+        {
+            read_budget_diagnostics.transition[player] = (voice.Needs_restart_mix() ? 1u : 0u) | (voice.Has_pending_edit() ? 2u : 0u);
+            read_budget_diagnostics.available_before_us[player] = available;
+        }
+        uint8_t chosen = 0; // A zero-mix restart uses separate blocks and never needs two source harvests.
+        for (const uint8_t samples : {64, 48, 32, 24, 16}) // Longest affordable outgoing fade.
+        {
+            const float cost = Get_cross_mix_time(player, samples); // Actual outgoing source at maximum modulation.
+            if (cost <= available)
             {
-                standard_pitch_of_Player[player] = old_pitch_of_Player[player] * 0.07113;
+                chosen = samples;
+                available -= cost;
+                budget_crossfade_us += cost;
+                if (read_diagnostics_enabled)
+                {
+                    read_budget_diagnostics.assigned_us[player] = cost;
+                }
+                break;
             }
-            else
+            if (read_diagnostics_enabled && samples == 16)
             {
-                standard_pitch_of_Player[player] = old_pitch_of_Player[player];
-            }
-
-            if (false)
-            {
-                Serial.print("Player:");
-                Serial.print(player);
-                Serial.print(" has standard_pitch:");
-                Serial.println(standard_pitch_of_Player[player]);
+                read_budget_diagnostics.minimum_us[player] = cost; // No extra forecast call: record the minimum tier only when it was rejected.
             }
         }
-    }
-    // Serial.println();
-
-    // find highest-pitch / highest-time Player
-    int max_cross_mix_time;
-    uint8_t worst_Player = 0;
-    float max_pitch = 0;
-
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Get_restart_player(player))
+        if (read_diagnostics_enabled)
         {
-            if (standard_pitch_of_Player[player] > max_pitch)
-            {
-                max_pitch = standard_pitch_of_Player[player];
-                worst_Player = player;
-            }
+            read_budget_diagnostics.mix_samples[player] = chosen;
         }
+        voice.Set_mix_samples(chosen);
+        voice.Set_edit_mix_samples(chosen);
+        restart_Player[player] = false;
     }
-
-    if (false)
+    if (read_diagnostics_enabled)
     {
-        Serial.print("Worst Player (with highest pitch) is:");
-        Serial.print(worst_Player);
-        Serial.print(" with pitch:");
-        Serial.println(max_pitch);
-        Serial.println();
+        read_budget_diagnostics.crossfade_us = budget_crossfade_us;
     }
-
-    // 1) Try to set mix_samples = 64 for ALL Players
-    max_cross_mix_time = Get_cross_mix_time(worst_Player, 64);
-    // Serial.print("Try Case 1 - max_cross_mix_time (micros) is:");
-    // Serial.println(max_cross_mix_time);
-    // Serial.println();
-
-    if (mix_micros_span > (max_cross_mix_time * players_to_restart))
+    players_to_restart = 0;
+    if (assigned)
     {
-        // Serial.println("Case 1 is verified --> transmit mix_samples = 64 to Players to restart.");
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (Get_restart_player(player))
-            {
-                Cancel_restart_player(player);
-                players_to_restart--;
-                mix_samples_for_Player[player] = 64;
-                Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                mix_micros_span -= Get_cross_mix_time(player, 64);
-
-                if (false)
-                {
-                    Serial.print("mix_sample 64 is given to Player ");
-                    Serial.print(player);
-                    Serial.print("; theorical update time is:");
-                    Serial.println(Get_cross_mix_time(player, 64) + Player_ptr[player].Read_update_time());
-                }
-            }
-        }
-        finished = true;
-    }
-
-    // 2) Try to set mix_samples = 48 for ALL Players
-    if (!finished)
-    {
-        max_cross_mix_time = Get_cross_mix_time(worst_Player, 48);
-        // Serial.print("Try Case 2 - max_cross_mix_time (micros) is:");
-        // Serial.println(max_cross_mix_time);
-        // Serial.println();
-
-        if (mix_micros_span > (max_cross_mix_time * players_to_restart))
-        {
-            // Serial.println("Case 2 is verified --> transmit mix_samples = 48 to Players to restart.");
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (Get_restart_player(player))
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 48;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                    mix_micros_span -= Get_cross_mix_time(player, 48);
-                    if (false)
-                    {
-                        Serial.print("mix_sample 48 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                    }
-                }
-            }
-            finished = true;
-        }
-    }
-
-    // 3) Try to set mix_samples = 32 for ALL Players
-    if (!finished)
-    {
-        max_cross_mix_time = Get_cross_mix_time(worst_Player, 32);
-        // Serial.print("Try Case 3 - max_cross_mix_time (micros) is:");
-        // Serial.println(max_cross_mix_time);
-        // Serial.println();
-
-        if (mix_micros_span > (max_cross_mix_time * players_to_restart))
-        {
-            // Serial.println("Case 3 is verified --> transmit mix_samples = 32 to Players to restart.");
-            for (auto player = 0; player < PLAYERS; ++player)
-            {
-                if (Get_restart_player(player))
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 32;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-
-                    mix_micros_span -= Get_cross_mix_time(player, 32);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 32 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                    }
-                }
-            }
-            finished = true;
-        }
-    }
-
-    if (!finished)
-    {
-        // 4: Try to assign minimum  mix_samples to Players
-        const uint8_t first_player = restart_mix_first_player;
-        restart_mix_first_player = (restart_mix_first_player + 1) % PLAYERS;
-        for (int offset = 0; offset < PLAYERS; ++offset)
-        {
-            const int player = (first_player + offset) % PLAYERS;
-            if (Get_restart_player(player))
-            {
-                if (standard_pitch_of_Player[player] <= 0.7 && Get_cross_mix_time(player, 64) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 64;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 64);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 64 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 64) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 0.8 && Get_cross_mix_time(player, 48) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 48;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 48);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 48 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 48) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 1.0 && Get_cross_mix_time(player, 32) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 32;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 32);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 32 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 32) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 1.2 && Get_cross_mix_time(player, 24) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 24;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 24);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 24 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 24) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                else if (standard_pitch_of_Player[player] <= 1.4 && Get_cross_mix_time(player, 16) <= mix_micros_span)
-                {
-                    Cancel_restart_player(player);
-                    players_to_restart--;
-                    mix_samples_for_Player[player] = 16;
-                    Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                    mix_micros_span -= Get_cross_mix_time(player, 16);
-
-                    if (false)
-                    {
-                        Serial.print("mix_sample 16 is given to Player ");
-                        Serial.print(player);
-                        Serial.print("; theorical update time is:");
-                        Serial.println(Get_cross_mix_time(player, 16) + Player_ptr[player].Read_update_time());
-                    }
-                }
-                if (players_to_restart == 0)
-                {
-                    finished = true;
-                    break;
-                }
-                if (mix_micros_span <= 10)
-                {
-                    // Serial.print("Available time is finished :( Players to examin are:");
-                    // Serial.println(players_to_restart);
-                    break;
-                }
-            }
-        }
-    }
-
-    if (!finished)
-    {
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            if (Get_restart_player(player))
-            {
-                Cancel_restart_player(player);
-                players_to_restart--;
-                mix_samples_for_Player[player] = 0;
-                Player_ptr[player].Set_mix_samples(mix_samples_for_Player[player]);
-                // Serial.print("Mix_sample ZERO is given to Player ");
-                // Serial.println(player);
-            }
-        }
+        restart_mix_first_player = (first + 1) % PLAYERS;
     }
 }
 

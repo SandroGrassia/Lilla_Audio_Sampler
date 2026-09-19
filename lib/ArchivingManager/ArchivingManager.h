@@ -127,7 +127,7 @@ private:
 
     struct alignas(4) FRAM_System_struct // 256 byte
     {
-        uint8_t optimization;
+        uint8_t reserved_playback; // Preserve the former playback-profile byte and persisted layout.
         int8_t first_octave;
         uint8_t key_step;
         uint8_t reserved_alignment;
@@ -224,8 +224,6 @@ public:
     byte Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter);
     byte Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter);
     byte Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter);
-    byte Save_optimization(const uint8_t optimization);
-    byte Read_optimization(uint8_t &optimization);
     byte Save_key_step(const uint8_t key_step);
     byte Read_key_step(uint8_t &key_step);
     byte Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);

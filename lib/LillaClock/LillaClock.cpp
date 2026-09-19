@@ -16,6 +16,10 @@ void LillaClock::update(void)
         Delay_Manager_ptr->Update();
         Midi_reader_ptr->Update();
     }
+    if (Players_Manager_ptr != nullptr)
+    {
+        Players_Manager_ptr->Prepare_read_budget(); // Covers main-loop edits, source promotion and pending retries before source reads.
+    }
 }
 
 void LillaClock::Start(void)

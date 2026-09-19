@@ -113,7 +113,7 @@ int main()
     std::mt19937 random(0x4C494C4C);
     for (int scenario = 0; scenario < 100000; ++scenario)
     {
-        optimization = random() % 3;
+        optimization = 0; // Compare with the former 16-voice profile; reduced profiles are removed.
         const uint8_t instrument = random() % INSTRUMENTS;
         const uint8_t note = 60 + random() % 5;
         const int track = static_cast<int>(random() % 5) - 1;

@@ -157,7 +157,6 @@ public:
     void SETUP_show_SETUP_page(void);
     void SETUP_show_Key_step_value(void);
     void SETUP_show_First_octave_value(void);
-    void SETUP_show_Optimization_value(void);
     void SETUP_show_frame(int8_t value);
 
     // CONTROL CHANGE

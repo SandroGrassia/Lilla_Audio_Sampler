@@ -831,7 +831,7 @@ byte ArchivingManager::Repair_System_in_FRAM(FRAM_System_repair_report &report)
     }
 
     FRAM_System_struct expected{};
-    expected.optimization = 0;
+    expected.reserved_playback = 0;
     expected.first_octave = -2;
     expected.key_step = 0;
     result = FRAM_Write_system(expected);
@@ -1213,42 +1213,6 @@ byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t
     {
         memcpy(sound_gain, system.CC_settings.sound_gain, sizeof(system.CC_settings.sound_gain));
         lowpass_filter = system.CC_settings.lowpass_filter;
-    }
-
-    return result;
-}
-
-byte ArchivingManager::Save_optimization(const uint8_t optimization)
-{
-    FRAM_System_struct system{};
-    const byte result = FRAM_Read_system(system);
-
-    if (result != LillaFRAM_2x512::ERROR_0)
-    {
-        return result;
-    }
-
-    system.optimization = Normalize_optimization(optimization);
-    return FRAM_Write_system(system);
-}
-
-byte ArchivingManager::Read_optimization(uint8_t &optimization)
-{
-    FRAM_System_struct system{};
-    byte result = FRAM_Read_system(system);
-
-    if (result != LillaFRAM_2x512::ERROR_0)
-    {
-        return result;
-    }
-
-    const uint8_t valid = Normalize_optimization(system.optimization);
-    optimization = valid;
-
-    if (valid != system.optimization)
-    {
-        system.optimization = valid;
-        result = FRAM_Write_system(system);
     }
 
     return result;

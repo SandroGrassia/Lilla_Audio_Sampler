@@ -8,6 +8,89 @@
 
 int16_t AudioPlayer::samples_basket[BASKET_DIM];
 
+PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) const
+{
+    PlayerReadBudget::Plan plan; // One geometry snapshot; source promotion is reflected immediately.
+    const bool wavetable = edited ? use_Wavetable_E : (pending ? use_Wavetable_wait : use_Wavetable); // RAM tables bypass the file reader.
+    const AudioFileSource &source = pending ? source_wait : source_now; // Pending starts can use a different source from the outgoing voice.
+    const int file = pending ? file_id_wait : file_id; // File class determines Live and packet behavior.
+    plan.live = file >= FIRST_LIVE_SAMPLING_FILE;
+    plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
+    plan.packets = !wavetable && !plan.live && source.storage == Flash && file >= FIRST_RECORDING_FILE;
+    const int mode = edited ? mode_player_E : (pending ? mode_player_wait : mode_player); // Source geometry for the chosen stage.
+    plan.loop = mode >= LOOP_FWD;
+    plan.pingpong = mode == LOOP_FWD_REV || mode == LOOP_REV_FWD;
+    plan.span = edited ? B_Flash_sample_E - A_Flash_sample_E + 1 : (pending ? B_Flash_sample_wait - A_Flash_sample_wait + 1 : B_Flash_sample - A_Flash_sample + 1);
+    plan.crossfade = plan.pingpong ? 0 : (edited ? delta_Noclick_E : (pending ? delta_Noclick_wait : delta_Noclick));
+    const float tune = pending ? pitch_tune_wait : (pitch_tune_flag && !Has_pending_note() ? fmaxf(pitch_tune, pitch_tune_wait) : pitch_tune); // A staged replacement tune must not be applied to the old voice.
+    const float note_pitch = pending ? pitch_note_wait : pitch_note; // Pitch before bend and vibrato.
+    const float ceiling = edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit); // Actual reader ceiling, including pending edits.
+    plan.pitch = constrain(note_pitch * tune * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
+    if (!pending && !edited)
+    {
+        plan.pitch = fmaxf(plan.pitch, pitch); // The outgoing crossfade runs before Update_pitch and may still use the previous block's higher pitch.
+    }
+    return plan;
+}
+
+float AudioPlayer::Reserved_read_us(void) const
+{
+    if (state == IDLE)
+    {
+        return 0.0f;
+    }
+    float reserved = PlayerReadBudget::Estimate(Get_read_plan(), AUDIO_BLOCK_SAMPLES); // Never release an outgoing reservation merely because a replacement is queued.
+    if (warmup_for_play_again_flag || restart_flag)
+    {
+        reserved = fmaxf(reserved, PlayerReadBudget::Estimate(Get_read_plan(true), AUDIO_BLOCK_SAMPLES));
+    }
+    if (main_settings_editing_flag)
+    {
+        reserved = fmaxf(reserved, PlayerReadBudget::Estimate(Get_read_plan(false, true), AUDIO_BLOCK_SAMPLES));
+    }
+    return reserved;
+}
+
+float AudioPlayer::Current_read_us(uint32_t output_samples) const
+{
+    return state == IDLE ? 0.0f : PlayerReadBudget::Estimate(Get_read_plan(), output_samples);
+}
+
+void AudioPlayer::Set_edit_mix_samples(uint8_t value)
+{
+    if (main_settings_editing_flag)
+    {
+        mix_samples = value; // Zero disables the outgoing harvest while retaining the pending geometry update.
+    }
+}
+
+void AudioPlayer::Retire_for_read_budget(void)
+{
+    if (state == IDLE)
+    {
+        return;
+    }
+    // Reuse already rendered audio: retirement consumes no additional Flash/PSRAM/RAM-table reads.
+    if (rendered_block_valid && !budget_tail_pending)
+    {
+        budget_tail_sample = block[AUDIO_BLOCK_SAMPLES - 1];
+        budget_tail_pan_L = pan_gain_L;
+        budget_tail_pan_R = pan_gain_R;
+        budget_tail_pending = true;
+    }
+    Close_source();
+    My_LED(false);
+    state = IDLE;
+    idle = true;
+    power_on = false;
+    warmup_for_play_again_flag = false;
+    restart_flag = false;
+    pending_note_released = false;
+    main_settings_editing_flag = false;
+    patch_release_pending = false;
+    rendered_block_valid = false;
+}
+
 void AudioPlayer::Set_ADSR_ptr(AudioADSR *ptr)
 {
     ADSR = ptr;
@@ -25,29 +108,32 @@ void AudioPlayer::My_LED(bool on)
 {
     if (on && !myLED)
     {
-        if (Lilla_state == MIDI_LOOP && track >= 0)
+        if (Lilla_state == MIDI_LOOP && track < 0)
         {
-            Players_statistics_ptr->Inc_total_Players_per_track_instrument(track, instrument_id);
+            return;
         }
-        else if (Lilla_state != MIDI_LOOP)
+        led_instrument_id = instrument_id;
+        led_track = track >= 0 ? track : -1; // Track ownership survives navigation to Setup and other tool pages.
+        if (led_track >= 0)
         {
-            Players_statistics_ptr->Inc_total_Players_per_instrument(instrument_id);
+            Players_statistics_ptr->Inc_total_Players_per_track_instrument(led_track, led_instrument_id);
         }
-
+        else
+        {
+            Players_statistics_ptr->Inc_total_Players_per_instrument(led_instrument_id);
+        }
         myLED = true;
     }
-
     else if (!on && myLED)
     {
-        if (Lilla_state == MIDI_LOOP && track >= 0)
+        if (led_track >= 0)
         {
-            Players_statistics_ptr->Dec_total_Players_per_track_instrument(track, instrument_id);
+            Players_statistics_ptr->Dec_total_Players_per_track_instrument(led_track, led_instrument_id);
         }
-        else if (Lilla_state != MIDI_LOOP)
+        else
         {
-            Players_statistics_ptr->Dec_total_Players_per_instrument(instrument_id);
+            Players_statistics_ptr->Dec_total_Players_per_instrument(led_instrument_id);
         }
-
         myLED = false;
     }
 }
@@ -346,7 +432,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
         // Read samples from FLASH chip
         else
         {
-            pitch_limit_wait = Sample_pitch_limit(optimization, source_wait.storage == Psram);
+            pitch_limit_wait = Sample_pitch_limit(source_wait.storage == Psram);
 
             switch (mode_in)
             {
@@ -546,7 +632,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
         default:
             break;
         }
-        pitch_limit_E = Sample_pitch_limit(optimization, source_now.storage == Psram);
+        pitch_limit_E = Sample_pitch_limit(source_now.storage == Psram);
     }
 
     main_settings_editing_flag = true;
@@ -687,11 +773,8 @@ void AudioPlayer::Start_playing(void)
     samples_counter = 0;
     local_patch = patch_id_wait;
 
-    // Player is NOT idle, decrement statistics for OLD instrument
-    if (warmup_for_play_again_flag)
-    {
-        My_LED(false);
-    }
+    // Release the previous registration before changing ownership, including zero-mix restarts.
+    My_LED(false);
 
     instrument_id = instrument_id_wait;
     sound_id = sound_id_wait;
@@ -790,16 +873,58 @@ void AudioPlayer::Update_pitch(void)
     pitch = constrain(pitch_note * pitch_bend * pitch_tune * pitch_vibrato, MIN_PITCH, pitch_limit);
 
     // **** Softness Filter ****
-    pitch_based_gain_correction = (pitch <= 1.0 ? 1.0 : MAX_PITCH_WAVETABLE / (pitch - 1.0 + MAX_PITCH_WAVETABLE));
+    pitch_based_gain_correction = (pitch <= 1.0 ? 1.0 : 24.0f / (pitch - 1.0f + 24.0f));
 }
 
 void AudioPlayer::update(void)
 {
+    if (read_diagnostics_enabled)
+    {
+        read_diagnostics = {};
+        read_diagnostics.cycle = audio_update_cycle; // Reset even for idle, allocation failure, or deadline-skipped blocks.
+        if (warmup_for_play_again_flag || restart_flag || main_settings_editing_flag)
+        {
+            read_diagnostics.flags |= PlayerReadDiagnostics::Transition;
+        }
+    }
+    if (budget_tail_pending)
+    {
+        audio_block_t *tail_L = allocate(); // Cached release uses the normal output channels, without touching the new voice.
+        audio_block_t *tail_R = allocate(); // Keep the tail pending if either output allocation fails.
+        if (tail_L == nullptr || tail_R == nullptr)
+        {
+            if (tail_L != nullptr)
+            {
+                release(tail_L);
+            }
+            if (tail_R != nullptr)
+            {
+                release(tail_R);
+            }
+            return;
+        }
+        for (uint32_t sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+        {
+            const float gain = static_cast<float>(AUDIO_BLOCK_SAMPLES - 1u - sample) / (AUDIO_BLOCK_SAMPLES - 1u); // One-block ramp from the last output sample to silence, with no replay discontinuity.
+            tail_L->data[sample] = budget_tail_sample * gain * budget_tail_pan_L;
+            tail_R->data[sample] = budget_tail_sample * gain * budget_tail_pan_R;
+        }
+        transmit(tail_L, 0);
+        transmit(tail_R, 1);
+        release(tail_L);
+        release(tail_R);
+        budget_tail_pending = false;
+        return; // A replacement begins reading on the following block.
+    }
     if (patch_release_pending && static_cast<uint32_t>(millis() - patch_release_started) >= QUICK_RELEASE_TIME - PATCH_RELEASE_BLOCK_MS)
     {
         patch_release_pending = false;
         if (warmup_for_play_again_flag || restart_flag)
         {
+            if (read_diagnostics_enabled)
+            {
+                read_diagnostics.flags |= PlayerReadDiagnostics::RestartExecuted;
+            }
             Start_playing(); // Preserve a replacement note queued after the patch change.
             warmup_for_play_again_flag = false;
             restart_flag = false;
@@ -840,6 +965,7 @@ void AudioPlayer::update(void)
     block_R = allocate(); // allocate the audio blocks to transmit
     if (block_R == NULL)
     {
+        release(block_L); // Return the first allocation when the second output buffer is unavailable.
         return;
     }
 
@@ -868,7 +994,7 @@ void AudioPlayer::update(void)
                 initial_index_offset = a_sample - floor(a_sample);
                 b_sample = a_sample + (pitch * (mix_samples - 1));
 
-                (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
+                Harvest_samples();
 
                 float volume_tmp = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction;
 
@@ -885,6 +1011,10 @@ void AudioPlayer::update(void)
                     raw_first_value_cache[i] = 0;
                 }
 
+                if (read_diagnostics_enabled)
+                {
+                    read_diagnostics.flags |= PlayerReadDiagnostics::RestartExecuted;
+                }
                 Start_playing();
                 mix_flag = true;
                 shoot_flag = true;
@@ -899,7 +1029,7 @@ void AudioPlayer::update(void)
             warmup_for_play_again_flag = false;
         }
 
-        if (pitch_tune_flag)
+        if (pitch_tune_flag && !restart_flag) // A zero-mix restart must render the outgoing block with its original tuning.
         {
             pitch_tune = pitch_tune_wait;
             pitch_tune_flag = false;
@@ -1271,13 +1401,13 @@ void AudioPlayer::update(void)
             }
 
             // read HALF of samples from the old segment and old pitch and old gain
-            if (snubber_flag)
+            if (snubber_flag && mix_samples > 0)
             {
                 a_sample = a_first_sample; // original a_first_sample
                 initial_index_offset = a_sample - floor(a_sample);
                 b_sample = a_sample + pitch * (mix_samples - 1); // read half samples
 
-                (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
+                Harvest_samples();
 
                 float volume_tmp = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction;
 
@@ -1349,7 +1479,7 @@ void AudioPlayer::update(void)
             Serial.println(Flash_first_RAM_sample + Wavetable_length - 1);
         }
 
-        (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
+        Harvest_samples();
 
         if (volume_gain_warmup_flag)
         {
@@ -1494,6 +1624,7 @@ void AudioPlayer::update(void)
             block_R->data[sample] = pan_gain_R * block[sample];
         }
 
+        rendered_block_valid = true; // The complete outgoing mono block is available for a source-free budget tail.
         transmit(block_L, 0);
         release(block_L);
         transmit(block_R, 1);
@@ -1502,6 +1633,10 @@ void AudioPlayer::update(void)
         if (restart_flag)
         {
             restart_flag = false;
+            if (read_diagnostics_enabled)
+            {
+                read_diagnostics.flags |= PlayerReadDiagnostics::RestartExecuted;
+            }
             Start_playing();
         }
 
@@ -1561,9 +1696,34 @@ void AudioPlayer::Update_pan_gain(void)
     }
 }
 
+void AudioPlayer::Record_read(PlayerReadSource source, int count, uint16_t flags)
+{
+    if (read_diagnostics_enabled && count > 0)
+    {
+        read_diagnostics.sources[static_cast<uint8_t>(source)].Add(count);
+        read_diagnostics.flags |= flags;
+    }
+}
+
+void AudioPlayer::Harvest_samples(void)
+{
+    const bool diagnostics = read_diagnostics_enabled;
+    const uint32_t start = diagnostics ? ARM_DWT_CYCCNT : 0;
+    (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
+    if (diagnostics)
+    {
+        read_diagnostics.harvest_cycles += static_cast<uint32_t>(ARM_DWT_CYCCNT - start);
+        ++read_diagnostics.harvests;
+        if (pitch > read_diagnostics.maximum_pitch)
+        {
+            read_diagnostics.maximum_pitch = pitch;
+        }
+    }
+}
+
 void AudioPlayer::Flash_memory_harvest(void)
 {
-    if (!LS_flag && (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || mode_player == LOOP_REV))
+    if (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || mode_player == LOOP_REV)
     {
         Loop_memory_harvest(); // Assemble repeated loop segments before audio interpolation.
         return;
@@ -1738,6 +1898,7 @@ void AudioPlayer::Flash_memory_harvest(void)
 
             // read from RAM and merge
             samples_to_read_2 = INT_b_Flash_sample - (B_Flash_sample - delta_Noclick + 1) + 1;
+            Record_read(PlayerReadSource::Ram, samples_to_read_2, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read_2; ++sample)
             {
                 samples_basket[samples_to_read_1 + sample] = *(Noclick_ptr + sample);
@@ -1755,6 +1916,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         {
             // read from RAM
             first_index = floor(a_sample) - (B_Flash_sample - delta_Noclick + 1);
+            Record_read(PlayerReadSource::Ram, samples_to_read, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read; ++sample)
             {
                 samples_basket[sample] = *(Noclick_ptr + first_index + sample);
@@ -1774,6 +1936,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // read from RAM
             samples_to_read_1 = B_Flash_sample - INT_a_Flash_sample + 1;
             first_index = floor(a_sample) - (B_Flash_sample - delta_Noclick + 1);
+            Record_read(PlayerReadSource::Ram, samples_to_read_1, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read_1; ++sample)
             {
                 samples_basket[sample] = *(Noclick_ptr + first_index + sample);
@@ -1800,6 +1963,7 @@ void AudioPlayer::Flash_memory_harvest(void)
 
             // read from RAM and merge
             samples_to_read_2 = delta_Noclick;
+            Record_read(PlayerReadSource::Ram, samples_to_read_2, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read_2; ++sample)
             {
                 samples_basket[samples_to_read_1 + sample] = *(Noclick_ptr + sample);
@@ -1980,6 +2144,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             // from RAM
             samples_to_read_1 = A_Flash_sample + delta_Noclick - INT_b_Flash_sample;
             first_index = INT_b_Flash_sample - A_Flash_sample;
+            Record_read(PlayerReadSource::Ram, samples_to_read_1, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read_1; ++sample)
             {
                 samples_basket_local[sample] = *(Noclick_ptr + first_index + sample);
@@ -2027,6 +2192,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             first_index = 0;
 
             // Append directly
+            Record_read(PlayerReadSource::Ram, samples_to_read_2, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read_2; ++sample)
             {
                 samples_basket_local[sample + samples_to_read_1] = *(Noclick_ptr + first_index + sample);
@@ -2058,6 +2224,7 @@ void AudioPlayer::Flash_memory_harvest(void)
         {
             // from RAM
             first_index = INT_b_Flash_sample - A_Flash_sample;
+            Record_read(PlayerReadSource::Ram, samples_to_read, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read; ++sample)
             {
                 samples_basket_local[sample] = *(Noclick_ptr + first_index + sample);
@@ -2093,6 +2260,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             first_index = 0;
 
             // Append directly
+            Record_read(PlayerReadSource::Ram, samples_to_read_2, PlayerReadDiagnostics::RamLoopProxy);
             for (auto sample = 0; sample < samples_to_read_2; ++sample)
             {
                 samples_basket_local[sample + samples_to_read_1] = *(Noclick_ptr + first_index + sample);
@@ -2165,6 +2333,7 @@ bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, 
         const int chunk = count < available ? count : available;
         if (from_noclick)
         {
+            Record_read(PlayerReadSource::Ram, chunk, PlayerReadDiagnostics::RamLoopProxy);
             for (int i = 0; i < chunk; ++i)
             {
                 destination[i] = noclick[mode == LOOP_REV ? crossfade - 1 - (phase - raw_count) - i : phase - raw_count + i];
@@ -2243,6 +2412,7 @@ void AudioPlayer::Wavetable_harvest()
         // 0-----a*******b----(WTL-1)
         if (Wavetable_HIGH_sample_int <= (Wavetable_length - 1))
         {
+            Record_read(PlayerReadSource::Ram, samples_to_read, PlayerReadDiagnostics::RamLoopProxy);
             while (sample < samples_to_read)
             {
                 samples_basket[sample] = *(Wavetable_ptr + Wavetable_LOW_sample_int + sample);
@@ -2254,6 +2424,7 @@ void AudioPlayer::Wavetable_harvest()
         else
         {
             samples_to_read_W = Wavetable_length - Wavetable_LOW_sample_int;
+            Record_read(PlayerReadSource::Ram, samples_to_read_W, PlayerReadDiagnostics::RamLoopProxy | PlayerReadDiagnostics::PaddedRead);
             while (sample < samples_to_read_W)
             {
                 samples_basket[sample] = *(Wavetable_ptr + Wavetable_LOW_sample_int + sample);
@@ -2282,6 +2453,7 @@ void AudioPlayer::Wavetable_harvest()
         initial_index_offset = Wavetable_LOW_sample - Wavetable_LOW_sample_int;
         samples_to_read = Wavetable_HIGH_sample_int - Wavetable_LOW_sample_int + 1;
 
+        Record_read(PlayerReadSource::Ram, samples_to_read, PlayerReadDiagnostics::RamLoopProxy);
         // read from Wavetable_LOW_sample_int to Wavetable_HIGH_sample_int
         while (sample < samples_to_read)
         {
@@ -2337,17 +2509,17 @@ void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
         // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
         source_now = source;
-        pitch_limit = Playback_pitch_limit(optimization, use_Wavetable, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
+        pitch_limit = Playback_pitch_limit(use_Wavetable, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
         if (main_settings_editing_flag)
         {
-            pitch_limit_E = Playback_pitch_limit(optimization, use_Wavetable_E, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
+            pitch_limit_E = Playback_pitch_limit(use_Wavetable_E, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
         }
         Update_pitch();
     }
     if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id)
     {
         source_wait = source;
-        pitch_limit_wait = Playback_pitch_limit(optimization, use_Wavetable_wait, true, file_id_wait >= FIRST_LIVE_SAMPLING_FILE);
+        pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, file_id_wait >= FIRST_LIVE_SAMPLING_FILE);
     }
 }
 
@@ -2754,6 +2926,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         const int first_valid = first_sample < 0 ? -first_sample : 0;
         const int available = static_cast<int>(source_now.samples) - first_sample;
         const int end_valid = available < total_samples ? available : total_samples;
+        Record_read(PlayerReadSource::Psram, total_samples, source_now.psram_ptr == nullptr || first_valid != 0 || end_valid != total_samples ? PlayerReadDiagnostics::PaddedRead : 0);
         memset(destination, 0, static_cast<size_t>(total_samples) * sizeof(int16_t)); // Initialize the requested range to silence so unavailable PSRAM samples remain zero after copying valid data.
         if (source_now.psram_ptr != nullptr && end_valid > first_valid)
         {
@@ -2788,6 +2961,10 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         {
             rawfile.close();
             packet_delta = needed_packet_delta;                    // 0
+            if (read_diagnostics_enabled)
+            {
+                read_diagnostics.flags |= PlayerReadDiagnostics::PacketOpen;
+            }
             rawfile.packet_fast_open(first_packet + packet_delta); // 13
 
             // Serial.print(F("1 - Packet played is: "));
@@ -2799,6 +2976,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
 
         if (local_last_byte < PACKET_DIM) // 1 Block is needed
         {
+            Record_read(PlayerReadSource::Flash, total_bytes / 2);
             rawfile.seek(local_first_byte);
             rawfile.read(destination_byte, total_bytes);
         }
@@ -2820,12 +2998,18 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             int first_part = PACKET_DIM - local_first_byte; // PD - (PD - 2) = 2
             int second_part = total_bytes - first_part;     // 8 - 2 = 6
 
+            Record_read(PlayerReadSource::Flash, first_part / 2);
             rawfile.seek(local_first_byte);             // (PD - 2)
             rawfile.read(destination_byte, first_part); // read 2 bytes
             rawfile.close();
 
             packet_delta = packet_delta + (stereo_flag ? 2 : 1);   // 0 + 2 = 2
+            if (read_diagnostics_enabled)
+            {
+                read_diagnostics.flags |= PlayerReadDiagnostics::PacketOpen;
+            }
             rawfile.packet_fast_open(first_packet + packet_delta); // 15
+            Record_read(PlayerReadSource::Flash, second_part / 2);
             rawfile.seek(0);
             rawfile.read(destination_byte + first_part, second_part); // read 6 bytes
 
@@ -2856,6 +3040,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
 
         if (last_sample <= LS_buffer_dim - 1)
         {
+            Record_read(PlayerReadSource::Psram, total_samples, PlayerReadDiagnostics::LiveCopyProxy);
             memcpy(destination, (FIFO + first_sample), total_bytes);
         }
 
@@ -2863,6 +3048,8 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         {
             first_part_samples = LS_buffer_dim - first_sample; // lenght in samples
             second_part_bytes = total_bytes - 2 * first_part_samples;
+            Record_read(PlayerReadSource::Psram, first_part_samples, PlayerReadDiagnostics::LiveCopyProxy);
+            Record_read(PlayerReadSource::Psram, second_part_bytes / 2, PlayerReadDiagnostics::LiveCopyProxy);
             memcpy(destination, (FIFO + first_sample), 2 * first_part_samples);
             memcpy(destination + first_part_samples, FIFO, second_part_bytes);
         }
@@ -2870,6 +3057,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
 
     else
     {
+        Record_read(PlayerReadSource::Flash, total_bytes / 2);
         rawfile.seek(first_byte);
         rawfile.read(destination_byte, total_bytes);
     }

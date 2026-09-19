@@ -5,6 +5,7 @@
  */
 
 #include "LoopLedSet.h"
+#include <util/atomic.h>
 
 void LoopLedSet::Request_all_LED_switch_off(void)
 {
@@ -54,7 +55,18 @@ int LoopLedSet::Read_LED_activity(int track, int instrument_id)
     return led_activity[track][instrument_id];
 }
 
-void LoopLedSet::Write_LED_activity(int track, int instrument_id, bool on)
+int LoopLedSet::Consume_LED_activity(int track, int instrument_id)
 {
-    led_activity[track][instrument_id] = (on ? 1 : -1);
+    const uint32_t irq_mask = __get_primask();
+    __disable_irq();
+    const int activity = led_activity[track][instrument_id];
+    if (activity == 2 || activity == -2)
+    {
+        led_activity[track][instrument_id] = activity > 0 ? 1 : -1;
+    }
+    if (irq_mask == 0)
+    {
+        __enable_irq();
+    }
+    return activity;
 }

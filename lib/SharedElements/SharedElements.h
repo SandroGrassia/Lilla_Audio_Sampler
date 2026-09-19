@@ -34,7 +34,6 @@ enum LillaStates
 
 // SETUP
 extern int key_step; // 0: 1semitono - 1: 1/2semitono - 2: 1/4semitono - 3: 1/8semitono
-extern uint8_t optimization;
 extern int8_t first_octave;
 
 // FILES NAMES

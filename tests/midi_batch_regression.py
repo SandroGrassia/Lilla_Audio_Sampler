@@ -24,6 +24,8 @@ def method(source, signature):
 
 prefix = r'''
 #include <cassert>
+#include <cmath>
+#include "PlayerReadBudget.h"
 #include <cstdint>
 #include <deque>
 #include <vector>
@@ -33,9 +35,10 @@ prefix = r'''
 uint32_t clock_us = 0, clock_step = 0;
 uint32_t audio_update_time_micros = 0;
 uint32_t audio_update_cycle = 0, audio_player_emergency_stops = 0;
-struct CallbackStub { unsigned calls = 0; void Update() { ++calls; } } callbacks;
+struct CallbackStub { unsigned calls = 0; void Update() { ++calls; } void Prepare_read_budget() {} } callbacks;
 struct LillaClock
 {
+    CallbackStub *Players_Manager_ptr = &callbacks;
     uint8_t identity = 0;
     bool stop_flag = true;
     CallbackStub *Filter_Biquad_Manager_ptr = &callbacks, *Delay_Manager_ptr = &callbacks, *Midi_reader_ptr = &callbacks;
@@ -110,6 +113,9 @@ struct AudioPlayer
     float pitch = 1.0f;
     int update_time = 0, mix_samples = 0;
     bool wavetable = false;
+    float Current_read_us(uint32_t samples) { return 0.4f * pitch * samples; }
+    bool Has_pending_edit() { return main_settings_editing_flag; }
+    void Set_edit_mix_samples(uint8_t) {}
     float Read_pitch() { return pitch; }
     int Read_use_Wavetable() { return wavetable; }
     int Read_update_time() { return update_time; }
@@ -149,6 +155,8 @@ struct PlayersManager
     void Reset_players_to_restart() { players_to_restart = 0; }
     void Calculate_and_set_mix_samples() { ++mix_calls; mixed_players = players_to_restart; Calculate_mix(); }
     void Calculate_mix();
+    float budget_crossfade_us = 0;
+    float Reserved_read_us() const { return 0; }
     int Get_span_for_all_cross_mix();
     float Get_cross_mix_time(int, int);
     bool Get_restart_player(int);
@@ -163,6 +171,10 @@ struct PlayersManager
     void Multicast_all_notes_off(int);
 };
 '''
+
+budget_header = (ROOT / 'lib/PlayersManager/PlayersManager.h').read_text(encoding='utf-8')
+budget_type = re.search(r'    struct ReadBudgetDiagnostics[^\n]*\n    \{.*?\n    \};', budget_header, re.S).group(0)
+prefix = prefix.replace('struct PlayersManager\n{', 'struct PlayersManager\n{\n' + budget_type + '\n    bool read_diagnostics_enabled = false; // Host defaults preserve the non-diagnostic scheduler tests.\n    ReadBudgetDiagnostics read_budget_diagnostics; // Production scheduling evidence.\n')
 
 production = '\n'.join(line for line in config.splitlines() if line.startswith('static constexpr int AUDIO_')) + '\n'
 production += method(clock_source, 'void LillaClock::update')
@@ -251,13 +263,13 @@ int main()
     voice.Start_playing(); assert(voice.state == AudioPlayer::FADING && voice.envelope.releases == 1);
     voice.Get_ready_to_play(1, 1, 0, 0, 0, 62); assert(voice.power_on && !voice.pending_note_released);
     pm.Begin_midi_batch(); assert(pm.Player_booked[0]);
-    pm.End_midi_batch(); assert(pm.mix_calls == 1 && pm.mixed_players == 1);
+    pm.End_midi_batch(); pm.midi_batch_active = true; pm.Calculate_and_set_mix_samples(); pm.midi_batch_active = false; assert(pm.mix_calls == 1 && pm.mixed_players == 1);
     assert(voice.mix_samples == 64 && !pm.midi_batch_active); // The 64-sample tier must assign and account for 64 samples.
     audio_update_time_micros = 3000;
-    pm.Begin_midi_batch(); pm.End_midi_batch(); assert(voice.mix_samples == 0);
-    assert(pm.Get_span_for_all_cross_mix() == AUDIO_PLAYER_DEADLINE_US); // Main-loop edits must not subtract an old IRQ timestamp.
+    pm.Begin_midi_batch(); pm.End_midi_batch(); pm.midi_batch_active = true; pm.Calculate_and_set_mix_samples(); pm.midi_batch_active = false; assert(voice.mix_samples == 0);
+    assert(pm.Get_span_for_all_cross_mix() == PlayerReadBudget::Limit_us); // Main-loop edits must not subtract an old IRQ timestamp.
     audio_update_time_micros = 2685;
-    pm.Begin_midi_batch(); pm.End_midi_batch();
+    pm.Begin_midi_batch(); pm.End_midi_batch(); pm.midi_batch_active = true; pm.Calculate_and_set_mix_samples(); pm.midi_batch_active = false;
     assert(pm.Get_cross_mix_time(0, voice.mix_samples) <= 15);
     audio_update_time_micros = 0;
     pm.Multicast_all_notes_off(0); assert(voice.pending_note_released);
@@ -295,10 +307,10 @@ int main()
         candidate.Get_ready_to_play(1, 1, 0, 0, 0, 60);
         candidate.Get_ready_to_play(1, 1, 0, 0, 0, 62);
     }
-    audio_update_time_micros = AUDIO_PLAYER_DEADLINE_US - 20;
+    audio_update_time_micros = AUDIO_PLAYER_DEADLINE_US - 700 - 20;
     for (int first = 0; first < PLAYERS; ++first)
     {
-        fair.Begin_midi_batch(); fair.End_midi_batch();
+        fair.Begin_midi_batch(); fair.End_midi_batch(); fair.midi_batch_active = true; fair.Calculate_and_set_mix_samples(); fair.midi_batch_active = false;
         for (int id = 0; id < PLAYERS; ++id)
         {
             assert(fair.voices[id].mix_samples == (id == first ? 32 : 0));
@@ -306,8 +318,8 @@ int main()
     }
     assert(fair.restart_mix_first_player == 0);
     audio_update_time_micros = 0;
-    fair.Begin_midi_batch(); fair.End_midi_batch();
-    assert(fair.restart_mix_first_player == 0); // Uniform allocation does not advance the fallback cursor.
+    fair.Begin_midi_batch(); fair.End_midi_batch(); fair.midi_batch_active = true; fair.Calculate_and_set_mix_samples(); fair.midi_batch_active = false;
+    assert(fair.restart_mix_first_player == 1); // Every scheduled transition block advances the fairness cursor.
     for (const auto &candidate : fair.voices) { assert(candidate.mix_samples == 64); }
     std::cout << "PASS: real MIDI parsing, bounded non-blocking collection, coalescing, order, backpressure, CC learn, pending NoteOff and batch accounting\n";
 }
@@ -318,7 +330,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-midi-') as directory:
     cpp = Path(directory) / 'midi.cpp'
     exe = Path(directory) / ('midi.exe' if os.name == 'nt' else 'midi')
     cpp.write_text(prefix + production + tests, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-I' + str(MIDI_LIB), '-I' + str(ROOT / 'lib/MidiReader'), str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-I' + str(MIDI_LIB), '-I' + str(ROOT / 'lib/MidiReader'), '-I' + str(ROOT / 'lib/AudioPlayer'), str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

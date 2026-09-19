@@ -936,23 +936,20 @@ void DisplayManager::SETUP_show_SETUP_page(void)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.print("FIRST OCTAVE");
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
-    tft.print("OPTIMIZATION");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
     tft.print(F("CONTROL CHANGE ASSIGNMENT"));
-    // tft.setCursor(x_pos(0), display_coordinate_y(6));
+    // tft.setCursor(x_pos(0), display_coordinate_y(5));
     // tft.print("*FUTURE DEVELOPMENTS*");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
     tft.print(F("IMPORT RAW FILES FROM /LILLARAW"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.print(F("RESTORE CONFIG + AUDIO FROM /LILLABACKUP ROOT"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
     tft.print(F("NEW NUMBERED BACKUP IN /LILLABACKUP"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
     tft.print(F("FACTORY RESET"));
 
     SETUP_show_Key_step_value();
     SETUP_show_First_octave_value();
-    SETUP_show_Optimization_value();
 }
 
 FLASHMEM
@@ -994,31 +991,15 @@ void DisplayManager::SETUP_show_First_octave_value(void)
 }
 
 FLASHMEM
-void DisplayManager::SETUP_show_Optimization_value(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(13), display_coordinate_y(4), 24);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("VOICES ");
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(OPTIMIZATION_VOICES[optimization]);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("  MAX PITCH ");
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print("x");
-    tft.print(MAX_PITCH_CACHE[optimization], 0);
-}
-
-FLASHMEM
 void DisplayManager::SETUP_show_frame(int8_t value)
 {
     Frame_by_col_row(9, 2, 5, false);   // First octave
     Frame_by_col_row(13, 3, 2, false);  // First octave
-    Frame_by_col_row(13, 4, 24, false); // Optimization
-    Frame_by_col_row(0, 5, 25, false);  // Control Change Assignment
-    Frame_by_col_row(0, 6, 31, false);  // Import raw files
-    Frame_by_col_row(0, 7, 45, false);  // Import configuration from
-    Frame_by_col_row(0, 8, 46, false);  // Export configuration to SD
-    Frame_by_col_row(0, 9, 13, false);  // Factory Reset
+    Frame_by_col_row(0, 4, 25, false);  // Control Change Assignment
+    Frame_by_col_row(0, 5, 31, false);  // Import raw files
+    Frame_by_col_row(0, 6, 45, false);  // Import configuration from
+    Frame_by_col_row(0, 7, 46, false);  // Export configuration to SD
+    Frame_by_col_row(0, 8, 13, false);  // Factory Reset
 
     switch (value)
     {
@@ -1029,22 +1010,19 @@ void DisplayManager::SETUP_show_frame(int8_t value)
         Frame_by_col_row(13, 3, 2, true); // First octave
         break;
     case 2:
-        Frame_by_col_row(13, 4, 24, true); // SETUP_Optimization
+        Frame_by_col_row(0, 4, 25, true); // Control Change
         break;
     case 3:
-        Frame_by_col_row(0, 5, 25, true); // Control Change
+        Frame_by_col_row(0, 5, 31, true); // Import RAW files
         break;
     case 4:
-        Frame_by_col_row(0, 6, 31, true); // Import RAW files
+        Frame_by_col_row(0, 6, 45, true); // Import configuration to SD
         break;
     case 5:
-        Frame_by_col_row(0, 7, 45, true); // Import configuration to SD
+        Frame_by_col_row(0, 7, 46, true); // Export configuration to SD
         break;
     case 6:
-        Frame_by_col_row(0, 8, 46, true); // Export configuration to SD
-        break;
-    case 7:
-        Frame_by_col_row(0, 9, 13, true); // Factory reset
+        Frame_by_col_row(0, 8, 13, true); // Factory reset
         break;
     default:
         break;

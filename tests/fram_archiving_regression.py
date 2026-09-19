@@ -46,7 +46,6 @@ constexpr int RECORDINGS = 30;
 constexpr int PATCHES_MAX = 200;
 constexpr int SOUNDS_MAX = 800;
 constexpr int VFS_PACKETS_MAX = 512;
-constexpr uint8_t Normalize_optimization(uint8_t value) { return value <= 2 ? value : 1; }
 struct VFS_Recording { int first_packet = 0, packets = 0, bytes = 0; float seconds = 0; bool stereo = false, consistent = false; };
 VFS_Recording Recording[RECORDINGS];
 struct LillaFRAM_2x512 {
@@ -317,7 +316,7 @@ void exercise_crc_record(uint32_t address, uint32_t payload_bytes, Write write, 
 void exercise_cc_settings() {
     A archive;
     A::FRAM_System_struct system{};
-    system.optimization = 3;
+    system.reserved_playback = 3;
     system.first_octave = -2;
     system.key_step = 2;
     memset(system.reserved, 0x5A, sizeof(system.reserved));
@@ -328,7 +327,7 @@ void exercise_cc_settings() {
     assert(archive.FRAM_Write_CC_settings(source) == 0);
     assert(archive.FRAM_Read_CC_settings(destination) == 0 && memcmp(&source, &destination, sizeof(source)) == 0);
     A::FRAM_System_struct actual{};
-    assert(archive.FRAM_Read_system(actual) == 0 && actual.optimization == 3 && actual.first_octave == -2 && actual.key_step == 2 && memcmp(actual.reserved, system.reserved, sizeof(system.reserved)) == 0);
+    assert(archive.FRAM_Read_system(actual) == 0 && actual.reserved_playback == 3 && actual.first_octave == -2 && actual.key_step == 2 && memcmp(actual.reserved, system.reserved, sizeof(system.reserved)) == 0);
     const auto baseline = LillaFram.memory;
     LillaFram.memory[0xFD00] ^= 1;
     const auto corrupt = LillaFram.memory;
@@ -343,16 +342,19 @@ void exercise_system_settings_backend() {
     A archive;
     A::FRAM_System_struct system{};
     system.first_octave = -2;
+    system.reserved_playback = 231; // An obsolete profile byte must survive unrelated settings writes.
+    static_assert(offsetof(A::FRAM_System_struct, first_octave) == 1);
+    static_assert(sizeof(A::FRAM_System_struct) == 256);
     LillaFram.reset();
     assert(archive.FRAM_Write_system(system) == 0);
     uint8_t sound_gain[INSTRUMENTS] = {11, 12, 13, 14, 15, 16, 17, 18};
-    assert(archive.Save_optimization(2) == 0);
     assert(archive.Save_first_octave(-1) == 0);
     assert(archive.Save_key_step(3) == 0);
     assert(archive.Save_CC_settings(sound_gain, 74) == 0);
-    uint8_t optimization = 0, key_step = 0, lowpass_filter = 0, actual_gain[INSTRUMENTS] = {};
+    uint8_t key_step = 0, lowpass_filter = 0, actual_gain[INSTRUMENTS] = {};
     int8_t first_octave = 0;
-    assert(archive.Read_optimization(optimization) == 0 && optimization == 2);
+    A::FRAM_System_struct preserved{};
+    assert(archive.FRAM_Read_system(preserved) == 0 && preserved.reserved_playback == system.reserved_playback);
     assert(archive.Read_first_octave(first_octave) == 0 && first_octave == -1);
     assert(archive.Read_key_step(key_step) == 0 && key_step == 3);
     assert(archive.Read_CC_settings(actual_gain, lowpass_filter) == 0 && memcmp(actual_gain, sound_gain, sizeof(sound_gain)) == 0 && lowpass_filter == 74);
@@ -362,8 +364,8 @@ void exercise_system_settings_backend() {
     assert(archive.Save_CC_Sound_gain(8, 1) == LillaFRAM_2x512::ERROR_11 && LillaFram.calls == 0);
     assert(archive.Read_CC_Sound_gain(8, actual_gain[0]) == LillaFRAM_2x512::ERROR_11 && LillaFram.calls == 0);
     LillaFram.memory[0xFD00] ^= 1;
-    optimization = 77;
-    assert(archive.Read_optimization(optimization) == A::FRAM_ERROR_CRC && optimization == 77);
+    key_step = 77;
+    assert(archive.Read_key_step(key_step) == A::FRAM_ERROR_CRC && key_step == 77);
     LillaFram.clear_io();
     assert(archive.Save_key_step(1) == A::FRAM_ERROR_CRC && LillaFram.writes.empty());
 }
@@ -419,7 +421,7 @@ int main() {
             empty_recording.packets = 7;
             assert(archive.FRAM_Write_recording(0, empty_recording) == 0);
             assert(archive.FRAM_Write_recording(29, empty_recording) == 0);
-            settings.optimization = 2;
+            settings.reserved_playback = 2;
             settings.first_octave = -2;
             assert(archive.FRAM_Write_system(settings) == 0);
             empty_patch.used = 1;
@@ -465,7 +467,7 @@ int main() {
         assert(archive.Repair_System_in_FRAM(system_report) == LillaFram.failure && !system_report.defaulted);
         LillaFram.clear_io();
         assert(archive.Repair_System_in_FRAM(system_report) == 0 && system_report.defaulted);
-        assert(archive.FRAM_Read_system(system) == 0 && system.optimization == 0 && system.first_octave == -2 && system.key_step == 0);
+        assert(archive.FRAM_Read_system(system) == 0 && system.reserved_playback == 0 && system.first_octave == -2 && system.key_step == 0);
         const uint8_t *system_cc = reinterpret_cast<const uint8_t *>(&system.CC_settings);
         assert(std::all_of(system_cc, system_cc + sizeof(system.CC_settings), [](uint8_t value) { return value == 0; }));
         LillaFram.clear_io();

@@ -21,14 +21,14 @@ bool PointerVCF::Move_pointer(const int value)
     bool changed = false;
     pointer_old = pointer;
 
-    if (value == 1 && pointer < pointer_max)
+    if (value == 1)
     {
-        ++pointer;
+        pointer = pointer == pointer_max ? 0 : pointer + 1;
         changed = true;
     }
-    else if (value == -1 && pointer > 0)
+    else if (value == -1)
     {
-        --pointer;
+        pointer = pointer == 0 ? pointer_max : pointer - 1;
         changed = true;
     }
 

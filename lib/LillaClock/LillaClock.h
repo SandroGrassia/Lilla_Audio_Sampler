@@ -25,6 +25,7 @@ public:
     }
 
     uint8_t identity;
+    PlayersManager *Players_Manager_ptr = nullptr; // Revalidate source reservations before Player rendering, even with control callbacks paused.
     MidiReader *Midi_reader_ptr = nullptr;
     FilterBiquadManager *Filter_Biquad_Manager_ptr = nullptr;
     DelayManager *Delay_Manager_ptr = nullptr;
