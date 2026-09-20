@@ -485,5 +485,5 @@ void DisplaySound::Show_wave(int instrument_id)
         canvas.print("S");
     }
 
-    tft.drawRGBBitmap(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.getBuffer(), canvas.width(), canvas.height());
+    tft.writeRect(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.width(), canvas.height(), canvas.getBuffer());
 }

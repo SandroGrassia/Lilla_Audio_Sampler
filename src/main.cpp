@@ -110,8 +110,8 @@
 #include <utility/dspinst.h>
 #include <MIDI.h>
 #include <SPI.h>
-#include <Adafruit_ILI9341.h>
 #include <Adafruit_GFX.h>
+#include <ILI9341_t3n.h>
 #include <array>
 
 #include "output_noiseshaped_pwm.h"
@@ -345,7 +345,7 @@ AudioControlSGTL5000 Audio_shield;
 // *************************************************************
 
 // 16-bit ('565') color settings http://www.barth-dev.de/online/rgb565-color-picker/ and https://ee-programming-notepad.blogspot.com/2016/10/16-bit-color-generator-picker.html
-Adafruit_ILI9341 tft = Adafruit_ILI9341(SPI1_DISPLAY_CS, SPI1_DC, SPI1_MOSI, SPI1_SCLK, SPI1_RST); // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.h
+ILI9341_t3n tft(SPI1_DISPLAY_CS, SPI1_DC, SPI1_RST, SPI1_MOSI, SPI1_SCLK, 255); // Write-only display on SPI1; MISO 39 is reserved for the MCP23S17 devices.
 GFXcanvas16 canvas = GFXcanvas16(WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT);                               // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.cpp ; GFXcanvas16 creates an array of w*h*2 bytes in memory
 
 InfoMaster Info;     // Infos about audio files
@@ -1071,6 +1071,7 @@ void Require_FRAM(byte result)
 void setup()
 {
     AudioNoInterrupts();
+    Shifters_manager.Begin();
 
     /*
       AudioMemory allocates memory for all audio connections. The numberBlocks input specifies how much memory to reserve for audio data.
@@ -1189,7 +1190,8 @@ void setup()
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-void loop()
+// Keep foreground UI code in Flash so RAM1 retains space for the main and audio IRQ stacks.
+FLASHMEM void loop()
 {
     if (Display_MidiLoop.Update_save_failed())
     {

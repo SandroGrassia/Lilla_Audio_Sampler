@@ -28,7 +28,7 @@ public:
     LoopMetronomo(DisplayMidiLoop &Display) : Display(Display) {}
 
     // riferimento esterno
-    Adafruit_ILI9341 *tft_ptr = nullptr;
+    ILI9341_t3n *tft_ptr = nullptr;
 
     void Update(bool with_led = true); // avanza il metronomo e i led
     void Setup(const int LOOP_time);

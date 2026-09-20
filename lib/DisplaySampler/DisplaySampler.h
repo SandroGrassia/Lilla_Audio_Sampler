@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+#include <ILI9341_t3n.h>
 #include "DisplayPrimitives.h"
 #include "SharedSampler.h"
 #include "SharedElements.h"

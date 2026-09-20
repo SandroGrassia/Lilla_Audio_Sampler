@@ -7,8 +7,8 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Adafruit_ILI9341.h>
 #include <Adafruit_GFX.h>
+#include <ILI9341_t3n.h>
 #include "GraphicElements.h"
 #include "GlobalDisplay.h"
 
