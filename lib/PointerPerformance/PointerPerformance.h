@@ -56,6 +56,7 @@ public:
     void Move_pointer(const int value, const int P_menu_max);
     P_field_description_struct Get_pointer(void);
     void Set_pointer_to_Patch(void);
+    void Set_pointer_to_RootKey(const int instrument_id);
     void Move_pointer_from_inside_to_Instrument(void);
     void Move_pointer_from_Instrument_to_inside(void);
     void Set_pointer_to_last_instrument(const int instrument_id);
