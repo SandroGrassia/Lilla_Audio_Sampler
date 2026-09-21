@@ -569,7 +569,8 @@ EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMP
 // >>>>>>> SETTINGS
 int8_t SET_menu;
 void Calc_pitch_from_note(const int &key_step);
-int Line_in_gain;
+uint8_t Line_in_gain;
+uint8_t Line_out_level;
 
 // functions
 bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed);
@@ -762,8 +763,7 @@ void Factory_setup_FRAM(void);
 int PB_number;
 
 // SGTL5000 Audio_shield
-int headphones_volume_int = 20; // 0 --> 40
-constexpr float headphones_volume_max = 40.0f;
+int headphones_volume_int = 40; // unused 0 --> 40
 
 // Pre-listen Volume
 int headphones_pwm_volume_int = 40; // 0 --> 40
@@ -13605,11 +13605,57 @@ void Startup_hardware_and_objects(void)
     Compile_tables();
 
     // audioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
+    /*
+        lineInLevel(both) adjust the sensitivity of the line-level inputs. Fifteen settings are possible:
+        0: 3.12 Volts p-p
+        1: 2.63 Volts p-p
+        2: 2.22 Volts p-p
+        3: 1.87 Volts p-p
+        4: 1.58 Volts p-p
+        5: 1.33 Volts p-p  (default)
+        6: 1.11 Volts p-p
+        7: 0.94 Volts p-p
+        8: 0.79 Volts p-p
+        9: 0.67 Volts p-p
+        10: 0.56 Volts p-p
+        11: 0.48 Volts p-p
+        12: 0.40 Volts p-p
+        13: 0.34 Volts p-p
+        14: 0.29 Volts p-p
+        15: 0.24 Volts p-p
+    */
     Line_in_gain = 5;
-    Audio_shield.enable();
-    Audio_shield.volume(headphones_volume_int / 40.0F);
-    Audio_shield.inputSelect(myInput);
     Audio_shield.lineInLevel(Line_in_gain);
+    
+    /*
+        lineOutLevel(both) adjust the line level output voltage range. The following settings are possible:
+        13: 3.16 Volts p-p
+        14: 2.98 Volts p-p
+        15: 2.83 Volts p-p
+        16: 2.67 Volts p-p
+        17: 2.53 Volts p-p
+        18: 2.39 Volts p-p
+        19: 2.26 Volts p-p
+        20: 2.14 Volts p-p
+        21: 2.02 Volts p-p
+        22: 1.91 Volts p-p
+        23: 1.80 Volts p-p
+        24: 1.71 Volts p-p
+        25: 1.62 Volts p-p
+        26: 1.53 Volts p-p
+        27: 1.44 Volts p-p
+        28: 1.37 Volts p-p
+        29: 1.29 Volts p-p  (default)
+        30: 1.22 Volts p-p
+        31: 1.16 Volts p-p
+    */
+    Line_out_level = 13;
+    Audio_shield.lineOutLevel(Line_out_level);
+
+    Audio_shield.enable();
+    Audio_shield.volume(0.5); // Set the headphone volume level. Range is 0 to 1.0, but 0.8 corresponds to the maximum undistorted output for a full scale signal. Usually 0.5 is a comfortable listening level. The line level outputs are not changed by this function. 
+    Audio_shield.inputSelect(myInput);
+    
     // Audio_shield.audioPostProcessorEnable();
     Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
     Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
