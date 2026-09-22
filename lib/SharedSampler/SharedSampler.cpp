@@ -21,7 +21,7 @@ int DS_menu_max;
 
 int recordings;
 int recording = -1; // recording id online
-int DS_gain;
+int DS_gain = 40;
 bool DS_recording_led_visible = false;
 bool DS_recording_led_redraw = false;
 elapsedMillis DS_blink_timer;

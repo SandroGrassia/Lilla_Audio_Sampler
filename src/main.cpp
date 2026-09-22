@@ -606,7 +606,6 @@ DS_pointer_struct DS_local_pointer;
 // variables
 const int myInput = AUDIO_INPUT_LINEIN; // AUDIO_INPUT_MIC oppure AUDIO_INPUT_LINEIN;
 int DS_export;                          // export mono, export stereo
-bool DS_gain_volume;
 
 enum DS_state_name
 {
