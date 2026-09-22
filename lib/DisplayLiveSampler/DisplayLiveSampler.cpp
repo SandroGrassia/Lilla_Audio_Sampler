@@ -211,8 +211,7 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
     {
         if (LS_X_delta == 0)
         {
-            tft.print("DELAY ");
-            tft.print(0.00);
+            tft.print("SYNC");
         }
 
         else if (LS_X_delta > LS_buffer_dim / 2)
@@ -220,12 +219,12 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
             local_value = (LS_buffer_dim - LS_X_delta) / AUDIO_SAMPLE_RATE;
             if (local_value >= 0)
             {
-                tft.print("DELAY ");
+                tft.print("BEHIND ");
                 tft.print(local_value, 2);
             }
             else
             {
-                tft.print("ADVANCE ");
+                tft.print("AHEAD ");
                 tft.print(-local_value, 2);
             }
         }
@@ -234,12 +233,12 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
             local_value = -LS_X_delta / AUDIO_SAMPLE_RATE;
             if (local_value >= 0)
             {
-                tft.print("DELAY ");
+                tft.print("BEHIND ");
                 tft.print(local_value, 2);
             }
             else
             {
-                tft.print("ADVANCE ");
+                tft.print("AHEAD ");
                 tft.print(-local_value, 2);
             }
         }

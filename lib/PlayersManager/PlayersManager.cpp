@@ -434,6 +434,10 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     plan.pingpong = preset.mode == LOOP_FWD_REV || preset.mode == LOOP_REV_FWD;
     plan.span = plan.live ? (plan.loop ? LS_XY_delta + 1 : LS_buffer_dim) : preset.B - preset.A + 1;
     plan.crossfade = plan.pingpong ? 0 : preset.Noclick;
+    if (plan.live && preset.mode == LOOP_FWD)
+    {
+        plan.crossfade = PlayerReadBudget::Live_noclick_samples;
+    }
     const float ceiling = Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
     plan.pitch = constrain(note_pitch * preset.pitch * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
     return plan;
