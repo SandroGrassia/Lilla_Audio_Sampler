@@ -434,7 +434,7 @@ void DisplaySampler::DS_show_gain(void)
     }
     Cancel_text_reset_cursor(display_coordinate_x(DS_COLUMN_GAIN), display_coordinate_y(DS_ROW_GAIN), 4);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(DS_gain / 20.0f, 2);
+    tft.print(Line_in_gain + 1);
 }
 
 FLASHMEM

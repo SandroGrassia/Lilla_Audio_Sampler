@@ -32,7 +32,7 @@ enum DS_field_name { field_DS_Menu, field_DS_Value };
 enum DS_menu_element_name { value_DS_CancelRecording, value_DS_PauseRec, value_DS_MonoRec, value_DS_StereoRec, value_DS_Stop };
 enum DS_value_name { value_DS_Recording, value_DS_Gain };
 struct DS_pointer_struct { DS_field_name field_name; DS_menu_element_name menu_element; DS_value_name value_element; };
-int recording = 0, DS_gain = 20, DS_menu_max = 0;
+int recording = 0, Line_in_gain = 8, DS_menu_max = 0;
 int element_Menu_DS[12] = {}, position_Menu_DS[12] = {};
 int X_position_Menu_DS[12] = {}, Y_position_Menu_DS[12] = {}, dimension_voice_Menu_DS[12] = {};
 bool DS_recording_led_visible = true, DS_recording_led_redraw = false;
@@ -44,11 +44,13 @@ struct Display
     uint16_t color = 0;
     std::vector<Draw> rectangles;
     std::vector<Text> labels;
+    std::vector<int> numbers;
     void fillRect(int x, int y, int w, int h, uint16_t c) { rectangles.push_back({x,y,w,h,c}); }
     void drawRect(int x, int y, int w, int h, uint16_t c) { rectangles.push_back({x,y,w,h,c}); }
     void setCursor(int a, int b) { x = a; y = b; }
     void setTextColor(uint16_t c) { color = c; }
     void print(const char *s) { labels.push_back({x,y,color,s}); }
+    void print(int value) { numbers.push_back(value); }
     void print(float, int) {}
 } tft;
 void Cancel_text_reset_cursor(int x, int y, int) { tft.setCursor(x, y); }
@@ -88,13 +90,20 @@ int main()
     assert(Display_Sampler.DS_has_recording_controls());
     assert(!DS_recording_led_visible);
     assert(tft.labels.size() == 4);
-    const char *labels[] = {"REC-PAUSE", "AUDIO IN GAIN", "LEVEL L", "LEVEL R"};
+    const char *labels[] = {"PAUSE+REC", "AUDIO IN GAIN", "LEVEL L", "LEVEL R"};
     for (int row = 0; row < 4; ++row)
     {
         assert(tft.labels[row].value == labels[row]);
         assert(tft.labels[row].y == display_coordinate_y(8 + row));
     }
     assert(tft.labels[0].color == ILI9341_RED);
+    assert(tft.numbers.back() == 9);
+    Line_in_gain = 0;
+    Display_Sampler.DS_show_gain();
+    assert(tft.numbers.back() == 1);
+    Line_in_gain = 15;
+    Display_Sampler.DS_show_gain();
+    assert(tft.numbers.back() == 16);
     Display_Sampler.DS_sampler_txt(true);
     assert(tft.labels.back().color == ILI9341_RED);
     Display_Sampler.DS_sampler_txt(false);

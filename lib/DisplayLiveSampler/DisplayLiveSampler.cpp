@@ -86,6 +86,11 @@ void DisplayLiveSampler::Page(void)
     tft.setCursor(display_coordinate_x(LS_column_row_STEP[0]), display_coordinate_y(LS_column_row_STEP[1]));
     tft.print("STEP");
     Step();
+
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_GAIN[0]), display_coordinate_y(LS_column_row_GAIN[1]));
+    tft.print("AUDIO IN GAIN");
+    Gain();
 }
 
 FLASHMEM
@@ -104,6 +109,14 @@ void DisplayLiveSampler::Volume(void)
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_volume[0]), display_coordinate_y(LS_column_row_volume[1]), 4);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(volume_patch / 20.0f);
+}
+
+FLASHMEM
+void DisplayLiveSampler::Gain(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_gain[0]), display_coordinate_y(LS_column_row_gain[1]), 2);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Line_in_gain + 1);
 }
 
 FLASHMEM
@@ -526,6 +539,11 @@ void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, 
 
         case value_LS_Window:
             Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_window, show);
+            break;
+
+        case value_LS_Gain:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], 2, show);
+            break;
         }
     }
 }

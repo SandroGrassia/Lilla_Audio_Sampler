@@ -569,7 +569,7 @@ EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMP
 // >>>>>>> SETTINGS
 int8_t SET_menu;
 void Calc_pitch_from_note(const int &key_step);
-uint8_t Line_in_gain;
+uint8_t Line_in_gain = 8; // Shared hardware input gain; displayed as 1..16.
 uint8_t Line_out_level;
 
 // functions
@@ -687,7 +687,6 @@ const char *id2chip(const unsigned char *id);
 LS_pointer_struct LS_local_pointer;
 
 // variables
-uint8_t LS_gain;
 int LS_sound_id;
 int LS_instrument;
 int LS_COMB = 64;
@@ -3911,9 +3910,9 @@ void loop()
             {
                 if (MX_local_pointer.source == LINE_IN_source) // MX_source == LINE_IN_CHANNEL
                 {
-                    if (Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
+                    if (Read_encoder(EN_PB_Value, Line_in_gain, 15, 0, 1))
                     {
-                        LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
+                        Audio_shield.lineInLevel(Line_in_gain);
 
                         Display_Mixer.MX_source_values_edit(LINE_IN_source);
                     }
@@ -4703,17 +4702,6 @@ void loop()
         sono sempre PROPORZIONALI a LS_window_width.
         */
 
-        // ******************************************  Move to SETTINGS Change line_in gain
-        /*
-        if (Read_encoder(4, Line_in_gain, 15, 0, 1))
-        {
-            AudioNoInterrupts();
-            Audio_shield.lineInLevel(Line_in_gain);
-            AudioInterrupts();
-
-            Serial.println(Line_in_gain);
-        }
-        */
 
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
@@ -4876,6 +4864,16 @@ void loop()
         {
             switch (LS_local_pointer.value_element)
             {
+            case value_LS_Gain:
+            {
+                if (Read_encoder(EN_PB_Value, Line_in_gain, 15, 0, 1))
+                {
+                    Audio_shield.lineInLevel(Line_in_gain);
+                    Display_LiveSampler.Gain();
+                }
+            }
+            break;
+
             case value_LS_Play_mode:
             {
                 if (Read_encoder(EN_PB_Value, LS_mode, LOOP_FWD_REV, 0, 1))
@@ -5989,11 +5987,9 @@ void loop()
             if (DS_local_pointer.value_element == value_DS_Gain)
             {
                 // Share the LINE IN gain with Mixer; allow adjustment while monitoring or recording.
-                if ((DS_state == DS_pause_state || DS_state == DS_recording_state) && Read_encoder(EN_PB_Value, DS_gain, 40, 1, 1))
+                if ((DS_state == DS_pause_state || DS_state == DS_recording_state) && Read_encoder(EN_PB_Value, Line_in_gain, 15, 0, 1))
                 {
-                    AudioNoInterrupts();
-                    LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
-                    AudioInterrupts();
+                    Audio_shield.lineInLevel(Line_in_gain);
                     Display_Sampler.DS_show_gain();
                 }
             }
@@ -9873,8 +9869,6 @@ void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void)
     Players_Manager.Stop_all_players();
 
     // Setup LIVE_SAMPLING
-    LS_gain = 28;
-    LINE_IN_amplifier.Set_gain(Volume_float[LS_gain]);
 
     Patch_id = PATCHES_MAX; // Live Sampler uses PATCHES_MAX
     LS_setup_LS_Patch(LS_stereo);
@@ -9892,8 +9886,6 @@ void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void)
     LOOP_stop_all_midi_tracks();
 
     // imposta LIVE_SAMPLING
-    LS_gain = 28;
-    LINE_IN_amplifier.Set_gain(Volume_float[LS_gain]);
 
     Patch_id = PATCHES_MAX; // Live Sampler uses PATCHES_MAX
     LS_setup_LS_Patch(LS_stereo);
@@ -13544,8 +13536,6 @@ bool Startup_mode(void)
     {
         if (startup_mode == SwModesLiveSampler)
         {
-            LS_gain = 28;
-            LINE_IN_amplifier.Set_gain(Volume_float[LS_gain]);
             Patch_id = PATCHES_MAX;
             LS_setup_LS_Patch(LS_stereo);
         }
@@ -13623,7 +13613,6 @@ void Startup_hardware_and_objects(void)
         14: 0.29 Volts p-p
         15: 0.24 Volts p-p
     */
-    Line_in_gain = 5;
     Audio_shield.lineInLevel(Line_in_gain);
     
     /*
@@ -13935,8 +13924,7 @@ void Reload_system_state(void)
     VFS_Print_FAT();
 
     // Setup Input Gain
-    DS_gain = 20;
-    LINE_IN_amplifier.Set_gain(Volume_float[DS_gain]);
+    LINE_IN_amplifier.Set_gain(1.0f);
 
     // *******************   CORE ARRAYS  ************************
     ArchivingManager::FRAM_Repair_report repair_report;

@@ -66,6 +66,8 @@ private:
     static constexpr float LS_column_row_START_POINT[2] = {0, LS_ROW_VALUES + 3};
     static constexpr float LS_column_row_LOOP[2] = {29, LS_ROW_VALUES + 3};
     static constexpr float LS_column_row_STEP[2] = {0, LS_ROW_VALUES + 4};
+    static constexpr float LS_column_row_GAIN[2] = {0, LS_ROW_VALUES + 5};
+    static constexpr float LS_column_row_gain[2] = {14, LS_ROW_VALUES + 5};
 
     static constexpr float LS_column_row_buffer[2] = {27, 0};
     static constexpr float LS_column_row_volume[2] = {48, 0};
@@ -84,7 +86,8 @@ private:
     static constexpr float LS_column_row_element[LS_value_names][2] = {
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
         {LS_column_row_feedback[0], LS_column_row_feedback[1]},
-        {LS_column_row_window[0], LS_column_row_window[1]}};
+        {LS_column_row_window[0], LS_column_row_window[1]},
+        {LS_column_row_gain[0], LS_column_row_gain[1]}};
 
     int LS_chars_play_mode;
     int LS_chars_feedback;
@@ -120,6 +123,7 @@ public:
 
     // Redraws the Volume value.
     void Volume(void);
+    void Gain(void); // Shared hardware input gain, displayed as 1..16.
 
     // Redraws the Play Mode value (mode name, optional loop prefix).
     void Play_mode(void);
