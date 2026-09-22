@@ -421,7 +421,7 @@ void DisplayLiveSampler::Show_wave(const int sound_id)
     Update_REC_LED();
 
     // memo[0] = localtimer; // 530us
-    tft.drawRGBBitmap(LS_CANVAS_X, LS_CANVAS_Y, canvas.getBuffer(), canvas.width(), canvas.height());
+    tft.writeRect(LS_CANVAS_X, LS_CANVAS_Y, canvas.width(), canvas.height(), canvas.getBuffer());
     // memo[1] = localtimer; // memo[1] - memo[0] = 44.000us
 
     // Serial.print("Fill canvas, microseconds:");

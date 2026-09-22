@@ -6,12 +6,28 @@
 
 #include "ShiftRegisters.h"
 #include <initializer_list>
+#include <SPI.h>
+
+void ShiftRegisters::Begin(void)
+{
+    // Deselect both devices before enabling their shared hardware SPI bus.
+    digitalWrite(SPI1_DISPLAY_CS, HIGH);
+    pinMode(SPI1_DISPLAY_CS, OUTPUT);
+    digitalWrite(SPI1_SHIFTERS_CS, HIGH);
+    pinMode(SPI1_SHIFTERS_CS, OUTPUT);
+    SPI1.setMOSI(SPI1_MOSI);
+    SPI1.setSCK(SPI1_SCLK);
+    SPI1.setMISO(SPI1_MISO);
+    Start_SPI_for_shifters();
+    Setup_physical_channels();
+    Switch_all_leds(false);
+}
 
 void ShiftRegisters::Start_SPI_for_shifters(void)
 {
     for (auto i = 0; i < SHIFTERS; ++i)
     {
-        Shifter[i].begin_SPI(SPI1_SHIFTERS_CS, SPI1_SCLK, SPI1_MISO, SPI1_MOSI, SHIFTER_ADDRESS[i]); // (int8_t cs_pin, int8_t sck_pin, int8_t miso_pin, int8_t mosi_pin, uint8_t _hw_addr = 0x00);
+        Shifter[i].begin_SPI(SPI1_SHIFTERS_CS, &SPI1, SHIFTER_ADDRESS[i]);
 
         // Needed??
         Shifter[i].enableAddrPins();

@@ -71,7 +71,7 @@
     - Critical Warning (VUSB/VIN Separation): If using an external power source on VIN, you must cut the trace between the VUSB and VIN pads on the bottom of the board. Failure to do so can back-feed voltage to your computer's USB port, causing damage.
     - Fact (USB Host Power): The Teensy 4.1's USB Host port (VHST pin) provides a software-controllable 5V rail with built-in current limiting (~850mA hardware limit, but practically limited by the main 0.5A fuse if USB-powered). This is a feature unique to the T4.1.
 
-    - INPUT_PULLUP: Use pinMode(pin, INPUT_PULLUP) for connecting switches to ground. This activates an internal ~47kΩ pull-up resistor, eliminating the need for external components.
+    - INPUT_PULLUP: Use pinMode(pin, INPUT_PULLUP) for connecting switches to ground. This activates an internal ~47kÃŽÂ© pull-up resistor, eliminating the need for external components.
     - Synchronization: Sequential digitalWriteFast() calls to multiple pins are not perfectly simultaneous. For true atomic, multi-pin state changes, direct port register manipulation is required.
     - Audio Library: The Audio library can conflict with other DMA-based libraries (like FastLED/ObjectFLED). This is often a low-level hardware resource contention, which can sometimes be mitigated by adjusting timing parameters in the conflicting library.
 
@@ -110,9 +110,10 @@
 #include <utility/dspinst.h>
 #include <MIDI.h>
 #include <SPI.h>
-#include <Adafruit_ILI9341.h>
 #include <Adafruit_GFX.h>
+#include <ILI9341_t3n.h>
 #include <array>
+#include <new>
 
 #include "output_noiseshaped_pwm.h"
 #include "Gate.h"
@@ -345,7 +346,7 @@ AudioControlSGTL5000 Audio_shield;
 // *************************************************************
 
 // 16-bit ('565') color settings http://www.barth-dev.de/online/rgb565-color-picker/ and https://ee-programming-notepad.blogspot.com/2016/10/16-bit-color-generator-picker.html
-Adafruit_ILI9341 tft = Adafruit_ILI9341(SPI1_DISPLAY_CS, SPI1_DC, SPI1_MOSI, SPI1_SCLK, SPI1_RST); // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.h
+ILI9341_t3n tft(SPI1_DISPLAY_CS, SPI1_DC, SPI1_RST, SPI1_MOSI, SPI1_SCLK, 255); // Write-only display on SPI1; MISO 39 is reserved for the MCP23S17 devices.
 GFXcanvas16 canvas = GFXcanvas16(WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT);                               // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.cpp ; GFXcanvas16 creates an array of w*h*2 bytes in memory
 
 InfoMaster Info;     // Infos about audio files
@@ -502,13 +503,14 @@ S_field_description_struct S_pointer;
 // functions
 void S_Map_one_Instrument_for_all_notes(const int instrument_id);
 void S_Drop_Instrument(const int instrument_id);                       // Drop an instrument and release its cache pin while preserving playing tails.
-bool S_Clone_Instrument(const int instrument_id, int &new_instrument); // insert ONE new instrument BELOW instrument
+struct PatchEditSnapshot;
+bool S_Clone_Instrument(const int instrument_id, int &new_instrument, PatchEditSnapshot &snapshot); // insert ONE new instrument BELOW instrument
 bool S_Verify_is_Sound_original(int sound_id);
 void S_Refresh_source_limits(bool force); // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
 void S_Copy_all_Sound_to_Sound_cache_P(void);
-void S_Pull_all_Sound_from_Sound_cache_P(void);
+bool S_Pull_all_Sound_from_Sound_cache_P(PatchEditSnapshot *snapshot = nullptr);
 uint16_t S_Get_sounds_free(void);
-void S_Read_all_Sounds(void);
+bool S_Read_all_Sounds(PatchEditSnapshot *snapshot = nullptr);
 void S_Save_all_Sounds_changed(void);
 int S_Get_sound_free(void);
 uint32_t S_Calc_trim_step(int value);
@@ -567,7 +569,8 @@ EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMP
 // >>>>>>> SETTINGS
 int8_t SET_menu;
 void Calc_pitch_from_note(const int &key_step);
-int Line_in_gain;
+uint8_t Line_in_gain;
+uint8_t Line_out_level;
 
 // functions
 bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed);
@@ -603,7 +606,6 @@ DS_pointer_struct DS_local_pointer;
 // variables
 const int myInput = AUDIO_INPUT_LINEIN; // AUDIO_INPUT_MIC oppure AUDIO_INPUT_LINEIN;
 int DS_export;                          // export mono, export stereo
-bool DS_gain_volume;
 
 enum DS_state_name
 {
@@ -760,8 +762,7 @@ void Factory_setup_FRAM(void);
 int PB_number;
 
 // SGTL5000 Audio_shield
-int headphones_volume_int = 20; // 0 --> 40
-constexpr float headphones_volume_max = 40.0f;
+int headphones_volume_int = 40; // unused 0 --> 40
 
 // Pre-listen Volume
 int headphones_pwm_volume_int = 40; // 0 --> 40
@@ -1015,18 +1016,99 @@ struct PatchEditSnapshot
 {
     const int patch_id = Patch_id;
     Patch_struct patch;
-    Sound_struct sounds[SOUNDS_MAX + 2];
+    struct SavedSound
+    {
+        int sound_id;
+        Sound_struct value;
+    };
+
+    // Teensy 4.1 allocates the heap in RAM2; only this small owner lives on the stack.
+    SavedSound *sounds = nullptr;
+    size_t count = 0;
+    size_t capacity = 0;
+    bool valid = true;
+
+    PatchEditSnapshot(const PatchEditSnapshot &) = delete;
+    PatchEditSnapshot &operator=(const PatchEditSnapshot &) = delete;
 
     PatchEditSnapshot(void) // Capture the editable model while preserving the caller's audio IRQ state.
     {
         const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
         AudioNoInterrupts();
         patch = Patch[patch_id];
-        memcpy(sounds, Sound, sizeof(sounds));
+        for (int instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+        {
+            if (patch.Instrument[instrument_id].used && !Capture_sound(patch.Instrument[instrument_id].sound_id))
+            {
+                break;
+            }
+        }
         if (enabled)
         {
             AudioInterrupts();
         }
+    }
+
+    ~PatchEditSnapshot(void)
+    {
+        delete[] sounds;
+    }
+
+    bool Capture_sound(int sound_id)
+    {
+        if (!valid || sound_id < 0 || sound_id >= SOUNDS_MAX + 2)
+        {
+            valid = false;
+            audio_tables_error_pending = true;
+            return false;
+        }
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (sounds[i].sound_id == sound_id)
+            {
+                return true;
+            }
+        }
+        if (count == capacity)
+        {
+            const size_t next_capacity = capacity == 0 ? INSTRUMENTS : (capacity * 2 > SOUNDS_MAX + 2 ? SOUNDS_MAX + 2 : capacity * 2);
+            SavedSound *expanded = new (std::nothrow) SavedSound[next_capacity];
+            if (expanded == nullptr)
+            {
+                valid = false;
+                audio_tables_error_pending = true;
+                return false;
+            }
+            if (count != 0)
+            {
+                memcpy(expanded, sounds, count * sizeof(SavedSound));
+            }
+            delete[] sounds;
+            sounds = expanded;
+            capacity = next_capacity;
+        }
+        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+        AudioNoInterrupts();
+        sounds[count].sound_id = sound_id;
+        sounds[count].value = Sound[sound_id];
+        ++count;
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+        return true;
+    }
+
+    const Sound_struct *Find_sound(int sound_id) const
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (sounds[i].sound_id == sound_id)
+            {
+                return &sounds[i].value;
+            }
+        }
+        return nullptr;
     }
 
     void Restore(void) const // Restore the model and note maps after a failed preparation; published presets remain unchanged.
@@ -1035,7 +1117,10 @@ struct PatchEditSnapshot
         AudioNoInterrupts();
         Patch_id = patch_id;
         Patch[patch_id] = patch;
-        memcpy(Sound, sounds, sizeof(sounds));
+        for (size_t i = 0; i < count; ++i)
+        {
+            Sound[sounds[i].sound_id] = sounds[i].value;
+        }
         P_Update_all_maps_Instrument_for_notes();
         if (enabled)
         {
@@ -1071,6 +1156,7 @@ void Require_FRAM(byte result)
 void setup()
 {
     AudioNoInterrupts();
+    Shifters_manager.Begin();
 
     /*
       AudioMemory allocates memory for all audio connections. The numberBlocks input specifies how much memory to reserve for audio data.
@@ -1497,12 +1583,18 @@ void loop()
                 case value_P_Exit: // drop Sound changes
                 {
                     AudioNoInterrupts();
-                    const PatchEditSnapshot previous;
+                    PatchEditSnapshot previous;
+                    if (!previous.valid)
+                    {
+                        audio_tables_error_pending = true;
+                        AudioInterrupts();
+                        break;
+                    }
                     Patch[Patch_id] = Patch_cache_P;
-                    S_Pull_all_Sound_from_Sound_cache_P();
+                    const bool sounds_restored = S_Pull_all_Sound_from_Sound_cache_P(&previous);
                     P_Update_all_maps_Instrument_for_notes();
 
-                    const bool tables_rebuilt = S_Fill_all_tables();
+                    const bool tables_rebuilt = sounds_restored && S_Fill_all_tables();
                     if (!tables_rebuilt)
                     {
                         previous.Restore();
@@ -1658,11 +1750,20 @@ void loop()
 
                         else // change patch_id
                         {
-                            const PatchEditSnapshot previous;
+                            PatchEditSnapshot previous;
+                            if (!previous.valid)
+                            {
+                                audio_tables_error_pending = true;
+                                return;
+                            }
                             if (action == 1) // No: discharge changings and switch patch_id
                             {
                                 Patch[Patch_id] = Patch_cache_P;
-                                S_Pull_all_Sound_from_Sound_cache_P();
+                                if (!S_Pull_all_Sound_from_Sound_cache_P(&previous))
+                                {
+                                    previous.Restore();
+                                    return;
+                                }
                             }
 
                             else if (action == 2) // Yes: save changings and switch patch_id
@@ -1670,7 +1771,11 @@ void loop()
                                 S_Save_all_Sounds_changed();
                                 Require_FRAM(Archive.Save_Patch(Patch_id));
                                 Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
-                                S_Read_all_Sounds();
+                                if (!S_Read_all_Sounds(&previous))
+                                {
+                                    previous.Restore();
+                                    return;
+                                }
                             }
 
                             if (!P_Jump_to_Patch(patch_change))
@@ -2151,13 +2256,15 @@ void loop()
                 case value_S_Clone:
                 {
                     AudioNoInterrupts();
-                    const PatchEditSnapshot previous;
+                    PatchEditSnapshot previous;
                     int new_instrument = 0;
-                    if (S_Clone_Instrument(Instrument_id, new_instrument))
+                    bool cloned = false;
+                    if (previous.valid && S_Clone_Instrument(Instrument_id, new_instrument, previous))
                     {
                         if (S_Fill_tables(new_instrument))
                         {
                             P_Update_all_maps_Instrument_for_notes();
+                            cloned = true;
                         }
                         else
                         {
@@ -2172,6 +2279,11 @@ void loop()
 
                     S_Set_Sound_SOLO_OFF();
                     Golive_with_PERFORMANCE(Patch_id);
+                    if (cloned)
+                    {
+                        Pointer_Performance.Set_pointer_to_RootKey(new_instrument);
+                        P_pointer = Pointer_Performance.Get_pointer();
+                    }
                 }
                 break;
 
@@ -4499,7 +4611,7 @@ void loop()
         /*
         Live Sampling (LIVE SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX.
 
-        Se la registrazione è mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
+        Se la registrazione ÃƒÂ¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
         - Patch[PATCHES_MAX].Instrument[0].sound_id == PATCHES_MAX
 
         L'Instrument ha:
@@ -4508,11 +4620,11 @@ void loop()
         root_key = 60
         midi_ch = 0 (midi channel 1)
 
-        Il Sound è associato al file Mono.liv:
+        Il Sound ÃƒÂ¨ associato al file Mono.liv:
         Sound[SOUNDS_MAX].file = FIRST_LIVE_SAMPLING_FILE;
 
 
-        Se la registrazione è stereo, PATCHES_MAX comprende 2 Instrument, i Sound SOUNDS_MAX e (SOUNDS_MAX + 1):
+        Se la registrazione ÃƒÂ¨ stereo, PATCHES_MAX comprende 2 Instrument, i Sound SOUNDS_MAX e (SOUNDS_MAX + 1):
         - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left
         - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
 
@@ -4539,12 +4651,12 @@ void loop()
         i samples visualizzati vanno da LS_window_A_sample a LS_window_B_sample; l'ampiezza della window e' LS_window_width.
 
 
-        LS_X_sample - LS_Y_sample è l'intervallo di esecuzione:
+        LS_X_sample - LS_Y_sample ÃƒÂ¨ l'intervallo di esecuzione:
         - FWD e REV : parte da LS_X_sample
         - Loop FWD e Loop FWD/REV : da LS_X_sample a LS_Y_sample.
 
 
-        LS_X_sample e' sempre al centro della window; al primo accesso a LIVE SAMPLER è sul sample 0:
+        LS_X_sample e' sempre al centro della window; al primo accesso a LIVE SAMPLER ÃƒÂ¨ sul sample 0:
         .................................(LS_X_sample).........................................(LS_buffer_dim -1)
                   (LS_window_A_sample)+++++++++|+++++++(LS_window_B_sample)
 
@@ -4564,7 +4676,7 @@ void loop()
         1) fissi su un punto del buffer (se fosse un tape sono solidali al tape, solidali ai campioni registrati): LS_XY_lock == true.
         2) spostarsi lungo il buffer (se fosse un tape sono solidali con la testa di registrazione, i campioni sottostanti cambiano con continuita'): LS_XY_lock == false
 
-        In entrambi i casi, con il NoteOn le posizioni di partenza (modi FWD e REV) e di arrivo (modi loop FWD, loop FWD/REV) sono congelate sul buffer (non sono più mobili). Importante notare
+        In entrambi i casi, con il NoteOn le posizioni di partenza (modi FWD e REV) e di arrivo (modi loop FWD, loop FWD/REV) sono congelate sul buffer (non sono piÃƒÂ¹ mobili). Importante notare
         che nel modo loop il suono sambia se il segmento di buffer LS_X_sample/LS_Y_sample viene riscritto.
 
         Calcolo degli estremi della window
@@ -4572,7 +4684,7 @@ void loop()
         LS_window_B_sample = LS_window_A_sample + LS_window_width - 1 (NON scalato se supera (LS_buffer_dim -1))
 
         1) Caso LS_XY_lock == true
-        LS_X_sample è fisso su una certa posizione del buffer; la waveform cresce verso DESTRA (nuovi campioni a DESTRA)
+        LS_X_sample ÃƒÂ¨ fisso su una certa posizione del buffer; la waveform cresce verso DESTRA (nuovi campioni a DESTRA)
         0 <= LS_X_sample <= (LS_buffer_dim -1)
         LS_Y_sample = LS_X_sample + LS_XY_delta
 
@@ -5270,7 +5382,7 @@ void loop()
         root_key = 60
         midi_ch = 0 (midi channel 1)
 
-        Se la registrazione è stereo, i due Sound sono associati a due distinti file .rec consecutivi; se la registrazione è mono i due Sound sono associati allo stsso file .rec.
+        Se la registrazione ÃƒÂ¨ stereo, i due Sound sono associati a due distinti file .rec consecutivi; se la registrazione ÃƒÂ¨ mono i due Sound sono associati allo stsso file .rec.
 
         */
 
@@ -6080,7 +6192,7 @@ void loop()
 
         case SwToolsSetup:
         {
-            Switch_from_MIDI_LOOP_to_SETUP();
+            Golive_SETUP();
         }
         break;
 
@@ -6093,137 +6205,132 @@ void loop()
         {
             TOOLS_pushbutton = false;
             Shifters_manager.Switch_led(LED_Tools, false);
+            switch (Switches_manager.Get_value(SwitchModes))
             {
-                if (Switches_manager.Get_change(SwitchModes))
+            case SwModesSampler:
+            {
+                switch (Lilla_state_0)
                 {
-                    switch (Switches_manager.Get_value(SwitchModes))
-                    {
-                    case SwModesSampler:
-                    {
-                        switch (Lilla_state_0)
-                        {
-                        case PERFORMANCE:
-                            Switch_to_DIRECT_SAMPLING();
-                            break;
-
-                        case DIRECT_SAMPLING:
-                            Lilla_state = DIRECT_SAMPLING;
-
-                            Display_Sampler.DS_page_upper();
-                            Display_Sampler.DS_page_lower(recording);
-
-                            // Menu
-                            DS_define_menu();
-                            Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-
-                            // Pointer
-                            Pointer_Sampler.Set_pointer_to_first_menu_element();
-                            DS_local_pointer = Pointer_Sampler.Get_pointer();
-
-                            // Display the VU meter
-                            Display_Sampler.DS_bar(0, 0);
-                            Display_Sampler.DS_bar(1, 0);
-
-                            Clear_UI_events();
-                            break;
-
-                        case LIVE_SAMPLING:
-                            Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
-                            break;
-
-                        case MIDI_LOOP:
-                            Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING();
-                            break;
-
-                        default:
-                            PRINT_ERROR(F("Switch MISSING! "));
-                            break;
-                        }
-                    }
+                case PERFORMANCE:
+                    Switch_to_DIRECT_SAMPLING();
                     break;
 
-                    case SwModesLiveSampler:
-                    {
-                        switch (Lilla_state_0)
-                        {
-                        case PERFORMANCE:
-                            Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
-                            break;
+                case DIRECT_SAMPLING:
+                    Lilla_state = DIRECT_SAMPLING;
 
-                        case DIRECT_SAMPLING:
-                            Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
-                            break;
+                    Display_Sampler.DS_page_upper();
+                    Display_Sampler.DS_page_lower(recording);
 
-                        case LIVE_SAMPLING:
-                            LS_refresh_LS_page();
-                            break;
+                    // Menu
+                    DS_define_menu();
+                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
 
-                        case MIDI_LOOP:
-                            Switch_from_MIDI_LOOP_to_LIVE_SAMPLING();
-                            break;
+                    // Pointer
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
 
-                        default:
-                            PRINT_ERROR(F("Switch MISSING! "));
-                            break;
-                        };
-                    }
+                    // Display the VU meter
+                    Display_Sampler.DS_bar(0, 0);
+                    Display_Sampler.DS_bar(1, 0);
+
+                    Clear_UI_events();
                     break;
 
-                    case SwModesPerformance:
-                    {
-                        switch (Lilla_state_0)
-                        {
-                        case PERFORMANCE:
-                            Golive_with_PERFORMANCE(Patch_id);
-                            break;
-
-                        case DIRECT_SAMPLING:
-                            Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
-                            break;
-
-                        case LIVE_SAMPLING:
-                            Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
-                            break;
-
-                        case MIDI_LOOP:
-                            Switch_from_MIDI_LOOP_to_PERFORMANCE();
-                            break;
-
-                        default:
-                            PRINT_ERROR(F("Switch MISSING! "));
-                            break;
-                        }
-                    }
+                case LIVE_SAMPLING:
+                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
                     break;
 
-                    case SwModesMidiLoop:
-                    {
-                        switch (Lilla_state_0)
-                        {
-                        case PERFORMANCE:
-                            Switch_from_PERFORMANCE_to_MIDI_LOOP();
-                            break;
-
-                        case DIRECT_SAMPLING:
-                            Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
-                            break;
-
-                        case LIVE_SAMPLING:
-                            Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
-                            break;
-
-                        case MIDI_LOOP:
-                            Golive_with_MIDI_LOOP(false);
-                            break;
-
-                        default:
-                            PRINT_ERROR(F("Switch MISSING! "));
-                            break;
-                        }
-                    }
+                case MIDI_LOOP:
+                    Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING();
                     break;
-                    }
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
                 }
+            }
+            break;
+
+            case SwModesLiveSampler:
+            {
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
+                    break;
+
+                case DIRECT_SAMPLING:
+                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
+                    break;
+
+                case LIVE_SAMPLING:
+                    LS_refresh_LS_page();
+                    break;
+
+                case MIDI_LOOP:
+                    Switch_from_MIDI_LOOP_to_LIVE_SAMPLING();
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                };
+            }
+            break;
+
+            case SwModesPerformance:
+            {
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Golive_with_PERFORMANCE(Patch_id);
+                    break;
+
+                case DIRECT_SAMPLING:
+                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
+                    break;
+
+                case LIVE_SAMPLING:
+                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
+                    break;
+
+                case MIDI_LOOP:
+                    Switch_from_MIDI_LOOP_to_PERFORMANCE();
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                }
+            }
+            break;
+
+            case SwModesMidiLoop:
+            {
+                switch (Lilla_state_0)
+                {
+                case PERFORMANCE:
+                    Switch_from_PERFORMANCE_to_MIDI_LOOP();
+                    break;
+
+                case DIRECT_SAMPLING:
+                    Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
+                    break;
+
+                case LIVE_SAMPLING:
+                    Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
+                    break;
+
+                case MIDI_LOOP:
+                    Golive_with_MIDI_LOOP(false);
+                    break;
+
+                default:
+                    PRINT_ERROR(F("Switch MISSING! "));
+                    break;
+                }
+            }
+            break;
             }
         }
     }
@@ -6536,7 +6643,7 @@ void loop()
                     }
 
                     // Learnig closed. From here: LOOP_learn_flag == false
-                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
+                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track ÃƒÂ¨ vuoto e non viene eseguito
 
                     Clear_UI_events();
 
@@ -7516,6 +7623,10 @@ void loop()
                     Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
                     break;
 
+                case MIDI_LOOP:
+                    Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING();
+                    break;
+
                 default:
                     PRINT_ERROR(F("Switch MISSING! "));
                     break;
@@ -7546,6 +7657,10 @@ void loop()
                     LS_refresh_LS_page();
                     break;
 
+                case MIDI_LOOP:
+                    Switch_from_MIDI_LOOP_to_LIVE_SAMPLING();
+                    break;
+
                 default:
                     PRINT_ERROR(F("Switch MISSING! "));
                     break;
@@ -7573,6 +7688,10 @@ void loop()
 
                 case LIVE_SAMPLING:
                     Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
+                    break;
+
+                case MIDI_LOOP:
+                    Switch_from_MIDI_LOOP_to_PERFORMANCE();
                     break;
 
                 default:
@@ -8035,9 +8154,9 @@ bool P_Save_current_patch_as_new(void)
     const Delay_data_struct cloned_delay = Delay_data;
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
-    const PatchEditSnapshot previous;
+    PatchEditSnapshot previous;
     const int new_patch = S_Get_Patch_id_free();
-    if (new_patch < 0)
+    if (!previous.valid || new_patch < 0)
     {
         if (enabled)
         {
@@ -8046,7 +8165,15 @@ bool P_Save_current_patch_as_new(void)
         return false;
     }
     const Patch_struct unused_patch = Patch[new_patch];
-    S_Pull_all_Sound_from_Sound_cache_P();
+    if (!S_Pull_all_Sound_from_Sound_cache_P(&previous))
+    {
+        previous.Restore();
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+        return false;
+    }
     Patch[previous.patch_id] = Patch_cache_P;
     Patch[new_patch] = previous.patch;
     bool complete = true;
@@ -8062,7 +8189,19 @@ bool P_Save_current_patch_as_new(void)
             complete = false;
             break;
         }
-        Sound[sound_id] = previous.sounds[previous.patch.Instrument[instrument_id].sound_id];
+        const Sound_struct *source = previous.Find_sound(previous.patch.Instrument[instrument_id].sound_id);
+        if (source == nullptr)
+        {
+            complete = false;
+            break;
+        }
+        const Sound_struct cloned_sound = *source;
+        if (!previous.Capture_sound(sound_id))
+        {
+            complete = false;
+            break;
+        }
+        Sound[sound_id] = cloned_sound;
         Patch[new_patch].Instrument[instrument_id].sound_id = sound_id;
     }
     Patch_id = new_patch;
@@ -8272,12 +8411,18 @@ void S_Save_all_Sounds_changed(void)
     }
 }
 
-void S_Pull_all_Sound_from_Sound_cache_P(void)
+bool S_Pull_all_Sound_from_Sound_cache_P(PatchEditSnapshot *snapshot)
 {
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
+        if (snapshot != nullptr && memcmp(&Sound[sound_id], &S_Sound_cache_P[sound_id], sizeof(Sound_struct)) != 0 && !snapshot->Capture_sound(sound_id))
+        {
+            audio_tables_error_pending = true;
+            return false;
+        }
         Sound[sound_id] = S_Sound_cache_P[sound_id];
     }
+    return true;
 }
 
 uint16_t S_Get_sounds_free(void)
@@ -8294,12 +8439,18 @@ uint16_t S_Get_sounds_free(void)
     return result;
 }
 
-void S_Read_all_Sounds(void)
+bool S_Read_all_Sounds(PatchEditSnapshot *snapshot)
 {
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
+        if (snapshot != nullptr && !snapshot->Capture_sound(sound_id))
+        {
+            audio_tables_error_pending = true;
+            return false;
+        }
         Require_FRAM(Archive.Read_Sound(sound_id));
     }
+    return true;
 }
 
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel)
@@ -8390,7 +8541,7 @@ void S_Drop_Instrument(const int instrument_id)
     Players_Manager.Refresh_cache_sources();
 }
 
-bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
+bool S_Clone_Instrument(const int instrument_id, int &new_instrument, PatchEditSnapshot &snapshot)
 {
     for (new_instrument = 0; new_instrument < INSTRUMENTS; ++new_instrument)
     {
@@ -8400,6 +8551,11 @@ bool S_Clone_Instrument(const int instrument_id, int &new_instrument)
             int sound_id_new = S_Get_sound_free();
             if (sound_id_new >= 0)
             {
+                if (!snapshot.Capture_sound(sound_id_new))
+                {
+                    audio_tables_error_pending = true;
+                    return false;
+                }
                 Sound[sound_id_new] = Sound[Get_sound_id(Patch_id, instrument_id)];
                 Sound[sound_id_new].gain = 0;
                 Patch[Patch_id].Instrument[new_instrument].sound_id = sound_id_new;
@@ -8566,7 +8722,12 @@ void Update_instruments_leds()
 
 bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
 {
-    const PatchEditSnapshot previous;
+    PatchEditSnapshot previous;
+    if (!previous.Capture_sound(SOUNDS_MAX) || !previous.Capture_sound(SOUNDS_MAX + 1))
+    {
+        audio_tables_error_pending = true;
+        return false;
+    }
     const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const int previous_recording = recording;
     DS_set_DS_Sampling_Patch();
@@ -10252,7 +10413,7 @@ void LOOP_set_time_order(int track)
         }
 
         /*
-        Gli eventi sono così ordinati:
+        Gli eventi sono cosÃƒÂ¬ ordinati:
         LOOP_time_order[track][0] = evento con time minimo
         LOOP_time_order[track][0] = evento successivo
         */
@@ -13443,11 +13604,57 @@ void Startup_hardware_and_objects(void)
     Compile_tables();
 
     // audioControlSGTL5000 Audio_shield - Audio Adaptor inizialization
+    /*
+        lineInLevel(both) adjust the sensitivity of the line-level inputs. Fifteen settings are possible:
+        0: 3.12 Volts p-p
+        1: 2.63 Volts p-p
+        2: 2.22 Volts p-p
+        3: 1.87 Volts p-p
+        4: 1.58 Volts p-p
+        5: 1.33 Volts p-p  (default)
+        6: 1.11 Volts p-p
+        7: 0.94 Volts p-p
+        8: 0.79 Volts p-p
+        9: 0.67 Volts p-p
+        10: 0.56 Volts p-p
+        11: 0.48 Volts p-p
+        12: 0.40 Volts p-p
+        13: 0.34 Volts p-p
+        14: 0.29 Volts p-p
+        15: 0.24 Volts p-p
+    */
     Line_in_gain = 5;
-    Audio_shield.enable();
-    Audio_shield.volume(headphones_volume_int / 40.0F);
-    Audio_shield.inputSelect(myInput);
     Audio_shield.lineInLevel(Line_in_gain);
+    
+    /*
+        lineOutLevel(both) adjust the line level output voltage range. The following settings are possible:
+        13: 3.16 Volts p-p
+        14: 2.98 Volts p-p
+        15: 2.83 Volts p-p
+        16: 2.67 Volts p-p
+        17: 2.53 Volts p-p
+        18: 2.39 Volts p-p
+        19: 2.26 Volts p-p
+        20: 2.14 Volts p-p
+        21: 2.02 Volts p-p
+        22: 1.91 Volts p-p
+        23: 1.80 Volts p-p
+        24: 1.71 Volts p-p
+        25: 1.62 Volts p-p
+        26: 1.53 Volts p-p
+        27: 1.44 Volts p-p
+        28: 1.37 Volts p-p
+        29: 1.29 Volts p-p  (default)
+        30: 1.22 Volts p-p
+        31: 1.16 Volts p-p
+    */
+    Line_out_level = 13;
+    Audio_shield.lineOutLevel(Line_out_level);
+
+    Audio_shield.enable();
+    Audio_shield.volume(0.5); // Set the headphone volume level. Range is 0 to 1.0, but 0.8 corresponds to the maximum undistorted output for a full scale signal. Usually 0.5 is a comfortable listening level. The line level outputs are not changed by this function. 
+    Audio_shield.inputSelect(myInput);
+    
     // Audio_shield.audioPostProcessorEnable();
     Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
     Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
@@ -13934,7 +14141,7 @@ bool TEST_Current_Patch_SD_round_trip(void)
     Serial.println(F("Patch successfully saved"));
 
     // 2. Alterazione intenzionale della Patch in RAM.
-    // Serve a dimostrare che Resume non è un semplice no-op.
+    // Serve a dimostrare che Resume non ÃƒÂ¨ un semplice no-op.
     Patch[test_patch_id].used = !Original_Patch.used;
 
     if (Patch[test_patch_id] == Original_Patch)
@@ -13963,7 +14170,7 @@ bool TEST_Current_Patch_SD_round_trip(void)
     const bool data_match = Patch[test_patch_id] == Original_Patch;
 
     // Ripristino finale garantito.
-    // In caso di successo l'assegnazione è ridondante ma innocua.
+    // In caso di successo l'assegnazione ÃƒÂ¨ ridondante ma innocua.
     Patch[test_patch_id] = Original_Patch;
 
     if (!data_match)

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <Adafruit_ILI9341.h>
 #include <Adafruit_GFX.h>
+#include <ILI9341_t3n.h>
 
-extern Adafruit_ILI9341 tft;
+extern ILI9341_t3n tft;
 extern GFXcanvas16 canvas;

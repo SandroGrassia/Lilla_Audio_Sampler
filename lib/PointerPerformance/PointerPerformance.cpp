@@ -12,6 +12,13 @@ void PointerPerformance::Set_pointer_to_last_instrument(const int instrument_id)
     Display_Manager.P_show_pointer_frame(pointer, true); // show the new frame
 }
 
+void PointerPerformance::Set_pointer_to_RootKey(const int instrument_id)
+{
+    Delete_pointer();
+    pointer = {field_P_Instrument_inside, value_P_RootKey, P_line_of_instrument[instrument_id], instrument_id};
+    Display_pointer();
+}
+
 void PointerPerformance::Set_pointer_to_Patch(void)
 {
     pointer = {field_P_Patch, 0, 0, 0};

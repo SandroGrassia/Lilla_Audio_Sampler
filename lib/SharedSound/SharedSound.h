@@ -36,10 +36,10 @@ static constexpr int S_value_names = 11;
 enum S_value_name
 {
     value_S_File,
-    value_S_Midi,
-    value_S_Pitch,
     value_S_Gain,
+    value_S_Pitch,
     value_S_Pan,
+    value_S_Midi,
     value_S_Attack,
     value_S_Decay,
     value_S_Sustain,

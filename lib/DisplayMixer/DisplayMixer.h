@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_GFX.h>     // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
-#include <Adafruit_ILI9341.h> // 1.5.12 version - Hardware-specific library
+#include <ILI9341_t3n.h>
 #include "SharedElements.h"
 #include "SharedSampler.h"
 #include "DisplayPrimitives.h"

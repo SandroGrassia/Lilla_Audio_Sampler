@@ -59,8 +59,8 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("MIDI CHANNEL");
-    Show_Midi_channel_value(instrument_id);
+    tft.print("GAIN");
+    Show_Gain_value(patch_id, instrument_id);
 
     tft.setCursor(display_coordinate_x(18), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
@@ -69,13 +69,13 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 
     tft.setCursor(display_coordinate_x(31), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("GAIN");
-    Show_Gain_value(patch_id, instrument_id);
+    tft.print("PAN");
+    Show_Pan_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(41.5), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("PAN");
-    Show_Pan_value(instrument_id);
+    tft.print("MIDI_CH");
+    Show_Midi_channel_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5.9));
     tft.setTextColor(TEXT_COLOR);
@@ -485,5 +485,5 @@ void DisplaySound::Show_wave(int instrument_id)
         canvas.print("S");
     }
 
-    tft.drawRGBBitmap(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.getBuffer(), canvas.width(), canvas.height());
+    tft.writeRect(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.width(), canvas.height(), canvas.getBuffer());
 }

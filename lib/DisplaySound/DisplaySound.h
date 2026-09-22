@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_GFX.h>     // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
-#include <Adafruit_ILI9341.h> // 1.5.12 version - Hardware-specific library
+#include <ILI9341_t3n.h>
 #include <AudioStream.h>      // pick definition of AUDIO_SAMPLE_RATE
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
@@ -24,10 +24,10 @@ private:
     static constexpr float S_column_row_Patch[2] = {34.5, 0};
     static constexpr float S_column_row_Sound[2] = {24.5, 0};
     static constexpr float S_column_row_File[2] = {43.5, 0};
-    static constexpr float S_column_row_Midi[2] = {12.5, 4.9};
+    static constexpr float S_column_row_Midi[2] = {49, 4.9};
     static constexpr float S_column_row_Pitch[2] = {23.5, 4.9};
-    static constexpr float S_column_row_Gain[2] = {35.5, 4.9};
-    static constexpr float S_column_row_Pan[2] = {45, 4.9};
+    static constexpr float S_column_row_Gain[2] = {4.5, 4.9};
+    static constexpr float S_column_row_Pan[2] = {34.5, 4.9};
     static constexpr float S_column_row_Attack[2] = {3.5, 5.9};
     static constexpr float S_column_row_Decay[2] = {21.5, 5.9};
     static constexpr float S_column_row_Sustain[2] = {34.5, 5.9};
@@ -39,10 +39,10 @@ private:
     static constexpr float S_column_row_value_element[S_value_names][2] =
         {
             {S_column_row_File[0], S_column_row_File[1]},
-            {S_column_row_Midi[0], S_column_row_Midi[1]},
-            {S_column_row_Pitch[0], S_column_row_Pitch[1]},
             {S_column_row_Gain[0], S_column_row_Gain[1]},
+            {S_column_row_Pitch[0], S_column_row_Pitch[1]},
             {S_column_row_Pan[0], S_column_row_Pan[1]},
+            {S_column_row_Midi[0], S_column_row_Midi[1]},
             {S_column_row_Attack[0], S_column_row_Attack[1]},
             {S_column_row_Decay[0], S_column_row_Decay[1]},
             {S_column_row_Sustain[0], S_column_row_Sustain[1]},
@@ -65,10 +65,10 @@ private:
 
     static constexpr int S_chars_value_element[S_value_names] = {
         S_chars_File,
-        S_chars_Midi,
-        S_chars_Pitch,
         S_chars_Gain,
+        S_chars_Pitch,
         S_chars_Pan,
+        S_chars_Midi,
         S_chars_Attack,
         S_chars_Decay,
         S_chars_Sustain,

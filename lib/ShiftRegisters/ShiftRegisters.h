@@ -92,13 +92,11 @@ private:
 public:
     ShiftRegisters(Encoders &EncsObj, Pushbuttons &PbsObj, Switches &SwcObj) : Encoders_manager(EncsObj), Pushbuttons_manager(PbsObj), Switches_manager(SwcObj)
     {
-        Start_SPI_for_shifters();
-        Setup_physical_channels();
-        Switch_all_leds(false);
         Reset_shifters_channels();
         Init_controller_masks();
     }
 
+    void Begin(void);
     void Monitor_all_controllers(void);
     void Update(void);
     void Switch_all_leds(bool on);
