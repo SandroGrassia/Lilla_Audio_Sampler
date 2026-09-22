@@ -114,7 +114,7 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
         else if (value == -1)
         {
             changed = true;
-            pointer = {field_P_Menu, P_menu_max, 0, 0};
+            pointer = P_menu_max < 0 ? P_field_description_struct{field_P_Instrument, 0, Patch[Patch_id].instruments - 1, instrument_on_position[Patch[Patch_id].instruments - 1]} : P_field_description_struct{field_P_Menu, P_menu_max, 0, 0};
         }
         break;
 
@@ -125,7 +125,7 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
 
             if (pointer.instrument_line == (Patch[Patch_id].instruments - 1))
             {
-                pointer = {field_P_Menu, 0, 0, 0};
+                pointer = {P_menu_max < 0 ? field_P_Patch : field_P_Menu, 0, 0, 0};
             }
             else
             {

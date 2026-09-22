@@ -31,6 +31,28 @@ void PatchCacheManager::Begin(void)
     }
     required_count = 0;
     retirement_counter = 0;
+    for (uint8_t slot = 0; slot < PLAYBACK_FILES; ++slot)
+    {
+        if (Playback_sources[slot].psram_ptr != nullptr)
+        {
+            Reserve_playback(slot, Playback_sources[slot].samples);
+        }
+    }
+}
+
+int16_t *PatchCacheManager::Reserve_playback(uint8_t slot, uint32_t samples)
+{
+    if (slot >= PLAYBACK_FILES || samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || cache_pointer[slot] == nullptr)
+    {
+        return nullptr;
+    }
+    cache[slot] = {};
+    cache[slot].state = Ready;
+    cache[slot].file_id = FIRST_PLAYBACK_FILE + slot;
+    cache[slot].samples = samples;
+    cache[slot].copied = samples;
+    cache[slot].valid = true;
+    return cache_pointer[slot];
 }
 
 void PatchCacheManager::Set_cache_pointer(uint8_t cache_id, int16_t *pointer)
@@ -105,6 +127,10 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
         const int request = Find_required(cache[i].file_id);
+        if (Is_playback_file(cache[i].file_id))
+        {
+            continue; // Captures survive switches back to the live recording patch.
+        }
         const bool keep = request >= 0 && !required[request].failed && required[request].samples == cache[i].samples;
         if (!keep)
         {
@@ -134,6 +160,13 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
 
 AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 {
+    if (Is_playback_file(file_id))
+    {
+        AudioFileSource capture = Playback_sources[file_id - FIRST_PLAYBACK_FILE];
+        capture.file_id = file_id;
+        capture.storage = Psram; // Never fall back to Flash, even for an absent capture.
+        return capture;
+    }
     AudioFileSource result;
     result.file_id = file_id;
     result.samples = File_samples(file_id);

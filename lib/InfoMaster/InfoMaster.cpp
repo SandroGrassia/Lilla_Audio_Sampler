@@ -67,6 +67,10 @@ int InfoMaster::DS_recording_samples(int recording)
 
 int InfoMaster::Raw_file_samples(int file_id)
 {
+    if (Is_playback_file(file_id))
+    {
+        return Playback_sources[file_id - FIRST_PLAYBACK_FILE].samples;
+    }
     int result;
     LillaSerialFlashFile rawfile; // SerialFlashFile rawfile;
     rawfile.fast_open(file_id);   // rawfile = SerialFlash.open(name_file[file_id]);
@@ -415,6 +419,14 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
 
 void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, int samples_in) // samples_in <= BASKET_INFO
 {
+    if (Is_playback_file(file_id))
+    {
+        if (!Playback_read_samples(file_id, destination, seek_in, samples_in))
+        {
+            memset(destination, 0, samples_in * sizeof(int16_t));
+        }
+        return;
+    }
     int first_byte;
     int total_bytes = samples_in * 2;
     byte *destination_byte = (byte *)destination;

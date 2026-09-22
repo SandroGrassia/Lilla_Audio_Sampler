@@ -58,6 +58,13 @@ void DisplayManager::Lilla_cover_saturate(void)
 FLASHMEM
 void DisplayManager::P_show_Patch_number(bool change_patch)
 {
+    if (Playback_active)
+    {
+        tft.setCursor(display_coordinate_x(P_column_PATCH), display_coordinate_y(0));
+        tft.setTextColor(change_patch ? ILI9341_YELLOW : ILI9341_WHITE);
+        tft.print("PLAYBACK");
+        return;
+    }
     tft.setCursor(display_coordinate_x(P_column_PATCH), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("PATCH");
@@ -171,7 +178,7 @@ void DisplayManager::P_show_pointer_frame(P_field_description_struct value, bool
         break;
 
     case field_P_Patch:
-        Frame_by_col_row(P_column_Patch_id, 0, 3, show);
+        Frame_by_col_row(Playback_active ? P_column_PATCH : P_column_Patch_id, 0, Playback_active ? 8 : 3, show);
         break;
 
     case field_P_Instrument:

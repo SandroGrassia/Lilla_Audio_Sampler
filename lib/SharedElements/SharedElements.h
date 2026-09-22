@@ -44,6 +44,13 @@ extern int8_t first_octave;
 static constexpr int NAME_FILE_SIZE = 10;
 static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
 static constexpr int FIRST_RECORDING_FILE = 260;
+static constexpr int FIRST_PLAYBACK_FILE = 323;
+static constexpr int PLAYBACK_FILES = 8;
+static constexpr int FIRST_PLAYBACK_SOUND = SOUNDS_MAX + 2;
+inline bool Is_playback_file(int id) { return id >= FIRST_PLAYBACK_FILE && id < FIRST_PLAYBACK_FILE + PLAYBACK_FILES; }
+extern bool Playback_active;
+extern volatile bool Playback_learn_keys;
+extern volatile int Playback_learn_note;
 
 static constexpr char name_file[RAW_FILES][NAME_FILE_SIZE] =
     {
@@ -187,7 +194,7 @@ struct Sound_struct // 22 bytes
     uint8_t gain;
 } __attribute__((__packed__));
 static constexpr uint8_t SIZE_OF_SOUND = sizeof(Sound_struct); // 22
-extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by Direct Sampling for "preascolto" and Live Sampling
+extern Sound_struct Sound[SOUNDS_MAX + 2 + PLAYBACK_FILES]; // Temporary Playback Sounds follow the two sampler Sounds.
 
 // == overloads
 inline bool operator==(const Instrument_filter_data_struct &lhs, const Instrument_filter_data_struct &rhs)
@@ -237,6 +244,9 @@ struct AudioFileSource
     uint32_t samples = 0;
     int8_t cache_id = -1;
 };
+
+extern AudioFileSource Playback_sources[PLAYBACK_FILES];
+bool Playback_read_samples(int file_id, int16_t *destination, int first_sample, int samples);
 
 // PERFORMANCE
 static constexpr char PROGMEM note_name[12][3] = {{"C"}, {"C#"}, {"D"}, {"D#"}, {"E"}, {"F"}, {"F#"}, {"G"}, {"G#"}, {"A"}, {"A#"}, {"B"}};

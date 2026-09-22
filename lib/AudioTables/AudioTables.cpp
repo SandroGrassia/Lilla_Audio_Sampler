@@ -54,7 +54,7 @@ bool AudioTables::Prepare_instrument(uint8_t instrument_id, const Preset_struct 
 
     // Le tabelle sono destinate ai file RAW e alle registrazioni su Flash.
     // Il Live Sampler mantiene il proprio percorso di lettura.
-    if (preset.file >= FIRST_LIVE_SAMPLING_FILE || preset.A < 0 || preset.B < preset.A || preset.mode > LOOP_REV)
+    if ((preset.file >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(preset.file)) || preset.A < 0 || preset.B < preset.A || preset.mode > LOOP_REV)
     {
         return false;
     }
@@ -261,7 +261,7 @@ void AudioTables::Release_unreferenced_banks(uint8_t referenced_banks_mask)
 
 bool AudioTables::Needs_tables(const Preset_struct &preset)
 {
-    return preset.file < FIRST_LIVE_SAMPLING_FILE && (preset.use_Wavetable || ((preset.mode == LOOP_FWD || preset.mode == LOOP_REV) && preset.Noclick > 0));
+    return (preset.file < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(preset.file)) && (preset.use_Wavetable || ((preset.mode == LOOP_FWD || preset.mode == LOOP_REV) && preset.Noclick > 0));
 }
 
 AudioTables::Pointers AudioTables::Get_replacement_pointers(const Pointers &previous)

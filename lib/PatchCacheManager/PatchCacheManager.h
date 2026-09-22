@@ -52,6 +52,7 @@ public:
     PatchCacheManager() = default; // Initialize metadata without accessing external RAM during static construction.
     void Set_cache_pointer(uint8_t cache_id, int16_t *pointer); // Attach an allocated PSRAM buffer during setup.
     void Begin(void); // Invalidate all caches after players have been drained; call with audio interrupts disabled.
+    int16_t *Reserve_playback(uint8_t slot, uint32_t samples); // Caller drains players before replacing this physical cache.
     void Set_required_files(const Preset_struct (&presets)[INSTRUMENTS]); // Pin the published patch files and queue missing data; call with audio interrupts disabled.
     AudioFileSource Get_source(int16_t file_id) const; // Return only complete, pinned data, otherwise select Flash.
     bool Prepare_copy(CopyJob &job); // Reserve one bounded copy operation; call from main with audio interrupts disabled.

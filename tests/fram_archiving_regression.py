@@ -25,7 +25,7 @@ methods = methods[:raw_read_start] + methods[raw_read_end:]
 shared = (ROOT / "lib/SharedElements/SharedElements.h").read_text(encoding="utf-8")
 runtime = shared[shared.index("struct Instrument_filter_data_struct"):shared.index("struct Instrument_filter_values_struct")]
 runtime += shared[shared.index("struct Sound_struct"):shared.index("// == overloads")]
-runtime += "\nPatch_struct Patch[PATCHES_MAX + 1];\nSound_struct Sound[SOUNDS_MAX + 2];\n"
+runtime += "\nPatch_struct Patch[PATCHES_MAX + 1];\nSound_struct Sound[SOUNDS_MAX + 2 + PLAYBACK_FILES];\n"
 
 prefix = r"""
 #include <algorithm>
@@ -45,6 +45,8 @@ constexpr int INSTRUMENTS = 8;
 constexpr int RECORDINGS = 30;
 constexpr int PATCHES_MAX = 200;
 constexpr int SOUNDS_MAX = 800;
+constexpr int PLAYBACK_FILES = 8, FIRST_PLAYBACK_SOUND = SOUNDS_MAX + 2;
+bool Playback_active = false;
 constexpr int VFS_PACKETS_MAX = 512;
 struct VFS_Recording { int first_packet = 0, packets = 0, bytes = 0; float seconds = 0; bool stereo = false, consistent = false; };
 VFS_Recording Recording[RECORDINGS];

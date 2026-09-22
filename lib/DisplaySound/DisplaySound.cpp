@@ -41,7 +41,14 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.print("PATCH");
     tft.setCursor(display_coordinate_x(S_column_row_Patch[0]), display_coordinate_y(S_column_row_Patch[1]));
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(Patch_id);
+    if (Playback_active)
+    {
+        tft.print("PLAYBACK");
+    }
+    else
+    {
+        tft.print(Patch_id);
+    }
 
     tft.setCursor(display_coordinate_x(19), display_coordinate_y(0));// 23 -4
     tft.setTextColor(TEXT_COLOR);
@@ -52,7 +59,10 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 
     tft.setCursor(display_coordinate_x(39), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("FILE");
+    if (!Playback_active)
+    {
+        tft.print("FILE");
+    }
     Show_File_value(instrument_id);
 
     Display_Manager.Show_all_effects();
@@ -216,6 +226,10 @@ void DisplaySound::Show_Release_value(int instrument_id)
 FLASHMEM
 void DisplaySound::Show_File_value(int instrument_id)
 {
+    if (Playback_active)
+    {
+        return;
+    }
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(name_file[Preset[instrument_id].file]);
@@ -319,7 +333,7 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
     tft.setTextColor(ILI9341_WHITE);
 
     const auto &preset = Preset[instrument_id];
-    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const bool live = (preset.file >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(preset.file));
     const float max_pitch = Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
     const int max_pitch_semitones = static_cast<int>(floorf(12.0f * log2f(max_pitch)));
     if (max_pitch_semitones >= 0)

@@ -1011,6 +1011,8 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
 }
 
+#include "PlaybackPerformance.inc"
+
 struct PatchEditSnapshot
 {
     const int patch_id = Patch_id;
@@ -1055,7 +1057,7 @@ struct PatchEditSnapshot
 
     bool Capture_sound(int sound_id)
     {
-        if (!valid || sound_id < 0 || sound_id >= SOUNDS_MAX + 2)
+        if (!valid || sound_id < 0 || sound_id >= SOUNDS_MAX + 2 + PLAYBACK_FILES)
         {
             valid = false;
             audio_tables_error_pending = true;
@@ -1070,7 +1072,7 @@ struct PatchEditSnapshot
         }
         if (count == capacity)
         {
-            const size_t next_capacity = capacity == 0 ? INSTRUMENTS : (capacity * 2 > SOUNDS_MAX + 2 ? SOUNDS_MAX + 2 : capacity * 2);
+            const size_t next_capacity = capacity == 0 ? INSTRUMENTS : (capacity * 2 > SOUNDS_MAX + 2 + PLAYBACK_FILES ? SOUNDS_MAX + 2 + PLAYBACK_FILES : capacity * 2);
             SavedSound *expanded = new (std::nothrow) SavedSound[next_capacity];
             if (expanded == nullptr)
             {
@@ -2254,6 +2256,19 @@ void loop()
 
                 case value_S_Clone:
                 {
+                    if (Playback_active)
+                    {
+                        int target = 0;
+                        const bool cloned = Playback_clone(Instrument_id, target);
+                        S_Set_Sound_SOLO_OFF();
+                        Golive_with_PERFORMANCE(Patch_id);
+                        if (cloned)
+                        {
+                            Pointer_Performance.Set_pointer_to_RootKey(target);
+                            P_pointer = Pointer_Performance.Get_pointer();
+                        }
+                        break;
+                    }
                     AudioNoInterrupts();
                     PatchEditSnapshot previous;
                     int new_instrument = 0;
@@ -2312,6 +2327,10 @@ void loop()
             {
             case value_S_File:
             {
+                if (Playback_active)
+                {
+                    break;
+                }
                 int result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0)
                 {
@@ -4606,6 +4625,14 @@ void loop()
     // *************************************************************
     if (Lilla_state == LIVE_SAMPLING)
     {
+        for (int slot = 0; slot < PLAYBACK_FILES; ++slot)
+        {
+            if (Read_pushbutton(PB_Sound[slot]))
+            {
+                Playback_capture(slot);
+                return;
+            }
+        }
 
         /*
         Live Sampling (LIVE SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX.
@@ -7971,6 +7998,10 @@ uint8_t P_Get_first_Patch_id_existing(void)
 
 uint8_t P_Get_next_Patch_id_existing(void)
 {
+    if (Playback_active)
+    {
+        return P_Get_first_Patch_id_existing();
+    }
     uint8_t patch_id = Patch_id;
     do
     {
@@ -8099,6 +8130,12 @@ bool P_Ask_if_delete_this_Patch(void)
 
 bool P_Jump_to_Patch(uint8_t next_patch)
 {
+    const bool leaving_playback = Playback_active;
+    if (leaving_playback && !Playback_confirm("LOSE PLAYBACK AND ALL SOUNDS?"))
+    {
+        Golive_with_PERFORMANCE(Patch_id);
+        return false;
+    }
     Delay_data_struct next_delay{};
     Require_FRAM(Archive.Read_Delay(next_patch, next_delay));
     Preset_struct next_presets[INSTRUMENTS] = {};
@@ -8141,12 +8178,20 @@ bool P_Jump_to_Patch(uint8_t next_patch)
     Serial.println(next_tables_mask, HEX);
     Patch_cache_P = Patch[Patch_id];
     S_Copy_all_Sound_to_Sound_cache_P();
+    if (leaving_playback)
+    {
+        Playback_abandon(false);
+    }
     Golive_with_PERFORMANCE(Patch_id);
     return true;
 }
 
 bool P_Save_current_patch_as_new(void)
 {
+    if (Playback_active)
+    {
+        return false;
+    }
     const Delay_data_struct cloned_delay = Delay_data;
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
@@ -8272,6 +8317,10 @@ void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, con
 
 bool P_Verify_is_Patch_original(const int patch_id)
 {
+    if (Playback_active)
+    {
+        return true; // Playback has no persistent original and no save/discard-edits menu.
+    }
     bool result = true;
 
     if (Patch[patch_id].instruments == Patch_cache_P.instruments)
@@ -8294,6 +8343,15 @@ bool P_Verify_is_Patch_original(const int patch_id)
 
 void P_Select_menu_elements(void)
 {
+    if (Playback_active)
+    {
+        for (auto &item : Menu_P)
+        {
+            item = false;
+        }
+        P_menu_max = -1;
+        return;
+    }
     // voices that can be displayed
     Menu_P[value_P_Exit] = true;
     Menu_P[value_P_Save] = true;
@@ -8359,7 +8417,7 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
     }
     last_ms = now_ms;
     const auto &preset = Preset[Instrument_id];
-    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(preset.file);
     const float limit = Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
     const int voices = PLAYERS;
     if (force || displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
@@ -8374,6 +8432,10 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
 
 bool S_Verify_is_Sound_original(const int sound_id)
 {
+    if (sound_id >= FIRST_PLAYBACK_SOUND)
+    {
+        return true;
+    }
     return Sound[sound_id] == S_Sound_cache_P[sound_id];
 }
 
@@ -8387,6 +8449,10 @@ void S_Copy_all_Sound_to_Sound_cache_P(void)
 
 void S_Save_all_Sounds_changed(void)
 {
+    if (Playback_active)
+    {
+        return;
+    }
     for (auto sound_id = 0; sound_id < SOUNDS_MAX; ++sound_id)
     {
         // Sound which have been changed only for .used
@@ -8529,6 +8595,15 @@ uint32_t S_Calc_trim_step(int value)
 
 void S_Drop_Instrument(const int instrument_id)
 {
+    if (Playback_active)
+    {
+        const int other = Playback_partner[instrument_id];
+        if (other >= 0)
+        {
+            Playback_partner[other] = -1;
+        }
+        Playback_partner[instrument_id] = -1;
+    }
     Sound[Get_sound_id(Patch_id, instrument_id)].used = false;
     Patch[Patch_id].Instrument[instrument_id].used = false;
     Patch[Patch_id].instruments--;
@@ -9638,6 +9713,7 @@ void Golive_with_MIDI_LOOP(bool restart)
 
 void Switch_to_DIRECT_SAMPLING(void)
 {
+    Playback_remember();
     AudioNoInterrupts();
     Players_Manager.Stop_all_players();
     if (!DS_setup_DIRECT_SAMPLING_Patch_and_Preset())
@@ -9865,6 +9941,7 @@ void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void)
 
 void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void)
 {
+    Playback_remember();
     AudioNoInterrupts();
     Players_Manager.Stop_all_players();
 
@@ -9882,6 +9959,7 @@ void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void)
 
 void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void)
 {
+    Playback_remember();
     AudioNoInterrupts();
     LOOP_stop_all_midi_tracks();
 
@@ -9986,6 +10064,10 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 
 void Switch_to_PERFORMANCE_patch_old(void)
 {
+    if (Playback_enter())
+    {
+        return;
+    }
     Delay_data_struct next_delay{};
     Require_FRAM(Archive.Read_Delay(Patch_id_old, next_delay));
     AudioNoInterrupts();
@@ -10020,6 +10102,10 @@ void Switch_from_MIDI_LOOP_to_PERFORMANCE(void)
 
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
 {
+    if (Playback_enter())
+    {
+        return;
+    }
     if (LS_state == REC) // Recording
     {
         if (!LS_ask_if_exit_from_LS()) // false: remain
@@ -11916,6 +12002,10 @@ int Get_previous_raw_file_in_flash(int file)
 
 int Get_samples_in_raw_file(int file_id) // value is a file_id
 {
+    if (Is_playback_file(file_id))
+    {
+        return Playback_sources[file_id - FIRST_PLAYBACK_FILE].samples;
+    }
     if (file_id < FIRST_RECORDING_FILE)
         return Info.Raw_file_samples(file_id);
 
@@ -13276,6 +13366,14 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 FLASHMEM
 void S_Select_menu_elements(void)
 {
+    if (Playback_active)
+    {
+        S_Menu[value_S_Return] = true;
+        S_Menu[value_S_Clone] = Patch[Patch_id].instruments < INSTRUMENTS;
+        S_Menu[value_S_Drop] = Patch[Patch_id].instruments > 1;
+        S_menu_max = S_Menu[value_S_Clone] + S_Menu[value_S_Drop];
+        return;
+    }
     // voices of instrument_edit_menu that can be displayed
     S_Menu[value_S_Return] = true; // RETURN
     S_Menu[value_S_Clone] = true;  // CLONE

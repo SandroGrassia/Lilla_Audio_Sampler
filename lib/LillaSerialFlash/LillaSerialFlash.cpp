@@ -27,6 +27,10 @@ void LillaSerialFlashFile::packet_fast_open(int id_packet)
 
 bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count)
 {
+    if (Is_playback_file(file_id))
+    {
+        return Playback_read_samples(file_id, destination, first_sample, samples_count);
+    }
     if (file_id < 0 || file_id >= FIRST_LIVE_SAMPLING_FILE || first_sample < 0 || samples_count < 0)
     {
         return false;

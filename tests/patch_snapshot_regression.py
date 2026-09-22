@@ -21,6 +21,9 @@ prefix = r'''
 #include <new>
 #include <iostream>
 constexpr int SOUNDS_MAX = 800, INSTRUMENTS = 8, IRQ_SOFTWARE = 0;
+constexpr int PLAYBACK_FILES = 8;
+bool Playback_active = false;
+int Playback_partner[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
 bool irq_enabled = true, audio_tables_error_pending = false;
 int allocations_until_failure = -1, live_allocations = 0, map_updates = 0;
 void *operator new[](std::size_t size, const std::nothrow_t &) noexcept
@@ -59,7 +62,7 @@ void P_Update_all_maps_Instrument_for_notes() { ++map_updates; }
 struct Sound_struct { int value = 0; bool used = false; int gain = 0; };
 struct Instrument { bool used = false; int sound_id = 0; };
 struct Patch_struct { ::Instrument Instrument[INSTRUMENTS]; int instruments = 0; bool used = false; };
-Sound_struct Sound[SOUNDS_MAX + 2], S_Sound_cache_P[SOUNDS_MAX];
+Sound_struct Sound[SOUNDS_MAX + 2 + PLAYBACK_FILES], S_Sound_cache_P[SOUNDS_MAX];
 Patch_struct Patch[3];
 int Patch_id = 0;
 int Get_sound_id(int patch_id, int instrument_id) { return Patch[patch_id].Instrument[instrument_id].sound_id; }

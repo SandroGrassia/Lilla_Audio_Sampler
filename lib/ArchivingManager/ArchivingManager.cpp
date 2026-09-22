@@ -1314,6 +1314,10 @@ byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_dat
 
 byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &delay_data)
 {
+    if (Playback_active)
+    {
+        return LillaFRAM_2x512::ERROR_0;
+    }
     FRAM_Patch_delay_struct destination{};
     destination.samples = delay_data.samples;
     destination.samples_LR = delay_data.samples_LR;
@@ -1358,6 +1362,10 @@ byte ArchivingManager::Save_first_octave(const int8_t first_octave)
 
 byte ArchivingManager::Save_Sound(const int sound_id)
 {
+    if (Playback_active || sound_id >= FIRST_PLAYBACK_SOUND)
+    {
+        return LillaFRAM_2x512::ERROR_0;
+    }
     if (sound_id < 0 || sound_id >= SOUNDS_MAX)
     {
         return LillaFRAM_2x512::ERROR_11;
@@ -1459,6 +1467,10 @@ byte ArchivingManager::Read_Sound(const int sound_id)
 
 byte ArchivingManager::Save_Patch(const int patch_id)
 {
+    if (Playback_active)
+    {
+        return LillaFRAM_2x512::ERROR_0;
+    }
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
         return LillaFRAM_2x512::ERROR_11;
@@ -1649,6 +1661,10 @@ String ArchivingManager::Filename_Sound(const int patch_id, const int instrument
 
 bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
 {
+    if (Playback_active)
+    {
+        return false;
+    }
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLAPATCH/" + filename);
     auto *full_path_ptr = full_path.c_str();
@@ -1871,6 +1887,10 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 
 bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
 {
+    if (Playback_active)
+    {
+        return false;
+    }
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
         return false;
