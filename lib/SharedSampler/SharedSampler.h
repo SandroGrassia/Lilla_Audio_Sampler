@@ -27,7 +27,6 @@ extern int DS_menu_max;
 
 extern int recordings;
 extern int recording;
-extern int DS_gain;
 extern elapsedMillis DS_blink_timer;
 extern bool DS_blink_ON;
 extern bool DS_recording_led_visible; // Whether the current description reserves space for the playback LED.

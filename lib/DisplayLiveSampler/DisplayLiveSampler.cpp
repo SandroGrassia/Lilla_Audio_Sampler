@@ -58,6 +58,11 @@ void DisplayLiveSampler::Page(void)
     Buffer();
 
     tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_GAIN[0]), display_coordinate_y(LS_column_row_GAIN[1]));
+    tft.print("LINE IN GAIN");
+    Gain();
+
+    tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(LS_column_row_PLAY_MODE[0]), display_coordinate_y(LS_column_row_PLAY_MODE[1]));
     tft.print("PLAY MODE");
     Play_mode();
@@ -86,6 +91,7 @@ void DisplayLiveSampler::Page(void)
     tft.setCursor(display_coordinate_x(LS_column_row_STEP[0]), display_coordinate_y(LS_column_row_STEP[1]));
     tft.print("STEP");
     Step();
+
 }
 
 FLASHMEM
@@ -104,6 +110,14 @@ void DisplayLiveSampler::Volume(void)
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_volume[0]), display_coordinate_y(LS_column_row_volume[1]), 4);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(volume_patch / 20.0f);
+}
+
+FLASHMEM
+void DisplayLiveSampler::Gain(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_gain[0]), display_coordinate_y(LS_column_row_gain[1]), 2);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Line_in_gain + 1);
 }
 
 FLASHMEM
@@ -197,8 +211,7 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
     {
         if (LS_X_delta == 0)
         {
-            tft.print("DELAY ");
-            tft.print(0.00);
+            tft.print("SYNC");
         }
 
         else if (LS_X_delta > LS_buffer_dim / 2)
@@ -206,12 +219,12 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
             local_value = (LS_buffer_dim - LS_X_delta) / AUDIO_SAMPLE_RATE;
             if (local_value >= 0)
             {
-                tft.print("DELAY ");
+                tft.print("BEHIND ");
                 tft.print(local_value, 2);
             }
             else
             {
-                tft.print("ADVANCE ");
+                tft.print("AHEAD ");
                 tft.print(-local_value, 2);
             }
         }
@@ -220,12 +233,12 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
             local_value = -LS_X_delta / AUDIO_SAMPLE_RATE;
             if (local_value >= 0)
             {
-                tft.print("DELAY ");
+                tft.print("BEHIND ");
                 tft.print(local_value, 2);
             }
             else
             {
-                tft.print("ADVANCE ");
+                tft.print("AHEAD ");
                 tft.print(-local_value, 2);
             }
         }
@@ -526,6 +539,11 @@ void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, 
 
         case value_LS_Window:
             Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_window, show);
+            break;
+
+        case value_LS_Gain:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], 2, show);
+            break;
         }
     }
 }

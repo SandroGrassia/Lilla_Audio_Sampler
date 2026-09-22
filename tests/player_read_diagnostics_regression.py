@@ -26,7 +26,8 @@ prefix = r"""
 #define F(value) value
 using byte = uint8_t;
 constexpr uint8_t LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV = 5;
-constexpr int PLAYERS = 3, PACKET_DIM = 65536, LS_buffer_dim = 8;
+constexpr int PLAYERS = 3, PACKET_DIM = 65536;
+int LS_buffer_dim = 8;
 constexpr uint32_t F_CPU_ACTUAL = 600000000;
 uint32_t audio_update_cycle = 1, ARM_DWT_CYCCNT = 0, ARM_DEMCR = 0, ARM_DWT_CTRL = 0;
 constexpr uint32_t ARM_DEMCR_TRCENA = 1, ARM_DWT_CTRL_CYCCNTENA = 1;
@@ -172,6 +173,31 @@ int main()
         }
         assert(guarded[0] == -1234 && guarded[4448] == -1234);
     }
+    // Live NoClick uses current circular-buffer data, including wrap and repeated short loops.
+    LS_buffer_dim = 1024;
+    int16_t live[1024];
+    for (int i = 0; i < 1024; ++i)
+    {
+        live[i] = i % 2 ? 32767 : -32768;
+    }
+    p.FIFO = live;
+    p.LS_flag = true;
+    p.source_now.storage = Flash;
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        assert(p.Fill_loop_samples(guarded + 1, 4447, 250, 900, 1412, 128, LOOP_FWD, nullptr));
+        for (int i = 0; i < 4447; ++i)
+        {
+            const int phase = (250 + i) % 385;
+            const int k = phase - 257;
+            const int expected = phase < 257 ? live[(900 + 128 + phase) % 1024] : (static_cast<int32_t>(live[(1285 + k) % 1024]) * (127 - k) + static_cast<int32_t>(live[(900 + k) % 1024]) * k) / 127;
+            assert(guarded[i + 1] == expected);
+        }
+        assert(guarded[0] == -1234 && guarded[4448] == -1234);
+        std::fill(std::begin(live), std::end(live), 12345);
+    }
+    LS_buffer_dim = 8;
+    p.FIFO = source;
     p.LS_flag = false; p.source_now = {Psram, 8, source};
     p.Wavetable_ptr = source; p.mode_player = LOOP_FWD; p.a_sample = 0.5f; p.b_sample = 4445.5f; p.pitch = 35;
     p.Wavetable_harvest();

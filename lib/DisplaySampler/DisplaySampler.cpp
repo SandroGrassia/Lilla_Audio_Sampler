@@ -117,7 +117,7 @@ void DisplaySampler::DS_sampler_IO(void)
     tft.print("PAUSE+REC");
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(DS_ROW_GAIN));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("AUDIO IN GAIN");
+    tft.print("LINE IN GAIN");
     DS_show_gain();
     for (int channel = 0; channel < 2; ++channel)
     {
@@ -432,9 +432,9 @@ void DisplaySampler::DS_show_gain(void)
     {
         return;
     }
-    Cancel_text_reset_cursor(display_coordinate_x(DS_COLUMN_GAIN), display_coordinate_y(DS_ROW_GAIN), 4);
+    Cancel_text_reset_cursor(display_coordinate_x(DS_COLUMN_GAIN), display_coordinate_y(DS_ROW_GAIN), 2);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(DS_gain / 20.0f, 2);
+    tft.print(Line_in_gain + 1);
 }
 
 FLASHMEM
@@ -491,6 +491,6 @@ void DisplaySampler::DS_show_pointer_frame(const DS_pointer_struct pointer, cons
     }
     else if (pointer.value_element == value_DS_Gain && DS_recording_controls_visible)
     {
-        Frame_by_col_row(DS_COLUMN_GAIN, DS_ROW_GAIN, 4, show);
+        Frame_by_col_row(DS_COLUMN_GAIN, DS_ROW_GAIN, 2, show);
     }
 }

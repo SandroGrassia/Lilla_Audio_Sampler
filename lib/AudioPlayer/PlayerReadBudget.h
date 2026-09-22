@@ -6,6 +6,7 @@
 
 namespace PlayerReadBudget
 {
+constexpr int Live_noclick_samples = 128; // Forward Live loops blend the current PSRAM endpoints.
 constexpr float Limit_us = 1800.0f; // Initial source-read allowance per block; leaves 1100 us of the 2900 us audio cycle for other work and safety margin.
 constexpr float Margin = 1.10f; // Initial transfer-model margin, to be validated with the full audio chain on hardware.
 constexpr float Maximum_modulation = 1.5f * 1.01f; // Current MIDI bend tops below 1.5 and full-depth vibrato below 1.01; reserve both even before they are used.
@@ -56,6 +57,10 @@ inline float Estimate(const Plan &plan, uint32_t output_samples) // Reserve all 
     if (plan.live)
     {
         operations *= 2u; // Each logical live segment may wrap the circular buffer.
+        if (plan.crossfade > 0)
+        {
+            operations *= 2u; // Dynamic NoClick reads both live endpoints.
+        }
     }
     if (plan.packets)
     {
@@ -69,6 +74,10 @@ inline float Estimate(const Plan &plan, uint32_t output_samples) // Reserve all 
     else if (plan.crossfade > 0)
     {
         cost += Transfer_us(PlayerReadSource::Ram, samples + 9u * operations) + (operations - 1u) * Transfer_us(PlayerReadSource::Ram, 0); // Charging a full RAM span as well safely covers every possible NoClick split.
+        if (plan.live)
+        {
+            cost += Transfer_us(PlayerReadSource::Psram, samples) + 0.05f * samples; // Bound the second endpoint read and per-sample blend; validate CPU allowance on hardware.
+        }
     }
     if (plan.packets)
     {

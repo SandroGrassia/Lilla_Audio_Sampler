@@ -111,7 +111,7 @@ void DisplayMixer::MX_source_values_write(const int source, const bool bright)
         tft.drawBitmap(display_coordinate_x(MX_column_Sound + 0.5 + source * 5), display_coordinate_y(MX_row_Sound + 1), led_pic, 8, 8, (MX_mute[source] ? ILI9341_RED : RED_OFF)); // Mute
         tft.setTextColor((bright ? ILI9341_YELLOW : 0x6300));
         tft.setCursor(display_coordinate_x(MX_column_Sound - 1 + source * 5), display_coordinate_y(MX_row_Sound + 2)); // Gain
-        tft.print(DS_gain / 20.0f);
+        tft.print(Line_in_gain + 1);
 
         tft.setTextColor((bright ? ILI9341_WHITE : 0x6300));
         tft.setCursor(display_coordinate_x(MX_column_Sound + 0.5 + source * 5), display_coordinate_y(MX_row_Sound + 3)); // Pan
