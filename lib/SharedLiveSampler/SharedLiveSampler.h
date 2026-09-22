@@ -78,10 +78,10 @@ enum LS_menu_element_name
 static constexpr int LS_value_names = 4;
 enum LS_value_name
 {
+    value_LS_Gain,
     value_LS_Play_mode,
     value_LS_Feedback,
-    value_LS_Window,
-    value_LS_Gain
+    value_LS_Window
 };
 
 struct LS_pointer_struct

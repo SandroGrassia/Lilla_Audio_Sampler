@@ -58,6 +58,11 @@ void DisplayLiveSampler::Page(void)
     Buffer();
 
     tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_GAIN[0]), display_coordinate_y(LS_column_row_GAIN[1]));
+    tft.print("LINE IN GAIN");
+    Gain();
+
+    tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(LS_column_row_PLAY_MODE[0]), display_coordinate_y(LS_column_row_PLAY_MODE[1]));
     tft.print("PLAY MODE");
     Play_mode();
@@ -87,10 +92,6 @@ void DisplayLiveSampler::Page(void)
     tft.print("STEP");
     Step();
 
-    tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(LS_column_row_GAIN[0]), display_coordinate_y(LS_column_row_GAIN[1]));
-    tft.print("AUDIO IN GAIN");
-    Gain();
 }
 
 FLASHMEM

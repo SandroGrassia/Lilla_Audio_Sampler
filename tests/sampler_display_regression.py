@@ -90,7 +90,7 @@ int main()
     assert(Display_Sampler.DS_has_recording_controls());
     assert(!DS_recording_led_visible);
     assert(tft.labels.size() == 4);
-    const char *labels[] = {"PAUSE+REC", "AUDIO IN GAIN", "LEVEL L", "LEVEL R"};
+    const char *labels[] = {"PAUSE+REC", "LINE IN GAIN", "LEVEL L", "LEVEL R"};
     for (int row = 0; row < 4; ++row)
     {
         assert(tft.labels[row].value == labels[row]);

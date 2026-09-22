@@ -29,7 +29,7 @@ void PointerLiveSampler::Move_pointer(const int value)
             if (menu_position == LS_menu_max)
             {
                 pointer.field_name = field_LS_Value;
-                pointer.value_element = value_LS_Play_mode;
+                pointer.value_element = value_LS_Gain;
             }
             else
             {
@@ -67,7 +67,7 @@ void PointerLiveSampler::Move_pointer(const int value)
         }
         else if (value == -1)
         {
-            if (pointer.value_element == value_LS_Play_mode)
+            if (pointer.value_element == value_LS_Gain)
             {
                 pointer.field_name = field_LS_Menu;
                 pointer.menu_element = static_cast<LS_menu_element_name>(element_Menu_LS[LS_menu_max]);
