@@ -47,13 +47,15 @@ std::vector<std::string> messages;
 struct Screen { void fillRoundRect(int,int,int,int,int,int) {} void setTextColor(int) {} void setCursor(int,int) {} void print(const char *s) { messages.emplace_back(s); } } tft;
 void Show_popup_text(const char *text, int, int, int = 0) { messages.emplace_back(text); }
 void Show_popup_text(const char *first, const char *second, int, int, int = 0) { messages.emplace_back(first); messages.emplace_back(second); }
+void Frame_by_pixels_on_RED(int, int, int, bool) {}
+struct DisplayLiveSamplerStub { void LS_Display_Confirm_capture_frame(int) {} } Display_LiveSampler;
 struct Recorder { bool writing=false; bool Is_writing() { return writing; } } LiveSampler;
 struct Midi { void Start() { ++midi_starts; } void Stop() { ++midi_stops; } } Midi_reader;
 struct Players { void Stop_all_players() {} uint16_t Get_cache_reference_mask() { return 0; } } Players_Manager;
 struct PlayerStub { bool isPlaying() { return stuck; } } Player[PLAYERS];
 void AudioNoInterrupts() {} void AudioInterrupts() {} void Clear_UI_events() {}
 uint32_t millis() { static uint32_t tick=0; return ++tick; }
-void Read_encoder(int,int &choice,int,int,int) { choice=1; }
+bool Read_encoder(int,int &choice,int,int,int) { choice=1; return true; }
 bool Read_pushbutton(int);
 void LS_refresh_LS_page() {} void P_Update_Patches_number() {}
 bool P_Verify_is_Patch_original(const int patch_id);
@@ -134,7 +136,7 @@ int main()
     LS_stereo=true; messages.clear(); Capture_sound(2);
     assert(Capture_new_patch==1 && Patch_id_old==1 && Patch[1].used && Patch[1].instruments==2);
     assert(Capture_patch_delay.samples==37 && creates==0);
-    assert(std::count(messages.begin(),messages.end(),"ROOT KEY")==1);
+    assert(std::count(messages.begin(),messages.end(),"           CANCEL")==1);
     int soundL=Patch[1].Instrument[2].sound_id, soundR=Patch[1].Instrument[3].sound_id;
     int fileL=Sound[soundL].file, fileR=Sound[soundR].file;
     assert(soundL<SOUNDS_MAX && soundR<SOUNDS_MAX && fileL<FIRST_RECORDING_FILE);

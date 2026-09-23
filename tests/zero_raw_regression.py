@@ -50,6 +50,27 @@ tests = tests.replace('int main()\n{', """int main()
     assert(!capture_changed && SerialFlash.erases == 0 && SerialFlash.writes == 0);
     Capture_sources[0].audio.psram_ptr = nullptr;
 """)
+tests = tests.replace('    bool changed = false;', r"""
+    bool imported = false;
+    for (const char *name : {"7.raw", "7.RAW", "7.RaW"})
+    {
+        reset();
+        auto raw = add(name, 600);
+        auto zero = add("0.RAW", 800);
+        add("notes.txt", 100);
+        add("8.raw.bak", 200);
+        assert(SET_Copy_raw_files_from_SD_to_Flash(imported) && imported);
+        assert(SerialFlash.files.size() == 2);
+        assert(SerialFlash.files.at("7.raw") == raw->data);
+        assert(SerialFlash.files.at("0.raw") == zero->data);
+    }
+    reset();
+    auto raw = add("MixedName.RAW", 600);
+    assert(SET_Copy_raw_files_from_SD_to_Flash(imported) && imported);
+    assert(SerialFlash.files.at("MixedName.raw") == raw->data);
+    verify_fallback();
+    bool changed = false;
+""")
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-zero-raw-') as directory:
     build = Path(directory)

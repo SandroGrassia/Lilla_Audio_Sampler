@@ -920,6 +920,8 @@ void DisplayManager::P_Confirm_patch_delete_popup_frame(int value)
         break;
     }
 }
+
+
 FLASHMEM
 void DisplayManager::SETUP_show_SETUP_page(void)
 {
@@ -1640,7 +1642,7 @@ void DisplayManager::Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print(F("  RECORDINGS IN LILLA!"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(15) - 5);
-    tft.print(F("- LILLA REQUIRES .raw (lowercase!)"));
+    tft.print(F("- .raw / .RAW FILES ARE SAVED AS .raw"));
 }
 
 FLASHMEM

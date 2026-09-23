@@ -1154,18 +1154,20 @@ FLASHMEM static void Capture_notice(const char *message)
 FLASHMEM static bool Capture_confirm(void)
 {
     int choice = 0;
-    Show_popup_text("REPLACE CAPTURE?", ">NO     YES ", ILI9341_WHITE, ILI9341_RED);
+    //                                  "REPLACE CAPTURE?"
+    Show_popup_text("REPLACE CAPTURE?", "    NO  YES", ILI9341_WHITE, ILI9341_RED);
     Clear_UI_events();
+
+    Display_LiveSampler.LS_Display_Confirm_capture_frame(0);
     do
     {
         Shifters_manager.Update();
-        const int previous_choice = choice;
-        Read_encoder(EN_PB_Select, choice, 1, 0, 1);
-        if (choice != previous_choice)
+        if(Read_encoder(EN_PB_Select, choice, 1, 0, 1))
         {
-            Show_popup_text("REPLACE CAPTURE?", choice == 0 ? ">NO     YES " : " NO    >YES ", ILI9341_WHITE, ILI9341_RED);
+          Display_LiveSampler.LS_Display_Confirm_capture_frame(choice);
         }
     } while (!Read_pushbutton(EN_PB_Select));
+    
     Clear_UI_events();
     return choice == 1;
 }
@@ -1173,7 +1175,10 @@ FLASHMEM static bool Capture_confirm(void)
 FLASHMEM static bool Capture_root(uint8_t &root)
 {
     LS_refresh_LS_page();
-    Show_popup_text("PRESS A KEY TO INSERT ROOT KEY", "(OR CONFIRM TO CANCEL)", ILI9341_WHITE, ILI9341_RED);
+    //                                                "PRESS A KEY TO INSERT ROOT KEY"
+    Show_popup_text("PRESS A KEY TO INSERT ROOT KEY", "           CANCEL", ILI9341_WHITE, ILI9341_RED);
+    Frame_by_pixels_on_RED(138, 123, 6, true);
+
     Clear_UI_events();
     AudioNoInterrupts();
     Capture_learn_note = -1;
@@ -12193,19 +12198,23 @@ static bool BACKUP_Export_files(void)
         entry.close();
     }
     directory.close();
+
     if (highest >= 999999)
     {
         return false;
     }
+
     char temporary[40], destination[40], path[64];
     snprintf(temporary, sizeof(temporary), "%s/%06lu.tmp", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
     snprintf(destination, sizeof(destination), "%s/%06lu", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
+    
     if (SD.exists(temporary) || SD.exists(destination) || !SD.mkdir(temporary))
     {
         return false;
     }
     ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
     VFS_Recording entries[RECORDINGS]{};
+
     for (int id = 0; id < RECORDINGS; ++id)
     {
         const VFS_Recording runtime = Recording[id];
@@ -12246,18 +12255,22 @@ static bool BACKUP_Export_files(void)
             }
         }
     }
+
     // Written last: an interrupted audio export never acquires a complete configuration file.
     snprintf(path, sizeof(path), "%s/%s", temporary, BACKUP_CONFIG);
     File config = SD.open(path, FILE_WRITE);
     const bool saved = config && Archive.Save_FRAM_backup(config, audio);
     config.close();
     int capacity = 0;
+
     if (!saved || !BACKUP_Verify_directory(temporary, audio, entries, capacity) || !SD.rename(temporary, destination))
     {
         return false;
     }
+
     Serial.print(F("Complete backup saved: "));
     Serial.println(destination);
+
     return true;
 }
 
@@ -12278,35 +12291,43 @@ static bool BACKUP_Restore_files(bool &changed, bool &config_error)
         config_error = true;
         return false;
     }
+    
     if (!VFS_Wait_flash())
     {
         return false;
     }
+    
     ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
     VFS_Recording entries[RECORDINGS]{};
     int capacity = 0;
+   
     if (!BACKUP_Verify_directory(BACKUP_ROOT, audio, entries, capacity, true, &config_error))
     {
         return false;
     }
+    
     char path[64];
     snprintf(path, sizeof(path), "%s/%s", BACKUP_ROOT, BACKUP_CONFIG);
     File config = SD.open(path);
+    
     if (!config || !Archive.Verify_FRAM_backup(config))
     {
         config_error = true;
         return false;
     }
+    
     changed = true; // Even a torn state-marker write requires recovery rather than resuming playback.
     if (!Archive.Restore_FRAM_backup(config, false))
     {
         return false;
     }
+
     config.close();
     DS_First_packet = 0;
     DS_VFS_packets = capacity;
     DS_Last_packet = capacity - 1;
     VFS_packets = capacity;
+
     // Existing RAW library files are untouched; only the VFS packet area is replaced.
     for (int packet = 0; packet < capacity; ++packet)
     {
@@ -13466,6 +13487,19 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         return false;
     }
 
+    // Preserve the basename and normalize only the RAW extension for Flash.
+    const auto raw_filename = [](const char *source, char *destination, size_t capacity) -> bool
+    {
+        const size_t length = strlen(source);
+        if (length <= 4 || length >= capacity || strcasecmp(source + length - 4, ".raw") != 0)
+        {
+            return false;
+        }
+        memcpy(destination, source, length - 4);
+        memcpy(destination + length - 4, ".raw", 5);
+        return true;
+    };
+
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
@@ -13487,11 +13521,12 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             break;
         }
 
-        if (!f.isDirectory())
+        char filename[256];
+        if (!f.isDirectory() && raw_filename(f.name(), filename, sizeof(filename)))
         {
             SD_raw_volume += f.size();
             ++SD_raw_files;
-            if (strcasecmp(f.name(), "0.raw") == 0 && f.size() >= sizeof(int16_t) && f.size() % sizeof(int16_t) == 0)
+            if (strcmp(filename, "0.raw") == 0 && f.size() >= sizeof(int16_t) && f.size() % sizeof(int16_t) == 0)
             {
                 SD_has_zero_raw = true;
             }
@@ -13647,14 +13682,14 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         {
             break;
         }
-        if (f.isDirectory())
+        char filename[256];
+        if (f.isDirectory() || !raw_filename(f.name(), filename, sizeof(filename)))
         {
             f.close();
             continue;
         }
 
-        const bool is_zero_raw = strcasecmp(f.name(), "0.raw") == 0;
-        const char *filename = is_zero_raw ? "0.raw" : f.name();
+        const bool is_zero_raw = strcmp(filename, "0.raw") == 0;
         const unsigned long length = f.size();
         if (is_zero_raw && (length < sizeof(int16_t) || length % sizeof(int16_t) != 0))
         {
