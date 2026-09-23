@@ -38,8 +38,8 @@ tests = '\nvoid reset()\n{\n    SerialFlash = FlashStub();\n    SD = SDStub();\n
 fixture += r"""
 struct CaptureAudio { const void *psram_ptr = nullptr; };
 struct CaptureStub { CaptureAudio audio; } Capture_sources[1];
-void Capture_collect() {}
-void Capture_notice(const char *) {}
+void LS_Capture_collect() {}
+void LS_Capture_notice(const char *) {}
 """
 tests = tests.replace('int main()\n{', """int main()
 {

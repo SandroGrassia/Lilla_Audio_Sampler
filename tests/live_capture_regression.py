@@ -124,16 +124,16 @@ int main()
     Patch[PATCHES_MAX].Instrument[0]={true,SOUNDS_MAX,60,60,60,0};
     assert(P_Verify_is_Patch_original(Patch_id_old));
     Sound[30].pan=4;
-    Capture_sound(0);
+    LS_Capture_sound(0);
     assert(!Patch[1].used && messages.back()=="SAVE CURRENT PATCH FIRST");
     Sound[30].pan=0;
     // Cancel and guard failures allocate neither metadata nor Flash.
-    cancel=true; Capture_sound(0); cancel=false;
+    cancel=true; LS_Capture_sound(0); cancel=false;
     assert(!Patch[1].used && creates==0 && !Capture_learn_key);
-    LS_state=REC; Capture_sound(0); LS_state=PLAYONLY;
+    LS_state=REC; LS_Capture_sound(0); LS_state=PLAYONLY;
     assert(!Patch[1].used);
     // Stereo capture gets a normal patch and normal Sound IDs, with only one key prompt.
-    LS_stereo=true; messages.clear(); Capture_sound(2);
+    LS_stereo=true; messages.clear(); LS_Capture_sound(2);
     assert(Capture_new_patch==1 && Patch_id_old==1 && Patch[1].used && Patch[1].instruments==2);
     assert(Capture_patch_delay.samples==37 && creates==0);
     assert(std::count(messages.begin(),messages.end(),"           CANCEL")==1);
@@ -148,34 +148,34 @@ int main()
     PatchCache_Manager.Set_required_files(Preset); PatchCache_Manager.Release_unreferenced_caches(0); PatchCache_Manager.Begin();
     assert(PatchCache_Manager.Get_source(fileL).storage==Psram);
     // Copy-on-write replacement must preserve a clone sharing the first source.
-    Sound[9]=Sound[soundL]; LS_stereo=false; cancel=true; Capture_sound(2); cancel=false;
+    Sound[9]=Sound[soundL]; LS_stereo=false; cancel=true; LS_Capture_sound(2); cancel=false;
     // confirm accepts a press, but ROOT KEY cancellation leaves capture untouched.
     assert(Sound[soundL].file==fileL);
-    Capture_sound(2);
+    LS_Capture_sound(2);
     assert(Sound[soundL].file!=fileL && Capture_find(fileL)->audio.psram_ptr[0]==30000);
     // Directly test mono capture in an empty slot, including circular wrap and exact length.
-    Capture_sound(4);
+    LS_Capture_sound(4);
     int monoSound=Patch[1].Instrument[4].sound_id, monoFile=Sound[monoSound].file;
     auto *monoSource=Capture_find(monoFile);
     assert(monoSource->audio.psram_ptr[0]==1900 && monoSource->audio.psram_ptr[148]==0 && monoSource->audio.samples==513);
     // A failed second file keeps all sources in PSRAM; retry skips completed files.
-    fail_file=fileR; assert(!Capture_materialize());
+    fail_file=fileR; assert(!LS_Capture_materialize());
     assert(Capture_find(Sound[soundL].file)->written && !Capture_find(fileR)->written);
     assert(PatchCache_Manager.Get_source(fileR).storage==Psram);
-    const int firstCreates=creates; fail_file=-1; assert(Capture_materialize());
+    const int firstCreates=creates; fail_file=-1; assert(LS_Capture_materialize());
     assert(creates==firstCreates+3); // Retry right, then write mono and the preserved clone source.
     assert(flash.at(name_file[monoFile]).size()==1026);
-    const int completedCreates=creates; assert(Capture_materialize() && creates==completedCreates);
+    const int completedCreates=creates; assert(LS_Capture_materialize() && creates==completedCreates);
     // Publication removes only temporary pinning; standard cache playback remains valid.
     Preset[2]={true,fileL}; Preset[3]={true,fileR}; Preset[4]={true,monoFile};
-    Capture_finish_save();
+    LS_Capture_finish_save();
     assert(Capture_find(fileL)==nullptr && PatchCache_Manager.Get_source(fileL).storage==Psram);
     // Full source capacity fails before assigning a patch/Sound or writing any file.
     for(int i=0;i<8;++i) { Capture_sources[i]={{static_cast<int16_t>(i+10),Psram,cache[i],10,static_cast<int8_t>(i)},false}; Sound[i+20].used=true; Sound[i+20].file=i+10; }
-    Capture_sound(6); assert(!Patch[1].Instrument[6].used && creates==completedCreates);
+    LS_Capture_sound(6); assert(!Patch[1].Instrument[6].used && creates==completedCreates);
     // Readback mismatch never publishes the file and retains its PSRAM data.
     CaptureSource bad={{19,Psram,cache[0],10,0},false}; corrupt_file=19;
-    assert(!Capture_write(bad) && !bad.written && !SerialFlash.exists(name_file[19]));
+    assert(!LS_Capture_write(bad) && !bad.written && !SerialFlash.exists(name_file[19]));
     std::cout << "PASS: normal IDs, root, cancel, circular capture, cache pinning, deferred save, retry, capacity and verification\n";
 }
 '''
@@ -186,8 +186,10 @@ main_source = (root / 'src/main.cpp').read_text(encoding='utf-8')
 for name in ['P_Verify_if_Instrument_original', 'P_Verify_is_Patch_original']:
     program += re.search(r'^bool ' + name + r'[^\n]*\n\{.*?^\}', main_source, re.M | re.S).group(0) + '\n'
 capture_start = main_source.index('// Live capture creates ordinary patch/Sound metadata;')
-capture_end = main_source.index('\nvoid Require_FRAM(byte result)\n{', capture_start)
-program += '\nPatchCacheManager PatchCache_Manager;\n' + main_source[capture_start:capture_end] + checks
+capture_end = main_source.index('\nvoid LS_refresh_LS_page(void)\n{', capture_start)
+capture_globals = '\n'.join(re.findall(r'^static (?:int Capture_target|uint8_t Capture_return_patch|int8_t Capture_pair)[^\n]*', main_source, re.M))
+capture_declarations = '\n'.join(re.findall(r'^FLASHMEM static [^\n]+LS_Capture_[^\n]+;', main_source, re.M))
+program += '\nPatchCacheManager PatchCache_Manager;\n' + capture_globals + '\n' + capture_declarations + '\n' + main_source[capture_start:capture_end] + checks
 with tempfile.TemporaryDirectory(prefix='lilla-live-capture-') as directory:
     cpp = Path(directory) / 'capture.cpp'
     exe = Path(directory) / 'capture.exe'

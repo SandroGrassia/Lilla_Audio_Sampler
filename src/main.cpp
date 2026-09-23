@@ -701,6 +701,10 @@ int16_t *const LS_buffer_R_ptr = LS_buffer_storage + LS_CACHE_CHANNEL_SAMPLES;
 const int LS_REFRESH = 200; // tempo di refresh 160 ms
 elapsedMillis LS_wave_refresh_timer;
 
+static int Capture_target = -1;
+static uint8_t Capture_return_patch = 0;
+static int8_t Capture_pair[INSTRUMENTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+
 // functions
 void LS_refresh_LS_page(void);
 bool LS_ask_if_exit_from_LS(void);
@@ -711,6 +715,17 @@ void LS_update_both_X_Y_samples(void);
 void LS_update_Q_sample(void);
 void LS_Reset_buffer(void);
 void LS_setup_LS_Patch(bool stereo);
+FLASHMEM static void LS_Capture_notice(const char *message);
+FLASHMEM static bool LS_Capture_confirm(void);
+FLASHMEM static bool LS_Capture_root(uint8_t &root);
+FLASHMEM static bool LS_Capture_drain(void);
+FLASHMEM static bool LS_Capture_referenced(int file, int except_sound = -1);
+FLASHMEM static void LS_Capture_collect(void);
+FLASHMEM static void LS_Capture_sound(int selected);
+FLASHMEM static bool LS_Capture_write(CaptureSource &source);
+FLASHMEM static bool LS_Capture_materialize(void);
+FLASHMEM static void LS_Capture_finish_save(void);
+
 
 // >>>>>>> MIDI_LOOP
 // variables
@@ -1031,512 +1046,16 @@ struct PatchEditSnapshot
     PatchEditSnapshot(const PatchEditSnapshot &) = delete;
     PatchEditSnapshot &operator=(const PatchEditSnapshot &) = delete;
 
-    PatchEditSnapshot(void) // Capture the editable model while preserving the caller's audio IRQ state.
-    {
-        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-        AudioNoInterrupts();
-        patch = Patch[patch_id];
-        for (int instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-        {
-            if (patch.Instrument[instrument_id].used && !Capture_sound(patch.Instrument[instrument_id].sound_id))
-            {
-                break;
-            }
-        }
-        if (enabled)
-        {
-            AudioInterrupts();
-        }
-    }
+    PatchEditSnapshot(void); // Capture the editable model while preserving the caller's audio IRQ state.
 
-    ~PatchEditSnapshot(void)
-    {
-        delete[] sounds;
-    }
+    ~PatchEditSnapshot(void);
 
-    bool Capture_sound(int sound_id)
-    {
-        if (!valid || sound_id < 0 || sound_id >= SOUNDS_MAX + 2)
-        {
-            valid = false;
-            audio_tables_error_pending = true;
-            return false;
-        }
-        for (size_t i = 0; i < count; ++i)
-        {
-            if (sounds[i].sound_id == sound_id)
-            {
-                return true;
-            }
-        }
-        if (count == capacity)
-        {
-            const size_t next_capacity = capacity == 0 ? INSTRUMENTS : (capacity * 2 > SOUNDS_MAX + 2 ? SOUNDS_MAX + 2 : capacity * 2);
-            SavedSound *expanded = new (std::nothrow) SavedSound[next_capacity];
-            if (expanded == nullptr)
-            {
-                valid = false;
-                audio_tables_error_pending = true;
-                return false;
-            }
-            if (count != 0)
-            {
-                memcpy(expanded, sounds, count * sizeof(SavedSound));
-            }
-            delete[] sounds;
-            sounds = expanded;
-            capacity = next_capacity;
-        }
-        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-        AudioNoInterrupts();
-        sounds[count].sound_id = sound_id;
-        sounds[count].value = Sound[sound_id];
-        ++count;
-        if (enabled)
-        {
-            AudioInterrupts();
-        }
-        return true;
-    }
+    bool Capture_sound(int sound_id);
 
-    const Sound_struct *Find_sound(int sound_id) const
-    {
-        for (size_t i = 0; i < count; ++i)
-        {
-            if (sounds[i].sound_id == sound_id)
-            {
-                return &sounds[i].value;
-            }
-        }
-        return nullptr;
-    }
+    const Sound_struct *Find_sound(int sound_id) const;
 
-    void Restore(void) const // Restore the model and note maps after a failed preparation; published presets remain unchanged.
-    {
-        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-        AudioNoInterrupts();
-        Patch_id = patch_id;
-        Patch[patch_id] = patch;
-        for (size_t i = 0; i < count; ++i)
-        {
-            Sound[sounds[i].sound_id] = sounds[i].value;
-        }
-        P_Update_all_maps_Instrument_for_notes();
-        if (enabled)
-        {
-            AudioInterrupts();
-        }
-    }
+    void Restore(void) const; // Restore the model and note maps after a failed preparation; published presets remain unchanged.
 };
-
-// *************************************************************
-// *************************************************************
-// ********************   LIVE CAPTURE *************************
-// *************************************************************
-// *************************************************************
-
-// Live capture creates ordinary patch/Sound metadata; RAW storage is deferred until Save.
-static int Capture_target = -1;
-static uint8_t Capture_return_patch = 0;
-static int8_t Capture_pair[INSTRUMENTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-
-FLASHMEM static void Capture_notice(const char *message)
-{
-    Show_popup_text(message, ILI9341_WHITE, ILI9341_RED, 0);
-    const uint32_t started = millis();
-    while (static_cast<uint32_t>(millis() - started) < 2000u)
-    {
-        Shifters_manager.Update();
-    }
-    Clear_UI_events();
-}
-
-FLASHMEM static bool Capture_confirm(void)
-{
-    int choice = 0;
-    //                                  "REPLACE CAPTURE?"
-    Show_popup_text("REPLACE CAPTURE?", "    NO  YES", ILI9341_WHITE, ILI9341_RED);
-    Clear_UI_events();
-
-    Display_LiveSampler.LS_Display_Confirm_capture_frame(0);
-    do
-    {
-        Shifters_manager.Update();
-        if(Read_encoder(EN_PB_Select, choice, 1, 0, 1))
-        {
-          Display_LiveSampler.LS_Display_Confirm_capture_frame(choice);
-        }
-    } while (!Read_pushbutton(EN_PB_Select));
-    
-    Clear_UI_events();
-    return choice == 1;
-}
-
-FLASHMEM static bool Capture_root(uint8_t &root)
-{
-    LS_refresh_LS_page();
-    //                                                "PRESS A KEY TO INSERT ROOT KEY"
-    Show_popup_text("PRESS A KEY TO INSERT ROOT KEY", "           CANCEL", ILI9341_WHITE, ILI9341_RED);
-    Frame_by_pixels_on_RED(138, 123, 6, true);
-
-    Clear_UI_events();
-    AudioNoInterrupts();
-    Capture_learn_note = -1;
-    Capture_learn_key = true;
-    AudioInterrupts();
-    int note = -1;
-    while (note < 0)
-    {
-        Shifters_manager.Update();
-        if (Read_pushbutton(EN_PB_Select))
-        {
-            Capture_learn_key = false;
-            Clear_UI_events();
-            return false;
-        }
-        AudioNoInterrupts();
-        note = Capture_learn_note;
-        Capture_learn_note = -1;
-        AudioInterrupts();
-    }
-    Capture_learn_key = false;
-    root = note;
-    Clear_UI_events();
-    return true;
-}
-
-FLASHMEM static bool Capture_drain(void)
-{
-    Midi_reader.Stop();
-    AudioNoInterrupts();
-    Players_Manager.Stop_all_players();
-    AudioInterrupts();
-    const uint32_t started = millis();
-    bool playing;
-    do
-    {
-        playing = false;
-        AudioNoInterrupts();
-        for (int i = 0; i < PLAYERS; ++i)
-        {
-            playing |= Player[i].isPlaying();
-        }
-        AudioInterrupts();
-    } while (playing && static_cast<uint32_t>(millis() - started) < 100u);
-    if (playing)
-    {
-        Midi_reader.Start();
-    }
-    return !playing;
-}
-
-FLASHMEM static bool Capture_referenced(int file, int except_sound = -1)
-{
-    for (int id = 0; id < SOUNDS_MAX; ++id)
-    {
-        if ((id != except_sound && Sound[id].used && Sound[id].file == file) || (S_Sound_cache_P[id].used && S_Sound_cache_P[id].file == file))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-FLASHMEM static void Capture_collect(void)
-{
-    // Snapshots protect Discard; retiring players retain their cache until their release ends.
-    AudioNoInterrupts();
-    for (auto &source : Capture_sources)
-    {
-        if (source.audio.psram_ptr != nullptr && !Capture_referenced(source.audio.file_id))
-        {
-            const int file = source.audio.file_id;
-            source = {};
-            PatchCache_Manager.Invalidate_file(file);
-        }
-    }
-    PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask());
-    AudioInterrupts();
-}
-
-FLASHMEM static void Capture_sound(int selected)
-{
-    if (LS_state == REC || LiveSampler.Is_writing() || LS_state != PLAYONLY || LS_mode < LOOP_FWD)
-    {
-        Capture_notice("STOP REC AND SELECT LOOP MODE");
-        LS_refresh_LS_page();
-        return;
-    }
-    const uint32_t samples = LS_XY_delta + 1;
-    if (samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || LS_buffer_dim <= 0)
-    {
-        Capture_notice("LOOP TOO LONG FOR CACHE");
-        LS_refresh_LS_page();
-        return;
-    }
-    const bool creating = Capture_target < 0 || Capture_target != Patch_id_old || !Patch[Capture_target].used;
-    const int target = creating ? S_Get_Patch_id_free() : Capture_target;
-    if (target < 0 || (creating && !P_Verify_is_Patch_original(Patch_id_old)))
-    {
-        Capture_notice(target < 0 ? "NO FREE PATCH" : "SAVE CURRENT PATCH FIRST");
-        LS_refresh_LS_page();
-        return;
-    }
-    int first = selected;
-    int second = -1;
-    const int partner = creating ? -1 : Capture_pair[selected];
-    if (LS_stereo)
-    {
-        if (partner >= 0 && Patch[target].Instrument[partner].used && Patch[target].Instrument[selected].used)
-        {
-            first = selected < partner ? selected : partner;
-            second = selected < partner ? partner : selected;
-        }
-        else if (selected + 1 < INSTRUMENTS && (creating || !Patch[target].Instrument[selected + 1].used))
-        {
-            second = selected + 1;
-        }
-    }
-    if (!creating && Patch[target].Instrument[selected].used && !Capture_confirm())
-    {
-        LS_refresh_LS_page();
-        return;
-    }
-    uint8_t root = 60;
-    if (!Capture_root(root) || !Capture_drain())
-    {
-        LS_refresh_LS_page();
-        return;
-    }
-    Capture_collect();
-    const int channels = second < 0 ? 1 : 2;
-    int sounds[2] = {-1, -1};
-    int slots[2] = {-1, -1};
-    int files[2] = {-1, -1};
-    int16_t *destinations[2] = {};
-    for (int channel = 0; channel < channels; ++channel)
-    {
-        const int instrument = channel == 0 ? first : second;
-        if (!creating && Patch[target].Instrument[instrument].used)
-        {
-            sounds[channel] = Patch[target].Instrument[instrument].sound_id;
-        }
-        else
-        {
-            for (int id = 0; id < SOUNDS_MAX; ++id)
-            {
-                if (!Sound[id].used && id != sounds[0])
-                {
-                    sounds[channel] = id;
-                    break;
-                }
-            }
-        }
-        for (int slot = 0; slot < CAPTURE_SOURCES; ++slot)
-        {
-            const auto &source = Capture_sources[slot];
-            const bool reusable = !source.written && !Capture_referenced(source.audio.file_id, sounds[channel]);
-            if (slot != slots[0] && (source.audio.psram_ptr == nullptr || reusable))
-            {
-                slots[channel] = slot;
-                break;
-            }
-        }
-        if (slots[channel] >= 0 && Capture_sources[slots[channel]].audio.psram_ptr != nullptr)
-        {
-            files[channel] = Capture_sources[slots[channel]].audio.file_id;
-        }
-        else
-        {
-            for (int file = 1; file < FIRST_RECORDING_FILE; ++file)
-            {
-                if (file != files[0] && Capture_find(file) == nullptr && !SerialFlash.exists(name_file[file]))
-                {
-                    files[channel] = file;
-                    break;
-                }
-            }
-        }
-        if (sounds[channel] < 0 || slots[channel] < 0 || files[channel] < 0)
-        {
-            Midi_reader.Start();
-            Capture_notice("NO FREE SOUND / CACHE / FILE");
-            LS_refresh_LS_page();
-            return;
-        }
-    }
-    for (int channel = 0; channel < channels; ++channel)
-    {
-        destinations[channel] = PatchCache_Manager.Reserve_capture(slots[channel], files[channel], samples);
-        if (destinations[channel] == nullptr)
-        {
-            Midi_reader.Start();
-            Capture_notice("CAPTURE CACHE UNAVAILABLE");
-            LS_refresh_LS_page();
-            return;
-        }
-    }
-    if (creating)
-    {
-        Capture_return_patch = Patch_id_old;
-        Capture_target = target;
-        Capture_new_patch = target;
-        Capture_patch_delay = Delay_data;
-        Patch_cache_P = Patch[target];
-        S_Copy_all_Sound_to_Sound_cache_P();
-        Patch[target] = {};
-        for (auto &pair : Capture_pair)
-        {
-            pair = -1;
-        }
-    }
-    int position = LS_X_sample % LS_buffer_dim;
-    if (position < 0)
-    {
-        position += LS_buffer_dim;
-    }
-    for (int channel = 0; channel < channels; ++channel)
-    {
-        const int instrument_id = channel == 0 ? first : second;
-        int16_t *destination = destinations[channel];
-        for (uint32_t i = 0; i < samples; ++i)
-        {
-            const int index = (position + i) % LS_buffer_dim;
-            destination[i] = !LS_stereo ? LS_buffer_mono_ptr[index] : (second < 0 ? static_cast<int16_t>((static_cast<int32_t>(LS_buffer_L_ptr[index]) + LS_buffer_R_ptr[index]) / 2) : (channel == 0 ? LS_buffer_L_ptr[index] : LS_buffer_R_ptr[index]));
-        }
-        Capture_sources[slots[channel]] = {{static_cast<int16_t>(files[channel]), Psram, destination, samples, static_cast<int8_t>(slots[channel])}, false};
-        auto &instrument = Patch[target].Instrument[instrument_id];
-        instrument = {};
-        instrument.used = true;
-        instrument.sound_id = sounds[channel];
-        instrument.from_note = instrument.root_key = instrument.to_note = root;
-        instrument.Filter = Patch[PATCHES_MAX].Instrument[0].Filter;
-        auto &sound = Sound[sounds[channel]];
-        sound = Sound[SOUNDS_MAX + channel];
-        sound.used = true;
-        sound.file = files[channel];
-        sound.A = 0;
-        sound.B = samples - 1;
-        sound.Noclick = LS_mode == LOOP_FWD ? 128 : 0;
-        sound.pan = second < 0 ? 0 : (channel == 0 ? -16 : 16);
-        const int previous_partner = Capture_pair[instrument_id];
-        if (previous_partner >= 0)
-        {
-            Capture_pair[previous_partner] = -1;
-        }
-        Capture_pair[instrument_id] = -1;
-    }
-    if (second >= 0)
-    {
-        Capture_pair[first] = second;
-        Capture_pair[second] = first;
-    }
-    Patch[target].used = true;
-    Patch[target].instruments = 0;
-    for (const auto &instrument : Patch[target].Instrument)
-    {
-        Patch[target].instruments += instrument.used;
-    }
-    Patch_id_old = target;
-    P_Update_Patches_number();
-    Midi_reader.Start();
-    LS_refresh_LS_page();
-}
-
-FLASHMEM static bool Capture_write(CaptureSource &source)
-{
-    if (source.written)
-    {
-        return true; // A retry after another channel failed must not allocate again.
-    }
-    const char *name = name_file[source.audio.file_id];
-    const uint32_t bytes = source.audio.samples * sizeof(int16_t);
-    if (SerialFlash.exists(name) || !SerialFlash.create(name, bytes))
-    {
-        return false;
-    }
-    SerialFlashFile file = SerialFlash.open(name);
-    bool complete = static_cast<bool>(file);
-    const auto *data = reinterpret_cast<const uint8_t *>(source.audio.psram_ptr);
-    for (uint32_t offset = 0; complete && offset < bytes; offset += 256u)
-    {
-        const uint32_t count = bytes - offset < 256u ? bytes - offset : 256u;
-        complete = file.write(data + offset, count) == count;
-        Shifters_manager.Update();
-    }
-    SerialFlash.wait();
-    file.seek(0);
-    uint8_t verify[256];
-    for (uint32_t offset = 0; complete && offset < bytes; offset += sizeof(verify))
-    {
-        const uint32_t count = bytes - offset < sizeof(verify) ? bytes - offset : sizeof(verify);
-        complete = file.read(verify, count) == count && memcmp(verify, data + offset, count) == 0;
-    }
-    file.close();
-    if (!complete)
-    {
-        SerialFlash.remove(name); // Hide incomplete data; SerialFlash cannot reclaim its allocation.
-        return false;
-    }
-    source.written = true;
-    return true;
-}
-
-FLASHMEM static bool Capture_materialize(void)
-{
-    bool needed = false;
-    for (int id = 0; id < SOUNDS_MAX; ++id)
-    {
-        needed |= Sound[id].used && Capture_pending(Sound[id].file);
-    }
-    if (!needed)
-    {
-        return true;
-    }
-    if (!Capture_drain())
-    {
-        Capture_notice("SAVE BUSY - TRY AGAIN");
-        return false;
-    }
-    Show_popup_text("SAVING RAW FILES...", ILI9341_WHITE, ILI9341_RED, 0);
-    const uint32_t popup_started = millis();
-
-    bool complete = true;
-    for (int id = 0; complete && id < SOUNDS_MAX; ++id)
-    {
-        auto *source = Sound[id].used ? Capture_find(Sound[id].file) : nullptr;
-        if (source != nullptr)
-        {
-            complete = Capture_write(*source);
-        }
-    }
-    File_scanner.Read_all_file_data();
-    while (static_cast<uint32_t>(millis() - popup_started) < 2000u)
-    {
-        Shifters_manager.Update();
-    }
-    Midi_reader.Start();
-    Clear_UI_events();
-    if (!complete)
-    {
-        Capture_notice("RAW SAVE FAILED - RETRY");
-    }
-    return complete;
-}
-
-FLASHMEM static void Capture_finish_save(void)
-{
-    AudioNoInterrupts();
-    for (auto &source : Capture_sources)
-    {
-        if (source.written)
-        {
-            source = {}; // Its ordinary cache remains valid and may now be reclaimed normally.
-        }
-    }
-    PatchCache_Manager.Set_required_files(Preset);
-    AudioInterrupts();
-}
 
 // *************************************************************
 // *************************************************************
@@ -1550,8 +1069,10 @@ void Require_FRAM(byte result)
     {
         return;
     }
+
     Serial.print(F("FRAM operation failed, error "));
     Serial.println(result);
+
     P_Quiesce_audio_players();
     AudioNoInterrupts();
     Display_Manager.FRAM_io_error_popup();
@@ -1695,7 +1216,7 @@ void loop()
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
     P_Service_patch_cache();
-    
+
     /*
     if (Serial.available() > 0)
     {
@@ -2047,7 +1568,7 @@ void loop()
                         Serial.println(F("AudioTables restore tables not activated"));
                     }
 
-                    Capture_collect();
+                    LS_Capture_collect();
                     Pointer_Performance.Delete_pointer();
                     patch_original = true;
                     P_Select_menu_elements();
@@ -2073,7 +1594,7 @@ void loop()
                     }
                     Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
                     Require_FRAM(Archive.Save_Patch(Patch_id));
-                    Capture_finish_save();
+                    LS_Capture_finish_save();
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
                     S_Read_all_Sounds();
@@ -2129,7 +1650,7 @@ void loop()
                             break;
                         }
                         Require_FRAM(Archive.Save_Patch(deleted_patch));
-                        Capture_finish_save();
+                        LS_Capture_finish_save();
                         Archive.Copy_Patch_from_RAM_to_SD(deleted_patch);
 
                         P_Read_all_Patches();
@@ -2137,7 +1658,7 @@ void loop()
                         S_Read_all_Sounds();
 
                         S_Copy_all_Sound_to_Sound_cache_P();
-                        Capture_collect();
+                        LS_Capture_collect();
                     }
 
                     // NO, don't drop the patch
@@ -2211,7 +1732,7 @@ void loop()
                                 }
                                 Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
                                 Require_FRAM(Archive.Save_Patch(Patch_id));
-                                Capture_finish_save();
+                                LS_Capture_finish_save();
                                 Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
                                 if (!S_Read_all_Sounds(&previous))
                                 {
@@ -5049,11 +4570,11 @@ void loop()
     // *************************************************************
     if (Lilla_state == LIVE_SAMPLING)
     {
-        for (int slot = 0; slot < INSTRUMENTS; ++slot)
+        for (int Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
-            if (Read_pushbutton(PB_Sound[slot]))
+            if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                Capture_sound(slot);
+                LS_Capture_sound(Inst_id);
                 return;
             }
         }
@@ -8273,6 +7794,104 @@ void loop()
 // **************************************************************************************************************************
 // **************************************************************************************************************************
 
+// Patch edit snapshots: capture and restore the editable model.
+PatchEditSnapshot::PatchEditSnapshot(void) // Capture the editable model while preserving the caller's audio IRQ state.
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    patch = Patch[patch_id];
+    for (int instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        if (patch.Instrument[instrument_id].used && !Capture_sound(patch.Instrument[instrument_id].sound_id))
+        {
+            break;
+        }
+    }
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+}
+
+PatchEditSnapshot::~PatchEditSnapshot(void)
+{
+    delete[] sounds;
+}
+
+bool PatchEditSnapshot::Capture_sound(int sound_id)
+{
+    if (!valid || sound_id < 0 || sound_id >= SOUNDS_MAX + 2)
+    {
+        valid = false;
+        audio_tables_error_pending = true;
+        return false;
+    }
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (sounds[i].sound_id == sound_id)
+        {
+            return true;
+        }
+    }
+    if (count == capacity)
+    {
+        const size_t next_capacity = capacity == 0 ? INSTRUMENTS : (capacity * 2 > SOUNDS_MAX + 2 ? SOUNDS_MAX + 2 : capacity * 2);
+        SavedSound *expanded = new (std::nothrow) SavedSound[next_capacity];
+        if (expanded == nullptr)
+        {
+            valid = false;
+            audio_tables_error_pending = true;
+            return false;
+        }
+        if (count != 0)
+        {
+            memcpy(expanded, sounds, count * sizeof(SavedSound));
+        }
+        delete[] sounds;
+        sounds = expanded;
+        capacity = next_capacity;
+    }
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    sounds[count].sound_id = sound_id;
+    sounds[count].value = Sound[sound_id];
+    ++count;
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+    return true;
+}
+
+const Sound_struct *PatchEditSnapshot::Find_sound(int sound_id) const
+{
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (sounds[i].sound_id == sound_id)
+        {
+            return &sounds[i].value;
+        }
+    }
+    return nullptr;
+}
+
+void PatchEditSnapshot::Restore(void) const // Restore the model and note maps after a failed preparation; published presets remain unchanged.
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    AudioNoInterrupts();
+    Patch_id = patch_id;
+    Patch[patch_id] = patch;
+    for (size_t i = 0; i < count; ++i)
+    {
+        Sound[sounds[i].sound_id] = sounds[i].value;
+    }
+    P_Update_all_maps_Instrument_for_notes();
+    if (enabled)
+    {
+        AudioInterrupts();
+    }
+}
+
 // ***************************************************************************************************************
 // **********************************                   TABLES                  **********************************
 // ***************************************************************************************************************
@@ -8602,7 +8221,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
         Capture_new_patch = -1;
         Capture_target = -1;
     }
-    Capture_collect();
+    LS_Capture_collect();
     P_Update_Patches_number();
     Golive_with_PERFORMANCE(Patch_id);
     return true;
@@ -8611,7 +8230,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
 FLASHMEM
 bool P_Save_current_patch_as_new(void)
 {
-    if (!Capture_materialize())
+    if (!LS_Capture_materialize())
     {
         Golive_with_PERFORMANCE(Patch_id);
         return false;
@@ -8702,7 +8321,7 @@ bool P_Save_current_patch_as_new(void)
     {
         Capture_target = Patch_id;
     }
-    Capture_finish_save();
+    LS_Capture_finish_save();
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
     P_Update_Patches_number();
     Patch_cache_P = Patch[Patch_id];
@@ -8873,7 +8492,7 @@ void S_Copy_all_Sound_to_Sound_cache_P(void)
 FLASHMEM
 bool S_Save_all_Sounds_changed(void)
 {
-    if (!Capture_materialize())
+    if (!LS_Capture_materialize())
     {
         return false;
     }
@@ -12207,7 +11826,7 @@ static bool BACKUP_Export_files(void)
     char temporary[40], destination[40], path[64];
     snprintf(temporary, sizeof(temporary), "%s/%06lu.tmp", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
     snprintf(destination, sizeof(destination), "%s/%06lu", BACKUP_ROOT, static_cast<unsigned long>(highest + 1));
-    
+
     if (SD.exists(temporary) || SD.exists(destination) || !SD.mkdir(temporary))
     {
         return false;
@@ -12291,31 +11910,31 @@ static bool BACKUP_Restore_files(bool &changed, bool &config_error)
         config_error = true;
         return false;
     }
-    
+
     if (!VFS_Wait_flash())
     {
         return false;
     }
-    
+
     ArchivingManager::Recording_backup_audio audio[RECORDINGS]{};
     VFS_Recording entries[RECORDINGS]{};
     int capacity = 0;
-   
+
     if (!BACKUP_Verify_directory(BACKUP_ROOT, audio, entries, capacity, true, &config_error))
     {
         return false;
     }
-    
+
     char path[64];
     snprintf(path, sizeof(path), "%s/%s", BACKUP_ROOT, BACKUP_CONFIG);
     File config = SD.open(path);
-    
+
     if (!config || !Archive.Verify_FRAM_backup(config))
     {
         config_error = true;
         return false;
     }
-    
+
     changed = true; // Even a torn state-marker write requires recovery rather than resuming playback.
     if (!Archive.Restore_FRAM_backup(config, false))
     {
@@ -13060,6 +12679,409 @@ void Print_map_instrument_for_note(int midi_channel)
 // **********************************                LIVE_SAMPLING              **********************************
 // ***************************************************************************************************************
 
+// Live capture creates ordinary patch/Sound metadata; RAW storage is deferred until Save.
+FLASHMEM static void LS_Capture_notice(const char *message)
+{
+    Show_popup_text(message, ILI9341_WHITE, ILI9341_RED, 0);
+    const uint32_t started = millis();
+    while (static_cast<uint32_t>(millis() - started) < 2000u)
+    {
+        Shifters_manager.Update();
+    }
+    Clear_UI_events();
+}
+
+FLASHMEM static bool LS_Capture_confirm(void)
+{
+    int choice = 0;
+    //                                  "REPLACE CAPTURE?"
+    Show_popup_text("REPLACE CAPTURE?", "    NO  YES", ILI9341_WHITE, ILI9341_RED);
+    Clear_UI_events();
+
+    Display_LiveSampler.LS_Display_Confirm_capture_frame(0);
+    do
+    {
+        Shifters_manager.Update();
+        if (Read_encoder(EN_PB_Select, choice, 1, 0, 1))
+        {
+            Display_LiveSampler.LS_Display_Confirm_capture_frame(choice);
+        }
+    } while (!Read_pushbutton(EN_PB_Select));
+
+    Clear_UI_events();
+    return choice == 1;
+}
+
+FLASHMEM static bool LS_Capture_root(uint8_t &root)
+{
+    LS_refresh_LS_page();
+    //                                                "PRESS A KEY TO INSERT ROOT KEY"
+    Show_popup_text("PRESS A KEY TO INSERT ROOT KEY", "           CANCEL", ILI9341_WHITE, ILI9341_RED);
+    Frame_by_pixels_on_RED(138, 123, 6, true);
+
+    Clear_UI_events();
+    AudioNoInterrupts();
+    Capture_learn_note = -1;
+    Capture_learn_key = true;
+    AudioInterrupts();
+    int note = -1;
+    while (note < 0)
+    {
+        Shifters_manager.Update();
+        if (Read_pushbutton(EN_PB_Select))
+        {
+            Capture_learn_key = false;
+            Clear_UI_events();
+            return false;
+        }
+        AudioNoInterrupts();
+        note = Capture_learn_note;
+        Capture_learn_note = -1;
+        AudioInterrupts();
+    }
+    Capture_learn_key = false;
+    root = note;
+    Clear_UI_events();
+    return true;
+}
+
+FLASHMEM static bool LS_Capture_drain(void)
+{
+    Midi_reader.Stop();
+
+    AudioNoInterrupts();
+    Players_Manager.Stop_all_players();
+    AudioInterrupts();
+
+    const uint32_t started = millis();
+    bool playing;
+
+    do
+    {
+        playing = false;
+        AudioNoInterrupts();
+        for (int i = 0; i < PLAYERS; ++i)
+        {
+            playing |= Player[i].isPlaying();
+        }
+        AudioInterrupts();
+    } while (playing && static_cast<uint32_t>(millis() - started) < 100u);
+
+    if (playing)
+    {
+        Midi_reader.Start();
+    }
+    return !playing;
+}
+
+FLASHMEM static bool LS_Capture_referenced(int file, int except_sound)
+{
+    for (int id = 0; id < SOUNDS_MAX; ++id)
+    {
+        if ((id != except_sound && Sound[id].used && Sound[id].file == file) || (S_Sound_cache_P[id].used && S_Sound_cache_P[id].file == file))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+FLASHMEM static void LS_Capture_collect(void)
+{
+    // Snapshots protect Discard; retiring players retain their cache until their release ends.
+    AudioNoInterrupts();
+    for (auto &source : Capture_sources)
+    {
+        if (source.audio.psram_ptr != nullptr && !LS_Capture_referenced(source.audio.file_id))
+        {
+            const int file = source.audio.file_id;
+            source = {};
+            PatchCache_Manager.Invalidate_file(file);
+        }
+    }
+    PatchCache_Manager.Release_unreferenced_caches(Players_Manager.Get_cache_reference_mask());
+    AudioInterrupts();
+}
+
+FLASHMEM static void LS_Capture_sound(int selected)
+{
+    if (LS_state == REC || LiveSampler.Is_writing() || LS_state != PLAYONLY || LS_mode < LOOP_FWD)
+    {
+        LS_Capture_notice("STOP REC AND SELECT LOOP MODE");
+        LS_refresh_LS_page();
+        return;
+    }
+    const uint32_t samples = LS_XY_delta + 1;
+    if (samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || LS_buffer_dim <= 0)
+    {
+        LS_Capture_notice("LOOP TOO LONG FOR CACHE");
+        LS_refresh_LS_page();
+        return;
+    }
+    const bool creating = Capture_target < 0 || Capture_target != Patch_id_old || !Patch[Capture_target].used;
+    const int target = creating ? S_Get_Patch_id_free() : Capture_target;
+    if (target < 0 || (creating && !P_Verify_is_Patch_original(Patch_id_old)))
+    {
+        LS_Capture_notice(target < 0 ? "NO FREE PATCH" : "SAVE CURRENT PATCH FIRST");
+        LS_refresh_LS_page();
+        return;
+    }
+    int first = selected;
+    int second = -1;
+    const int partner = creating ? -1 : Capture_pair[selected];
+    if (LS_stereo)
+    {
+        if (partner >= 0 && Patch[target].Instrument[partner].used && Patch[target].Instrument[selected].used)
+        {
+            first = selected < partner ? selected : partner;
+            second = selected < partner ? partner : selected;
+        }
+        else if (selected + 1 < INSTRUMENTS && (creating || !Patch[target].Instrument[selected + 1].used))
+        {
+            second = selected + 1;
+        }
+    }
+    if (!creating && Patch[target].Instrument[selected].used && !LS_Capture_confirm())
+    {
+        LS_refresh_LS_page();
+        return;
+    }
+    uint8_t root = 60;
+    if (!LS_Capture_root(root) || !LS_Capture_drain())
+    {
+        LS_refresh_LS_page();
+        return;
+    }
+    LS_Capture_collect();
+    const int channels = second < 0 ? 1 : 2;
+    int sounds[2] = {-1, -1};
+    int slots[2] = {-1, -1};
+    int files[2] = {-1, -1};
+    int16_t *destinations[2] = {};
+    for (int channel = 0; channel < channels; ++channel)
+    {
+        const int instrument = channel == 0 ? first : second;
+        if (!creating && Patch[target].Instrument[instrument].used)
+        {
+            sounds[channel] = Patch[target].Instrument[instrument].sound_id;
+        }
+        else
+        {
+            for (int id = 0; id < SOUNDS_MAX; ++id)
+            {
+                if (!Sound[id].used && id != sounds[0])
+                {
+                    sounds[channel] = id;
+                    break;
+                }
+            }
+        }
+        for (int slot = 0; slot < CAPTURE_SOURCES; ++slot)
+        {
+            const auto &source = Capture_sources[slot];
+            const bool reusable = !source.written && !LS_Capture_referenced(source.audio.file_id, sounds[channel]);
+            if (slot != slots[0] && (source.audio.psram_ptr == nullptr || reusable))
+            {
+                slots[channel] = slot;
+                break;
+            }
+        }
+        if (slots[channel] >= 0 && Capture_sources[slots[channel]].audio.psram_ptr != nullptr)
+        {
+            files[channel] = Capture_sources[slots[channel]].audio.file_id;
+        }
+        else
+        {
+            for (int file = 1; file < FIRST_RECORDING_FILE; ++file)
+            {
+                if (file != files[0] && Capture_find(file) == nullptr && !SerialFlash.exists(name_file[file]))
+                {
+                    files[channel] = file;
+                    break;
+                }
+            }
+        }
+        if (sounds[channel] < 0 || slots[channel] < 0 || files[channel] < 0)
+        {
+            Midi_reader.Start();
+            LS_Capture_notice("NO FREE SOUND / CACHE / FILE");
+            LS_refresh_LS_page();
+            return;
+        }
+    }
+    for (int channel = 0; channel < channels; ++channel)
+    {
+        destinations[channel] = PatchCache_Manager.Reserve_capture(slots[channel], files[channel], samples);
+        if (destinations[channel] == nullptr)
+        {
+            Midi_reader.Start();
+            LS_Capture_notice("CAPTURE CACHE UNAVAILABLE");
+            LS_refresh_LS_page();
+            return;
+        }
+    }
+    if (creating)
+    {
+        Capture_return_patch = Patch_id_old;
+        Capture_target = target;
+        Capture_new_patch = target;
+        Capture_patch_delay = Delay_data;
+        Patch_cache_P = Patch[target];
+        S_Copy_all_Sound_to_Sound_cache_P();
+        Patch[target] = {};
+        for (auto &pair : Capture_pair)
+        {
+            pair = -1;
+        }
+    }
+    int position = LS_X_sample % LS_buffer_dim;
+    if (position < 0)
+    {
+        position += LS_buffer_dim;
+    }
+    for (int channel = 0; channel < channels; ++channel)
+    {
+        const int instrument_id = channel == 0 ? first : second;
+        int16_t *destination = destinations[channel];
+        for (uint32_t i = 0; i < samples; ++i)
+        {
+            const int index = (position + i) % LS_buffer_dim;
+            destination[i] = !LS_stereo ? LS_buffer_mono_ptr[index] : (second < 0 ? static_cast<int16_t>((static_cast<int32_t>(LS_buffer_L_ptr[index]) + LS_buffer_R_ptr[index]) / 2) : (channel == 0 ? LS_buffer_L_ptr[index] : LS_buffer_R_ptr[index]));
+        }
+        Capture_sources[slots[channel]] = {{static_cast<int16_t>(files[channel]), Psram, destination, samples, static_cast<int8_t>(slots[channel])}, false};
+        auto &instrument = Patch[target].Instrument[instrument_id];
+        instrument = {};
+        instrument.used = true;
+        instrument.sound_id = sounds[channel];
+        instrument.from_note = instrument.root_key = instrument.to_note = root;
+        instrument.Filter = Patch[PATCHES_MAX].Instrument[0].Filter;
+        auto &sound = Sound[sounds[channel]];
+        sound = Sound[SOUNDS_MAX + channel];
+        sound.used = true;
+        sound.file = files[channel];
+        sound.A = 0;
+        sound.B = samples - 1;
+        sound.Noclick = LS_mode == LOOP_FWD ? 128 : 0;
+        sound.pan = second < 0 ? 0 : (channel == 0 ? -16 : 16);
+        const int previous_partner = Capture_pair[instrument_id];
+        if (previous_partner >= 0)
+        {
+            Capture_pair[previous_partner] = -1;
+        }
+        Capture_pair[instrument_id] = -1;
+    }
+    if (second >= 0)
+    {
+        Capture_pair[first] = second;
+        Capture_pair[second] = first;
+    }
+    Patch[target].used = true;
+    Patch[target].instruments = 0;
+    for (const auto &instrument : Patch[target].Instrument)
+    {
+        Patch[target].instruments += instrument.used;
+    }
+    Patch_id_old = target;
+    P_Update_Patches_number();
+    Midi_reader.Start();
+    LS_refresh_LS_page();
+}
+
+FLASHMEM static bool LS_Capture_write(CaptureSource &source)
+{
+    if (source.written)
+    {
+        return true; // A retry after another channel failed must not allocate again.
+    }
+    const char *name = name_file[source.audio.file_id];
+    const uint32_t bytes = source.audio.samples * sizeof(int16_t);
+    if (SerialFlash.exists(name) || !SerialFlash.create(name, bytes))
+    {
+        return false;
+    }
+    SerialFlashFile file = SerialFlash.open(name);
+    bool complete = static_cast<bool>(file);
+    const auto *data = reinterpret_cast<const uint8_t *>(source.audio.psram_ptr);
+    for (uint32_t offset = 0; complete && offset < bytes; offset += 256u)
+    {
+        const uint32_t count = bytes - offset < 256u ? bytes - offset : 256u;
+        complete = file.write(data + offset, count) == count;
+        Shifters_manager.Update();
+    }
+    SerialFlash.wait();
+    file.seek(0);
+    uint8_t verify[256];
+    for (uint32_t offset = 0; complete && offset < bytes; offset += sizeof(verify))
+    {
+        const uint32_t count = bytes - offset < sizeof(verify) ? bytes - offset : sizeof(verify);
+        complete = file.read(verify, count) == count && memcmp(verify, data + offset, count) == 0;
+    }
+    file.close();
+    if (!complete)
+    {
+        SerialFlash.remove(name); // Hide incomplete data; SerialFlash cannot reclaim its allocation.
+        return false;
+    }
+    source.written = true;
+    return true;
+}
+
+FLASHMEM static bool LS_Capture_materialize(void)
+{
+    bool needed = false;
+    for (int id = 0; id < SOUNDS_MAX; ++id)
+    {
+        needed |= Sound[id].used && Capture_pending(Sound[id].file);
+    }
+    if (!needed)
+    {
+        return true;
+    }
+    if (!LS_Capture_drain())
+    {
+        LS_Capture_notice("SAVE BUSY - TRY AGAIN");
+        return false;
+    }
+    Show_popup_text("SAVING RAW FILES...", ILI9341_WHITE, ILI9341_RED, 0);
+    const uint32_t popup_started = millis();
+
+    bool complete = true;
+    for (int id = 0; complete && id < SOUNDS_MAX; ++id)
+    {
+        auto *source = Sound[id].used ? Capture_find(Sound[id].file) : nullptr;
+        if (source != nullptr)
+        {
+            complete = LS_Capture_write(*source);
+        }
+    }
+    File_scanner.Read_all_file_data();
+    while (static_cast<uint32_t>(millis() - popup_started) < 2000u)
+    {
+        Shifters_manager.Update();
+    }
+    Midi_reader.Start();
+    Clear_UI_events();
+    if (!complete)
+    {
+        LS_Capture_notice("RAW SAVE FAILED - RETRY");
+    }
+    return complete;
+}
+
+FLASHMEM static void LS_Capture_finish_save(void)
+{
+    AudioNoInterrupts();
+    for (auto &source : Capture_sources)
+    {
+        if (source.written)
+        {
+            source = {}; // Its ordinary cache remains valid and may now be reclaimed normally.
+        }
+    }
+    PatchCache_Manager.Set_required_files(Preset);
+    AudioInterrupts();
+}
+
 void LS_refresh_LS_page(void)
 {
     Lilla_state = LIVE_SAMPLING;
@@ -13455,12 +13477,12 @@ byte CC_Read_all_Sound_gain()
 FLASHMEM
 bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
 {
-    Capture_collect();
+    LS_Capture_collect();
     for (const auto &source : Capture_sources)
     {
         if (source.audio.psram_ptr != nullptr)
         {
-            Capture_notice("SAVE OR DISCARD CAPTURES FIRST");
+            LS_Capture_notice("SAVE OR DISCARD CAPTURES FIRST");
             flash_changed = false;
             return false;
         }
@@ -14145,7 +14167,7 @@ void Startup_hardware_and_objects(void)
         15: 0.24 Volts p-p
     */
     Audio_shield.lineInLevel(Line_in_gain);
-    
+
     /*
         lineOutLevel(both) adjust the line level output voltage range. The following settings are possible:
         13: 3.16 Volts p-p
@@ -14172,9 +14194,9 @@ void Startup_hardware_and_objects(void)
     Audio_shield.lineOutLevel(Line_out_level);
 
     Audio_shield.enable();
-    Audio_shield.volume(0.5); // Set the headphone volume level. Range is 0 to 1.0, but 0.8 corresponds to the maximum undistorted output for a full scale signal. Usually 0.5 is a comfortable listening level. The line level outputs are not changed by this function. 
+    Audio_shield.volume(0.5); // Set the headphone volume level. Range is 0 to 1.0, but 0.8 corresponds to the maximum undistorted output for a full scale signal. Usually 0.5 is a comfortable listening level. The line level outputs are not changed by this function.
     Audio_shield.inputSelect(myInput);
-    
+
     // Audio_shield.audioPostProcessorEnable();
     Audio_shield.eqSelect(0);                // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
     Audio_shield.adcHighPassFilterDisable(); // noise reduction: https://openaudio.blogspot.com/2017/03/teensy-audio-board-self-noise.html
@@ -14826,13 +14848,13 @@ void Print_player_read_diagnostics(void)
 
     Serial.printf("READ_BUDGET: limit_us=%.1f,reserved_us=%.3f,crossfade_us=%.3f,rejected_notes=%lu,retired_players=%lu,forced_protected=%lu\n", PlayerReadBudget::Limit_us, budget.reserved_us, budget.crossfade_us, static_cast<unsigned long>(budget.rejected_notes), static_cast<unsigned long>(budget.retired_players), static_cast<unsigned long>(budget.forced_protected));
     Serial.printf("READ_DIAG: %s; observed_blocks=%lu\n", enabled ? "enabled" : "disabled", static_cast<unsigned long>(snapshots[0].blocks));
-    
+
     if (snapshots[0].blocks == 0)
     {
         Serial.println(F("READ_DIAG: send d, play notes, then p (report); D disables"));
         return;
     }
-    
+
     Serial.println(F("READ_DIAG: estimates describe reads performed in each block at actual pitch, NOT a maximum-bend reservation or full Player CPU cost"));
     Serial.println(F("READ_DIAG: harvest_us includes assembly/reversal, counter overhead and interruptions; estimated_us models source transfers only"));
     Serial.println(F("READ_DIAG: max_underestimate is the largest positive harvest-minus-estimate gap, including assembly/diagnostic overhead; not pure memory-model error"));
@@ -14840,24 +14862,24 @@ void Print_player_read_diagnostics(void)
     Serial.println(F("READ_DIAG: READ_DIAG_BUDGET belongs to each snapshot cycle; headroom values are before crossfades, pre_players_us includes scheduling; minimum_us is the rejected 16-sample cost"));
     Serial.println(F("READ_DIAG: transition_kind 0=none, 1=restart, 2=edit, 3=both; mix_samples is assigned, harvests/flags describe actual execution; READ_BUDGET counters are since boot"));
     Serial.println(F("snapshot,cycle,player,harvests,max_actual_pitch,flash_reads,flash_samples,psram_reads,psram_samples,ram_reads,ram_samples,estimated_us,harvest_us,flags,uncovered_reads,transition_kind,mix_samples,available_before_us,assigned_us,minimum_us"));
-    
+
     const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
     const char *snapshot_names[] = {"last", "peak_estimate", "restart_peak", "max_underestimate"};
-    
+
     for (uint8_t snapshot = 0; snapshot < 4; ++snapshot)
     {
         const auto &data = snapshots[snapshot];
         const char *name = snapshot_names[snapshot];
-        
+
         if (data.blocks == 0)
         {
             Serial.printf("READ_DIAG: %s not observed in this window\n", name);
             continue;
         }
-        
+
         const auto &scheduled = data.budget; // Historical allocation travels with the same last/peak/restart/gap snapshot.
         Serial.printf("READ_DIAG_BUDGET,%s,cycle=%lu,valid=%u,limit_us=%.1f,reserved_us=%.3f,read_headroom_us=%.3f,deadline_headroom_us=%.3f,scheduler_elapsed_us=%.3f,pre_players_us=%.3f,available_us=%.3f,crossfade_us=%.3f,first_player=%u\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(scheduled.valid), PlayerReadBudget::Limit_us, scheduled.reserved_us, scheduled.read_headroom_us, scheduled.deadline_headroom_us, scheduled.scheduler_elapsed_us, scheduled.pre_players_us, scheduled.available_us, scheduled.crossfade_us, static_cast<unsigned int>(scheduled.first_player));
-        
+
         for (uint8_t player = 0; player < PLAYERS; ++player)
         {
             const auto &usage = data.players[player];
@@ -14867,7 +14889,7 @@ void Print_player_read_diagnostics(void)
             const uint32_t uncovered = flash.uncovered_operations + psram.uncovered_operations + ram.uncovered_operations;
             Serial.printf("%s,%lu,%u,%u,%.4f,%lu,%lu,%lu,%lu,%lu,%lu,%.3f,%.3f,%u,%lu,%u,%u,%.3f,%.3f,%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(player), static_cast<unsigned int>(usage.harvests), static_cast<double>(usage.maximum_pitch), static_cast<unsigned long>(flash.operations), static_cast<unsigned long>(flash.samples), static_cast<unsigned long>(psram.operations), static_cast<unsigned long>(psram.samples), static_cast<unsigned long>(ram.operations), static_cast<unsigned long>(ram.samples), static_cast<double>(data.estimated_us[player]), static_cast<double>(usage.harvest_cycles / cycles_per_us), static_cast<unsigned int>(usage.flags), static_cast<unsigned long>(uncovered), static_cast<unsigned int>(scheduled.transition[player]), static_cast<unsigned int>(scheduled.mix_samples[player]), scheduled.available_before_us[player], scheduled.assigned_us[player], scheduled.minimum_us[player]);
         }
-        
+
         Serial.printf("READ_DIAG_TOTAL,%s,cycle=%lu,estimated_us=%.3f,harvest_us=%.3f,uncovered_reads=%lu,restarted_players=%u,harvest_minus_estimate_us=%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<double>(data.total_estimated_us), static_cast<double>(data.total_harvest_us), static_cast<unsigned long>(data.uncovered_operations), static_cast<unsigned int>(data.restarted_players), static_cast<double>(data.total_harvest_us - data.total_estimated_us));
     }
 }

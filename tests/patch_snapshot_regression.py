@@ -9,6 +9,7 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 source = (root / 'src/main.cpp').read_text(encoding='utf-8')
 snapshot = re.search(r'^struct PatchEditSnapshot\n\{.*?^\};', source, re.M | re.S).group(0)
+snapshot += '\n' + '\n\n'.join(re.findall(r'^[^\n]*PatchEditSnapshot::[^\n]+\n\{.*?^\}', source, re.M | re.S))
 
 def method(signature):
     return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', source, re.M | re.S).group(0)
@@ -98,8 +99,8 @@ struct StatisticsStub
 int S_Get_Patch_id_free() { return 1; }
 bool S_Fill_all_tables() { return tables_succeed; }
 bool capture_save_succeeds = true;
-bool Capture_materialize() { return capture_save_succeeds; }
-void Capture_finish_save() {}
+bool LS_Capture_materialize() { return capture_save_succeeds; }
+void LS_Capture_finish_save() {}
 int Capture_new_patch = -1, Capture_target = -1;
 bool S_Save_all_Sounds_changed() { ++persisted_sounds; return true; }
 void P_Update_Patches_number() {}
