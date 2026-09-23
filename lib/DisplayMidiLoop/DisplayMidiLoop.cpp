@@ -32,8 +32,8 @@ bool DisplayMidiLoop::Update_save_failed(void)
     if (static_cast<uint32_t>(millis() - save_failed_started_ms) >= 4000u)
     {
         // Match the geometry used by Show_popup_text().
-        const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 4);
-        const int height = display_coordinate_y(3);
+        const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 2);
+        const int height = display_coordinate_y(1);
         tft.fillRect((320 - width) / 2, (240 - height) / 2 + Save_failed_y_offset, width, height, ILI9341_BLACK);
         save_failed_visible = false;
         

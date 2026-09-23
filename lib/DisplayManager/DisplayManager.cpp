@@ -1153,7 +1153,7 @@ void DisplayManager::Confirm_config_import_popup(void)
 
     Y_POPUP_TXT = 10; // Prima riga testo
     Y_POPUP_OPT = Y_POPUP_TXT + 50;
-    X_POPUP_OPT = display_coordinate_x(19);
+    X_POPUP_OPT = display_coordinate_x(19); // Colonna prima opzione, generalmente NO
 
     tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
     tft.setTextColor(ILI9341_WHITE);
@@ -1338,16 +1338,16 @@ void DisplayManager::Config_import_REBOOT_popup(void)
 FLASHMEM
 void DisplayManager::Confirm_config_import_frame(uint8_t value)
 {
-    P_Confirm_frame(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    P_Confirm_frame(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, false);
+    P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
     case 0: // NO
-        P_Confirm_frame(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 1: // YES
-        P_Confirm_frame(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;

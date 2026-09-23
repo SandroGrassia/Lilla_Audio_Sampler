@@ -27,17 +27,17 @@ constexpr int REC=1, PLAYONLY=2, LOOP_FWD=2, EN_PB_Select=0, ILI9341_RED=0, ILI9
 enum AudioFileStorage { Flash, Psram };
 struct AudioFileSource { int16_t file_id=-1; AudioFileStorage storage=Flash; const int16_t *psram_ptr=nullptr; uint32_t samples=0; int8_t cache_id=-1; };
 struct Delay_data_struct { int samples=0; };
-struct Instrument { bool used=false; int sound_id=0, from_note=0,root_key=0,to_note=0,Filter=0; };
+struct Instrument { bool used=false; int sound_id=0, from_note=0,root_key=0,to_note=0,Filter=0; bool operator==(const Instrument &) const = default; };
 struct Patch_struct { bool used=false; int instruments=0; ::Instrument Instrument[8]; };
-struct Sound_struct { bool used=false; int file=0,A=0,B=0,mode=2,Noclick=0,pan=0; };
+struct Sound_struct { bool used=false; int file=0,A=0,B=0,mode=2,Noclick=0,pan=0; bool operator==(const Sound_struct &) const = default; };
 struct Preset_struct { bool active=false; int file=0; };
 struct RecordingData { bool consistent=false; int bytes=0; } Recording[1];
 Patch_struct Patch[PATCHES_MAX+1], Patch_cache_P;
 Sound_struct Sound[SOUNDS_MAX+2], S_Sound_cache_P[SOUNDS_MAX];
 Preset_struct Preset[INSTRUMENTS];
 Delay_data_struct Delay_data{37};
-int Patch_id_old=0, LS_state=PLAYONLY, LS_mode=LOOP_FWD, LS_XY_delta=512, LS_X_sample=1900, LS_buffer_dim=2048;
-bool LS_stereo=false, cancel=false, old_clean=true, stuck=false;
+int Patch_id=PATCHES_MAX, Patch_id_old=0, LS_state=PLAYONLY, LS_mode=LOOP_FWD, LS_XY_delta=512, LS_X_sample=1900, LS_buffer_dim=2048;
+bool LS_stereo=false, cancel=false, stuck=false;
 int midi_starts=0, midi_stops=0, creates=0, scans=0, fail_file=-1, corrupt_file=-1;
 int16_t mono[2048], left[2048], right[2048], cache[8][1024];
 int16_t *LS_buffer_mono_ptr=mono,*LS_buffer_L_ptr=left,*LS_buffer_R_ptr=right;
@@ -45,6 +45,8 @@ char name_file[22][10];
 std::map<std::string,std::vector<uint8_t>> flash;
 std::vector<std::string> messages;
 struct Screen { void fillRoundRect(int,int,int,int,int,int) {} void setTextColor(int) {} void setCursor(int,int) {} void print(const char *s) { messages.emplace_back(s); } } tft;
+void Show_popup_text(const char *text, int, int, int = 0) { messages.emplace_back(text); }
+void Show_popup_text(const char *first, const char *second, int, int, int = 0) { messages.emplace_back(first); messages.emplace_back(second); }
 struct Recorder { bool writing=false; bool Is_writing() { return writing; } } LiveSampler;
 struct Midi { void Start() { ++midi_starts; } void Stop() { ++midi_stops; } } Midi_reader;
 struct Players { void Stop_all_players() {} uint16_t Get_cache_reference_mask() { return 0; } } Players_Manager;
@@ -54,7 +56,10 @@ uint32_t millis() { static uint32_t tick=0; return ++tick; }
 void Read_encoder(int,int &choice,int,int,int) { choice=1; }
 bool Read_pushbutton(int);
 void LS_refresh_LS_page() {} void P_Update_Patches_number() {}
-bool P_Verify_is_Patch_original(int) { return old_clean; }
+bool P_Verify_is_Patch_original(const int patch_id);
+bool S_Verify_is_Sound_original(int id) { return Sound[id] == S_Sound_cache_P[id]; }
+int Get_sound_id(int patch, int instrument) { return Patch[patch].Instrument[instrument].sound_id; }
+struct SerialStub { void print(const char *) {} void println(bool) {} } Serial;
 int S_Get_Patch_id_free() { for(int i=0;i<PATCHES_MAX;++i) {
     if (!Patch[i].used)
     {
@@ -109,6 +114,17 @@ int main()
     for(int i=0;i<2048;++i) { mono[i]=i; left[i]=30000; right[i]=10000; }
     for(int i=0;i<8;++i) { PatchCache_Manager.Set_cache_pointer(i,cache[i]); }
     Patch[0].used=true;
+    Patch[0].instruments=1;
+    Patch[0].Instrument[0]={true,30,55,55,55,0};
+    Sound[30].used=true;
+    Patch_cache_P=Patch[0];
+    S_Copy_all_Sound_to_Sound_cache_P();
+    Patch[PATCHES_MAX].Instrument[0]={true,SOUNDS_MAX,60,60,60,0};
+    assert(P_Verify_is_Patch_original(Patch_id_old));
+    Sound[30].pan=4;
+    Capture_sound(0);
+    assert(!Patch[1].used && messages.back()=="SAVE CURRENT PATCH FIRST");
+    Sound[30].pan=0;
     // Cancel and guard failures allocate neither metadata nor Flash.
     cancel=true; Capture_sound(0); cancel=false;
     assert(!Patch[1].used && creates==0 && !Capture_learn_key);
@@ -164,7 +180,12 @@ int main()
 
 program = prefix + body('lib/CaptureSources/CaptureSources.h') + body('lib/CaptureSources/CaptureSources.cpp') + ui
 program += body('lib/PatchCacheManager/PatchCacheManager.h') + body('lib/PatchCacheManager/PatchCacheManager.cpp')
-program += '\nPatchCacheManager PatchCache_Manager;\n' + body('src/LiveCapture.inc') + checks
+main_source = (root / 'src/main.cpp').read_text(encoding='utf-8')
+for name in ['P_Verify_if_Instrument_original', 'P_Verify_is_Patch_original']:
+    program += re.search(r'^bool ' + name + r'[^\n]*\n\{.*?^\}', main_source, re.M | re.S).group(0) + '\n'
+capture_start = main_source.index('// Live capture creates ordinary patch/Sound metadata;')
+capture_end = main_source.index('\nvoid Require_FRAM(byte result)\n{', capture_start)
+program += '\nPatchCacheManager PatchCache_Manager;\n' + main_source[capture_start:capture_end] + checks
 with tempfile.TemporaryDirectory(prefix='lilla-live-capture-') as directory:
     cpp = Path(directory) / 'capture.cpp'
     exe = Path(directory) / 'capture.exe'
