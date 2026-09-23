@@ -14,7 +14,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
     const bool wavetable = edited ? use_Wavetable_E : (pending ? use_Wavetable_wait : use_Wavetable); // RAM tables bypass the file reader.
     const AudioFileSource &source = pending ? source_wait : source_now; // Pending starts can use a different source from the outgoing voice.
     const int file = pending ? file_id_wait : file_id; // File class determines Live and packet behavior.
-    plan.live = (file >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(file));
+    plan.live = file >= FIRST_LIVE_SAMPLING_FILE;
     plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
     plan.packets = !wavetable && !plan.live && source.storage == Flash && file >= FIRST_RECORDING_FILE;
     const int mode = edited ? mode_player_E : (pending ? mode_player_wait : mode_player); // Source geometry for the chosen stage.
@@ -262,7 +262,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
     use_Wavetable_wait = use_Wavetable_in;
 
     // LIVE_SAMPLING - Read samples from  PSRAM
-    if ((file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(file_id_wait)))
+    if (file_id_wait >= FIRST_LIVE_SAMPLING_FILE)
     {
         mode_player_wait = mode_in;
         use_Wavetable_wait = false;
@@ -489,7 +489,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     tables_bank_mask_E = tables_bank_mask_in;
 
     // Read samples from PSRAM chip
-    if ((file_id >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(file_id)))
+    if (file_id >= FIRST_LIVE_SAMPLING_FILE)
     {
         mode_player_E = mode_in;
         pitch_limit_E = MAX_PITCH_PSRAM;
@@ -674,7 +674,7 @@ void AudioPlayer::Start_playing(void)
     Close_source();
     source_now = source_wait;
     file_id = file_id_wait;
-    if (source_now.storage == Flash && (file_id < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id)))
+    if (source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE)
     {
         AudioStartUsingSPI();
         spi_in_use = true;
@@ -693,7 +693,7 @@ void AudioPlayer::Start_playing(void)
     }
 
     // .rec file from DIRECT_SAMPLING
-    else if ((file_id < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id)))
+    else if (file_id < FIRST_LIVE_SAMPLING_FILE)
     {
         recording_flag = true;
         recording = (file_id - FIRST_RECORDING_FILE) / 2;
@@ -2526,17 +2526,17 @@ void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
         // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
         source_now = source;
-        pitch_limit = Playback_pitch_limit(use_Wavetable, true, (file_id >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(file_id)));
+        pitch_limit = Playback_pitch_limit(use_Wavetable, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
         if (main_settings_editing_flag)
         {
-            pitch_limit_E = Playback_pitch_limit(use_Wavetable_E, true, (file_id >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(file_id)));
+            pitch_limit_E = Playback_pitch_limit(use_Wavetable_E, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
         }
         Update_pitch();
     }
     if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id)
     {
         source_wait = source;
-        pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, (file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(file_id_wait)));
+        pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, file_id_wait >= FIRST_LIVE_SAMPLING_FILE);
     }
 }
 
@@ -2546,9 +2546,9 @@ bool AudioPlayer::Uses_sample_voice(void) const
     {
         return false;
     }
-    const bool current = !use_Wavetable && file_id >= 0 && (file_id < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id));
-    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && file_id_wait >= 0 && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id_wait));
-    const bool editing = main_settings_editing_flag && !use_Wavetable_E && file_id >= 0 && (file_id < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id));
+    const bool current = !use_Wavetable && file_id >= 0 && file_id < FIRST_LIVE_SAMPLING_FILE;
+    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && file_id_wait >= 0 && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
+    const bool editing = main_settings_editing_flag && !use_Wavetable_E && file_id >= 0 && file_id < FIRST_LIVE_SAMPLING_FILE;
     return current || starting || editing;
 }
 
@@ -2558,9 +2558,9 @@ bool AudioPlayer::Uses_flash(void) const
     {
         return false;
     }
-    const bool current = !use_Wavetable && source_now.storage == Flash && (file_id < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id));
-    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && source_wait.storage == Flash && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id_wait));
-    const bool editing = main_settings_editing_flag && !use_Wavetable_E && source_now.storage == Flash && (file_id < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(file_id));
+    const bool current = !use_Wavetable && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
+    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && source_wait.storage == Flash && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
+    const bool editing = main_settings_editing_flag && !use_Wavetable_E && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
     return current || starting || editing;
 }
 

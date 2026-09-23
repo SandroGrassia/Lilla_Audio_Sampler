@@ -6,6 +6,7 @@
  *
  */
 
+#include "CaptureSources.h"
 #include <MidiReader.h>
 
 void MidiReader::Begin(void)
@@ -97,11 +98,11 @@ void MidiReader::Update(void)
 
 void MidiReader::Handle_message(const MidiInputMessage &message)
 {
-    if (Playback_learn_keys && message.type == midi::NoteOn && message.data2 > 0)
+    if (Capture_learn_key && message.type == midi::NoteOn && message.data2 > 0)
     {
-        if (Playback_learn_note < 0)
+        if (Capture_learn_note < 0)
         {
-            Playback_learn_note = message.data1;
+            Capture_learn_note = message.data1;
         }
         return;
     }

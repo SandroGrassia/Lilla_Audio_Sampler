@@ -225,7 +225,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
 
     int8_t id_player = -1;
     bool finished = false;
-    const bool needs_sample = !Preset[instrument_id].use_Wavetable && (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(Preset[instrument_id].file));
+    const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
     const int voice_limit = PLAYERS;
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
@@ -426,7 +426,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
 {
     const auto &preset = Preset[instrument]; // Prepared source selected for the incoming note.
     PlayerReadBudget::Plan plan; // Match AudioPlayer's pending geometry without modifying a voice.
-    plan.live = (preset.file >= FIRST_LIVE_SAMPLING_FILE && !Is_playback_file(preset.file));
+    plan.live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
     const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
     plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
     plan.packets = !wavetable && !plan.live && preset.source.storage == Flash && preset.file >= FIRST_RECORDING_FILE;
@@ -1136,7 +1136,7 @@ bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Pr
         presets[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
 
         // Live Sampler instruments do not require AudioTables storage.
-        if ((presets[instrument_id].file < FIRST_LIVE_SAMPLING_FILE || Is_playback_file(presets[instrument_id].file)))
+        if (presets[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
         {
             tables_mask |= static_cast<uint16_t>(1u << instrument_id);
         }

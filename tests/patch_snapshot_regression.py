@@ -21,9 +21,6 @@ prefix = r'''
 #include <new>
 #include <iostream>
 constexpr int SOUNDS_MAX = 800, INSTRUMENTS = 8, IRQ_SOFTWARE = 0;
-constexpr int PLAYBACK_FILES = 8;
-bool Playback_active = false;
-int Playback_partner[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
 bool irq_enabled = true, audio_tables_error_pending = false;
 int allocations_until_failure = -1, live_allocations = 0, map_updates = 0;
 void *operator new[](std::size_t size, const std::nothrow_t &) noexcept
@@ -62,7 +59,7 @@ void P_Update_all_maps_Instrument_for_notes() { ++map_updates; }
 struct Sound_struct { int value = 0; bool used = false; int gain = 0; };
 struct Instrument { bool used = false; int sound_id = 0; };
 struct Patch_struct { ::Instrument Instrument[INSTRUMENTS]; int instruments = 0; bool used = false; };
-Sound_struct Sound[SOUNDS_MAX + 2 + PLAYBACK_FILES], S_Sound_cache_P[SOUNDS_MAX];
+Sound_struct Sound[SOUNDS_MAX + 2], S_Sound_cache_P[SOUNDS_MAX];
 Patch_struct Patch[3];
 int Patch_id = 0;
 int Get_sound_id(int patch_id, int instrument_id) { return Patch[patch_id].Instrument[instrument_id].sound_id; }
@@ -100,7 +97,11 @@ struct StatisticsStub
 } Players_statistics;
 int S_Get_Patch_id_free() { return 1; }
 bool S_Fill_all_tables() { return tables_succeed; }
-void S_Save_all_Sounds_changed() { ++persisted_sounds; }
+bool capture_save_succeeds = true;
+bool Capture_materialize() { return capture_save_succeeds; }
+void Capture_finish_save() {}
+int Capture_new_patch = -1, Capture_target = -1;
+bool S_Save_all_Sounds_changed() { ++persisted_sounds; return true; }
 void P_Update_Patches_number() {}
 void S_Copy_all_Sound_to_Sound_cache_P() { memcpy(S_Sound_cache_P, Sound, sizeof(S_Sound_cache_P)); }
 void P_Update_line_of_all_instruments() {}
@@ -118,6 +119,8 @@ void reset()
     irq_enabled = true;
     audio_tables_error_pending = false;
     tables_succeed = true;
+    capture_save_succeeds = true;
+    Capture_new_patch = Capture_target = -1;
     persisted_sounds = 0;
     Patch_id = 0;
     for (auto &patch : Patch)
@@ -274,6 +277,18 @@ int main()
         allocations_until_failure = 1;
         assert(!P_Save_current_patch_as_new());
         assert(Patch_id == 0 && !Patch[1].used && !Sound[INSTRUMENTS].used && persisted_sounds == 0);
+    }
+    reset();
+    {
+        Capture_new_patch = Capture_target = 0;
+        capture_save_succeeds = false;
+        const auto original = Patch[0];
+        assert(!P_Save_current_patch_as_new());
+        assert(Patch_id == 0 && persisted_sounds == 0 && !Patch[1].used && Capture_new_patch == 0);
+        assert(memcmp(&original, &Patch[0], sizeof(original)) == 0);
+        capture_save_succeeds = true;
+        assert(P_Save_current_patch_as_new());
+        assert(Patch_id == 1 && Capture_new_patch == -1 && Capture_target == 1);
     }
     reset();
     std::cout << "PASS: sparse rollback, shared Sounds, nesting, clone, sampler channels, full reload and allocation failures\n";

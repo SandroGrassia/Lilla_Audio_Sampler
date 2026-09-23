@@ -29,7 +29,6 @@ prefix = r'''
 constexpr int PLAYERS = 16, AUDIO_BLOCK_SAMPLES = 128, AUDIO_PLAYER_DEADLINE_US = 2700;
 constexpr int LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4;
 constexpr int FIRST_RECORDING_FILE = 100, FIRST_LIVE_SAMPLING_FILE = 200;
-bool Is_playback_file(int id) { return id >= 323 && id < 331; }
 constexpr float MIN_PITCH = 0.1f;
 int Patch_id = 0, LS_XY_delta = 10000, LS_buffer_dim = 32768;
 uint32_t audio_update_time_micros = 0, audio_update_cycle = 1;

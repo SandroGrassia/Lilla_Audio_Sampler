@@ -2,11 +2,17 @@
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
  */
+#include "CaptureSources.h"
 #include "PatchCacheManager.h"
 #include "SharedLiveSampler.h"
 
 uint32_t PatchCacheManager::File_samples(int16_t file_id)
 {
+    const auto *capture = Capture_find(file_id);
+    if (capture != nullptr)
+    {
+        return capture->audio.samples;
+    }
     if (file_id < 0 || file_id >= FIRST_LIVE_SAMPLING_FILE)
     {
         return 0;
@@ -31,24 +37,25 @@ void PatchCacheManager::Begin(void)
     }
     required_count = 0;
     retirement_counter = 0;
-    for (uint8_t slot = 0; slot < PLAYBACK_FILES; ++slot)
+    for (uint8_t slot = 0; slot < CAPTURE_SOURCES; ++slot)
     {
-        if (Playback_sources[slot].psram_ptr != nullptr)
+        const auto &source = Capture_sources[slot].audio;
+        if (source.psram_ptr != nullptr)
         {
-            Reserve_playback(slot, Playback_sources[slot].samples);
+            Reserve_capture(slot, source.file_id, source.samples);
         }
     }
 }
 
-int16_t *PatchCacheManager::Reserve_playback(uint8_t slot, uint32_t samples)
+int16_t *PatchCacheManager::Reserve_capture(uint8_t slot, int16_t file_id, uint32_t samples)
 {
-    if (slot >= PLAYBACK_FILES || samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || cache_pointer[slot] == nullptr)
+    if (slot >= CAPTURE_SOURCES || samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || cache_pointer[slot] == nullptr)
     {
         return nullptr;
     }
     cache[slot] = {};
     cache[slot].state = Ready;
-    cache[slot].file_id = FIRST_PLAYBACK_FILE + slot;
+    cache[slot].file_id = file_id;
     cache[slot].samples = samples;
     cache[slot].copied = samples;
     cache[slot].valid = true;
@@ -126,11 +133,11 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
     }
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        const int request = Find_required(cache[i].file_id);
-        if (Is_playback_file(cache[i].file_id))
+        if (Capture_find(cache[i].file_id) != nullptr)
         {
-            continue; // Captures survive switches back to the live recording patch.
+            continue; // Unsaved sources must survive sampler and patch changes.
         }
+        const int request = Find_required(cache[i].file_id);
         const bool keep = request >= 0 && !required[request].failed && required[request].samples == cache[i].samples;
         if (!keep)
         {
@@ -160,12 +167,10 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
 
 AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 {
-    if (Is_playback_file(file_id))
+    const auto *capture = Capture_find(file_id);
+    if (capture != nullptr)
     {
-        AudioFileSource capture = Playback_sources[file_id - FIRST_PLAYBACK_FILE];
-        capture.file_id = file_id;
-        capture.storage = Psram; // Never fall back to Flash, even for an absent capture.
-        return capture;
+        return capture->audio;
     }
     AudioFileSource result;
     result.file_id = file_id;

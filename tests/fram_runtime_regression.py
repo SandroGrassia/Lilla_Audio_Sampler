@@ -40,10 +40,14 @@ mock = backup["mock"].replace("    void close()", r"""
 delay_header = (base["ROOT"] / "lib/SharedDelay/SharedDelay.h").read_text(encoding="utf-8")
 mock += delay_header[delay_header.index("struct Delay_data_struct"):delay_header.index("static constexpr int DELAY_DATA_DIM")]
 mock += r"""
+#define FLASHMEM
 #define bitRead(value, bit) (((value) >> (bit)) & 1U)
 #define bitWrite(value, bit, flag) ((value) = ((value) & ~(1U << (bit))) | ((flag) << (bit)))
 #define PRINT_ERROR(value) ((void)(value))
 constexpr int FIRST_RECORDING_FILE = 2000;
+int Capture_new_patch = -1, pending_file = -1;
+Delay_data_struct Capture_patch_delay{};
+bool Capture_pending(int file) { return file == pending_file; }
 struct InfoStub { int Raw_file_samples(int) { return 100000; } } Info;
 """
 tests = r"""
@@ -106,6 +110,32 @@ int main()
     LillaFram.memory[0x100 + 199 * 192] ^= 1;
     actual = delay;
     assert(archive.Read_Delay(199, actual) == 12 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    // New capture delay remains in RAM and pending audio cannot reach persistent metadata.
+    LillaFram.clear_io();
+    Capture_new_patch = 198;
+    Capture_patch_delay = delay;
+    const auto before_capture = LillaFram.memory;
+    assert(archive.Save_Delay(198, delay) == 0);
+    actual = {};
+    assert(archive.Read_Delay(198, actual) == 0 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    assert(LillaFram.memory == before_capture);
+    Patch[198] = expected;
+    pending_file = Sound[799].file;
+    assert(archive.Save_Sound(799) == 14);
+    Patch[198].Instrument[0].sound_id = 799;
+    assert(archive.Save_Patch(198) == 14 && Capture_new_patch == 198);
+    assert(LillaFram.memory == before_capture);
+    File unsaved{std::make_shared<std::vector<uint8_t>>()};
+    assert(!archive.Copy_Patch_from_RAM_to_SD(198, unsaved) && unsaved.size() == 0);
+    // Dropping an unsaved patch must not demand nonexistent RAW files.
+    Patch[198].used = false;
+    assert(archive.Save_Patch(198) == 0 && Capture_new_patch == -1);
+    Patch[198].used = true;
+    Capture_new_patch = 198;
+    pending_file = -1;
+    assert(archive.Save_Sound(799) == 0 && archive.Save_Patch(198) == 0 && Capture_new_patch == -1);
+    actual = {};
+    assert(archive.Read_Delay(198, actual) == 0 && memcmp(&actual, &delay, sizeof(delay)) == 0);
     std::puts("PASS: runtime high IDs, signed fields, Delay preservation, SD round trip, padded legacy import and atomic rejection");
 }
 """

@@ -24,7 +24,6 @@ prefix = r'''
 #include <iostream>
 #include <random>
 constexpr int PLAYERS = 16, INSTRUMENTS = 8, FIRST_LIVE_SAMPLING_FILE = 100;
-bool Is_playback_file(int id) { return id >= 323 && id < 331; }
 constexpr int OPTIMIZATION_VOICES[] = {16, 12, 10};
 int optimization = 0, Patch_id = 3;
 struct PresetData { bool use_Wavetable = false, precedence = false; int file = 0; } Preset[INSTRUMENTS];

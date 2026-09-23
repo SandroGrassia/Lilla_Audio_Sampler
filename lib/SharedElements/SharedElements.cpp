@@ -23,26 +23,7 @@ uint8_t Lilla_state_0;
 
 // PATCH
 DMAMEM Patch_struct Patch[PATCHES_MAX + 1]; // Operational metadata in RAM2; initialized explicitly at startup.
-DMAMEM Sound_struct Sound[SOUNDS_MAX + 2 + PLAYBACK_FILES];
-bool Playback_active = false;
-volatile bool Playback_learn_keys = false;
-volatile int Playback_learn_note = -1;
-AudioFileSource Playback_sources[PLAYBACK_FILES];
-
-bool Playback_read_samples(int file_id, int16_t *destination, int first_sample, int samples)
-{
-    if (!Is_playback_file(file_id) || destination == nullptr || first_sample < 0 || samples < 0)
-    {
-        return false;
-    }
-    const auto &source = Playback_sources[file_id - FIRST_PLAYBACK_FILE];
-    if (source.psram_ptr == nullptr || static_cast<uint32_t>(first_sample) > source.samples || static_cast<uint32_t>(samples) > source.samples - first_sample)
-    {
-        return false;
-    }
-    memcpy(destination, source.psram_ptr + first_sample, static_cast<size_t>(samples) * sizeof(int16_t));
-    return true;
-}
+DMAMEM Sound_struct Sound[SOUNDS_MAX + 2];
 
 // PERFORMANCE
 uint8_t Patch_id = 0;

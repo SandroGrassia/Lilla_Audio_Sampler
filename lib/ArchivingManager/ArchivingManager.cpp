@@ -4,6 +4,7 @@
  *
  */
 
+#include "CaptureSources.h"
 #include "ArchivingManager.h"
 #include "GlobalInfoMaster.h"
 
@@ -1284,6 +1285,11 @@ byte ArchivingManager::Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &
 
 byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_data)
 {
+    if (patch_id == Capture_new_patch)
+    {
+        delay_data = Capture_patch_delay;
+        return LillaFRAM_2x512::ERROR_0;
+    }
     FRAM_Patch_delay_struct source{};
     const byte result = FRAM_Read_delay(patch_id, source);
     if (result != LillaFRAM_2x512::ERROR_0)
@@ -1312,10 +1318,12 @@ byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_dat
     return LillaFRAM_2x512::ERROR_0;
 }
 
+FLASHMEM
 byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &delay_data)
 {
-    if (Playback_active)
+    if (patch_id == Capture_new_patch)
     {
+        Capture_patch_delay = delay_data;
         return LillaFRAM_2x512::ERROR_0;
     }
     FRAM_Patch_delay_struct destination{};
@@ -1362,16 +1370,16 @@ byte ArchivingManager::Save_first_octave(const int8_t first_octave)
 
 byte ArchivingManager::Save_Sound(const int sound_id)
 {
-    if (Playback_active || sound_id >= FIRST_PLAYBACK_SOUND)
-    {
-        return LillaFRAM_2x512::ERROR_0;
-    }
     if (sound_id < 0 || sound_id >= SOUNDS_MAX)
     {
         return LillaFRAM_2x512::ERROR_11;
     }
 
     const auto &runtime = Sound[sound_id];
+    if (runtime.used && Capture_pending(runtime.file))
+    {
+        return FRAM_ERROR_SOURCE; // Never persist metadata before its audio exists.
+    }
     FRAM_Sound_struct destination{};
     destination.used = runtime.used ? 1 : 0;
     destination.file = runtime.file;
@@ -1465,12 +1473,9 @@ byte ArchivingManager::Read_Sound(const int sound_id)
     return !runtime.used || Validate_Sound_AB_file_raw(sound_id) ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_SOURCE;
 }
 
+FLASHMEM
 byte ArchivingManager::Save_Patch(const int patch_id)
 {
-    if (Playback_active)
-    {
-        return LillaFRAM_2x512::ERROR_0;
-    }
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
         return LillaFRAM_2x512::ERROR_11;
@@ -1495,7 +1500,7 @@ byte ArchivingManager::Save_Patch(const int patch_id)
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         const auto &input = runtime.Instrument[instrument_id];
-        if (input.used && input.sound_id >= SOUNDS_MAX)
+        if (input.used && (input.sound_id >= SOUNDS_MAX || (runtime.used && Capture_pending(Sound[input.sound_id].file))))
         {
             return FRAM_ERROR_SOURCE;
         }
@@ -1525,7 +1530,27 @@ byte ArchivingManager::Save_Patch(const int patch_id)
         return FRAM_ERROR_SOURCE;
     }
 
+    const bool new_capture = patch_id == Capture_new_patch;
+    if (new_capture && runtime.used)
+    {
+        Capture_new_patch = -1;
+        const byte delay_result = Save_Delay(patch_id, Capture_patch_delay);
+        Capture_new_patch = patch_id;
+        if (delay_result != LillaFRAM_2x512::ERROR_0)
+        {
+            return delay_result;
+        }
+        result = FRAM_Read_delay(patch_id, destination.Delay);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+    }
     result = FRAM_Write_patch(static_cast<uint8_t>(patch_id), destination);
+    if (new_capture && result == LillaFRAM_2x512::ERROR_0)
+    {
+        Capture_new_patch = -1;
+    }
     return result;
 }
 
@@ -1661,10 +1686,6 @@ String ArchivingManager::Filename_Sound(const int patch_id, const int instrument
 
 bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
 {
-    if (Playback_active)
-    {
-        return false;
-    }
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLAPATCH/" + filename);
     auto *full_path_ptr = full_path.c_str();
@@ -1887,10 +1908,6 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 
 bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
 {
-    if (Playback_active)
-    {
-        return false;
-    }
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
         return false;
@@ -1901,6 +1918,10 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
     payload[offset++] = Patch[patch_id].instruments;
     for (const auto &instrument : Patch[patch_id].Instrument)
     {
+        if (Patch[patch_id].used && instrument.used && (instrument.sound_id >= SOUNDS_MAX || Capture_pending(Sound[instrument.sound_id].file)))
+        {
+            return false;
+        }
         payload[offset++] = instrument.used;
         payload[offset++] = instrument.sound_id & 255;
         payload[offset++] = instrument.sound_id >> 8;

@@ -10,10 +10,6 @@ FLASHMEM
 void PointerSound::Set_pointer_to_file(const int S_menu_max)
 {
     pointer = {field_S_Value, 0, value_S_File};
-    if (Playback_active)
-    {
-        pointer.value_element = value_S_Gain;
-    }
     Display_Sound.Show_pointer_frame(pointer, true);
 
     // Serial.println("PointerSound::Set_pointer_to_file(int S_menu_max) - pointer: ");
@@ -80,7 +76,7 @@ void PointerSound::Move_pointer(const int value, const int S_menu_max)
         }
         else if (value == -1)
         {
-            if (pointer.value_element != (Playback_active ? value_S_Gain : value_S_File))
+            if (pointer.value_element != value_S_File)
             {
                 pointer.value_element = static_cast<S_value_name>(pointer.value_element - 1);
             }
@@ -92,10 +88,6 @@ void PointerSound::Move_pointer(const int value, const int S_menu_max)
         break;
     }
 
-    if (Playback_active && pointer.field_name == field_S_Value && pointer.value_element == value_S_File)
-    {
-        pointer.value_element = value_S_Gain;
-    }
     Display_Sound.Show_pointer_frame(pointer, true);
     
     //Print_pointer_description();
