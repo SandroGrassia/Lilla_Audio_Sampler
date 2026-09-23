@@ -348,7 +348,7 @@ AudioControlSGTL5000 Audio_shield;
 
 // 16-bit ('565') color settings http://www.barth-dev.de/online/rgb565-color-picker/ and https://ee-programming-notepad.blogspot.com/2016/10/16-bit-color-generator-picker.html
 ILI9341_t3n tft(SPI1_DISPLAY_CS, SPI1_DC, SPI1_RST, SPI1_MOSI, SPI1_SCLK, 255); // Write-only display on SPI1; MISO 39 is reserved for the MCP23S17 devices.
-GFXcanvas16 canvas = GFXcanvas16(WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT);                               // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.cpp ; GFXcanvas16 creates an array of w*h*2 bytes in memory
+GFXcanvas16 canvas = GFXcanvas16(WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT);            // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.cpp ; GFXcanvas16 creates an array of w*h*2 bytes in memory
 
 InfoMaster Info;     // Infos about audio files
 WaveVibrato Vibrato; // LFO for midi Vibrato effect
@@ -414,11 +414,6 @@ PointerLiveSampler Pointer_LiveSampler;
 PointerSampler Pointer_Sampler;
 PointerMidiLoop Pointer_MidiLoop;
 
-
-
-
-
-
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************
 // *************************************************************
@@ -426,14 +421,11 @@ PointerMidiLoop Pointer_MidiLoop;
 #define AudioNoInterrupts() (NVIC_DISABLE_IRQ(IRQ_SOFTWARE))
 #define AudioInterrupts() (NVIC_ENABLE_IRQ(IRQ_SOFTWARE))
 
-
 // >>>>>>>>>>>>>>>>>>>>>>> Polyphony/Max Pitch
 int first_octave_cache;
 
-
 // >>>>>>>>>>>>>>>>>>>>>>> Audio files
 uint32_t samples_in_file;
-
 
 // >>>>>>>>>>>>>>>>>>>>>>> Downsampling and resolution
 int resolution_cache;
@@ -441,10 +433,8 @@ int downsampling_cache;
 bool resolution_reset;
 bool downsampling_reset;
 
-
 // >>>>>>>>>>>>>>>>>>>>>>> Tools or Modes
 bool TOOLS_pushbutton;
-
 
 // >>>>>>>>>>>>>>>>>>>>>>>  PERFORMANCE
 // Menu
@@ -471,7 +461,6 @@ int P_Ask_if_change_Patch(void);
 bool P_Ask_if_delete_this_Patch(void);
 bool P_Verify_is_Patch_original(const int patch_id);
 
-
 // >>>>>>>>>>>>>>>>>>>>>>>  INSTRUMENT EDIT
 uint8_t Instrument_id;
 
@@ -491,11 +480,9 @@ void P_Reset_all_maps_Instrument_for_notes(void);
 void P_Reset_map_Instrument_for_notes(const int instrument_id);
 void P_Delete_one_map_Instrument_for_notes(const int instrument_id);
 
-
 // >>>>>>>>>>>>>>>>>>>>>>>  INSTRUMENT VCF
 void Macro_VCF_filter_on_none(void);
 void Macro_VCF_modulation_none(void);
-
 
 // >>>>>>>>>>>>>>>>>>>>>>>  SOUND_EDIT
 // Menu
@@ -516,7 +503,7 @@ S_field_description_struct S_pointer;
 
 // Functions
 void S_Map_one_Instrument_for_all_notes(const int instrument_id);
-void S_Drop_Instrument(const int instrument_id);                       // Drop an instrument and release its cache pin while preserving playing tails.
+void S_Drop_Instrument(const int instrument_id); // Drop an instrument and release its cache pin while preserving playing tails.
 struct PatchEditSnapshot;
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument, PatchEditSnapshot &snapshot); // insert ONE new instrument BELOW instrument
 bool S_Verify_is_Sound_original(int sound_id);
@@ -533,16 +520,14 @@ void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
 bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade = false); // Main only. Preserve the audio IRQ state; activate or cancel a successfully prepared bank. Retiring-bank fading requires global interrupts to be enabled by the caller.
 
-
-// >>>>>>>>>>>>>>>>>>>>>>> NOCLICK
+// >>>>>>>>>>>>>>>>>>>>>>> AudioTables (Wavetable e NoClickCrossmix)
+// AudioTables publication is coordinated here, outside the audio objects.
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);
-
-// >>>>>>>>>>>>>>>>>>>>>>> AudioTables publication is coordinated here, outside the audio objects.
 bool S_Fill_tables(uint8_t instrument_id);                            // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
 bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete bank and preserve the previous presets if preparation fails.
 bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
-void Print_player_read_diagnostics(void); // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
+void Print_player_read_diagnostics(void);                             // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
 void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
 void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
 void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
@@ -714,11 +699,10 @@ FLASHMEM static bool LS_Capture_write(CaptureSource &source);
 FLASHMEM static bool LS_Capture_materialize(void);
 FLASHMEM static void LS_Capture_finish_save(void);
 
-
 // >>>>>>>>>>>>>>>>>>>>>>>  MIDI_LOOP
 // variables
 DMAMEM uint32_t LOOP_time_order[TRACKS][LOOP_EVENTS]; // Initialized by LOOP_set_time_order before use.
-elapsedMillis LOOP_clock = 0; // clock fisico
+elapsedMillis LOOP_clock = 0;                         // clock fisico
 int LOOP_volume_int[TRACKS] = {0};
 bool LOOP_run_button_state; // pulsante EN_PB_Loop true: run loop abilitati -  false: stop tutti i loop
 bool LOOP_track_run_memo[TRACKS] = {false};
@@ -752,18 +736,15 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id);
 int LOOP_Get_previous_loop_id_in_SD(int loop_id);
 void LOOP_stop_and_reset_runnig_loop_data(void);
 
-
 // >>>>>>>>>>>>>>>>>>>>>>>  MIXER
 MX_pointer_struct MX_local_pointer;
 int volume_MONITOR = 0;
 void Golive_MIXER(void);
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS;
 
-
 // >>>>>>>>>>>>>>>>>>>>>>>  FRAM
 void Factory_setup_FRAM(void);
 void Require_FRAM(byte result);
-
 
 // >>>>>>>>>>>>>>>>>>>>>>> SGTL5000 Audio_shield
 int headphones_volume_int = 40; // unused 0 --> 40
@@ -772,8 +753,7 @@ int headphones_volume_int = 40; // unused 0 --> 40
 int headphones_pwm_volume_int = 40; // 0 --> 40
 constexpr int headphones_pwm_volume_max = 40;
 
-
-// >>>>>>>>>>>>>>>>>>>>>>> SWITCH  
+// >>>>>>>>>>>>>>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);
 bool P_Jump_to_Patch(uint8_t next_patch); // Publish the destination patch only after its presets and tables are ready.
 bool P_Save_current_patch_as_new(void);   // Prepare the cloned patch before saving its sounds and metadata.
@@ -982,10 +962,6 @@ struct PatchEditSnapshot
     const Sound_struct *Find_sound(int sound_id) const;
     void Restore(void) const; // Restore the model and note maps after a failed preparation; published presets remain unchanged.
 };
-
-
-
-
 
 // *************************************************************
 // *************************************************************
@@ -1657,7 +1633,6 @@ void loop()
                                 return;
                             }
 
-
                             Patch_id_old = Patch_id;
                         }
                     }
@@ -1668,7 +1643,6 @@ void loop()
                         {
                             return;
                         }
-
 
                         Patch_id_old = Patch_id;
                     }
@@ -4584,7 +4558,6 @@ void loop()
         sono sempre PROPORZIONALI a LS_window_width.
         */
 
-
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
         {
@@ -5450,7 +5423,6 @@ void loop()
                     DS_local_pointer = Pointer_Sampler.Get_pointer();
 
                     Clear_UI_events();
-
                 }
                 break;
 
@@ -10070,7 +10042,6 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
             LS_state = PLAYONLY;
             LiveSampler.Stop();
             Switch_to_PERFORMANCE_patch_old();
-
         }
     }
     else
@@ -10332,9 +10303,9 @@ void LOOP_select_menu_elements(void)
 
     if (LOOP_id == NEW_LOOP) // nuovo loop
     {
-        Menu_LOOP[0] = false; // New
-        Menu_LOOP[2] = false; // Save as New
-        if (LOOP_events[0] == 0)  // nuovo loop vuoto
+        Menu_LOOP[0] = false;    // New
+        Menu_LOOP[2] = false;    // Save as New
+        if (LOOP_events[0] == 0) // nuovo loop vuoto
         {
             Menu_LOOP[1] = false; // Save
             Menu_LOOP[3] = false; // Delete
@@ -11058,7 +11029,11 @@ struct VFS_Audio_guard
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     bool successful = false;
     VFS_Audio_guard() { AudioNoInterrupts(); }
-    bool Complete() { successful = true; return true; }
+    bool Complete()
+    {
+        successful = true;
+        return true;
+    }
     ~VFS_Audio_guard()
     {
         if (successful && enabled && SerialFlash.ready())
@@ -13796,8 +13771,6 @@ bool S_Rebuild_audio_tables(uint8_t)
     return true;
 }
 
-
-
 // ***************************************************************************************************************
 // **********************************        INSTRUMENT_VCF FUNCTIONS           **********************************
 // ***************************************************************************************************************
@@ -14395,7 +14368,10 @@ void Reload_system_state(void)
     {
         Serial.print(F("FRAM System repair failed, error "));
         Serial.println(system_repair_result);
-        while (true) { delay(1000); }
+        while (true)
+        {
+            delay(1000);
+        }
     }
 
     Serial.print(F("FRAM System repair: defaulted="));
@@ -14410,7 +14386,10 @@ void Reload_system_state(void)
         Serial.print(recording_repair_report.failed_id);
         Serial.print(F(", error "));
         Serial.println(recording_repair_result);
-        while (true) { delay(1000); }
+        while (true)
+        {
+            delay(1000);
+        }
     }
 
     Serial.print(F("FRAM Recording repair: cleared Recordings="));
@@ -14421,7 +14400,10 @@ void Reload_system_state(void)
     {
         Serial.print(F("FRAM Recording load failed, error "));
         Serial.println(recording_load_result);
-        while (true) { delay(1000); }
+        while (true)
+        {
+            delay(1000);
+        }
     }
 
     Require_VFS(VFS_Clean_up_VFS());
@@ -14454,7 +14436,10 @@ void Reload_system_state(void)
         Serial.print(repair_report.failed_id);
         Serial.print(F(", error "));
         Serial.println(repair_result);
-        while (true) { delay(1000); }
+        while (true)
+        {
+            delay(1000);
+        }
     }
     P_Delete_all_Patches_and_Sounds();
 
@@ -14468,7 +14453,10 @@ void Reload_system_state(void)
         Serial.print(failed_metadata_id);
         Serial.print(F(", error "));
         Serial.println(metadata_result);
-        while (true) { delay(1000); }
+        while (true)
+        {
+            delay(1000);
+        }
     }
     S_Copy_all_Sound_to_Sound_cache_P();
     Serial.println(F("FRAM -> RAM2: 200 Patches and 800 Sounds loaded, CRC verified"));
@@ -14488,7 +14476,10 @@ void Reload_system_state(void)
     {
         Serial.print(F("FRAM System settings load failed, error "));
         Serial.println(system_settings_result);
-        while (true) { delay(1000); }
+        while (true)
+        {
+            delay(1000);
+        }
     }
 
     key_step = stored_key_step;
