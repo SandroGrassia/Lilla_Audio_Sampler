@@ -414,6 +414,11 @@ PointerLiveSampler Pointer_LiveSampler;
 PointerSampler Pointer_Sampler;
 PointerMidiLoop Pointer_MidiLoop;
 
+
+
+
+
+
 // *************************************************************
 // ****************    VARIABLES AND ARRAYS     ****************
 // *************************************************************
@@ -421,27 +426,32 @@ PointerMidiLoop Pointer_MidiLoop;
 #define AudioNoInterrupts() (NVIC_DISABLE_IRQ(IRQ_SOFTWARE))
 #define AudioInterrupts() (NVIC_ENABLE_IRQ(IRQ_SOFTWARE))
 
-// Polyphony/Max Pitch
+
+// >>>>>>>>>>>>>>>>>>>>>>> Polyphony/Max Pitch
 int first_octave_cache;
 
-// Audio files
+
+// >>>>>>>>>>>>>>>>>>>>>>> Audio files
 uint32_t samples_in_file;
 
-// Downsampling and resolution
+
+// >>>>>>>>>>>>>>>>>>>>>>> Downsampling and resolution
 int resolution_cache;
 int downsampling_cache;
 bool resolution_reset;
 bool downsampling_reset;
 
-// Tools or Modes
+
+// >>>>>>>>>>>>>>>>>>>>>>> Tools or Modes
 bool TOOLS_pushbutton;
 
-// >>>>>>> PERFORMANCE
+
+// >>>>>>>>>>>>>>>>>>>>>>>  PERFORMANCE
 // Menu
 int P_menu_max;
 void P_Select_menu_elements(void);
 
-// pointer
+// Pointer
 P_field_description_struct P_pointer;
 
 // Patch
@@ -461,16 +471,17 @@ int P_Ask_if_change_Patch(void);
 bool P_Ask_if_delete_this_Patch(void);
 bool P_Verify_is_Patch_original(const int patch_id);
 
-// >>>>>>>> INSTRUMENT EDIT
+
+// >>>>>>>>>>>>>>>>>>>>>>>  INSTRUMENT EDIT
 uint8_t Instrument_id;
 
-// variables
+// Variables
 uint8_t midi_channel_change;
 uint8_t from_key_change;
 uint8_t to_key_change;
 uint8_t patch_change;
 
-// functions
+// Functions
 void Update_instruments_leds(void);
 void P_Update_line_of_all_instruments(void); // posizione di tutti gli Instrument sul display
 bool P_Verify_if_Instrument_original(const int patch_id, const int instrument_id);
@@ -480,16 +491,18 @@ void P_Reset_all_maps_Instrument_for_notes(void);
 void P_Reset_map_Instrument_for_notes(const int instrument_id);
 void P_Delete_one_map_Instrument_for_notes(const int instrument_id);
 
-// >>>>>>>> INSTRUMENT VCF
+
+// >>>>>>>>>>>>>>>>>>>>>>>  INSTRUMENT VCF
 void Macro_VCF_filter_on_none(void);
 void Macro_VCF_modulation_none(void);
 
-// >>>>>>> SOUND_EDIT
-// menu
+
+// >>>>>>>>>>>>>>>>>>>>>>>  SOUND_EDIT
+// Menu
 int S_menu_max;
 void S_Select_menu_elements(void);
 
-// variables
+// Variables
 DMAMEM Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // Reference metadata in RAM2.
 
 uint16_t Sound_id;
@@ -498,10 +511,10 @@ uint32_t S_trim_step; // samples per each step while trimming audio file
 int S_slicing_window;
 constexpr int MIN_SNIPPET = 100; // minimum dimension (number of samples) of the snippet played
 
-// pointer
+// Pointer
 S_field_description_struct S_pointer;
 
-// functions
+// Functions
 void S_Map_one_Instrument_for_all_notes(const int instrument_id);
 void S_Drop_Instrument(const int instrument_id);                       // Drop an instrument and release its cache pin while preserving playing tails.
 struct PatchEditSnapshot;
@@ -520,12 +533,11 @@ void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);
 void S_Set_Sound_SOLO_OFF(void);
 bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade = false); // Main only. Preserve the audio IRQ state; activate or cancel a successfully prepared bank. Retiring-bank fading requires global interrupts to be enabled by the caller.
 
-// WAVETABLES
 
-// NOCLICK
+// >>>>>>>>>>>>>>>>>>>>>>> NOCLICK
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);
 
-// AudioTables publication is coordinated here, outside the audio objects.
+// >>>>>>>>>>>>>>>>>>>>>>> AudioTables publication is coordinated here, outside the audio objects.
 bool S_Fill_tables(uint8_t instrument_id);                            // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
 bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete bank and preserve the previous presets if preparation fails.
@@ -536,33 +548,9 @@ void P_Invalidate_file_cache(int file_id);                            // Invalid
 void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
 bool audio_tables_error_pending = false;
 
-bool S_Fill_tables(uint8_t instrument_id)
-{
-    return S_Rebuild_audio_tables(instrument_id);
-}
-
-bool S_Fill_all_tables(void)
-{
-    return S_Rebuild_audio_tables();
-}
-
-bool S_Rebuild_audio_tables(uint8_t)
-{
-    Preset_struct next_presets[INSTRUMENTS] = {};
-    uint16_t tables_mask = 0;
-    if (!P_Prepare_audio_tables(Patch_id, Volume_float[volume_patch], next_presets, tables_mask, true))
-    {
-        audio_tables_error_pending = true;
-        return false;
-    }
-    if (!Players_Manager.Activate_prepared_presets(next_presets))
-    {
-        Audio_tables.Cancel_prepare();
-        audio_tables_error_pending = true;
-        return false;
-    }
-    return true;
-}
+bool S_Fill_tables(uint8_t instrument_id);
+bool S_Fill_all_tables(void);
+bool S_Rebuild_audio_tables(uint8_t);
 
 // >>>>>>> FILE COPY TO PSRAM
 EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMPLES];
@@ -727,7 +715,7 @@ FLASHMEM static bool LS_Capture_materialize(void);
 FLASHMEM static void LS_Capture_finish_save(void);
 
 
-// >>>>>>> MIDI_LOOP
+// >>>>>>>>>>>>>>>>>>>>>>>  MIDI_LOOP
 // variables
 DMAMEM uint32_t LOOP_time_order[TRACKS][LOOP_EVENTS]; // Initialized by LOOP_set_time_order before use.
 elapsedMillis LOOP_clock = 0; // clock fisico
@@ -764,26 +752,28 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id);
 int LOOP_Get_previous_loop_id_in_SD(int loop_id);
 void LOOP_stop_and_reset_runnig_loop_data(void);
 
-// >>>>>>> MIXER
+
+// >>>>>>>>>>>>>>>>>>>>>>>  MIXER
 MX_pointer_struct MX_local_pointer;
 int volume_MONITOR = 0;
 void Golive_MIXER(void);
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS;
 
-// FRAM
+
+// >>>>>>>>>>>>>>>>>>>>>>>  FRAM
 void Factory_setup_FRAM(void);
+void Require_FRAM(byte result);
 
-// SOUND PUSHBUTTONS
-int PB_number;
 
-// SGTL5000 Audio_shield
+// >>>>>>>>>>>>>>>>>>>>>>> SGTL5000 Audio_shield
 int headphones_volume_int = 40; // unused 0 --> 40
 
 // Pre-listen Volume
 int headphones_pwm_volume_int = 40; // 0 --> 40
 constexpr int headphones_pwm_volume_max = 40;
 
-// >>>>>>>>>>> SWITCH
+
+// >>>>>>>>>>>>>>>>>>>>>>> SWITCH  
 void Switch_to_PERFORMANCE_patch_old(void);
 bool P_Jump_to_Patch(uint8_t next_patch); // Publish the destination patch only after its presets and tables are ready.
 bool P_Save_current_patch_as_new(void);   // Prepare the cloned patch before saving its sounds and metadata.
@@ -813,7 +803,7 @@ void Golive_SETUP(void);
 void Switch_from_MIDI_LOOP_to_SETUP(void); // Keep the loop running while editing setup.
 void Golive_DELAY_SETTINGS(void);
 
-// >>>>>>>>>>> PRINT
+// >>>>>>>>>>>>>>>>>>>>>>>  PRINT
 void Print_Patch(int patch_id);
 void Print_Instrument(int patch_id, int instrument_id);
 void Print_Sound(int sound_id);
@@ -822,14 +812,14 @@ void Print_keyboard_state(int midi_channel, int from_key, int to_key);
 void Print_map_instrument_for_note(int midi_channel);
 void DS_Print_Directory(File dir, int numSpaces);
 
-// >>>>>>>>>>> TEST
+// >>>>>>>>>>>>>>>>>>>>>>>  TEST
 bool test_devices = false;
 bool TEST_Current_Patch_SD_round_trip(void);
 
-// >>>>>>>>>>> PROTECTION
+// >>>>>>>>>>>>>>>>>>>>>>>  PROTECTION
 bool exibition = false;
 
-// >>>>>>>>>>> GENERAL PURPOSE
+// >>>>>>>>>>>>>>>>>>>>>>>  GENERAL PURPOSE
 bool changed;
 bool confirmation;
 int action;
@@ -850,76 +840,18 @@ static inline void P_UpdatePatchOriginalAndMenu(void)
     }
 }
 
-// >>>>>>>>>>> STARTUP
+// >>>>>>>>>>>>>>>>>>>>>>>  STARTUP
 bool Startup_mode(void); // Prepare tables for the selected startup mode before enabling MIDI callbacks.
 void Startup_hardware_and_objects(void);
 void Compile_tables(void);
 void Reload_system_state(void);
 
-// >>>>>>>>>>>  ENCODER - PUSHBUTTONS
+// >>>>>>>>>>>>>>>>>>>>>>>   ENCODER - PUSHBUTTONS
 bool Read_pushbutton(int element);
 bool Read_pushbutton_fast(int element);
 int Read_encoder_simple(int element);
 bool Read_encoder_fast(int element);
 void Clear_UI_events(void); // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
-
-/*
-template <class T>
-bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
-{
-    auto R = Encoders_manager.Get_rotation(encoder);
-    if (R == 0)
-    {
-        return false;
-    }
-    else if (R == -1)
-    {
-        if (value > lowest)
-        {
-            value = value - increment;
-            return true;
-        }
-        return false;
-    }
-    else
-    {
-        if (value < highest)
-        {
-            value = value + increment;
-            return true;
-        }
-        return false;
-    }
-}
-
-template <class T>
-bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
-{
-    auto R = Encoders_manager.Get_rotation(encoder);
-    if (R == 0)
-    {
-        return false;
-    }
-    else if (R == 1)
-    {
-        if (value > lowest)
-        {
-            value -= increment;
-            return true;
-        }
-        return false;
-    }
-    else
-    {
-        if (value < highest)
-        {
-            value += increment;
-            return true;
-        }
-        return false;
-    }
-}
-*/
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
@@ -1042,46 +974,24 @@ struct PatchEditSnapshot
     size_t count = 0;
     size_t capacity = 0;
     bool valid = true;
-
     PatchEditSnapshot(const PatchEditSnapshot &) = delete;
     PatchEditSnapshot &operator=(const PatchEditSnapshot &) = delete;
-
     PatchEditSnapshot(void); // Capture the editable model while preserving the caller's audio IRQ state.
-
     ~PatchEditSnapshot(void);
-
     bool Capture_sound(int sound_id);
-
     const Sound_struct *Find_sound(int sound_id) const;
-
     void Restore(void) const; // Restore the model and note maps after a failed preparation; published presets remain unchanged.
 };
+
+
+
+
 
 // *************************************************************
 // *************************************************************
 // ********************      SETUP     *************************
 // *************************************************************
 // *************************************************************
-
-void Require_FRAM(byte result)
-{
-    if (result == LillaFRAM_2x512::ERROR_0)
-    {
-        return;
-    }
-
-    Serial.print(F("FRAM operation failed, error "));
-    Serial.println(result);
-
-    P_Quiesce_audio_players();
-    AudioNoInterrupts();
-    Display_Manager.FRAM_io_error_popup();
-    // Do not run subsequent save, erase or cache-publication steps after a failed access.
-    while (true)
-    {
-        delay(10);
-    }
-}
 
 void setup()
 {
@@ -13858,6 +13768,36 @@ void S_Select_menu_elements(void)
     S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] - 1;
 }
 
+bool S_Fill_tables(uint8_t instrument_id)
+{
+    return S_Rebuild_audio_tables(instrument_id);
+}
+
+bool S_Fill_all_tables(void)
+{
+    return S_Rebuild_audio_tables();
+}
+
+bool S_Rebuild_audio_tables(uint8_t)
+{
+    Preset_struct next_presets[INSTRUMENTS] = {};
+    uint16_t tables_mask = 0;
+    if (!P_Prepare_audio_tables(Patch_id, Volume_float[volume_patch], next_presets, tables_mask, true))
+    {
+        audio_tables_error_pending = true;
+        return false;
+    }
+    if (!Players_Manager.Activate_prepared_presets(next_presets))
+    {
+        Audio_tables.Cancel_prepare();
+        audio_tables_error_pending = true;
+        return false;
+    }
+    return true;
+}
+
+
+
 // ***************************************************************************************************************
 // **********************************        INSTRUMENT_VCF FUNCTIONS           **********************************
 // ***************************************************************************************************************
@@ -14891,5 +14831,25 @@ void Print_player_read_diagnostics(void)
         }
 
         Serial.printf("READ_DIAG_TOTAL,%s,cycle=%lu,estimated_us=%.3f,harvest_us=%.3f,uncovered_reads=%lu,restarted_players=%u,harvest_minus_estimate_us=%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<double>(data.total_estimated_us), static_cast<double>(data.total_harvest_us), static_cast<unsigned long>(data.uncovered_operations), static_cast<unsigned int>(data.restarted_players), static_cast<double>(data.total_harvest_us - data.total_estimated_us));
+    }
+}
+
+void Require_FRAM(byte result)
+{
+    if (result == LillaFRAM_2x512::ERROR_0)
+    {
+        return;
+    }
+
+    Serial.print(F("FRAM operation failed, error "));
+    Serial.println(result);
+
+    P_Quiesce_audio_players();
+    AudioNoInterrupts();
+    Display_Manager.FRAM_io_error_popup();
+    // Do not run subsequent save, erase or cache-publication steps after a failed access.
+    while (true)
+    {
+        delay(10);
     }
 }
