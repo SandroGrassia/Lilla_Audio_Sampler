@@ -89,7 +89,7 @@ void DisplayMidiLoop::Show_volume(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_volume[0]), display_coordinate_y(Loop_column_row_volume[1]), Loop_chars_volume);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f, 2);
+    tft.print(volume_patch);
 }
 
 FLASHMEM

@@ -60,3 +60,18 @@ else
 # Recap per Commit
 
 Anche senza indicazione esplicita, si devono intendere sempre in lingua Inglese.
+
+
+# Formattazioni speciali
+
+Si devono mantenere in evidenza i blocchi contenuti all'interno di AudioNoInterrupts() e AudioInterrupts() tenendo una riga vuota sopra e sotto, tranne casi in cui ci sono graffe che delimitano, ad esempio:
+{
+    AudioNoInterrupts();
+    Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+    Players_Manager.Broadcast_volume();
+    AudioInterrupts();
+}
+
+# Popup
+
+Per i popup si devono possibilmente utilizzare le funzioni Show_popup_text (per la scrittura del testo) e Confirm_frame_on_RED (per effettuare una selezione)

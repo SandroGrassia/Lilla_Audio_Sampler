@@ -43,7 +43,7 @@ struct Stub
     template<class T> void println(T) {}
     void println() {}
     void Stop() {}
-} Serial, Trigger_0, Trigger_1, Midi_reader;
+} Serial, Trigger, Midi_reader;
 namespace LillaFRAM_2x512 { constexpr byte ERROR_0 = 0; }
 struct Meta
 {

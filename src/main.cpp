@@ -4,16 +4,6 @@
    www.lillasampler.it
 */
 
-#include "CaptureSources.h"
-#include <Arduino.h>
-#include <util/atomic.h>
-#include <type_traits>
-#include <strings.h>
-#include "ZeroRaw.h"
-#if defined(LILLA_READ_BENCHMARK)
-#include "ReadBenchmark.h"
-#endif
-#include <spi_interrupt.h>
 
 // **********************************************************
 // **************       VERSIONE LILLA         **************
@@ -100,6 +90,18 @@
 // *************************************************************
 // ****************         LIBRARIES          *****************
 // *************************************************************
+
+#include <Arduino.h>
+#include <util/atomic.h>
+#include <type_traits>
+#include <strings.h>
+#include <spi_interrupt.h>
+#include "CaptureSources.h"
+#include "ZeroRaw.h"
+
+#if defined(LILLA_READ_BENCHMARK)
+#include "ReadBenchmark.h"
+#endif
 
 #include <control_sgtl5000.h>
 #include <filter_biquad.h>
@@ -206,11 +208,10 @@
 // *************************************************************
 
 // Attenzione: la funzione update() e' chiamata nell'ordine in cui vengono dichiarati gli oggetti Audiostream
-LillaClock Trigger_0; // Collect MIDI and prepare MIDI/loop requests before the Players.
+LillaClock Trigger; // Collect MIDI and prepare MIDI/loop requests before the Players.
 AudioPlayer Player[PLAYERS];
 Router_16x3 Router_L;
 Router_16x3 Router_R;
-LillaClock Trigger_1; // Reserved control hook: no MIDI reads after the Players.
 CacheCycleFinalizer CacheCycle_finalizer;
 AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
@@ -1110,7 +1111,7 @@ void loop()
         // #if defined(LILLA_READ_BENCHMARK)
         if (command == 'b')
         {
-            ReadBenchmark::Run(PatchCache_Manager, Audio_tables, Trigger_0.Is_running() && (Lilla_state != DIRECT_SAMPLING || DS_state == DS_waiting_state));
+            ReadBenchmark::Run(PatchCache_Manager, Audio_tables, Trigger.Is_running() && (Lilla_state != DIRECT_SAMPLING || DS_state == DS_waiting_state));
         }
         else
         // #endif
@@ -1367,10 +1368,10 @@ void loop()
     {
 
         // Change volume_patch
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1)) // LINE OUT VOLUME
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1)) // LINE OUT VOLUME
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
@@ -1897,7 +1898,7 @@ void loop()
                 if (Read_encoder(EN_PB_Value, Sound[sound_id].gain, 40, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Players_Manager.Update_Preset_volume(Patch_id, instrument_id, Volume_float[volume_patch]);
+                    Players_Manager.Update_Preset_volume(Patch_id, instrument_id, Patch_volume_gain(volume_patch));
                     Players_Manager.Multicast_volume_for_instrument_edit(instrument_id);
                     AudioInterrupts();
 
@@ -2058,10 +2059,10 @@ void loop()
         S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
         const Sound_struct sound_before_edit = Sound[Sound_id];
         // Change volume_patch
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
         }
@@ -2367,7 +2368,7 @@ void loop()
                 if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                    Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                     Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
                     AudioInterrupts();
 
@@ -2586,7 +2587,7 @@ void loop()
                     }
 
                     // Check the updated preset against the tables prepared before this edit.
-                    const Preset_struct candidate = Players_Manager.Build_Preset(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                    const Preset_struct candidate = Players_Manager.Build_Preset(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                     const bool tables_matched_before = Audio_tables.Get_active_pointers(Instrument_id, candidate).bank_mask != 0;
 
                     const bool tables_rebuilt = S_Fill_tables(Instrument_id);
@@ -3156,10 +3157,10 @@ void loop()
     {
 
         // Change volume_patch
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
@@ -3211,10 +3212,10 @@ void loop()
             // Volume
             if (Lilla_state_0 == LIVE_SAMPLING)
             {
-                if (Read_encoder(EN_PB_Value, volume_patch, 40, 0, 1))
+                if (Read_encoder(EN_PB_Value, volume_patch, PATCH_VOLUME_MAX, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+                    Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
                     Players_Manager.Broadcast_volume();
                     AudioInterrupts();
 
@@ -3231,7 +3232,7 @@ void loop()
                 if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                    Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                     Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
                     AudioInterrupts();
 
@@ -3706,10 +3707,10 @@ void loop()
     {
         if (Lilla_state_0 == PERFORMANCE || (Lilla_state_0 == DIRECT_SAMPLING && DS_state == DS_waiting_state) || Lilla_state_0 == LIVE_SAMPLING)
         {
-            if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+            if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
             {
                 AudioNoInterrupts();
-                Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+                Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
                 Players_Manager.Broadcast_volume();
                 AudioInterrupts();
             }
@@ -3770,7 +3771,7 @@ void loop()
                     if (Read_encoder(EN_PB_Value, Sound[Sound_id].gain, 40, 0, 1))
                     {
                         AudioNoInterrupts();
-                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                         Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
                         AudioInterrupts();
 
@@ -3802,7 +3803,7 @@ void loop()
                     else
                     {
                         AudioNoInterrupts();
-                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Volume_float[volume_patch]);
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                         Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
                         AudioInterrupts();
                     }
@@ -4138,10 +4139,10 @@ void loop()
     if (Lilla_state == DELAY_SETTINGS)
     {
         // Change Patch VOLUME
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
@@ -4559,10 +4560,10 @@ void loop()
         */
 
         // Change volume_patch
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
@@ -4645,7 +4646,7 @@ void loop()
                     LS_setup_LS_Patch(LS_stereo);
 
                     AudioNoInterrupts();
-                    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+                    Players_Manager.Update_all_Preset(Patch_id, Patch_volume_gain(volume_patch));
                     AudioInterrupts();
 
                     P_Update_all_maps_Instrument_for_notes();
@@ -5240,10 +5241,10 @@ void loop()
         */
 
         // Change volume_patch
-        if (DS_state == DS_waiting_state && Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (DS_state == DS_waiting_state && Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
@@ -5979,10 +5980,10 @@ void loop()
     if (Lilla_state == MIDI_MONITOR)
     {
         // Change Patch VOLUME
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
         }
@@ -6195,10 +6196,10 @@ void loop()
     if (Lilla_state == MIDI_LOOP)
     {
         // Change volume_patch
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
@@ -7148,10 +7149,10 @@ void loop()
     if (Lilla_state == SETUP)
     {
         // Change Patch VOLUME
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, 40, 0, 1))
+        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
         }
@@ -7212,7 +7213,7 @@ void loop()
 
             case 3: // import RAW files from SD
             {
-                const bool resume_controls = Trigger_0.Is_running();
+                const bool resume_controls = Trigger.Is_running();
                 if (!P_Quiesce_audio_players())
                 {
                     break;
@@ -7241,8 +7242,7 @@ void loop()
                         if (ready)
                         {
                             Midi_reader.Start();
-                            Trigger_0.Start();
-                            Trigger_1.Start();
+                            Trigger.Start();
                         }
                         AudioInterrupts();
                     }
@@ -7969,7 +7969,7 @@ bool P_Rebuild_patch_old(void)
 {
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t tables_mask = 0;
-    if (!P_Prepare_audio_tables(Patch_id_old, Volume_float[volume_patch], next_presets, tables_mask, true))
+    if (!P_Prepare_audio_tables(Patch_id_old, Patch_volume_gain(volume_patch), next_presets, tables_mask, true))
     {
         audio_tables_error_pending = true;
         return false;
@@ -8059,7 +8059,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
     Require_FRAM(Archive.Read_Delay(next_patch, next_delay));
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t next_tables_mask = 0;
-    if (!P_Prepare_audio_tables(next_patch, Volume_float[volume_patch], next_presets, next_tables_mask, true))
+    if (!P_Prepare_audio_tables(next_patch, Patch_volume_gain(volume_patch), next_presets, next_tables_mask, true))
     {
         audio_tables_error_pending = true;
         return false;
@@ -8081,7 +8081,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
     Patch_id = next_patch;
     Delay_manager.New_values(&next_delay);
     P_Update_all_maps_Instrument_for_notes();
-    Players_Manager.Update_all_Preset_volume(Patch_id, Volume_float[volume_patch]);
+    Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
     uint8_t active_bank_mask = 0;
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
@@ -9866,7 +9866,7 @@ void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void)
     LS_setup_LS_Patch(LS_stereo);
 
     P_Update_all_maps_Instrument_for_notes();
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    Players_Manager.Update_all_Preset(Patch_id, Patch_volume_gain(volume_patch));
     AudioInterrupts();
 
     Golive_with_LIVE_SAMPLING();
@@ -9883,7 +9883,7 @@ void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void)
     LS_setup_LS_Patch(LS_stereo);
 
     P_Update_all_maps_Instrument_for_notes();
-    Players_Manager.Update_all_Preset(Patch_id, Volume_float[volume_patch]);
+    Players_Manager.Update_all_Preset(Patch_id, Patch_volume_gain(volume_patch));
     AudioInterrupts();
 
     Golive_with_LIVE_SAMPLING();
@@ -11052,8 +11052,7 @@ void Require_VFS(bool result)
     }
     Serial.println(F("VFS operation failed; restart required. Incomplete recordings remain marked in FRAM."));
     AudioNoInterrupts();
-    Trigger_0.Stop();
-    Trigger_1.Stop();
+    Trigger.Stop();
     Midi_reader.Stop();
     while (true)
     {
@@ -13757,7 +13756,7 @@ bool S_Rebuild_audio_tables(uint8_t)
 {
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t tables_mask = 0;
-    if (!P_Prepare_audio_tables(Patch_id, Volume_float[volume_patch], next_presets, tables_mask, true))
+    if (!P_Prepare_audio_tables(Patch_id, Patch_volume_gain(volume_patch), next_presets, tables_mask, true))
     {
         audio_tables_error_pending = true;
         return false;
@@ -13877,10 +13876,8 @@ bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&pr
 {
     const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
-    const bool trigger_0_running = Trigger_0.Is_running();
-    const bool trigger_1_running = Trigger_1.Is_running();
-    Trigger_0.Stop();
-    Trigger_1.Stop();
+    const bool trigger_running = Trigger.Is_running();
+    Trigger.Stop();
 
     // Players and the finalizer may run while the model is being prepared; MIDI, filter and delay control callbacks must see only committed state.
     const bool snapshot_ready = Players_Manager.Build_presets_snapshot(patch_id, patch_volume, presets, tables_mask);
@@ -13920,13 +13917,9 @@ bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&pr
         AudioNoInterrupts();
         AudioStopUsingSPI();
     }
-    if (trigger_0_running)
+    if (trigger_running)
     {
-        Trigger_0.Start();
-    }
-    if (trigger_1_running)
-    {
-        Trigger_1.Start();
+        Trigger.Start();
     }
     if (audio_interrupts_enabled)
     {
@@ -13948,8 +13941,7 @@ bool P_Quiesce_audio_players(void)
 {
     const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
-    Trigger_0.Stop();
-    Trigger_1.Stop();
+    Trigger.Stop();
     Midi_reader.Stop();
     const uint32_t wait_started_us = micros();
     // At first startup all players are idle and delay buffers are not connected yet: do not enable audio just to discover that nothing needs draining.
@@ -14167,14 +14159,10 @@ void Startup_hardware_and_objects(void)
     Filter_Biquad_Manager.biquad_R_ptr = &biquad_R;
 
     // Setup Trigger
-    Trigger_0.identity = 0;
-    Trigger_1.identity = 1;
-    Trigger_0.Players_Manager_ptr = &Players_Manager; // Budget every rendering block, independently of MIDI activity.
-    Trigger_0.Midi_reader_ptr = &Midi_reader;
-    Trigger_1.Midi_reader_ptr = &Midi_reader;
-    Trigger_0.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
-    Trigger_1.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
-    Trigger_0.Delay_Manager_ptr = &Delay_manager;
+    Trigger.Players_Manager_ptr = &Players_Manager; // Budget every rendering block, independently of MIDI activity.
+    Trigger.Midi_reader_ptr = &Midi_reader;
+    Trigger.Filter_Biquad_Manager_ptr = &Filter_Biquad_Manager;
+    Trigger.Delay_Manager_ptr = &Delay_manager;
 
     // Setup Delays
     Delay_L.LFO_ptr = &LFO_D[0];
@@ -14602,8 +14590,7 @@ void Reload_system_state(void)
     delay(10);
 
     // *******************  START TRIGGERS  ***********************
-    Trigger_0.Start();
-    Trigger_1.Start();
+    Trigger.Start();
     delay(20);
 }
 
@@ -14702,7 +14689,7 @@ void P_Invalidate_recording_cache(int recording_id)
 void P_Service_patch_cache(void) // Coordinate bounded cache loading and own both audio critical sections from the main loop.
 {
     // Paused control callbacks indicate metadata replacement; Direct Sampling owns Flash while recording or converting.
-    const bool copying_allowed = Trigger_0.Is_running() && !(Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state);
+    const bool copying_allowed = Trigger.Is_running() && !(Lilla_state == DIRECT_SAMPLING && DS_state != DS_waiting_state);
     if (!copying_allowed || NVIC_IS_ENABLED(IRQ_SOFTWARE) == 0)
     {
         return;

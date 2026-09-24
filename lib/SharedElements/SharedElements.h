@@ -118,7 +118,7 @@ static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
 static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
 static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
 extern volatile uint32_t audio_update_cycle; // Advances every audio cycle, including paused control callbacks.
-extern elapsedMicros audio_update_time_micros; // Shared elapsed time from Trigger 0: Player protection, crossfades and background copies.
+extern elapsedMicros audio_update_time_micros; // Shared elapsed time from Trigger: Player protection, crossfades and background copies.
 
 
 // PATCH
@@ -242,6 +242,8 @@ struct AudioFileSource
 static constexpr char PROGMEM note_name[12][3] = {{"C"}, {"C#"}, {"D"}, {"D#"}, {"E"}, {"F"}, {"F#"}, {"G"}, {"G#"}, {"A"}, {"A#"}, {"B"}};
 extern uint8_t Patch_id;
 extern int volume_patch;
+inline constexpr int PATCH_VOLUME_MAX = 100;
+float Patch_volume_gain(int volume); // Interpolate the original nonlinear curve over 101 control levels.
 extern uint8_t map_instrument_for_note[16][NOTE_NUMBERS];
 extern bool key_state[16][NOTE_NUMBERS]; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
 extern int8_t P_line_of_instrument[INSTRUMENTS];

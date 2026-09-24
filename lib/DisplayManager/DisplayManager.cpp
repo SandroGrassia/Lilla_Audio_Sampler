@@ -80,7 +80,7 @@ void DisplayManager::P_Patch_volume_value(bool change_vol)
 {
     Cancel_text_reset_cursor(display_coordinate_x(P_column_Volume_value), display_coordinate_y(0), 4);
     tft.setTextColor(ILI9341_YELLOW); // tft.setTextColor(change_vol ? ILI9341_YELLOW : ILI9341_WHITE);
-    tft.print(volume_patch / 20.0f, 2);
+    tft.print(volume_patch);
 }
 
 void DisplayManager::P_show_delete_Instrument_frame(float line, bool show)

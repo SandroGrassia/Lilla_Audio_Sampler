@@ -24,7 +24,6 @@ public:
         active = true; // Keep control callbacks scheduled without audio connections.
     }
 
-    uint8_t identity;
     PlayersManager *Players_Manager_ptr = nullptr; // Revalidate source reservations before Player rendering, even with control callbacks paused.
     MidiReader *Midi_reader_ptr = nullptr;
     FilterBiquadManager *Filter_Biquad_Manager_ptr = nullptr;
@@ -33,5 +32,5 @@ public:
     bool Is_running(void) const { return !stop_flag; } // Read the callback state with audio interrupts disabled.
     void Start(void); // Enable control callbacks without changing MIDI keyboard state.
     void Stop(void); // Pause control callbacks while players and the finalizer continue processing audio.
-    virtual void update(void); // Trigger 0 runs the enabled control batch before Player rendering; Trigger 1 is reserved.
+    virtual void update(void); // Trigger runs the enabled control batch before Player rendering.
 };

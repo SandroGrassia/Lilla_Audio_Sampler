@@ -109,7 +109,7 @@ void DisplayLiveSampler::Volume(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_volume[0]), display_coordinate_y(LS_column_row_volume[1]), 4);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f);
+    tft.print(volume_patch);
 }
 
 FLASHMEM

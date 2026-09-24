@@ -3,10 +3,6 @@
 
 void LillaClock::update(void)
 {
-    if (identity != 0)
-    {
-        return;
-    }
     // The audio deadline still advances while control callbacks are paused: Players keep rendering.
     audio_update_time_micros = 0;
     ++audio_update_cycle;
