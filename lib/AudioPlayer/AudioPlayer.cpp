@@ -670,6 +670,7 @@ void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int 
 
 void AudioPlayer::Start_playing(void)
 {
+    live_forward_last_sample = 0;
     patch_release_pending = false; // A replacement note must not inherit the previous patch deadline.
     Close_source();
     source_now = source_wait;
@@ -1468,6 +1469,7 @@ void AudioPlayer::update(void)
         }
 
         // Harvest for samples
+        live_forward_end = false;
         a_sample = a_first_sample;
         initial_index_offset = a_sample - floor(a_sample);
         b_sample = a_sample + (pitch * (AUDIO_BLOCK_SAMPLES - 1));
@@ -1622,12 +1624,18 @@ void AudioPlayer::update(void)
             VCF_ptr->Update();
         }
 
+        if (live_forward_end)
+        {
+            Fade_live_forward_end();
+        }
+
         for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; sample++)
         {
             block_L->data[sample] = pan_gain_L * block[sample];
             block_R->data[sample] = pan_gain_R * block[sample];
         }
 
+        live_forward_last_sample = block[AUDIO_BLOCK_SAMPLES - 1];
         rendered_block_valid = true; // The complete outgoing mono block is available for a source-free budget tail.
         transmit(block_L, 0);
         release(block_L);
@@ -1725,8 +1733,58 @@ void AudioPlayer::Harvest_samples(void)
     }
 }
 
+bool AudioPlayer::Harvest_live_forward_end(void)
+{
+    if (!LS_flag || LS_XY_lock || mode_player != ONCE_FWD || !LiveSampler_ptr->first_write_flag || LiveSampler_ptr->Q_sample >= LS_buffer_dim - 1)
+    {
+        return false;
+    }
+
+    const int first = static_cast<int>(floorf(a_sample));
+    const int count = static_cast<int>(ceilf(b_sample)) - first + 1;
+    const int position = ((first % LS_buffer_dim) + LS_buffer_dim) % LS_buffer_dim;
+    const int available = LiveSampler_ptr->Q_sample >= position ? LiveSampler_ptr->Q_sample - position + 1 : 0;
+    if (count <= available)
+    {
+        return false;
+    }
+
+    if (available > 0)
+    {
+        Read_samples(samples_basket, position, available);
+    }
+
+    live_forward_empty = available == 0;
+    // Never interpolate against unwritten memory; extend the last valid value into the fade.
+    const int16_t tail = available > 0 ? samples_basket[available - 1] : 0;
+    for (int sample = available; sample < count; ++sample)
+    {
+        samples_basket[sample] = tail;
+    }
+    a_first_sample = b_sample + pitch;
+    return true;
+}
+
+void AudioPlayer::Fade_live_forward_end(void)
+{
+    // Fade after resolution/downsampling so the final transmitted sample is exactly zero.
+    for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+    {
+        const float gain = static_cast<float>(AUDIO_BLOCK_SAMPLES - 1 - sample) / static_cast<float>(AUDIO_BLOCK_SAMPLES - 1);
+        const int16_t value = live_forward_empty ? live_forward_last_sample : block[sample];
+        block[sample] = static_cast<int16_t>(value * gain);
+    }
+    state = IDLE_REQUEST;
+}
+
 void AudioPlayer::Flash_memory_harvest(void)
 {
+    live_forward_end = Harvest_live_forward_end();
+    if (live_forward_end)
+    {
+        return;
+    }
+
     if (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || mode_player == LOOP_REV)
     {
         Loop_memory_harvest(); // Assemble repeated loop segments before audio interpolation.

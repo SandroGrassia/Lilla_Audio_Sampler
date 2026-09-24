@@ -282,6 +282,9 @@ private:
 
     // LIVE_SAMPLING
     bool LS_flag = false;
+    bool live_forward_end = false; // Fade the final block when unlocked FWD reaches never-recorded samples.
+    bool live_forward_empty = false;
+    int16_t live_forward_last_sample = 0;
     int16_t *FIFO;
     int FIFO_dim;
 
@@ -294,6 +297,8 @@ private:
     void Update_pan_gain(void);
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
+    bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.
+    void Fade_live_forward_end(void);
     void Flash_memory_harvest(void);
     int Loop_period(int first, int last, int crossfade, uint8_t mode) const; // Return the sample period for forward, reverse or ping-pong loops.
     bool Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick); // Fill bounded loop segments through the active sample reader.

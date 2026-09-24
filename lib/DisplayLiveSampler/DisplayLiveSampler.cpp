@@ -91,7 +91,6 @@ void DisplayLiveSampler::Page(void)
     tft.setCursor(display_coordinate_x(LS_column_row_STEP[0]), display_coordinate_y(LS_column_row_STEP[1]));
     tft.print("STEP");
     Step();
-
 }
 
 FLASHMEM
@@ -243,7 +242,10 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
             }
         }
 
-        Show_measure_unit("sec", 3);
+        if (LS_X_delta != 0)
+        {
+            Show_measure_unit("sec", 3);
+        }
     }
 }
 

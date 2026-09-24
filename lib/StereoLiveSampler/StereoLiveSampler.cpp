@@ -106,21 +106,15 @@ void StereoLiveSampler::update(void)
             start_sample = 0;
         }
 
+        // The buffer and write position are block-aligned; clear exactly the next block.
         if (stereo)
         {
-            for (auto sample = 0; sample < (AUDIO_BLOCK_SAMPLES / 2); ++sample)
-            {
-                *(uint32_t *)(LS_buffer_L_ptr + sample) = 0;
-                *(uint32_t *)(LS_buffer_R_ptr + sample) = 0;
-            }
+            memset(LS_buffer_L_ptr + start_sample, 0, AUDIO_BLOCK_BYTES);
+            memset(LS_buffer_R_ptr + start_sample, 0, AUDIO_BLOCK_BYTES);
         }
-
         else
         {
-            for (auto sample = 0; sample < (AUDIO_BLOCK_SAMPLES / 2); ++sample)
-            {
-                *(uint32_t *)(LS_buffer_mono_ptr + sample) = 0;
-            }
+            memset(LS_buffer_mono_ptr + start_sample, 0, AUDIO_BLOCK_BYTES);
         }
     }
 
