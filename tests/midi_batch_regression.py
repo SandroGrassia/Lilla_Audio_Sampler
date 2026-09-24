@@ -39,7 +39,6 @@ struct CallbackStub { unsigned calls = 0; void Update() { ++calls; } void Prepar
 struct LillaClock
 {
     CallbackStub *Players_Manager_ptr = &callbacks;
-    uint8_t identity = 0;
     bool stop_flag = true;
     CallbackStub *Filter_Biquad_Manager_ptr = &callbacks, *Delay_Manager_ptr = &callbacks, *Midi_reader_ptr = &callbacks;
     void update();
@@ -279,13 +278,11 @@ int main()
     pm.Set_modulation(0, 127); pm.Set_modulation(1, 32);
     assert(pm.voices[0].modulation_depth == 1.0f && pm.voices[1].modulation_depth == 32 / 127.0f);
     pm.Set_modulation(0, 0); assert(!pm.voices[0].vibrato_flag && pm.voices[1].vibrato_flag);
-    // The shared cycle clock is reset even while control callbacks are paused; Trigger 1 never resets it.
+    // The shared cycle clock is reset even while control callbacks are paused.
     LillaClock clock;
     audio_update_time_micros = 5000;
     clock.update(); assert(audio_update_time_micros == 0 && audio_update_cycle == 1 && callbacks.calls == 0);
     clock.stop_flag = false; clock.update(); assert(audio_update_cycle == 2 && callbacks.calls == 3);
-    clock.identity = 1; audio_update_time_micros = 1000; clock.update();
-    assert(audio_update_time_micros == 1000 && audio_update_cycle == 2 && callbacks.calls == 3);
     // Emergency protection includes time spent before Player 0 and discards queued restarts safely.
     voice.state = AudioPlayer::RUNNING; voice.idle = false; voice.power_on = true;
     voice.warmup_for_play_again_flag = true; voice.restart_flag = true;

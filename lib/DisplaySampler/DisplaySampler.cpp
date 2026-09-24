@@ -414,7 +414,7 @@ void DisplaySampler::DS_volume(void)
     tft.setTextColor(TEXT_COLOR);
     tft.print("VOLUME ");
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f, 2);
+    tft.print(volume_patch);
 }
 
 FLASHMEM
@@ -422,7 +422,7 @@ void DisplaySampler::DS_update_volume(bool adj)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DS_column_row_volume[0]), display_coordinate_y(DS_column_row_volume[1]), DS_chars_volume);
     tft.setTextColor(adj ? ILI9341_YELLOW : ILI9341_WHITE);
-    tft.print(volume_patch / 20.0f, 2);
+    tft.print(volume_patch);
 }
 
 FLASHMEM

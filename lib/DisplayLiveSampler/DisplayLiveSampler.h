@@ -156,4 +156,5 @@ public:
     // Draws or erases the pointer highlight frame at the position described
     // by `pointer` (either a menu item or a parameter value cell).
     void LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show);
+    void LS_Display_Confirm_capture_frame(uint8_t value);
 };

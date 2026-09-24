@@ -27,7 +27,23 @@ DMAMEM Sound_struct Sound[SOUNDS_MAX + 2];
 
 // PERFORMANCE
 uint8_t Patch_id = 0;
-int volume_patch = 29;
+int volume_patch = 50; // Initial patch volume: gain 0.5 on the nonlinear curve.
+
+float Patch_volume_gain(int volume)
+{
+    if (volume <= 0)
+    {
+        return 0.0f;
+    }
+    if (volume >= PATCH_VOLUME_MAX)
+    {
+        return 2.0f;
+    }
+    const int scaled = volume * 40;
+    const int index = scaled / PATCH_VOLUME_MAX;
+    const float fraction = static_cast<float>(scaled % PATCH_VOLUME_MAX) / PATCH_VOLUME_MAX;
+    return Volume_float[index] + (Volume_float[index + 1] - Volume_float[index]) * fraction;
+}
 uint8_t map_instrument_for_note[16][NOTE_NUMBERS] = {0};
 bool key_state[16][NOTE_NUMBERS] = {0}; // usato solo a fini statistici; key premuti su ciascun canale midi; rilevato attaverso il conteggio dei NoteOn
 int8_t P_line_of_instrument[INSTRUMENTS];

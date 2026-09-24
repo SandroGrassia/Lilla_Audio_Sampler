@@ -4,6 +4,7 @@
  *
  */
 
+#include "CaptureSources.h"
 #include "InfoMaster.h"
 
 // Samples in mono recording or in Left channel's recording
@@ -67,6 +68,11 @@ int InfoMaster::DS_recording_samples(int recording)
 
 int InfoMaster::Raw_file_samples(int file_id)
 {
+    const auto *capture = Capture_find(file_id);
+    if (capture != nullptr)
+    {
+        return capture->audio.samples;
+    }
     int result;
     LillaSerialFlashFile rawfile; // SerialFlashFile rawfile;
     rawfile.fast_open(file_id);   // rawfile = SerialFlash.open(name_file[file_id]);
@@ -415,6 +421,11 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
 
 void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, int samples_in) // samples_in <= BASKET_INFO
 {
+    if (Capture_find(file_id) != nullptr)
+    {
+        Capture_read(file_id, destination, seek_in, samples_in);
+        return;
+    }
     int first_byte;
     int total_bytes = samples_in * 2;
     byte *destination_byte = (byte *)destination;

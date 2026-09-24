@@ -38,11 +38,14 @@ void Frame_by_col_row(const float col, const float row, const int chars, const i
 void Frame_by_pixels(const int X, const int Y, const int chars, const bool show);
 void Frame_by_pixels_on_RED(const int X, const int Y, const int chars, const bool show);
 void Frame_by_pixels(const int X, const int Y, const int chars, const int high, const bool show);
+void Confirm_frame_on_RED(int X, int Y, int chars, bool print);
+void Confirm_frame(int X, int Y, int chars, bool print);
 
 
 void Show_measure_unit(const char *what, const int lenght);
 void Delete_text_row(const float row); // delete text row
 
 // Vertical popup offset in pixels: negative moves up, positive moves down.
-void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
+void Show_popup_text(const char *text, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
+void Show_popup_text(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
 void Backgorund_red(const float col, const float row, const int chars);

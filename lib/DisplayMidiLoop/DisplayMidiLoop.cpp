@@ -32,8 +32,8 @@ bool DisplayMidiLoop::Update_save_failed(void)
     if (static_cast<uint32_t>(millis() - save_failed_started_ms) >= 4000u)
     {
         // Match the geometry used by Show_popup_text().
-        const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 4);
-        const int height = display_coordinate_y(3);
+        const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 2);
+        const int height = display_coordinate_y(1);
         tft.fillRect((320 - width) / 2, (240 - height) / 2 + Save_failed_y_offset, width, height, ILI9341_BLACK);
         save_failed_visible = false;
         
@@ -89,7 +89,7 @@ void DisplayMidiLoop::Show_volume(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_volume[0]), display_coordinate_y(Loop_column_row_volume[1]), Loop_chars_volume);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f, 2);
+    tft.print(volume_patch);
 }
 
 FLASHMEM

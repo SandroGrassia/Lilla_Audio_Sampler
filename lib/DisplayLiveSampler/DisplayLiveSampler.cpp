@@ -109,7 +109,7 @@ void DisplayLiveSampler::Volume(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_volume[0]), display_coordinate_y(LS_column_row_volume[1]), 4);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(volume_patch / 20.0f);
+    tft.print(volume_patch);
 }
 
 FLASHMEM
@@ -546,4 +546,19 @@ void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, 
             break;
         }
     }
+}
+
+FLASHMEM
+void DisplayLiveSampler::LS_Display_Confirm_capture_frame(uint8_t value)
+{
+    const int popup_width = display_coordinate_x(sizeof("REPLACE CAPTURE?") - 1 + 2);
+    const int popup_height = display_coordinate_y(1) + 15;
+    const int text_x = (320 - popup_width) / 2 + display_coordinate_x(1);
+    const int option_y = (240 - popup_height) / 2 + 20;
+    const int no_x = text_x + 4 * 6;
+    const int yes_x = text_x + 8 * 6;
+
+    Frame_by_pixels_on_RED(no_x, option_y, 2, false);
+    Frame_by_pixels_on_RED(yes_x, option_y, 3, false);
+    Frame_by_pixels_on_RED(value == 0 ? no_x : yes_x, option_y, value == 0 ? 2 : 3, true);
 }

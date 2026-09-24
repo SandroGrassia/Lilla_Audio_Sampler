@@ -10,7 +10,7 @@
 #include "PlaybackProfile.h"
 
 // Firmware version
-constexpr char FIRMWARE_VERSION[] = "7.3.0 20/09/2026";
+constexpr char FIRMWARE_VERSION[] = "7.4.0 23/09/2026";
 
 // Hardware versions
 /*
@@ -41,7 +41,7 @@ void Setup_GATE_pins(void);
 // MAIN CONSTANTS
 static constexpr int AUDIO_CYCLE_BUDGET_US = 2900; // Conservative block budget for 128 samples at 44.1 kHz.
 static constexpr int AUDIO_POST_PLAYER_RESERVE_US = 200; // Initial downstream processing margin; validate under worst-case hardware load.
-static constexpr int AUDIO_PLAYER_DEADLINE_US = AUDIO_CYCLE_BUDGET_US - AUDIO_POST_PLAYER_RESERVE_US; // Emergency cutoff measured from Trigger 0, including MIDI preparation.
+static constexpr int AUDIO_PLAYER_DEADLINE_US = AUDIO_CYCLE_BUDGET_US - AUDIO_POST_PLAYER_RESERVE_US; // Emergency cutoff measured from Trigger, including MIDI preparation.
 static constexpr int PLAYERS = 16;
 static constexpr int INSTRUMENTS = 8;   // mux number of Instruments per Patch
 static constexpr int SAMPLES_VOLUME = 5000; // rampa per cambio gain - deve essere pari

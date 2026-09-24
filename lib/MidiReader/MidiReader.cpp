@@ -6,6 +6,7 @@
  *
  */
 
+#include "CaptureSources.h"
 #include <MidiReader.h>
 
 void MidiReader::Begin(void)
@@ -97,6 +98,14 @@ void MidiReader::Update(void)
 
 void MidiReader::Handle_message(const MidiInputMessage &message)
 {
+    if (Capture_learn_key && message.type == midi::NoteOn && message.data2 > 0)
+    {
+        if (Capture_learn_note < 0)
+        {
+            Capture_learn_note = message.data1;
+        }
+        return;
+    }
     uint8_t velocity;
     float velocity_float;
     uint8_t midi_channel;
@@ -348,7 +357,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
                     if (Patch[Patch_id].Instrument[instrument_id].used && (Get_midi_channel(Patch_id, instrument_id) == midi_channel))
                     {
                         Sound[Get_sound_id(Patch_id, instrument_id)].gain = (float)midi_value * 0.315; // 127 --> 40
-                        Players_Manager->Update_Preset_volume(Patch_id, instrument_id, Volume_float[volume_patch]);
+                        Players_Manager->Update_Preset_volume(Patch_id, instrument_id, Patch_volume_gain(volume_patch));
                         Players_Manager->Multicast_volume_for_instrument_edit(instrument_id);
 
                         if (Lilla_state == PERFORMANCE)

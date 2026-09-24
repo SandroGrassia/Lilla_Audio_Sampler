@@ -9,6 +9,7 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 source = (root / 'src/main.cpp').read_text(encoding='utf-8')
 snapshot = re.search(r'^struct PatchEditSnapshot\n\{.*?^\};', source, re.M | re.S).group(0)
+snapshot += '\n' + '\n\n'.join(re.findall(r'^[^\n]*PatchEditSnapshot::[^\n]+\n\{.*?^\}', source, re.M | re.S))
 
 def method(signature):
     return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', source, re.M | re.S).group(0)
@@ -97,7 +98,11 @@ struct StatisticsStub
 } Players_statistics;
 int S_Get_Patch_id_free() { return 1; }
 bool S_Fill_all_tables() { return tables_succeed; }
-void S_Save_all_Sounds_changed() { ++persisted_sounds; }
+bool capture_save_succeeds = true;
+bool LS_Capture_materialize() { return capture_save_succeeds; }
+void LS_Capture_finish_save() {}
+int Capture_new_patch = -1, Capture_target = -1;
+bool S_Save_all_Sounds_changed() { ++persisted_sounds; return true; }
 void P_Update_Patches_number() {}
 void S_Copy_all_Sound_to_Sound_cache_P() { memcpy(S_Sound_cache_P, Sound, sizeof(S_Sound_cache_P)); }
 void P_Update_line_of_all_instruments() {}
@@ -115,6 +120,8 @@ void reset()
     irq_enabled = true;
     audio_tables_error_pending = false;
     tables_succeed = true;
+    capture_save_succeeds = true;
+    Capture_new_patch = Capture_target = -1;
     persisted_sounds = 0;
     Patch_id = 0;
     for (auto &patch : Patch)
@@ -271,6 +278,18 @@ int main()
         allocations_until_failure = 1;
         assert(!P_Save_current_patch_as_new());
         assert(Patch_id == 0 && !Patch[1].used && !Sound[INSTRUMENTS].used && persisted_sounds == 0);
+    }
+    reset();
+    {
+        Capture_new_patch = Capture_target = 0;
+        capture_save_succeeds = false;
+        const auto original = Patch[0];
+        assert(!P_Save_current_patch_as_new());
+        assert(Patch_id == 0 && persisted_sounds == 0 && !Patch[1].used && Capture_new_patch == 0);
+        assert(memcmp(&original, &Patch[0], sizeof(original)) == 0);
+        capture_save_succeeds = true;
+        assert(P_Save_current_patch_as_new());
+        assert(Patch_id == 1 && Capture_new_patch == -1 && Capture_target == 1);
     }
     reset();
     std::cout << "PASS: sparse rollback, shared Sounds, nesting, clone, sampler channels, full reload and allocation failures\n";

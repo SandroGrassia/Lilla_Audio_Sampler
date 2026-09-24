@@ -5,6 +5,7 @@
 */
 
 #include "DisplayPrimitives.h"
+#include <string.h>
 
 void Cancel_text_reset_cursor(const int X, const int Y, const int N)
 {
@@ -53,18 +54,34 @@ void Frame_by_pixels_on_RED(const int X, const int Y, const int chars, const boo
     tft.drawRect(X - 4, Y - 4, (6 * chars) + 7, Frame_heigh, (show ? ILI9341_WHITE : ILI9341_RED)); // drawRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color)
 }
 
-void Show_popup_text(String text, uint16_t text_color, uint16_t filler_color, int y_offset)
+void Show_popup_text(const char *text, uint16_t text_color, uint16_t filler_color, int y_offset)
 {
-    int L_POPUP = display_coordinate_x(text.length() + 4); // lunghezza
-    int H_POPUP = display_coordinate_y(3);                 // altezza
-    int Y_POPUP = (240 - H_POPUP) / 2 + y_offset;
-    int X_POPUP = (320 - L_POPUP) / 2;
-    int Y_POPUP_TXT = 20; // riga testo
+    Show_popup_text(text, "", text_color, filler_color, y_offset);
+}
+
+void Show_popup_text(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset)
+{
+    const size_t first_length = strlen(first_line);
+    const size_t second_length = strlen(second_line);
+    const bool two_lines = second_length > 0;
+    const size_t longest_line = first_length > second_length ? first_length : second_length;
+
+    const int L_POPUP = display_coordinate_x(longest_line + 2);
+    const int H_POPUP = display_coordinate_y(1) + (two_lines ? 15 : 0);
+
+    const int X_POPUP = (320 - L_POPUP) / 2;
+    const int Y_POPUP = (240 - H_POPUP) / 2 + y_offset;
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, filler_color);
-    tft.setCursor(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_TXT);
     tft.setTextColor(text_color);
-    tft.print(text);
+    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + 5);
+    tft.print(first_line);
+
+    if (two_lines)
+    {
+        tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + 20);
+        tft.print(second_line);
+    }
 }
 
 void Backgorund_red(const float col, const float row, const int chars)
@@ -85,3 +102,14 @@ void Delete_text_row(const float row)
 {
     tft.fillRect(0, display_coordinate_y(row) - 4, 320, 15, ILI9341_BLACK); // fillRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color);
 }
+
+void Confirm_frame_on_RED(int X, int Y, int chars, bool print)
+{
+    Frame_by_pixels_on_RED(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
+}
+
+void Confirm_frame(int X, int Y, int chars, bool print)
+{
+    Frame_by_pixels(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
+}
+

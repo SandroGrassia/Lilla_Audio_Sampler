@@ -80,7 +80,7 @@ void DisplayManager::P_Patch_volume_value(bool change_vol)
 {
     Cancel_text_reset_cursor(display_coordinate_x(P_column_Volume_value), display_coordinate_y(0), 4);
     tft.setTextColor(ILI9341_YELLOW); // tft.setTextColor(change_vol ? ILI9341_YELLOW : ILI9341_WHITE);
-    tft.print(volume_patch / 20.0f, 2);
+    tft.print(volume_patch);
 }
 
 void DisplayManager::P_show_delete_Instrument_frame(float line, bool show)
@@ -920,6 +920,8 @@ void DisplayManager::P_Confirm_patch_delete_popup_frame(int value)
         break;
     }
 }
+
+
 FLASHMEM
 void DisplayManager::SETUP_show_SETUP_page(void)
 {
@@ -1153,7 +1155,7 @@ void DisplayManager::Confirm_config_import_popup(void)
 
     Y_POPUP_TXT = 10; // Prima riga testo
     Y_POPUP_OPT = Y_POPUP_TXT + 50;
-    X_POPUP_OPT = display_coordinate_x(19);
+    X_POPUP_OPT = display_coordinate_x(19); // Colonna prima opzione, generalmente NO
 
     tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
     tft.setTextColor(ILI9341_WHITE);
@@ -1338,16 +1340,16 @@ void DisplayManager::Config_import_REBOOT_popup(void)
 FLASHMEM
 void DisplayManager::Confirm_config_import_frame(uint8_t value)
 {
-    P_Confirm_frame(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    P_Confirm_frame(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, false);
+    P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
     case 0: // NO
-        P_Confirm_frame(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
+        P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 1: // YES
-        P_Confirm_frame(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
+        P_Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;
@@ -1640,7 +1642,7 @@ void DisplayManager::Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print(F("  RECORDINGS IN LILLA!"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(15) - 5);
-    tft.print(F("- LILLA REQUIRES .raw (lowercase!)"));
+    tft.print(F("- .raw / .RAW FILES ARE SAVED AS .raw"));
 }
 
 FLASHMEM
