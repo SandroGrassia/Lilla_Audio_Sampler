@@ -6320,6 +6320,24 @@ void loop()
             }
         }
 
+        // Use the first track encoder rotation on a menu item to select LEVEL.
+        if (LOOP_events[MASTER_TRACK] > 0 && LOOP_local_pointer.field_name == field_LOOP_Menu)
+        {
+            bool select_level = false;
+            for (auto track = 0; track < TRACKS; ++track)
+            {
+                if (Read_encoder_simple(EN_PB_Track[track]) != 0)
+                {
+                    select_level = true;
+                }
+            }
+            if (select_level)
+            {
+                Pointer_MidiLoop.Set_pointer_to_level();
+                LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+            }
+        }
+
         // Recording
         for (auto track = 0; track < TRACKS; ++track)
         {

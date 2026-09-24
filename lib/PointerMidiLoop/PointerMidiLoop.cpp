@@ -23,6 +23,15 @@ void PointerMidiLoop::Set_pointer_to_first_menu_element(void)
     }
 }
 
+void PointerMidiLoop::Set_pointer_to_level(void)
+{
+    Show_pointer(false);
+    pointer.field_name = field_LOOP_TrackValues;
+    pointer.menu_element = value_LOOP_Menu_none;
+    pointer.track_value_element = value_LOOP_level;
+    Show_pointer(true);
+}
+
 LOOP_field_description_struct PointerMidiLoop::Get_pointer(void)
 {
     return pointer;

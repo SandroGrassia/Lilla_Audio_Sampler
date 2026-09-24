@@ -54,6 +54,7 @@ class PointerMidiLoop
     PointerMidiLoop() {}
 
     void Set_pointer_to_first_menu_element(void);
+    void Set_pointer_to_level(void);
     LOOP_field_description_struct Get_pointer(void);
     void Show_pointerTrack(const int track, const bool show);
     void Show_pointer(const bool show);
