@@ -128,7 +128,6 @@ void AudioVCF::setCoefficients(uint32_t stage, const int *coefficients)
 
     int32_t *dest = definition + (stage << 3);
 
-    // __disable_irq();
     if (stage > 0)
     {
         *(dest - 1) |= 0x80000000;
@@ -143,7 +142,6 @@ void AudioVCF::setCoefficients(uint32_t stage, const int *coefficients)
     //*dest++ = 0;  // clearing filter state causes loud pop
     dest += 2;
     *dest &= 0x80000000;
-    // __enable_irq();
 }
 
 void AudioVCF::setCoefficients(uint32_t stage, const double *coefficients)

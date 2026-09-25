@@ -282,7 +282,8 @@ private:
 
     // LIVE_SAMPLING
     bool LS_flag = false;
-    bool live_forward_end = false; // Fade the final block when unlocked FWD reaches never-recorded samples.
+    inline static volatile bool live_unrecorded_notice = false;
+    bool live_forward_end = false; // Fade the final block when FWD reaches never-recorded samples.
     bool live_forward_empty = false;
     int16_t live_forward_last_sample = 0;
     int16_t *FIFO;
@@ -329,6 +330,7 @@ public:
     void Retire_for_read_budget(void); // Release source ownership now and fade previously computed audio without further source reads.
     void Set_edit_mix_samples(uint8_t value); // Override only a pending edit crossfade before its next render.
     bool Has_pending_edit(void) const { return main_settings_editing_flag; } // Expose edit transitions to the shared read-budget planner.
+    static bool Take_live_unrecorded_notice(void); // Consume from the main loop with audio interrupts disabled by the caller.
     void begin(void);
     virtual void update(void);
     int State(void);

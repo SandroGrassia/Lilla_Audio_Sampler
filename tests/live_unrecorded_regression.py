@@ -27,6 +27,7 @@ struct Recorder
 } recorder;
 struct AudioPlayer
 {
+    inline static volatile bool live_unrecorded_notice = false;
     bool LS_flag = true, live_forward_empty = false;
     int mode_player = ONCE_FWD, state = 1, reads = 0;
     float a_sample = 128, b_sample = 382, pitch = 2, a_first_sample = 0;
@@ -60,6 +61,7 @@ int main()
         p.block[i] = p.samples_basket[2 * i];
     }
     p.Fade_live_forward_end();
+    assert(AudioPlayer::live_unrecorded_notice);
     assert(p.block[0] == 12000 && p.block[127] == 0 && p.state == IDLE_REQUEST);
     for (int i = 1; i < AUDIO_BLOCK_SAMPLES; ++i)
     {
@@ -101,9 +103,19 @@ int main()
     recorder.Q_sample = 255; recorder.first_write_flag = false;
     assert(!p.Harvest_live_forward_end());
 
-    // Other modes, locked playback, and ordinary files retain their existing paths.
+    // FIXED playback must stop at the same unrecorded boundary, including an empty start.
     recorder.first_write_flag = true; LS_XY_lock = true;
+    assert(p.Harvest_live_forward_end() && !p.live_forward_empty);
+    p.a_sample = 300; p.b_sample = 554;
+    assert(p.Harvest_live_forward_end() && p.live_forward_empty);
+    AudioPlayer::live_unrecorded_notice = false;
+    p.Fade_live_forward_end();
+    assert(AudioPlayer::live_unrecorded_notice && p.state == IDLE_REQUEST);
+    p.a_sample = 0; p.b_sample = 127;
     assert(!p.Harvest_live_forward_end());
+
+    // Other modes and ordinary files retain their existing paths.
+    p.a_sample = 300; p.b_sample = 554;
     LS_XY_lock = false; p.mode_player = 2;
     assert(!p.Harvest_live_forward_end());
     p.mode_player = ONCE_FWD; p.LS_flag = false;

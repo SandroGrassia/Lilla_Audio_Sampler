@@ -1735,7 +1735,7 @@ void AudioPlayer::Harvest_samples(void)
 
 bool AudioPlayer::Harvest_live_forward_end(void)
 {
-    if (!LS_flag || LS_XY_lock || mode_player != ONCE_FWD || !LiveSampler_ptr->first_write_flag || LiveSampler_ptr->Q_sample >= LS_buffer_dim - 1)
+    if (!LS_flag || mode_player != ONCE_FWD || !LiveSampler_ptr->first_write_flag || LiveSampler_ptr->Q_sample >= LS_buffer_dim - 1)
     {
         return false;
     }
@@ -1765,8 +1765,16 @@ bool AudioPlayer::Harvest_live_forward_end(void)
     return true;
 }
 
+bool AudioPlayer::Take_live_unrecorded_notice(void)
+{
+    const bool pending = live_unrecorded_notice;
+    live_unrecorded_notice = false;
+    return pending;
+}
+
 void AudioPlayer::Fade_live_forward_end(void)
 {
+    live_unrecorded_notice = true;
     // Fade after resolution/downsampling so the final transmitted sample is exactly zero.
     for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
     {

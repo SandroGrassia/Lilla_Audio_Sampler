@@ -30,6 +30,9 @@ private:
     int LS_window_A_sample;            // first sample index of the visible window
     int LS_window_B_sample;            // last  sample index of the visible window
 
+    bool no_recorded_audio_visible = false;
+    uint32_t no_recorded_audio_started_ms = 0;
+
     elapsedMillis LS_blink_timer; // drives the 500 ms REC LED blink period
     bool LS_blink_ON = false;     // current blink phase
 
@@ -45,6 +48,7 @@ private:
 
     // Draws the X (play point) and Y (loop end) vertical lines on the canvas.
     void Draw_XY_lines(void);
+    void Show_no_recorded_audio(void);
 
     // Erases all menu item highlight frames.
     void Delete_menu_frames(void);
@@ -111,6 +115,7 @@ public:
 
     // Renders the full Live Sampler page (title, all labels and values).
     void Page(void);
+    void Update_no_recorded_audio(bool requested); // Erase only the popup rectangle when it expires.
 
     // Redraws the Feedback parameter value.
     void Feedback(void);

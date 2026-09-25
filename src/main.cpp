@@ -1094,6 +1094,11 @@ void setup()
 
 void loop()
 {
+    AudioNoInterrupts();
+    const bool live_unrecorded_notice = AudioPlayer::Take_live_unrecorded_notice();
+    AudioInterrupts();
+
+    Display_LiveSampler.Update_no_recorded_audio(live_unrecorded_notice);
     if (Display_MidiLoop.Update_save_failed())
     {
         Pointer_MidiLoop.Show_pointer(true);
@@ -14117,7 +14122,7 @@ void Startup_hardware_and_objects(void)
     Audio_shield.lineOutLevel(Line_out_level);
 
     Audio_shield.enable();
-    Audio_shield.volume(0.5); // Set the headphone volume level. Range is 0 to 1.0, but 0.8 corresponds to the maximum undistorted output for a full scale signal. Usually 0.5 is a comfortable listening level. The line level outputs are not changed by this function.
+    Audio_shield.volume(0.8); // Set the headphone volume level. Range is 0 to 1.0, but 0.8 corresponds to the maximum undistorted output for a full scale signal. Usually 0.5 is a comfortable listening level. The line level outputs are not changed by this function.
     Audio_shield.inputSelect(myInput);
 
     // Audio_shield.audioPostProcessorEnable();
