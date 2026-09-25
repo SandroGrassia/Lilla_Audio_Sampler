@@ -23,7 +23,7 @@ prefix = r'''
 #define FLASHMEM
 constexpr int INSTRUMENTS=8, SOUNDS_MAX=40, PATCHES_MAX=4, PLAYERS=2, FIRST_RECORDING_FILE=20, FIRST_LIVE_SAMPLING_FILE=22, PATCH_CACHE_ARRAY_COUNT=8;
 constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES=1024;
-constexpr int REC=1, PLAYONLY=2, LOOP_FWD=2, EN_PB_Select=0, ILI9341_RED=0, ILI9341_WHITE=1;
+constexpr int EMPTY=0, REC=1, PLAYONLY=2, LOOP_FWD=2, EN_PB_Select=0, ILI9341_RED=0, ILI9341_WHITE=1;
 enum AudioFileStorage { Flash, Psram };
 struct AudioFileSource { int16_t file_id=-1; AudioFileStorage storage=Flash; const int16_t *psram_ptr=nullptr; uint32_t samples=0; int8_t cache_id=-1; };
 struct Delay_data_struct { int samples=0; };
@@ -48,8 +48,18 @@ struct Screen { void fillRoundRect(int,int,int,int,int,int) {} void setTextColor
 void Show_popup_text(const char *text, int, int, int = 0) { messages.emplace_back(text); }
 void Show_popup_text(const char *first, const char *second, int, int, int = 0) { messages.emplace_back(first); messages.emplace_back(second); }
 void Frame_by_pixels_on_RED(int, int, int, bool) {}
-struct DisplayLiveSamplerStub { void LS_Display_Confirm_capture_frame(int) {} } Display_LiveSampler;
-struct Recorder { bool writing=false; bool Is_writing() { return writing; } } LiveSampler;
+struct DisplayLiveSamplerStub
+{
+    void LS_Display_Confirm_capture_frame(int) {}
+    void Update_no_recorded_audio(bool requested)
+    {
+        if (requested)
+        {
+            messages.emplace_back("NO RECORDED AUDIO");
+        }
+    }
+} Display_LiveSampler;
+struct Recorder { bool writing=false, first_write_flag=true; int Q_sample=1023; bool Is_writing() { return writing; } } LiveSampler;
 struct Midi { void Start() { ++midi_starts; } void Stop() { ++midi_stops; } } Midi_reader;
 struct Players { void Stop_all_players() {} uint16_t Get_cache_reference_mask() { return 0; } } Players_Manager;
 struct PlayerStub { bool isPlaying() { return stuck; } } Player[PLAYERS];
@@ -123,6 +133,31 @@ int main()
     S_Copy_all_Sound_to_Sound_cache_P();
     Patch[PATCHES_MAX].Instrument[0]={true,SOUNDS_MAX,60,60,60,0};
     assert(P_Verify_is_Patch_original(Patch_id_old));
+    // Startup EMPTY must win even when the sample counter does not indicate an empty buffer.
+    LS_state = EMPTY;
+    LiveSampler.Q_sample = 0;
+    for (int selected = 0; selected < INSTRUMENTS; ++selected)
+    {
+        LS_Capture_sound(selected);
+        assert(messages.back() == "NO RECORDED AUDIO" && !Patch[1].used && creates == 0);
+    }
+    // Empty buffers take priority over recording/mode errors for every capture button.
+    LiveSampler.Q_sample = -1;
+    for (int stereo = 0; stereo < 2; ++stereo)
+    {
+        LS_stereo = stereo;
+        for (int selected = 0; selected < INSTRUMENTS; ++selected)
+        {
+            LS_state = REC;
+            LS_Capture_sound(selected);
+            assert(messages.back() == "NO RECORDED AUDIO" && !Patch[1].used && creates == 0);
+            LS_state = PLAYONLY;
+            LS_Capture_sound(selected);
+            assert(messages.back() == "NO RECORDED AUDIO" && !Patch[1].used && creates == 0);
+        }
+    }
+    LS_stereo = false;
+    LiveSampler.Q_sample = 1023;
     Sound[30].pan=4;
     LS_Capture_sound(0);
     assert(!Patch[1].used && messages.back()=="SAVE CURRENT PATCH FIRST");
@@ -188,7 +223,7 @@ for name in ['P_Verify_if_Instrument_original', 'P_Verify_is_Patch_original']:
 capture_start = main_source.index('// Live capture creates ordinary patch/Sound metadata;')
 capture_end = main_source.index('\nvoid LS_refresh_LS_page(void)\n{', capture_start)
 capture_globals = '\n'.join(re.findall(r'^static (?:int Capture_target|uint8_t Capture_return_patch|int8_t Capture_pair)[^\n]*', main_source, re.M))
-capture_declarations = '\n'.join(re.findall(r'^FLASHMEM static [^\n]+LS_Capture_[^\n]+;', main_source, re.M))
+capture_declarations = '\n'.join(re.findall(r'^FLASHMEM (?:static )?[^\n]+LS_Capture_[^\n]+;', main_source, re.M))
 program += '\nPatchCacheManager PatchCache_Manager;\n' + capture_globals + '\n' + capture_declarations + '\n' + main_source[capture_start:capture_end] + checks
 with tempfile.TemporaryDirectory(prefix='lilla-live-capture-') as directory:
     cpp = Path(directory) / 'capture.cpp'

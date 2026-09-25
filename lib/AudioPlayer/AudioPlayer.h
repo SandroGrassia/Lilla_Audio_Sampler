@@ -282,7 +282,7 @@ private:
 
     // LIVE_SAMPLING
     bool LS_flag = false;
-    inline static volatile bool live_unrecorded_notice = false;
+    inline static volatile bool live_unrecorded_notice = false; // Segnala al loop principale un tentativo di riproduzione di audio non ancora registrato nel buffer Live Sampler.
     bool live_forward_end = false; // Fade the final block when FWD reaches never-recorded samples.
     bool live_forward_empty = false;
     int16_t live_forward_last_sample = 0;
