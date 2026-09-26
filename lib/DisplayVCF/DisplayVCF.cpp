@@ -5,6 +5,7 @@
 */
 
 #include "DisplayVCF.h"
+#include "SharedMixer.h"
 
 void DisplayVCF::VCF_show_pointer_frame(const int pointer, const bool show)
 {
@@ -243,4 +244,30 @@ void DisplayVCF::VCF_show_LFO_modulation_depth(const int instrument_id)
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(100 * Preset[instrument_id].Filter.index, 0);
     tft.print("%");
+}
+
+void DisplayVCF::Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on)
+{
+    if (Lilla_state_0 == PERFORMANCE)
+    {
+        if (on)
+        {
+            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        }
+        else
+        {
+            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        }
+    }
+    else if (Lilla_state_0 == LIVE_SAMPLING)
+    {
+        if (on)
+        {
+            tft.drawBitmap(display_coordinate_x(40) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        }
+        else
+        {
+            tft.drawBitmap(display_coordinate_x(40) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        }
+    }
 }

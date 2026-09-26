@@ -5,6 +5,7 @@
 */
 
 #include "DisplaySound.h"
+#include "SharedMixer.h"
 #include <math.h>
 
 FLASHMEM
@@ -486,4 +487,17 @@ void DisplaySound::Show_wave(int instrument_id)
     }
 
     tft.writeRect(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.width(), canvas.height(), canvas.getBuffer());
+}
+
+void DisplaySound::Led_SOUND_EDIT_instrument(int instrument_id, bool on)
+{
+    if (on)
+    {
+        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+    }
+    else
+    {
+        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+    }
+    return;
 }

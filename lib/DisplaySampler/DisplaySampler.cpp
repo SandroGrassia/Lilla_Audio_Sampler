@@ -5,14 +5,15 @@
 */
 
 #include "DisplaySampler.h"
+#include "SharedMixer.h"
 
 FLASHMEM
 void DisplaySampler::DS_confirm_EXIT_from_DS(void)
 {
-    const int L_POPUP    = 106;
-    const int H_POPUP    = 47;
-    const int X_POPUP    = Centered_element_left(L_POPUP);
-    const int Y_POPUP    = Centered_element_top(H_POPUP);
+    const int L_POPUP = 106;
+    const int H_POPUP = 47;
+    const int X_POPUP = Centered_element_left(L_POPUP);
+    const int Y_POPUP = Centered_element_top(H_POPUP);
     const int Y_POPUP_TXT = 10;
     const int Y_POPUP_OPT = 30;
 
@@ -156,9 +157,9 @@ void DisplaySampler::DS_bar(int channel, int value)
 uint16_t DisplaySampler::DS_calc_bar_color(float value)
 {
     const float soglia = 0.5;
-    uint16_t red   = (value >= soglia ? 31 : 31.0f * (value / soglia));
+    uint16_t red = (value >= soglia ? 31 : 31.0f * (value / soglia));
     uint16_t green = (value <= soglia ? 63 : 63.0f * (1.2f - value) / (1.2f - soglia));
-    uint16_t blue  = 0;
+    uint16_t blue = 0;
     return (red << 11) + (green << 5) + blue;
 }
 
@@ -198,8 +199,8 @@ void DisplaySampler::DS_hide_recording(void)
     Cancel_text(display_coordinate_x(DS_column_row_POPUP_LINE_0[0]), display_coordinate_y(DS_column_row_POPUP_LINE_0[1]), 18);
     Cancel_text(display_coordinate_x(DS_column_row_POPUP_LINE_1[0]), display_coordinate_y(DS_column_row_POPUP_LINE_1[1]), 29);
     Cancel_text(display_coordinate_x(DS_column_row_POPUP_LINE_2[0]), display_coordinate_y(DS_column_row_POPUP_LINE_2[1]), 18);
-    Cancel_text(display_coordinate_x(0), display_coordinate_y(DS_ROW_LENGTH_STEREO),  18);
-    Cancel_text(display_coordinate_x(0), display_coordinate_y(DS_ROW_VOLUME_STEREO),  18);
+    Cancel_text(display_coordinate_x(0), display_coordinate_y(DS_ROW_LENGTH_STEREO), 18);
+    Cancel_text(display_coordinate_x(0), display_coordinate_y(DS_ROW_VOLUME_STEREO), 18);
 }
 
 FLASHMEM
@@ -460,8 +461,8 @@ void DisplaySampler::DS_menu(void)
             }
 
             Y_position_Menu_DS[position] = 1;
-            element_Menu_DS[position]    = element;
-            position_Menu_DS[element]    = position;
+            element_Menu_DS[position] = element;
+            position_Menu_DS[element] = position;
             tft.setCursor(display_coordinate_x(X_position_Menu_DS[position]), display_coordinate_y(Y_position_Menu_DS[position]));
             tft.print(Menu_DS_char[element]);
             ++position;
@@ -493,4 +494,38 @@ void DisplaySampler::DS_show_pointer_frame(const DS_pointer_struct pointer, cons
     {
         Frame_by_col_row(DS_COLUMN_GAIN, DS_ROW_GAIN, 2, show);
     }
+}
+
+void DisplaySampler::Led_DIRECT_SAMPLING(bool on)
+{
+    // PATCHES_MAX ha 2 instrument
+    if (on)
+    {
+        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(8), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_ON : GREEN_ON));
+    }
+    else
+    {
+        tft.drawBitmap(display_coordinate_x(0), display_coordinate_y(8), led_pic, 8, 8, ((MX_mute[0] && MX_mute[1]) ? RED_OFF : GREEN_OFF));
+    }
+    return;
+}
+
+FLASHMEM
+void DisplaySampler::DS_confirm_raw_conversion_popup(void)
+{
+    Show_popup_text(DS_raw_conversion_question, "        NO  YES", ILI9341_WHITE, ILI9341_RED);
+    DS_confirm_raw_conversion_frame(0);
+}
+
+FLASHMEM
+void DisplaySampler::DS_confirm_raw_conversion_frame(uint8_t value)
+{
+    const int popup_width = display_coordinate_x(sizeof(DS_raw_conversion_question) - 1 + 2);
+    const int popup_height = display_coordinate_y(1) + 15;
+    const int text_x = Centered_element_left(popup_width) + display_coordinate_x(1);
+    const int options_y = Centered_element_top(popup_height) + 20;
+    const int no_x = text_x + 8 * 6;
+    const int yes_x = text_x + 12 * 6;
+    Confirm_frame_on_RED(no_x, options_y, 2, value == 0);
+    Confirm_frame_on_RED(yes_x, options_y, 3, value == 1);
 }

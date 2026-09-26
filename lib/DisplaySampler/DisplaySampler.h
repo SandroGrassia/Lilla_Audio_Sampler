@@ -26,6 +26,8 @@
 class DisplaySampler
 {
 private:
+    static constexpr char DS_raw_conversion_question[] = "COMFIRM .RAW CONVERSION?";
+
     // page canvas top-left corner (pixel coordinates) — change these to remap the whole page
     static constexpr int DS_CANVAS_X = 0;
     static constexpr int DS_CANVAS_Y = 0;
@@ -89,6 +91,10 @@ private:
     uint16_t DS_calc_bar_color(float value);
 
 public:
+    void DS_confirm_raw_conversion_popup(void);
+    void DS_confirm_raw_conversion_frame(uint8_t value);
+
+    void Led_DIRECT_SAMPLING(bool on);
     DisplaySampler() {}
 
     // Clears the upper area and draws the title and volume; callers restore the menu and pointer.

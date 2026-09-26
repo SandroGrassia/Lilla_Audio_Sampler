@@ -79,6 +79,7 @@ private:
     void Delete_all_menu_frame(void); // Clears every SOUND menu highlight frame.
 
 public:
+    void Led_SOUND_EDIT_instrument(int instrument_id, bool on);
     DisplaySound() {}
 
     void Show_SOUND_page(int patch_id, int instrument_id);                      // Draws the complete SOUND page for the selected instrument.

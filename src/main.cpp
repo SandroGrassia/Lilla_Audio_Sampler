@@ -180,6 +180,10 @@
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
 #include "DisplayCommon.h"
+#include "DisplaySetup.h"
+#include "DisplayStorage.h"
+#include "DisplayDiagnostics.h"
+#include "DisplayStartup.h"
 #include "DisplayPerformance.h"
 #include "DisplaySound.h"
 #include "DisplayVCF.h"
@@ -360,7 +364,11 @@ WaveLFO LFO_D[2];                          // Modulation oscillators for the two
 PlayersStatistics Players_statistics;      // Track active voices and their instrument and loop-track assignments.
 FlashFileRegisterParser File_scanner;      // Scan Flash files and cache their metadata.
 
-DisplayCommon Display_Common;           // Render shared UI elements and system pages.
+DisplayCommon Display_Common;           // Render shared UI elements.
+DisplaySetup Display_Setup;
+DisplayStorage Display_Storage;
+DisplayDiagnostics Display_Diagnostics;
+DisplayStartup Display_Startup;
 DisplayPerformance Display_Performance; // Render the Performance page.
 DisplaySound Display_Sound;             // Render the Sound editing page.
 DisplayVCF Display_VCF;                 // Render the instrument filter page.
@@ -993,14 +1001,14 @@ void setup()
         // Attenzione richiede 2/3 minuti per la cancellazione dei Packet!
         // Se la procedura si interrompe, ripeterla prima di usare l'archivio.
 
-        Display_Common.Factory_reset_wait_popup();
+        Display_Storage.Factory_reset_wait_popup();
         Factory_setup_FRAM();
     }
 
     // UI devices test mode; results are showed on display and sent via Serial.print
     if (Read_pushbutton(EN_PB_TuningTone))
     {
-        Display_Common.Encoder_pushbutton_test_board();
+        Display_Diagnostics.Encoder_pushbutton_test_board();
         while (true)
         {
             Shifters_manager.Update();
@@ -1010,7 +1018,7 @@ void setup()
                 auto R = Encoders_manager.Get_rotation(i);
                 if (R != 0)
                 {
-                    Display_Common.Encoder_pushbutton_test_result(1, i, R);
+                    Display_Diagnostics.Encoder_pushbutton_test_result(1, i, R);
                     Serial.print("encoder: ");
                     Serial.print(i);
                     Serial.print(" value: ");
@@ -1023,7 +1031,7 @@ void setup()
                 auto R = Pushbuttons_manager.Get_change(i);
                 if (R == true)
                 {
-                    Display_Common.Encoder_pushbutton_test_result(2, i, 0);
+                    Display_Diagnostics.Encoder_pushbutton_test_result(2, i, 0);
                     Serial.print("pushbutton ");
                     Serial.print(i);
                     Serial.println(" pressed");
@@ -1036,7 +1044,7 @@ void setup()
                 if (R == true)
                 {
                     auto value = Switches_manager.Get_value(i);
-                    Display_Common.Encoder_pushbutton_test_result(3, i, value);
+                    Display_Diagnostics.Encoder_pushbutton_test_result(3, i, value);
                     Serial.print("switch: ");
                     Serial.print(i);
                     Serial.print(" value: ");
@@ -5519,6 +5527,29 @@ void loop()
 
                 case 5: // CONVERT_REC_TO_RAW
                 {
+                    int raw_conversion_choice = 0;
+                    bool raw_conversion_confirmed = false;
+                    Display_Sampler.DS_confirm_raw_conversion_popup();
+                    Clear_UI_events();
+                    while (!raw_conversion_confirmed)
+                    {
+                        Shifters_manager.Update();
+                        if (Read_encoder(EN_PB_Select, raw_conversion_choice, 1, 0, 1))
+                        {
+                            Display_Sampler.DS_confirm_raw_conversion_frame(raw_conversion_choice);
+                        }
+                        if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+                        {
+                            raw_conversion_confirmed = true;
+                        }
+                    }
+                    Clear_UI_events();
+                    Display_Sampler.DS_page_lower(recording);
+                    if (raw_conversion_choice == 0)
+                    {
+                        break;
+                    }
+
                     DS_state = DS_convert_state;
 
                     AudioNoInterrupts();
@@ -5940,28 +5971,28 @@ void loop()
             case 0: // no message received
                 break;
             case 1: // note ON
-                Display_Common.Midi_monitor_data(MM_midi_channel, 0, MM_note_number, MM_velocity, -1, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 0, MM_note_number, MM_velocity, -1, -1);
                 break;
             case 2: // note OFF
-                Display_Common.Midi_monitor_data(MM_midi_channel, 1, MM_note_number, MM_velocity, -1, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 1, MM_note_number, MM_velocity, -1, -1);
                 break;
             case 3: // pitch bend
-                Display_Common.Midi_monitor_data(MM_midi_channel, 2, -1, -1, (MM_pitch_bend_most << 7) + MM_pitch_bend_least, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 2, -1, -1, (MM_pitch_bend_most << 7) + MM_pitch_bend_least, -1);
                 break;
             case 4: // after touch poly
-                Display_Common.Midi_monitor_data(MM_midi_channel, 3, MM_least_bits, -1, MM_most_bits, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 3, MM_least_bits, -1, MM_most_bits, -1);
                 break;
             case 5: // control change
-                Display_Common.Midi_monitor_data(MM_midi_channel, 4, -1, -1, MM_midi_value, MM_midi_controller);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 4, -1, -1, MM_midi_value, MM_midi_controller);
                 break;
             case 6: // program change
-                Display_Common.Midi_monitor_data(MM_midi_channel, 5, -1, -1, -1, MM_least_bits);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 5, -1, -1, -1, MM_least_bits);
                 break;
             case 7: // After Touch Channel
-                Display_Common.Midi_monitor_data(MM_midi_channel, 6, -1, -1, MM_least_bits, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 6, -1, -1, MM_least_bits, -1);
                 break;
             case 8: // System Exclusive
-                Display_Common.Midi_monitor_data(MM_midi_channel, 7, -1, -1, -1, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 7, -1, -1, -1, -1);
                 break;
             default:
                 PRINT_ERROR(F("Switch MISSING! "));
@@ -7127,7 +7158,7 @@ void loop()
         // Set Key Step
         if (SET_menu == 0 && Read_encoder_inverse(EN_PB_Value, key_step, 3, 0, 1))
         {
-            Display_Common.SETUP_show_Key_step_value();
+            Display_Setup.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
             Require_FRAM(Archive.Save_key_step(static_cast<uint8_t>(key_step)));
         }
@@ -7135,7 +7166,7 @@ void loop()
         // Set Prima ottava
         if (SET_menu == 1 && Read_encoder(EN_PB_Value, first_octave, 0, -2, 1))
         {
-            Display_Common.SETUP_show_First_octave_value();
+            Display_Setup.SETUP_show_First_octave_value();
         }
 
         // Change menu item  -  uint8_t SET_menu;
@@ -7143,7 +7174,7 @@ void loop()
         if (result != 0)
         {
             SET_menu = (SET_menu + result + 7) % 7;
-            Display_Common.SETUP_show_frame(SET_menu);
+            Display_Setup.SETUP_show_frame(SET_menu);
 
             Clear_UI_events();
         }
@@ -7164,13 +7195,13 @@ void loop()
                 }
 
                 CC_lowpass_filter_cache = CC_lowpass_filter_value;
-                Display_Common.CC_show_ControlChange_page();
+                Display_Setup.CC_show_ControlChange_page();
 
-                Display_Common.CC_show_all_sound_gains();
-                Display_Common.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_all_sound_gains();
+                Display_Setup.CC_show_lowpass_filter_value();
 
                 CC_menu = 0;
-                Display_Common.CC_show_frame_menu(CC_menu);
+                Display_Setup.CC_show_frame_menu(CC_menu);
 
                 Clear_UI_events();
                 break;
@@ -7217,34 +7248,34 @@ void loop()
                     {
                         Serial.println(F("RAW import failed; audio remains stopped. Retry the import."));
                     }
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                 }
                 break;
             }
 
             case 4: // Restore configuration and Recording audio from the backup root.
-                Display_Common.Confirm_config_import_popup();
-                Display_Common.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_config_import_popup();
+                Display_Storage.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
                 if (result == 0)
                 {
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
 
                 // check SD presence
                 if (!SD.begin(BUILTIN_SDCARD))
                 {
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
                 if (!SD.exists("/LILLABACKUP/LILLA_CONFIG.fram"))
                 {
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
                 else
@@ -7258,12 +7289,12 @@ void loop()
                     {
                         if (config_error)
                         {
-                            Display_Common.SETUP_show_SETUP_page();
-                            Display_Common.SETUP_show_frame(SET_menu);
+                            Display_Setup.SETUP_show_SETUP_page();
+                            Display_Setup.SETUP_show_frame(SET_menu);
                             break;
                         }
                         Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /LILLABACKUP."));
-                        Display_Common.Config_import_FILE_error_popup();
+                        Display_Storage.Config_import_FILE_error_popup();
                         delay(5000);
                         Reload_system_state();
                         break;
@@ -7279,13 +7310,13 @@ void loop()
                 break;
 
             case 5: // Create a new numbered backup with Recording audio.
-                Display_Common.Confirm_config_export_popup();
-                Display_Common.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_config_export_popup();
+                Display_Storage.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
                 if (result == 0)
                 {
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
 
@@ -7294,40 +7325,40 @@ void loop()
                 {
                     if (BACKUP_Export())
                     {
-                        Display_Common.Config_export_save_popup();
+                        Display_Storage.Config_export_save_popup();
                     }
                     else
                     {
-                        Display_Common.Config_export_SD_error_popup();
+                        Display_Storage.Config_export_SD_error_popup();
                     }
                     delay(5000);
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                 }
 
                 else
                 {
-                    Display_Common.SD_missing(ILI9341_BLACK);
+                    Display_Storage.SD_missing(ILI9341_BLACK);
                     delay(5000);
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
 
                 break;
 
             case 6: // Factory reset
-                Display_Common.Confirm_factory_reset_popup();
-                Display_Common.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_factory_reset_popup();
+                Display_Storage.Confirm_config_import_frame(0);
 
                 SET_Ask_if_FACTORY_RESET();
                 if (result == 0)
                 {
-                    Display_Common.SETUP_show_SETUP_page();
-                    Display_Common.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
-                Display_Common.Factory_reset_wait_popup();
+                Display_Storage.Factory_reset_wait_popup();
 
                 delay(3000); // per ripensamenti last minute!
 
@@ -7565,7 +7596,7 @@ void loop()
 
         if (Read_encoder(EN_PB_Select, CC_menu, 9, 0, 1))
         {
-            Display_Common.CC_show_frame_menu(CC_menu);
+            Display_Setup.CC_show_frame_menu(CC_menu);
 
             Clear_UI_events();
 
@@ -7584,12 +7615,12 @@ void loop()
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_Sound_gain[CC_menu - 1] = CC_number;
-                Display_Common.CC_show_sound_gain(CC_menu - 1);
+                Display_Setup.CC_show_sound_gain(CC_menu - 1);
             }
             else if (CC_menu == 9)
             {
                 CC_lowpass_filter_value = CC_number;
-                Display_Common.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_lowpass_filter_value();
             }
         }
 
@@ -7599,12 +7630,12 @@ void loop()
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_Sound_gain[CC_menu - 1] = 0;
-                Display_Common.CC_show_sound_gain(CC_menu - 1);
+                Display_Setup.CC_show_sound_gain(CC_menu - 1);
             }
             else if (CC_menu == 9)
             {
                 CC_lowpass_filter_value = 0;
-                Display_Common.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_lowpass_filter_value();
             }
         }
 
@@ -7614,13 +7645,13 @@ void loop()
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_Sound_gain[CC_menu - 1] = CC_midi_controller;
-                Display_Common.CC_show_sound_gain(CC_menu - 1);
+                Display_Setup.CC_show_sound_gain(CC_menu - 1);
                 CC_number = CC_Sound_gain[CC_menu - 1];
             }
             else if (CC_menu == 9)
             {
                 CC_lowpass_filter_value = CC_midi_controller;
-                Display_Common.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_lowpass_filter_value();
                 CC_number = CC_lowpass_filter_value;
             }
             display_wait = false;
@@ -8587,11 +8618,11 @@ void Update_instruments_leds()
         const int activity = Performance_led_set.Consume_LED_activity(Instrument_id);
         if (activity == 2)
         {
-            Display_Common.Led_SOUND_EDIT_instrument(Instrument_id, true);
+            Display_Sound.Led_SOUND_EDIT_instrument(Instrument_id, true);
         }
         if (activity == -2)
         {
-            Display_Common.Led_SOUND_EDIT_instrument(Instrument_id, false);
+            Display_Sound.Led_SOUND_EDIT_instrument(Instrument_id, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8606,11 +8637,11 @@ void Update_instruments_leds()
         const int activity = Performance_led_set.Consume_LED_activity(Instrument_id);
         if (activity == 2)
         {
-            Display_Common.Led_INSTRUMENT_VCF_instrument(Instrument_id, true);
+            Display_VCF.Led_INSTRUMENT_VCF_instrument(Instrument_id, true);
         }
         if (activity == -2)
         {
-            Display_Common.Led_INSTRUMENT_VCF_instrument(Instrument_id, false);
+            Display_VCF.Led_INSTRUMENT_VCF_instrument(Instrument_id, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8656,7 +8687,7 @@ void Update_instruments_leds()
         // Draw outside the IRQ lock; either active instrument keeps the shared LED on.
         if (DS_recording_led_visible && (activity_changed || DS_recording_led_redraw))
         {
-            Display_Common.Led_DIRECT_SAMPLING(left_activity > 0 || right_activity > 0);
+            Display_Sampler.Led_DIRECT_SAMPLING(left_activity > 0 || right_activity > 0);
         }
         DS_recording_led_redraw = false;
 
@@ -10146,7 +10177,7 @@ void Golive_MIDI_MONITOR(void)
     Lilla_state = MIDI_MONITOR;
 
     display_wait = false;
-    Display_Common.Midi_monitor_page();
+    Display_Diagnostics.Midi_monitor_page();
 
     Clear_UI_events();
 }
@@ -10156,11 +10187,11 @@ void Golive_SETUP(void)
     Lilla_state = SETUP;
 
     SET_menu = 0;
-    Display_Common.SETUP_show_SETUP_page();
+    Display_Setup.SETUP_show_SETUP_page();
 
     Clear_UI_events();
 
-    Display_Common.SETUP_show_frame(SET_menu);
+    Display_Setup.SETUP_show_frame(SET_menu);
 }
 
 // ***************************************************************************************************************
@@ -10896,7 +10927,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 
 void VFS_Make_VFS(void)
 {
-    Display_Common.VFS_Make_presentation();
+    Display_Storage.VFS_Make_presentation();
 
     // calcola DS_packets Free space, in PACKET_DIM
     VFS_packets_max = (Get_flash_size() - Get_flash_occupation() - FLASH_FREE_SPACE) / PACKET_DIM;
@@ -10904,9 +10935,9 @@ void VFS_Make_VFS(void)
 
     if (VFS_packets_max > 40)
     {
-        Display_Common.VFS_Make_assignments();
+        Display_Storage.VFS_Make_assignments();
         VFS_packets = VFS_packets_max / 3.0f; // questa proporzione puo' essere modifitata a piacere
-        Display_Common.VFS_show_packets();
+        Display_Storage.VFS_show_packets();
         bool confirmation = false;
 
         Clear_UI_events();
@@ -10922,7 +10953,7 @@ void VFS_Make_VFS(void)
                     if (VFS_packets <= (VFS_packets_max - 2))
                     {
                         VFS_packets += 2;
-                        Display_Common.VFS_show_packets();
+                        Display_Storage.VFS_show_packets();
                     }
                 }
                 else
@@ -10930,7 +10961,7 @@ void VFS_Make_VFS(void)
                     if (VFS_packets >= 2)
                     {
                         VFS_packets -= 2;
-                        Display_Common.VFS_show_packets();
+                        Display_Storage.VFS_show_packets();
                     }
                 }
             }
@@ -10951,13 +10982,13 @@ void VFS_Make_VFS(void)
         Serial.print(F("Created Virtual File System  - VFS_packets are "));
         Serial.println(VFS_packets);
 
-        Display_Common.VFS_Make_restart();
+        Display_Storage.VFS_Make_restart();
         delay(10000);
     }
 
     else
     {
-        Display_Common.VFS_Make_not_enough_memory_for_sampler();
+        Display_Storage.VFS_Make_not_enough_memory_for_sampler();
         delay(10000);
     }
 }
@@ -13343,7 +13374,7 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
 
         if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
-            Display_Common.Confirm_config_import_frame(result);
+            Display_Storage.Confirm_config_import_frame(result);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -13366,7 +13397,7 @@ void SET_Ask_if_FACTORY_RESET(void)
 
         if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
-            Display_Common.Confirm_config_import_frame(result);
+            Display_Storage.Confirm_config_import_frame(result);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -13405,12 +13436,12 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     flash_changed = false;
     int row;
 
-    Display_Common.Copy_raw_files_SD_to_Flash_chip_titolo();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_titolo();
 
     // Wait for SD card
     while (!SD.begin(BUILTIN_SDCARD))
     {
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_waiting_for_SD();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_waiting_for_SD();
         delay(10000);
         return false;
     }
@@ -13419,7 +13450,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     // Check if LILLARAW directory exists
     if (!SD.exists("/LILLARAW"))
     {
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
         delay(4000);
         return false;
     }
@@ -13445,7 +13476,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
         delay(4000);
         return false;
     }
@@ -13472,7 +13503,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     }
     rootdir.close();
 
-    Display_Common.Copy_raw_files_SD_to_Flash_chip_files_report(SD_raw_volume, SD_raw_files, Get_raw_files_volume(), Get_raw_files());
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_report(SD_raw_volume, SD_raw_files, Get_raw_files_volume(), Get_raw_files());
 
     unsigned char id[3];
     SerialFlash.readID(id);
@@ -13526,12 +13557,12 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
 
     float erasing_time_ms = Get_flash_size() / SET_eraseBytesPerSecond(id) * 1000;
     const uint32_t erasing_time_ms_step = static_cast<uint32_t>(erasing_time_ms / 100.0f);
-    Display_Common.Copy_raw_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
 
     // Confirmation
     bool confirm = false;
     uint8_t action = 0;
-    Display_Common.Import_raw_files_frame(action);
+    Display_Storage.Import_raw_files_frame(action);
 
     Clear_UI_events();
     while (!confirm)
@@ -13544,7 +13575,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             if (action == 0)
             {
                 action = 1;
-                Display_Common.Import_raw_files_frame(action);
+                Display_Storage.Import_raw_files_frame(action);
             }
         }
         else if (result == -1)
@@ -13552,7 +13583,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             if (action == 1)
             {
                 action = 0;
-                Display_Common.Import_raw_files_frame(action);
+                Display_Storage.Import_raw_files_frame(action);
             }
         }
 
@@ -13569,14 +13600,14 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     }
 
     // Start erasing flash chip
-    Display_Common.Copy_raw_files_SD_to_Flash_chip_job_start();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_start();
 
     flash_changed = true;
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);
     elapsedMillis dotMillis = 0;
     int percentage = 0;
 
-    Display_Common.Update_raw_copy_progress(percentage);
+    Display_Storage.Update_raw_copy_progress(percentage);
 
     while (SerialFlash.ready() == false)
     {
@@ -13584,19 +13615,19 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         {
             dotMillis = 0;
             ++percentage;
-            Display_Common.Update_raw_copy_progress(percentage);
+            Display_Storage.Update_raw_copy_progress(percentage);
         }
     }
 
     // Create the fallback first so other imports cannot consume its space.
-    Display_Common.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
     row = 2;
     if (!SD_has_zero_raw)
     {
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
         if (!ZeroRaw_ensure_file())
         {
-            Display_Common.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
             delay(4000);
             return false;
         }
@@ -13608,7 +13639,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
         delay(4000);
         return false;
     }
@@ -13637,16 +13668,16 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         ++row;
         if (row > 14)
         {
-            Display_Common.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
             row = 3;
         }
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_files_to_copy(row, filename, length);
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_to_copy(row, filename, length);
 
         if (!SerialFlash.create(filename, length))
         {
             f.close();
             rootdir.close();
-            Display_Common.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
             delay(4000);
             return false;
         }
@@ -13675,7 +13706,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             f.close();
             rootdir.close();
             Serial.println(F("RAW import failed while reading SD or writing Flash."));
-            Display_Common.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
             delay(4000);
             return false;
         }
@@ -13686,14 +13717,14 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     // The required file must exist before reporting success and rebuilding the VFS.
     if (!ZeroRaw_ensure_file())
     {
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_flash_error();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
         delay(4000);
         return false;
     }
     delay(10);
 
     // Display RAW files list
-    Display_Common.Copy_raw_files_SD_to_Flash_chip_job_done();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_done();
     row = 2;
     SerialFlash.opendir();
 
@@ -13705,11 +13736,11 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         if (row > 14)
         {
             delay(4000);
-            Display_Common.Copy_raw_files_SD_to_Flash_chip_list_landscape();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_list_landscape();
             row = 3;
         }
 
-        Display_Common.Copy_raw_files_SD_to_Flash_chip_file_copied(row, filename, filesize);
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_file_copied(row, filename, filesize);
     }
     delay(6000);
     return true;
@@ -14324,7 +14355,7 @@ void Reload_system_state(void)
     {
         Serial.println(F("FRAM archive unavailable: interrupted restore, invalid header or I/O error. Automatic repair is blocked."));
         Serial.println(F("Place LILLA_CONFIG.fram and its REC files in /LILLABACKUP. Press Select to retry the complete restore."));
-        Display_Common.FRAM_recovery_popup();
+        Display_Storage.FRAM_recovery_popup();
         bool recovered = false;
         while (!recovered)
         {
@@ -14607,7 +14638,7 @@ void Reload_system_state(void)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
-    Display_Common.Lilla_cover_slow();
+    Display_Startup.Lilla_cover_slow();
 
     // ****************    DEFINE STARTUP MODE     ************
     if (!Startup_mode())
@@ -14855,7 +14886,7 @@ void Require_FRAM(byte result)
 
     P_Quiesce_audio_players();
     AudioNoInterrupts();
-    Display_Common.FRAM_io_error_popup();
+    Display_Storage.FRAM_io_error_popup();
     // Do not run subsequent save, erase or cache-publication steps after a failed access.
     while (true)
     {
