@@ -58,9 +58,9 @@ void DisplayDelay::D_show_page()
     tft.setCursor(display_coordinate_x(DELAY_column_row_VOLUME[0]), display_coordinate_y(DELAY_column_row_VOLUME[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("VOLUME");
-    Display_Manager.P_Patch_volume_value(true);
+    Display_Common.P_Patch_volume_value(true);
 
-    Display_Manager.Show_all_effects();
+    Display_Common.Show_all_effects();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(DEL_ROW_SOUND));
     tft.setTextColor(TEXT_COLOR);
@@ -258,8 +258,8 @@ void DisplayDelay::D_disabled(void)
 {
     const int L_POPUP = 228; // 106;
     const int H_POPUP = 28;
-    const int X_POPUP = (320 - L_POPUP) / 2;
-    const int Y_POPUP = (240 - H_POPUP) / 2;
+    const int X_POPUP = Centered_element_left(L_POPUP);
+    const int Y_POPUP = Centered_element_top(H_POPUP);
     const int Y_POPUP_TXT = 10;
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED); // does NOT delete frame

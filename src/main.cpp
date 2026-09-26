@@ -179,7 +179,11 @@
 
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
-#include "DisplayManager.h"
+#include "DisplayCommon.h"
+#include "DisplaySetup.h"
+#include "DisplayStorage.h"
+#include "DisplayDiagnostics.h"
+#include "DisplayStartup.h"
 #include "DisplayPerformance.h"
 #include "DisplaySound.h"
 #include "DisplayVCF.h"
@@ -360,7 +364,12 @@ WaveLFO LFO_D[2];                          // Modulation oscillators for the two
 PlayersStatistics Players_statistics;      // Track active voices and their instrument and loop-track assignments.
 FlashFileRegisterParser File_scanner;      // Scan Flash files and cache their metadata.
 
-DisplayManager Display_Manager;         // Render shared UI elements and the Performance page.
+DisplayCommon Display_Common;           // Render shared UI elements.
+DisplaySetup Display_Setup;
+DisplayStorage Display_Storage;
+DisplayDiagnostics Display_Diagnostics;
+DisplayStartup Display_Startup;
+DisplayPerformance Display_Performance; // Render the Performance page.
 DisplaySound Display_Sound;             // Render the Sound editing page.
 DisplayVCF Display_VCF;                 // Render the instrument filter page.
 DisplayMixer Display_Mixer;             // Render the Mixer page.
@@ -812,7 +821,7 @@ inline void P_UpdatePatchOriginalAndMenu(void)
     if (patch_original != patch_original_0)
     {
         P_Select_menu_elements();
-        Display_Manager.P_show_Performance_menu();
+        Display_Performance.P_show_Performance_menu();
     }
 }
 
@@ -992,14 +1001,14 @@ void setup()
         // Attenzione richiede 2/3 minuti per la cancellazione dei Packet!
         // Se la procedura si interrompe, ripeterla prima di usare l'archivio.
 
-        Display_Manager.Factory_reset_wait_popup();
+        Display_Storage.Factory_reset_wait_popup();
         Factory_setup_FRAM();
     }
 
     // UI devices test mode; results are showed on display and sent via Serial.print
     if (Read_pushbutton(EN_PB_TuningTone))
     {
-        Display_Manager.Encoder_pushbutton_test_board();
+        Display_Diagnostics.Encoder_pushbutton_test_board();
         while (true)
         {
             Shifters_manager.Update();
@@ -1009,7 +1018,7 @@ void setup()
                 auto R = Encoders_manager.Get_rotation(i);
                 if (R != 0)
                 {
-                    Display_Manager.Encoder_pushbutton_test_result(1, i, R);
+                    Display_Diagnostics.Encoder_pushbutton_test_result(1, i, R);
                     Serial.print("encoder: ");
                     Serial.print(i);
                     Serial.print(" value: ");
@@ -1022,7 +1031,7 @@ void setup()
                 auto R = Pushbuttons_manager.Get_change(i);
                 if (R == true)
                 {
-                    Display_Manager.Encoder_pushbutton_test_result(2, i, 0);
+                    Display_Diagnostics.Encoder_pushbutton_test_result(2, i, 0);
                     Serial.print("pushbutton ");
                     Serial.print(i);
                     Serial.println(" pressed");
@@ -1035,7 +1044,7 @@ void setup()
                 if (R == true)
                 {
                     auto value = Switches_manager.Get_value(i);
-                    Display_Manager.Encoder_pushbutton_test_result(3, i, value);
+                    Display_Diagnostics.Encoder_pushbutton_test_result(3, i, value);
                     Serial.print("switch: ");
                     Serial.print(i);
                     Serial.print(" value: ");
@@ -1191,7 +1200,7 @@ void loop()
 
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_Manager.Resolution();
+            Display_Common.Resolution();
         }
     }
 
@@ -1206,7 +1215,7 @@ void loop()
 
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_Manager.Downsampling();
+            Display_Common.Downsampling();
         }
     }
 
@@ -1231,7 +1240,7 @@ void loop()
 
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_Manager.Resolution();
+            Display_Common.Resolution();
         }
         resolution_reset = !resolution_reset;
     }
@@ -1256,7 +1265,7 @@ void loop()
         }
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_Manager.Downsampling();
+            Display_Common.Downsampling();
         }
 
         downsampling_reset = !downsampling_reset;
@@ -1282,7 +1291,7 @@ void loop()
         tuning_tone_flag = !tuning_tone_flag;
         if (Lilla_state == PERFORMANCE)
         {
-            Display_Manager.P_show_TuningTone_instrument(Patch_id);
+            Display_Performance.P_show_TuningTone_instrument(Patch_id);
         }
         if (!tuning_tone_flag)
         {
@@ -1295,7 +1304,7 @@ void loop()
     {
         if (Lilla_state == PERFORMANCE)
         {
-            Display_Manager.P_show_gain_TuningTone(Patch_id);
+            Display_Performance.P_show_gain_TuningTone(Patch_id);
         }
     }
 
@@ -1307,14 +1316,14 @@ void loop()
 
         if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
         {
-            Display_Manager.Lowpass_filter();
+            Display_Common.Lowpass_filter();
         }
     }
 
     // Low-pass cutoff from midi CC
     if (display_lowpass_flag)
     {
-        Display_Manager.Lowpass_filter();
+        Display_Common.Lowpass_filter();
         display_lowpass_flag = false;
     }
 
@@ -1329,7 +1338,7 @@ void loop()
 
             if (Lilla_state == PERFORMANCE || Lilla_state == SOUND_EDIT || Lilla_state == INSTRUMENT_VCF || Lilla_state == DELAY_SETTINGS || Lilla_state == MIDI_LOOP)
             {
-                Display_Manager.Lowpass_filter();
+                Display_Common.Lowpass_filter();
             }
         }
     }
@@ -1367,7 +1376,7 @@ void loop()
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
-            Display_Manager.P_Patch_volume_value(true);
+            Display_Common.P_Patch_volume_value(true);
         }
 
         // Move pointer
@@ -1453,8 +1462,8 @@ void loop()
                     P_Select_menu_elements();
                     P_Update_line_of_all_instruments();
 
-                    Display_Manager.P_show_Performance_menu(); // displays the menu and updates "Value_Max_encoder.performance_menu" used by encoder_menu
-                    Display_Manager.P_show_all_instruments(Patch_id);
+                    Display_Performance.P_show_Performance_menu(); // Draw the menu and update its navigation layout.
+                    Display_Performance.P_show_all_instruments(Patch_id);
 
                     Pointer_Performance.Set_pointer_to_Patch();
                     P_pointer = Pointer_Performance.Get_pointer();
@@ -1544,7 +1553,7 @@ void loop()
                     else
                     {
                         P_Select_menu_elements();
-                        Display_Manager.P_show_PERFORMANCE_page(false, true);
+                        Display_Performance.P_show_PERFORMANCE_page(false, true);
 
                         Pointer_Performance.Set_pointer_to_Patch();
                         P_pointer = Pointer_Performance.Get_pointer();
@@ -1906,16 +1915,16 @@ void loop()
         // Instrument volume changed from MIDI CC
         if (display_instrument_volume_flag)
         {
-            Display_Manager.P_show_Instrument_description(Patch_id, instrument_volume_changed, true);
+            Display_Performance.P_show_Instrument_description(Patch_id, instrument_volume_changed, true);
 
             // restore LED
             if (Performance_led_set.Read_LED_activity(instrument_volume_changed) > 0)
             {
-                Display_Manager.Led_PERFORMANCE_instrument(instrument_volume_changed, true);
+                Display_Performance.Led_PERFORMANCE_instrument(instrument_volume_changed, true);
             }
             else
             {
-                Display_Manager.Led_PERFORMANCE_instrument(instrument_volume_changed, false);
+                Display_Performance.Led_PERFORMANCE_instrument(instrument_volume_changed, false);
             }
             display_instrument_volume_flag = false;
         }
@@ -3158,7 +3167,7 @@ void loop()
 
             if (Lilla_state_0 == LIVE_SAMPLING)
             {
-                Display_Manager.P_Patch_volume_value(true); // true: YELLOW
+                Display_Common.P_Patch_volume_value(true); // true: YELLOW
             }
         }
 
@@ -3213,7 +3222,7 @@ void loop()
 
                     if (Lilla_state_0 == LIVE_SAMPLING)
                     {
-                        Display_Manager.P_Patch_volume_value(true); // true: YELLOW
+                        Display_Common.P_Patch_volume_value(true); // true: YELLOW
                     }
                 }
             }
@@ -4138,7 +4147,7 @@ void loop()
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
-            Display_Manager.P_Patch_volume_value(true);
+            Display_Common.P_Patch_volume_value(true);
         }
 
         // Move pointer
@@ -5518,6 +5527,29 @@ void loop()
 
                 case 5: // CONVERT_REC_TO_RAW
                 {
+                    int raw_conversion_choice = 0;
+                    bool raw_conversion_confirmed = false;
+                    Display_Sampler.DS_confirm_raw_conversion_popup();
+                    Clear_UI_events();
+                    while (!raw_conversion_confirmed)
+                    {
+                        Shifters_manager.Update();
+                        if (Read_encoder(EN_PB_Select, raw_conversion_choice, 1, 0, 1))
+                        {
+                            Display_Sampler.DS_confirm_raw_conversion_frame(raw_conversion_choice);
+                        }
+                        if (Read_pushbutton(EN_PB_Select) || Read_pushbutton(EN_PB_Value))
+                        {
+                            raw_conversion_confirmed = true;
+                        }
+                    }
+                    Clear_UI_events();
+                    Display_Sampler.DS_page_lower(recording);
+                    if (raw_conversion_choice == 0)
+                    {
+                        break;
+                    }
+
                     DS_state = DS_convert_state;
 
                     AudioNoInterrupts();
@@ -5939,28 +5971,28 @@ void loop()
             case 0: // no message received
                 break;
             case 1: // note ON
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 0, MM_note_number, MM_velocity, -1, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 0, MM_note_number, MM_velocity, -1, -1);
                 break;
             case 2: // note OFF
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 1, MM_note_number, MM_velocity, -1, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 1, MM_note_number, MM_velocity, -1, -1);
                 break;
             case 3: // pitch bend
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 2, -1, -1, (MM_pitch_bend_most << 7) + MM_pitch_bend_least, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 2, -1, -1, (MM_pitch_bend_most << 7) + MM_pitch_bend_least, -1);
                 break;
             case 4: // after touch poly
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 3, MM_least_bits, -1, MM_most_bits, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 3, MM_least_bits, -1, MM_most_bits, -1);
                 break;
             case 5: // control change
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 4, -1, -1, MM_midi_value, MM_midi_controller);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 4, -1, -1, MM_midi_value, MM_midi_controller);
                 break;
             case 6: // program change
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 5, -1, -1, -1, MM_least_bits);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 5, -1, -1, -1, MM_least_bits);
                 break;
             case 7: // After Touch Channel
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 6, -1, -1, MM_least_bits, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 6, -1, -1, MM_least_bits, -1);
                 break;
             case 8: // System Exclusive
-                Display_Manager.Midi_monitor_data(MM_midi_channel, 7, -1, -1, -1, -1);
+                Display_Diagnostics.Midi_monitor_data(MM_midi_channel, 7, -1, -1, -1, -1);
                 break;
             default:
                 PRINT_ERROR(F("Switch MISSING! "));
@@ -6151,7 +6183,7 @@ void loop()
             Players_Manager.Broadcast_volume();
             AudioInterrupts();
 
-            Display_Manager.P_Patch_volume_value(true);
+            Display_Common.P_Patch_volume_value(true);
         }
 
         // Move pointerMenu
@@ -7126,7 +7158,7 @@ void loop()
         // Set Key Step
         if (SET_menu == 0 && Read_encoder_inverse(EN_PB_Value, key_step, 3, 0, 1))
         {
-            Display_Manager.SETUP_show_Key_step_value();
+            Display_Setup.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
             Require_FRAM(Archive.Save_key_step(static_cast<uint8_t>(key_step)));
         }
@@ -7134,7 +7166,7 @@ void loop()
         // Set Prima ottava
         if (SET_menu == 1 && Read_encoder(EN_PB_Value, first_octave, 0, -2, 1))
         {
-            Display_Manager.SETUP_show_First_octave_value();
+            Display_Setup.SETUP_show_First_octave_value();
         }
 
         // Change menu item  -  uint8_t SET_menu;
@@ -7142,7 +7174,7 @@ void loop()
         if (result != 0)
         {
             SET_menu = (SET_menu + result + 7) % 7;
-            Display_Manager.SETUP_show_frame(SET_menu);
+            Display_Setup.SETUP_show_frame(SET_menu);
 
             Clear_UI_events();
         }
@@ -7163,13 +7195,13 @@ void loop()
                 }
 
                 CC_lowpass_filter_cache = CC_lowpass_filter_value;
-                Display_Manager.CC_show_ControlChange_page();
+                Display_Setup.CC_show_ControlChange_page();
 
-                Display_Manager.CC_show_all_sound_gains();
-                Display_Manager.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_all_sound_gains();
+                Display_Setup.CC_show_lowpass_filter_value();
 
                 CC_menu = 0;
-                Display_Manager.CC_show_frame_menu(CC_menu);
+                Display_Setup.CC_show_frame_menu(CC_menu);
 
                 Clear_UI_events();
                 break;
@@ -7216,34 +7248,34 @@ void loop()
                     {
                         Serial.println(F("RAW import failed; audio remains stopped. Retry the import."));
                     }
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                 }
                 break;
             }
 
             case 4: // Restore configuration and Recording audio from the backup root.
-                Display_Manager.Confirm_config_import_popup();
-                Display_Manager.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_config_import_popup();
+                Display_Storage.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
                 if (result == 0)
                 {
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
 
                 // check SD presence
                 if (!SD.begin(BUILTIN_SDCARD))
                 {
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
                 if (!SD.exists("/LILLABACKUP/LILLA_CONFIG.fram"))
                 {
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
                 else
@@ -7257,12 +7289,12 @@ void loop()
                     {
                         if (config_error)
                         {
-                            Display_Manager.SETUP_show_SETUP_page();
-                            Display_Manager.SETUP_show_frame(SET_menu);
+                            Display_Setup.SETUP_show_SETUP_page();
+                            Display_Setup.SETUP_show_frame(SET_menu);
                             break;
                         }
                         Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /LILLABACKUP."));
-                        Display_Manager.Config_import_FILE_error_popup();
+                        Display_Storage.Config_import_FILE_error_popup();
                         delay(5000);
                         Reload_system_state();
                         break;
@@ -7278,13 +7310,13 @@ void loop()
                 break;
 
             case 5: // Create a new numbered backup with Recording audio.
-                Display_Manager.Confirm_config_export_popup();
-                Display_Manager.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_config_export_popup();
+                Display_Storage.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
                 if (result == 0)
                 {
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
 
@@ -7293,40 +7325,40 @@ void loop()
                 {
                     if (BACKUP_Export())
                     {
-                        Display_Manager.Config_export_save_popup();
+                        Display_Storage.Config_export_save_popup();
                     }
                     else
                     {
-                        Display_Manager.Config_export_SD_error_popup();
+                        Display_Storage.Config_export_SD_error_popup();
                     }
                     delay(5000);
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                 }
 
                 else
                 {
-                    Display_Manager.SD_missing(ILI9341_BLACK);
+                    Display_Storage.SD_missing(ILI9341_BLACK);
                     delay(5000);
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
 
                 break;
 
             case 6: // Factory reset
-                Display_Manager.Confirm_factory_reset_popup();
-                Display_Manager.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_factory_reset_popup();
+                Display_Storage.Confirm_config_import_frame(0);
 
                 SET_Ask_if_FACTORY_RESET();
                 if (result == 0)
                 {
-                    Display_Manager.SETUP_show_SETUP_page();
-                    Display_Manager.SETUP_show_frame(SET_menu);
+                    Display_Setup.SETUP_show_SETUP_page();
+                    Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
-                Display_Manager.Factory_reset_wait_popup();
+                Display_Storage.Factory_reset_wait_popup();
 
                 delay(3000); // per ripensamenti last minute!
 
@@ -7564,7 +7596,7 @@ void loop()
 
         if (Read_encoder(EN_PB_Select, CC_menu, 9, 0, 1))
         {
-            Display_Manager.CC_show_frame_menu(CC_menu);
+            Display_Setup.CC_show_frame_menu(CC_menu);
 
             Clear_UI_events();
 
@@ -7583,12 +7615,12 @@ void loop()
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_Sound_gain[CC_menu - 1] = CC_number;
-                Display_Manager.CC_show_sound_gain(CC_menu - 1);
+                Display_Setup.CC_show_sound_gain(CC_menu - 1);
             }
             else if (CC_menu == 9)
             {
                 CC_lowpass_filter_value = CC_number;
-                Display_Manager.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_lowpass_filter_value();
             }
         }
 
@@ -7598,12 +7630,12 @@ void loop()
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_Sound_gain[CC_menu - 1] = 0;
-                Display_Manager.CC_show_sound_gain(CC_menu - 1);
+                Display_Setup.CC_show_sound_gain(CC_menu - 1);
             }
             else if (CC_menu == 9)
             {
                 CC_lowpass_filter_value = 0;
-                Display_Manager.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_lowpass_filter_value();
             }
         }
 
@@ -7613,13 +7645,13 @@ void loop()
             if (CC_menu > 0 && CC_menu < 9)
             {
                 CC_Sound_gain[CC_menu - 1] = CC_midi_controller;
-                Display_Manager.CC_show_sound_gain(CC_menu - 1);
+                Display_Setup.CC_show_sound_gain(CC_menu - 1);
                 CC_number = CC_Sound_gain[CC_menu - 1];
             }
             else if (CC_menu == 9)
             {
                 CC_lowpass_filter_value = CC_midi_controller;
-                Display_Manager.CC_show_lowpass_filter_value();
+                Display_Setup.CC_show_lowpass_filter_value();
                 CC_number = CC_lowpass_filter_value;
             }
             display_wait = false;
@@ -7964,8 +7996,8 @@ int P_Ask_if_change_Patch(void)
     bool confirmation = false;
     int action = 0;
 
-    Display_Manager.P_Confirm_patch_change_popup();
-    Display_Manager.P_Confirm_patch_change_popup_frame(0);
+    Display_Performance.P_Confirm_patch_change_popup();
+    Display_Performance.P_Confirm_patch_change_popup_frame(0);
     delay(200);
 
     Serial.println("OK P_Ask_if_change_Patch(void)");
@@ -7977,7 +8009,7 @@ int P_Ask_if_change_Patch(void)
 
         if (Read_encoder(EN_PB_Select, action, 2, 0, 1))
         {
-            Display_Manager.P_Confirm_patch_change_popup_frame(action);
+            Display_Performance.P_Confirm_patch_change_popup_frame(action);
         }
 
         if (Read_pushbutton(EN_PB_Select))
@@ -7996,8 +8028,8 @@ bool P_Ask_if_delete_this_Patch(void)
     bool confirmation = false;
     int action = 0; // NO
 
-    Display_Manager.P_Confirm_patch_delete_popup();
-    Display_Manager.P_Confirm_patch_delete_popup_frame(0);
+    Display_Performance.P_Confirm_patch_delete_popup();
+    Display_Performance.P_Confirm_patch_delete_popup_frame(0);
     delay(200);
 
     Clear_UI_events();
@@ -8007,7 +8039,7 @@ bool P_Ask_if_delete_this_Patch(void)
 
         if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
-            Display_Manager.P_Confirm_patch_delete_popup_frame(action);
+            Display_Performance.P_Confirm_patch_delete_popup_frame(action);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -8185,35 +8217,35 @@ void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, con
     switch (element)
     {
     case value_P_Lock: // Lock
-        Display_Manager.P_show_Lock_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_Lock_value(patch_id, instrument_id, true);
         break;
 
     case value_P_Precedence: // Precedence
-        Display_Manager.P_show_Precedence_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_Precedence_value(patch_id, instrument_id, true);
         break;
 
     case value_P_Midi: // Midi (channel)
-        Display_Manager.P_show_Midi_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_Midi_value(patch_id, instrument_id, true);
         break;
 
     case value_P_RootKey: // Root key
-        Display_Manager.P_show_RootKey_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_RootKey_value(patch_id, instrument_id, true);
         break;
 
     case value_P_FromKey: // From Key
-        Display_Manager.P_show_FromKey_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_FromKey_value(patch_id, instrument_id, true);
         break;
 
     case value_P_ToKey: // To key
-        Display_Manager.P_show_ToKey_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_ToKey_value(patch_id, instrument_id, true);
         break;
 
     case value_P_Pan: // Pan
-        Display_Manager.P_show_Pan_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_Pan_value(patch_id, instrument_id, true);
         break;
 
     case value_P_Gain: // Gain
-        Display_Manager.P_show_Gain_value(patch_id, instrument_id, true);
+        Display_Performance.P_show_Gain_value(patch_id, instrument_id, true);
         break;
     }
 }
@@ -8564,11 +8596,11 @@ void Update_instruments_leds()
                 const int activity = Performance_led_set.Consume_LED_activity(instrument_id);
                 if (activity == 2)
                 {
-                    Display_Manager.Led_PERFORMANCE_instrument(instrument_id, true);
+                    Display_Performance.Led_PERFORMANCE_instrument(instrument_id, true);
                 }
                 if (activity == -2)
                 {
-                    Display_Manager.Led_PERFORMANCE_instrument(instrument_id, false);
+                    Display_Performance.Led_PERFORMANCE_instrument(instrument_id, false);
                 }
             }
         }
@@ -8576,7 +8608,7 @@ void Update_instruments_leds()
         if (TT_led_flag) // TUNING_TONE
         {
             TT_led_flag = false;
-            Display_Manager.Led_tuning_tone(Patch_id);
+            Display_Performance.Led_tuning_tone(Patch_id);
         }
     }
 
@@ -8586,11 +8618,11 @@ void Update_instruments_leds()
         const int activity = Performance_led_set.Consume_LED_activity(Instrument_id);
         if (activity == 2)
         {
-            Display_Manager.Led_SOUND_EDIT_instrument(Instrument_id, true);
+            Display_Sound.Led_SOUND_EDIT_instrument(Instrument_id, true);
         }
         if (activity == -2)
         {
-            Display_Manager.Led_SOUND_EDIT_instrument(Instrument_id, false);
+            Display_Sound.Led_SOUND_EDIT_instrument(Instrument_id, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8605,11 +8637,11 @@ void Update_instruments_leds()
         const int activity = Performance_led_set.Consume_LED_activity(Instrument_id);
         if (activity == 2)
         {
-            Display_Manager.Led_INSTRUMENT_VCF_instrument(Instrument_id, true);
+            Display_VCF.Led_INSTRUMENT_VCF_instrument(Instrument_id, true);
         }
         if (activity == -2)
         {
-            Display_Manager.Led_INSTRUMENT_VCF_instrument(Instrument_id, false);
+            Display_VCF.Led_INSTRUMENT_VCF_instrument(Instrument_id, false);
         }
 
         if (TT_led_flag) // TUNING_TONE
@@ -8655,7 +8687,7 @@ void Update_instruments_leds()
         // Draw outside the IRQ lock; either active instrument keeps the shared LED on.
         if (DS_recording_led_visible && (activity_changed || DS_recording_led_redraw))
         {
-            Display_Manager.Led_DIRECT_SAMPLING(left_activity > 0 || right_activity > 0);
+            Display_Sampler.Led_DIRECT_SAMPLING(left_activity > 0 || right_activity > 0);
         }
         DS_recording_led_redraw = false;
 
@@ -8810,7 +8842,7 @@ void DS_ask_if_EXIT_from_DS(void)
     confirmation = false;
     action = 0; // NO
     Display_Sampler.DS_confirm_EXIT_from_DS();
-    Display_Manager.P_Confirm_patch_delete_popup_frame(0);
+    Display_Common.Confirm_no_yes_popup_frame(0);
     delay(200);
 
     Clear_UI_events();
@@ -8820,7 +8852,7 @@ void DS_ask_if_EXIT_from_DS(void)
 
         if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
-            Display_Manager.P_Confirm_patch_delete_popup_frame(action);
+            Display_Common.Confirm_no_yes_popup_frame(action);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -9527,7 +9559,7 @@ void Golive_with_PERFORMANCE(int patch_id)
     P_Select_menu_elements();
     P_Update_line_of_all_instruments();
 
-    Display_Manager.P_show_PERFORMANCE_page(true, true);
+    Display_Performance.P_show_PERFORMANCE_page(true, true);
 
     Clear_UI_events();
 
@@ -10145,7 +10177,7 @@ void Golive_MIDI_MONITOR(void)
     Lilla_state = MIDI_MONITOR;
 
     display_wait = false;
-    Display_Manager.Midi_monitor_page();
+    Display_Diagnostics.Midi_monitor_page();
 
     Clear_UI_events();
 }
@@ -10155,11 +10187,11 @@ void Golive_SETUP(void)
     Lilla_state = SETUP;
 
     SET_menu = 0;
-    Display_Manager.SETUP_show_SETUP_page();
+    Display_Setup.SETUP_show_SETUP_page();
 
     Clear_UI_events();
 
-    Display_Manager.SETUP_show_frame(SET_menu);
+    Display_Setup.SETUP_show_frame(SET_menu);
 }
 
 // ***************************************************************************************************************
@@ -10895,7 +10927,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 
 void VFS_Make_VFS(void)
 {
-    Display_Manager.VFS_Make_presentation();
+    Display_Storage.VFS_Make_presentation();
 
     // calcola DS_packets Free space, in PACKET_DIM
     VFS_packets_max = (Get_flash_size() - Get_flash_occupation() - FLASH_FREE_SPACE) / PACKET_DIM;
@@ -10903,9 +10935,9 @@ void VFS_Make_VFS(void)
 
     if (VFS_packets_max > 40)
     {
-        Display_Manager.VFS_Make_assignments();
+        Display_Storage.VFS_Make_assignments();
         VFS_packets = VFS_packets_max / 3.0f; // questa proporzione puo' essere modifitata a piacere
-        Display_Manager.VFS_show_packets();
+        Display_Storage.VFS_show_packets();
         bool confirmation = false;
 
         Clear_UI_events();
@@ -10921,7 +10953,7 @@ void VFS_Make_VFS(void)
                     if (VFS_packets <= (VFS_packets_max - 2))
                     {
                         VFS_packets += 2;
-                        Display_Manager.VFS_show_packets();
+                        Display_Storage.VFS_show_packets();
                     }
                 }
                 else
@@ -10929,7 +10961,7 @@ void VFS_Make_VFS(void)
                     if (VFS_packets >= 2)
                     {
                         VFS_packets -= 2;
-                        Display_Manager.VFS_show_packets();
+                        Display_Storage.VFS_show_packets();
                     }
                 }
             }
@@ -10950,13 +10982,13 @@ void VFS_Make_VFS(void)
         Serial.print(F("Created Virtual File System  - VFS_packets are "));
         Serial.println(VFS_packets);
 
-        Display_Manager.VFS_Make_restart();
+        Display_Storage.VFS_Make_restart();
         delay(10000);
     }
 
     else
     {
-        Display_Manager.VFS_Make_not_enough_memory_for_sampler();
+        Display_Storage.VFS_Make_not_enough_memory_for_sampler();
         delay(10000);
     }
 }
@@ -13026,7 +13058,7 @@ bool LS_ask_if_exit_from_LS(void)
     confirmation = false;
     int action = 0;
     Display_LiveSampler.Confirm_EXIT_from_LS();
-    Display_Manager.P_Confirm_patch_delete_popup_frame(0);
+    Display_Common.Confirm_no_yes_popup_frame(0);
     delay(200);
 
     Clear_UI_events();
@@ -13036,7 +13068,7 @@ bool LS_ask_if_exit_from_LS(void)
 
         if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
         {
-            Display_Manager.P_Confirm_patch_delete_popup_frame(action);
+            Display_Common.Confirm_no_yes_popup_frame(action);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -13342,7 +13374,7 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
 
         if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
-            Display_Manager.Confirm_config_import_frame(result);
+            Display_Storage.Confirm_config_import_frame(result);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -13365,7 +13397,7 @@ void SET_Ask_if_FACTORY_RESET(void)
 
         if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
-            Display_Manager.Confirm_config_import_frame(result);
+            Display_Storage.Confirm_config_import_frame(result);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -13404,12 +13436,12 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     flash_changed = false;
     int row;
 
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_titolo();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_titolo();
 
     // Wait for SD card
     while (!SD.begin(BUILTIN_SDCARD))
     {
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_waiting_for_SD();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_waiting_for_SD();
         delay(10000);
         return false;
     }
@@ -13418,7 +13450,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     // Check if LILLARAW directory exists
     if (!SD.exists("/LILLARAW"))
     {
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
         delay(4000);
         return false;
     }
@@ -13444,7 +13476,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
         delay(4000);
         return false;
     }
@@ -13471,7 +13503,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     }
     rootdir.close();
 
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_report(SD_raw_volume, SD_raw_files, Get_raw_files_volume(), Get_raw_files());
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_report(SD_raw_volume, SD_raw_files, Get_raw_files_volume(), Get_raw_files());
 
     unsigned char id[3];
     SerialFlash.readID(id);
@@ -13525,12 +13557,12 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
 
     float erasing_time_ms = Get_flash_size() / SET_eraseBytesPerSecond(id) * 1000;
     const uint32_t erasing_time_ms_step = static_cast<uint32_t>(erasing_time_ms / 100.0f);
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
 
     // Confirmation
     bool confirm = false;
     uint8_t action = 0;
-    Display_Manager.Import_raw_files_frame(action);
+    Display_Storage.Import_raw_files_frame(action);
 
     Clear_UI_events();
     while (!confirm)
@@ -13543,7 +13575,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             if (action == 0)
             {
                 action = 1;
-                Display_Manager.Import_raw_files_frame(action);
+                Display_Storage.Import_raw_files_frame(action);
             }
         }
         else if (result == -1)
@@ -13551,7 +13583,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             if (action == 1)
             {
                 action = 0;
-                Display_Manager.Import_raw_files_frame(action);
+                Display_Storage.Import_raw_files_frame(action);
             }
         }
 
@@ -13568,14 +13600,14 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     }
 
     // Start erasing flash chip
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_job_start();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_start();
 
     flash_changed = true;
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);
     elapsedMillis dotMillis = 0;
     int percentage = 0;
 
-    Display_Manager.Update_raw_copy_progress(percentage);
+    Display_Storage.Update_raw_copy_progress(percentage);
 
     while (SerialFlash.ready() == false)
     {
@@ -13583,19 +13615,19 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         {
             dotMillis = 0;
             ++percentage;
-            Display_Manager.Update_raw_copy_progress(percentage);
+            Display_Storage.Update_raw_copy_progress(percentage);
         }
     }
 
     // Create the fallback first so other imports cannot consume its space.
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
     row = 2;
     if (!SD_has_zero_raw)
     {
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
         if (!ZeroRaw_ensure_file())
         {
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
             delay(4000);
             return false;
         }
@@ -13607,7 +13639,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
         delay(4000);
         return false;
     }
@@ -13636,16 +13668,16 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         ++row;
         if (row > 14)
         {
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
             row = 3;
         }
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_files_to_copy(row, filename, length);
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_to_copy(row, filename, length);
 
         if (!SerialFlash.create(filename, length))
         {
             f.close();
             rootdir.close();
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_full_error();
             delay(4000);
             return false;
         }
@@ -13674,7 +13706,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             f.close();
             rootdir.close();
             Serial.println(F("RAW import failed while reading SD or writing Flash."));
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
             delay(4000);
             return false;
         }
@@ -13685,14 +13717,14 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     // The required file must exist before reporting success and rebuilding the VFS.
     if (!ZeroRaw_ensure_file())
     {
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_flash_error();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
         delay(4000);
         return false;
     }
     delay(10);
 
     // Display RAW files list
-    Display_Manager.Copy_raw_files_SD_to_Flash_chip_job_done();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_done();
     row = 2;
     SerialFlash.opendir();
 
@@ -13704,11 +13736,11 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         if (row > 14)
         {
             delay(4000);
-            Display_Manager.Copy_raw_files_SD_to_Flash_chip_list_landscape();
+            Display_Storage.Copy_raw_files_SD_to_Flash_chip_list_landscape();
             row = 3;
         }
 
-        Display_Manager.Copy_raw_files_SD_to_Flash_chip_file_copied(row, filename, filesize);
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_file_copied(row, filename, filesize);
     }
     delay(6000);
     return true;
@@ -14323,7 +14355,7 @@ void Reload_system_state(void)
     {
         Serial.println(F("FRAM archive unavailable: interrupted restore, invalid header or I/O error. Automatic repair is blocked."));
         Serial.println(F("Place LILLA_CONFIG.fram and its REC files in /LILLABACKUP. Press Select to retry the complete restore."));
-        Display_Manager.FRAM_recovery_popup();
+        Display_Storage.FRAM_recovery_popup();
         bool recovered = false;
         while (!recovered)
         {
@@ -14606,7 +14638,7 @@ void Reload_system_state(void)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
-    Display_Manager.Lilla_cover_slow();
+    Display_Startup.Lilla_cover_slow();
 
     // ****************    DEFINE STARTUP MODE     ************
     if (!Startup_mode())
@@ -14854,7 +14886,7 @@ void Require_FRAM(byte result)
 
     P_Quiesce_audio_players();
     AudioNoInterrupts();
-    Display_Manager.FRAM_io_error_popup();
+    Display_Storage.FRAM_io_error_popup();
     // Do not run subsequent save, erase or cache-publication steps after a failed access.
     while (true)
     {

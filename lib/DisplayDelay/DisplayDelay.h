@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>     // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
 #include <ILI9341_t3n.h>
-#include "GlobalDisplayManager.h"
+#include "GlobalDisplayCommon.h"
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
 #include "SharedDelay.h"

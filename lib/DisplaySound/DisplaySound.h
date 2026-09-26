@@ -12,7 +12,7 @@
 #include <AudioStream.h>      // pick definition of AUDIO_SAMPLE_RATE
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
-#include "GlobalDisplayManager.h"
+#include "GlobalDisplayCommon.h"
 #include "GlobalDisplayMidiLoop.h"
 #include "GlobalInfoMaster.h"
 #include "SharedSound.h"
@@ -79,6 +79,7 @@ private:
     void Delete_all_menu_frame(void); // Clears every SOUND menu highlight frame.
 
 public:
+    void Led_SOUND_EDIT_instrument(int instrument_id, bool on);
     DisplaySound() {}
 
     void Show_SOUND_page(int patch_id, int instrument_id);                      // Draws the complete SOUND page for the selected instrument.

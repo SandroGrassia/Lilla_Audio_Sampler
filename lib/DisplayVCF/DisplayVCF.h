@@ -12,7 +12,7 @@
 #include <AudioStream.h>      // solo per definizione AUDIO_SAMPLE_RATE
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
-#include "GlobalDisplayManager.h"
+#include "GlobalDisplayCommon.h"
 #include "GlobalDisplayMidiLoop.h"
 #include "SharedVCF.h"
 
@@ -82,6 +82,7 @@ private:
         VCF_chars_ModDepth};
 
 public:
+    void Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on);
     DisplayVCF() {}
 
     void VCF_show_VCF_page(const int patch_id, const int instrument_id);

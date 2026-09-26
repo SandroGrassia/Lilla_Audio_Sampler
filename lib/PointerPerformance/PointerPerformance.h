@@ -10,7 +10,7 @@
 #include "config.h"
 #include "SharedPerformance.h"
 #include "DisplayPrimitives.h"
-#include "GlobalDisplayManager.h"
+#include "GlobalDisplayPerformance.h"
 
 /*
 

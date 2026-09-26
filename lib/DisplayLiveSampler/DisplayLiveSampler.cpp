@@ -24,8 +24,8 @@ void DisplayLiveSampler::Confirm_EXIT_from_LS(void)
 {
     const int L_POPUP = 106;                 // Larghezza
     const int H_POPUP = 47;                  // Altezza
-    const int X_POPUP = (320 - L_POPUP) / 2; // X posizione su display
-    const int Y_POPUP = (240 - H_POPUP) / 2; // Y posizione su display
+    const int X_POPUP = Centered_element_left(L_POPUP); // X posizione su display
+    const int Y_POPUP = Centered_element_top(H_POPUP); // Y posizione su display
     const int Y_POPUP_TXT = 10;              // prima riga testo
     const int Y_POPUP_OPT = 30;              // riga opzioni
 
@@ -44,7 +44,7 @@ FLASHMEM
 void DisplayLiveSampler::Show_no_recorded_audio(void)
 {
     const int height = display_coordinate_y(1);
-    const int y_offset = display_coordinate_y(LS_column_row_FEEDBACK[1]) - 5 - (240 - height) / 2;
+    const int y_offset = display_coordinate_y(LS_column_row_FEEDBACK[1]) - 5 - Centered_element_top(height);
     Show_popup_text("NO RECORDED AUDIO", ILI9341_WHITE, ILI9341_RED, y_offset);
 }
 
@@ -71,7 +71,7 @@ void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
         const int width = display_coordinate_x(sizeof("NO RECORDED AUDIO") - 1 + 2);
         const int height = display_coordinate_y(1);
         const int top = display_coordinate_y(LS_column_row_FEEDBACK[1]) - 5;
-        tft.fillRect((320 - width) / 2, top, width, height, ILI9341_BLACK);
+        tft.fillRect(Centered_element_left(width), top, width, height, ILI9341_BLACK);
     }
 }
 
@@ -591,8 +591,8 @@ void DisplayLiveSampler::LS_Display_Confirm_capture_frame(uint8_t value)
 {
     const int popup_width = display_coordinate_x(sizeof("REPLACE CAPTURE?") - 1 + 2);
     const int popup_height = display_coordinate_y(1) + 15;
-    const int text_x = (320 - popup_width) / 2 + display_coordinate_x(1);
-    const int option_y = (240 - popup_height) / 2 + 20;
+    const int text_x = Centered_element_left(popup_width) + display_coordinate_x(1);
+    const int option_y = Centered_element_top(popup_height) + 20;
     const int no_x = text_x + 4 * 6;
     const int yes_x = text_x + 8 * 6;
 

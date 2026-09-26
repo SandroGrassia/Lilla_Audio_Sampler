@@ -5,6 +5,7 @@
 */
 
 #include "DisplayVCF.h"
+#include "SharedMixer.h"
 
 void DisplayVCF::VCF_show_pointer_frame(const int pointer, const bool show)
 {
@@ -29,7 +30,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
         tft.setCursor(display_coordinate_x(VCF_column_row_VOLUME[0]), display_coordinate_y(VCF_column_row_VOLUME[1]));
         tft.setTextColor(TEXT_COLOR);
         tft.print("VOLUME");
-        Display_Manager.P_Patch_volume_value(true); // true: YELLOW
+        Display_Common.P_Patch_volume_value(true); // true: YELLOW
     }
 
     else
@@ -40,10 +41,10 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
         }
         else
         {
-            Display_Manager.P_show_PERFORMANCE_title();
+            Display_Common.P_show_PERFORMANCE_title();
         }
 
-        Display_Manager.P_show_Patch_number(false);
+        Display_Common.P_show_Patch_number(false);
 
     tft.setCursor(display_coordinate_x(VCF_column_row_SOUND[0]), display_coordinate_y(VCF_column_row_SOUND[1]));
         tft.setTextColor(TEXT_COLOR);
@@ -62,7 +63,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
     tft.setTextColor(MENU_COLOR);
     tft.print("RETURN");
 
-    Display_Manager.Show_all_effects();
+    Display_Common.Show_all_effects();
     VCF_show_solo_value();
 
     Backgorund_red(0, 6.8, 9); // Display.Board(float col, float row, int chars)
@@ -243,4 +244,30 @@ void DisplayVCF::VCF_show_LFO_modulation_depth(const int instrument_id)
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(100 * Preset[instrument_id].Filter.index, 0);
     tft.print("%");
+}
+
+void DisplayVCF::Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on)
+{
+    if (Lilla_state_0 == PERFORMANCE)
+    {
+        if (on)
+        {
+            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        }
+        else
+        {
+            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        }
+    }
+    else if (Lilla_state_0 == LIVE_SAMPLING)
+    {
+        if (on)
+        {
+            tft.drawBitmap(display_coordinate_x(40) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        }
+        else
+        {
+            tft.drawBitmap(display_coordinate_x(40) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        }
+    }
 }
