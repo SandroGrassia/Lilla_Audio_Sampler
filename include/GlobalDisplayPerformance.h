@@ -6,6 +6,6 @@
 
 #pragma once
 
-#include "DisplayManager.h"
+#include "DisplayPerformance.h"
 
-extern DisplayManager Display_Manager;
+extern DisplayPerformance Display_Performance;

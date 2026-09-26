@@ -12,7 +12,7 @@
 #include <AudioStream.h>      // solo per definizione AUDIO_SAMPLE_RATE
 #include "SharedElements.h"
 #include "DisplayPrimitives.h"
-#include "GlobalDisplayManager.h"
+#include "GlobalDisplayCommon.h"
 #include "GlobalDisplayMidiLoop.h"
 #include "SharedVCF.h"
 

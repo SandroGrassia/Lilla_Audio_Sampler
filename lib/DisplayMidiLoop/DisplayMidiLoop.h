@@ -15,7 +15,7 @@
 #include "SharedPerformance.h"
 #include "GlobalInfoMaster.h"
 #include "GraphicElements.h"
-#include "GlobalDisplayManager.h"
+#include "GlobalDisplayCommon.h"
 
 // Handles all display rendering for the MIDI Loop page on the ILI9341 TFT.
 

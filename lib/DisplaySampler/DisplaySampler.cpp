@@ -11,8 +11,8 @@ void DisplaySampler::DS_confirm_EXIT_from_DS(void)
 {
     const int L_POPUP    = 106;
     const int H_POPUP    = 47;
-    const int X_POPUP    = (320 - L_POPUP) / 2;
-    const int Y_POPUP    = (240 - H_POPUP) / 2;
+    const int X_POPUP    = Centered_element_left(L_POPUP);
+    const int Y_POPUP    = Centered_element_top(H_POPUP);
     const int Y_POPUP_TXT = 10;
     const int Y_POPUP_OPT = 30;
 

@@ -29,7 +29,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
         tft.setCursor(display_coordinate_x(VCF_column_row_VOLUME[0]), display_coordinate_y(VCF_column_row_VOLUME[1]));
         tft.setTextColor(TEXT_COLOR);
         tft.print("VOLUME");
-        Display_Manager.P_Patch_volume_value(true); // true: YELLOW
+        Display_Common.P_Patch_volume_value(true); // true: YELLOW
     }
 
     else
@@ -40,10 +40,10 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
         }
         else
         {
-            Display_Manager.P_show_PERFORMANCE_title();
+            Display_Common.P_show_PERFORMANCE_title();
         }
 
-        Display_Manager.P_show_Patch_number(false);
+        Display_Common.P_show_Patch_number(false);
 
     tft.setCursor(display_coordinate_x(VCF_column_row_SOUND[0]), display_coordinate_y(VCF_column_row_SOUND[1]));
         tft.setTextColor(TEXT_COLOR);
@@ -62,7 +62,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
     tft.setTextColor(MENU_COLOR);
     tft.print("RETURN");
 
-    Display_Manager.Show_all_effects();
+    Display_Common.Show_all_effects();
     VCF_show_solo_value();
 
     Backgorund_red(0, 6.8, 9); // Display.Board(float col, float row, int chars)

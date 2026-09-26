@@ -69,8 +69,8 @@ void Show_popup_text(const char *first_line, const char *second_line, uint16_t t
     const int L_POPUP = display_coordinate_x(longest_line + 2);
     const int H_POPUP = display_coordinate_y(1) + (two_lines ? 15 : 0);
 
-    const int X_POPUP = (320 - L_POPUP) / 2;
-    const int Y_POPUP = (240 - H_POPUP) / 2 + y_offset;
+    const int X_POPUP = Centered_element_left(L_POPUP);
+    const int Y_POPUP = Centered_element_top(H_POPUP) + y_offset;
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, filler_color);
     tft.setTextColor(text_color);

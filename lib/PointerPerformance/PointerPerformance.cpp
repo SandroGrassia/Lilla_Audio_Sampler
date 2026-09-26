@@ -9,7 +9,7 @@
 void PointerPerformance::Set_pointer_to_last_instrument(const int instrument_id)
 {
     pointer = {field_P_Instrument, 0, P_line_of_instrument[instrument_id], instrument_id};
-    Display_Manager.P_show_pointer_frame(pointer, true); // show the new frame
+    Display_Performance.P_show_pointer_frame(pointer, true); // show the new frame
 }
 
 void PointerPerformance::Set_pointer_to_RootKey(const int instrument_id)
@@ -22,13 +22,13 @@ void PointerPerformance::Set_pointer_to_RootKey(const int instrument_id)
 void PointerPerformance::Set_pointer_to_Patch(void)
 {
     pointer = {field_P_Patch, 0, 0, 0};
-    Display_Manager.P_show_pointer_frame(pointer, true); // show the new frame
+    Display_Performance.P_show_pointer_frame(pointer, true); // show the new frame
 }
 
 void PointerPerformance::Set_pointer_to_first_menu_voice(void)
 {
     pointer = {field_P_Menu, 0, 0, 0};
-    Display_Manager.P_show_pointer_frame(pointer, true); // show the new frame
+    Display_Performance.P_show_pointer_frame(pointer, true); // show the new frame
 }
 
 void PointerPerformance::Move_pointer_from_inside_to_Instrument(void)
@@ -36,8 +36,8 @@ void PointerPerformance::Move_pointer_from_inside_to_Instrument(void)
     P_field_description_struct full_pointer_old = pointer;
     pointer.field_name = field_P_Instrument;
 
-    Display_Manager.P_show_pointer_frame(full_pointer_old, false); // delete the old frame
-    Display_Manager.P_show_pointer_frame(pointer, true);           // show the new frame
+    Display_Performance.P_show_pointer_frame(full_pointer_old, false); // delete the old frame
+    Display_Performance.P_show_pointer_frame(pointer, true);           // show the new frame
 }
 
 void PointerPerformance::Move_pointer_from_Instrument_to_inside(void)
@@ -46,18 +46,18 @@ void PointerPerformance::Move_pointer_from_Instrument_to_inside(void)
     pointer.field_name = field_P_Instrument_inside;
     pointer.element = 0;
 
-    Display_Manager.P_show_pointer_frame(full_pointer_old, false); // delete the old frame
-    Display_Manager.P_show_pointer_frame(pointer, true);           // show the new frame
+    Display_Performance.P_show_pointer_frame(full_pointer_old, false); // delete the old frame
+    Display_Performance.P_show_pointer_frame(pointer, true);           // show the new frame
 }
 
 void PointerPerformance::Display_pointer(void)
 {
-    Display_Manager.P_show_pointer_frame(pointer, true);
+    Display_Performance.P_show_pointer_frame(pointer, true);
 }
 
 void PointerPerformance::Delete_pointer(void)
 {
-    Display_Manager.P_show_pointer_frame(pointer, false);
+    Display_Performance.P_show_pointer_frame(pointer, false);
 }
 
 P_field_description_struct PointerPerformance::Get_pointer(void)
@@ -181,8 +181,8 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
 
     if (changed)
     {
-        Display_Manager.P_show_pointer_frame(full_pointer_old, false);
-        Display_Manager.P_show_pointer_frame(pointer, true);
+        Display_Performance.P_show_pointer_frame(full_pointer_old, false);
+        Display_Performance.P_show_pointer_frame(pointer, true);
     }
 }
 

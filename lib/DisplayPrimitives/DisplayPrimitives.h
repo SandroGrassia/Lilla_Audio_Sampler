@@ -27,6 +27,17 @@ static constexpr int Y_FOOTER_TEXT = WAVEBOARD_HEIGHT - 12;
 static constexpr int CANVAS_WAVE_MIN = WAVEBOARD_HEIGHT - 1;
 static constexpr int CANVAS_WAVE_0 = CANVAS_WAVE_MIN / 2;
 
+// Top-left coordinates for centering an element on the 320 x 240 display.
+static constexpr int Centered_element_left(const int width)
+{
+    return (320 - width) / 2;
+}
+
+static constexpr int Centered_element_top(const int height)
+{
+    return (240 - height) / 2;
+}
+
 // conversion
 int display_coordinate_y(const float row);
 int display_coordinate_x(const float col);

@@ -33,7 +33,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     }
     else
     {
-        Display_Manager.P_show_PERFORMANCE_title();
+        Display_Common.P_show_PERFORMANCE_title();
     }
 
     tft.setCursor(display_coordinate_x(29), display_coordinate_y(0));
@@ -55,7 +55,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.print("FILE");
     Show_File_value(instrument_id);
 
-    Display_Manager.Show_all_effects();
+    Display_Common.Show_all_effects();
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4.9));
     tft.setTextColor(TEXT_COLOR);

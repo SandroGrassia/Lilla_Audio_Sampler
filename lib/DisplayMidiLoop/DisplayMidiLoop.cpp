@@ -34,7 +34,7 @@ bool DisplayMidiLoop::Update_save_failed(void)
         // Match the geometry used by Show_popup_text().
         const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 2);
         const int height = display_coordinate_y(1);
-        tft.fillRect((320 - width) / 2, (240 - height) / 2 + Save_failed_y_offset, width, height, ILI9341_BLACK);
+        tft.fillRect(Centered_element_left(width), Centered_element_top(height) + Save_failed_y_offset, width, height, ILI9341_BLACK);
         save_failed_visible = false;
         
         for (int track = 0; track < TRACKS; ++track)
@@ -100,7 +100,7 @@ void DisplayMidiLoop::Show_Loop_page(void)
     Show_MIDI_LOOP();
     Show_menu();
 
-    Display_Manager.Show_all_effects();
+    Display_Common.Show_all_effects();
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(Loop_column_row_LOOP[0]), display_coordinate_y(Loop_column_row_LOOP[1]));

@@ -18,17 +18,11 @@
 #include "SharedLoop.h"
 #include "SharedDelay.h"
 #include "SharedMixer.h"
-#include "SharedPerformance.h"
 #include "GlobalInfoMaster.h"
 
-class DisplayManager
+class DisplayCommon
 {
 private:
-
-    void Note(const int note_number);
-    int col;
-    int row;
-    // void Cancel_text_reset_cursor(const int X, const int Y, int N);
 
     // Logo
     void Logo(const float light);
@@ -55,39 +49,10 @@ private:
     int X_POPUP_OPT; // riga opzioni
     int Y_POPUP_OPT; // riga opzioni
 
-    // PERFORMANCE
+    // Shared patch header
     static constexpr float P_column_PATCH = 30;
-    static constexpr float P_column_Patch_id = 36;
     static constexpr float P_column_VOLUME = 41;
     static constexpr float P_column_Volume_value = 47.5;
-    static constexpr float P_column_Instrument_frame = 3;
-    static constexpr float P_chars_width_Instrument_frame = 50;
-
-    static constexpr float P_row_Instrument_title = 5;
-    static constexpr float P_column_SOUND_title = 0.5;
-    static constexpr float P_column_LOCK_title = 7;
-    static constexpr float P_column_P_title = 12.5;
-    static constexpr float P_column_MIDI_title = 15;
-    static constexpr float P_column_ROOT_K_title = 20.5;
-    static constexpr float P_column_FROM_K_title = 28;
-    static constexpr float P_column_TO_K_title = 36.5;
-    static constexpr float P_column_PAN_title = 43;
-    static constexpr float P_column_GAIN_title = 47.5;
-
-    static constexpr float P_pixel_x_LED = 8; // posizione led pagina Performance
-    static constexpr float P_column_Sound = 3;
-
-    // pointer
-    static constexpr int P_chars_instrument_element[8] = {1, 1, 2, 4, 4, 4, 2, 4};                       // Lock, Precedence,....., Gain
-    static constexpr float P_column_instrument_element[8] = {8.5, 12.5, 16, 21.5, 28.5, 36.5, 43, 47.5}; // Lock, Precedence,....., Gain
-
-    int P_menu_frame_on_element_0 = 0;
-    int P_Instrument_pixels_y(int position);
-
-    // TUNING TONE
-    static constexpr float TT_Instrument_INDENT_X0 = 0.5; // indentatura dell'header nella Performance (in caratteri) a sinistra
-    static constexpr float TT_Instrument_SPACE_X = 1.5;   // spaziatura (in caratteri) tra due titoli dell'header nella Performance
-
     // SETUP
     // Control Change
     static constexpr int Setup_Control_change_X = 13; // posizione (in caratteri)
@@ -95,63 +60,32 @@ private:
     // DELAY
     static constexpr int Delay_ROW_BASE = 6;
 
-
 public:
-    DisplayManager() {}
+    static constexpr float P_column_Patch_id = 36;
+
+    DisplayCommon() {}
 
     void Lilla_cover_slow(void);
     void Lilla_cover_saturate(void);
 
     // Funzioni comuni
+    void Confirm_no_yes_popup_frame(int value);
     void Show_all_effects(void);
     void Resolution(void);
     void Downsampling(void);
     void Lowpass_filter(void);
 
     // Gestione LED
-    void Led_PERFORMANCE_instrument(int instrument_id, bool on);
     void Led_SOUND_EDIT_instrument(int instrument_id, bool on);
     void Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on);
     void Led_DIRECT_SAMPLING(bool on);
-    void Led_tuning_tone(int patch_id);
 
-    // PERFORMANCE
-    void P_show_pointer_frame(P_field_description_struct value, bool show);
-    void P_show_PERFORMANCE_page(bool change_patch, bool change_vol);
+    // Shared patch header
     void P_show_PERFORMANCE_title(void);
     void P_show_Patch_number(bool change_patch);
     void P_Patch_VOLUME(bool change_vol); // shows VOLUME <value>
     void P_Patch_volume_value(bool change_vol);
-    void P_Patch_header(bool change_patch, bool change_vol);
     void Patch_volume_color(bool change_patch, bool change_vol);
-    // menu
-    void P_show_Performance_menu(void);
-    void P_Confirm_patch_change_popup(void);
-    void P_Confirm_patch_change_popup_frame(int value);
-    void P_Confirm_frame(int X, int Y, int chars, bool print);
-    void P_Confirm_frame_on_RED(int X, int Y, int chars, bool print);
-    void P_Confirm_patch_delete_popup(void);
-    void P_Confirm_patch_delete_popup_frame(int value);
-    // Instrument
-    void P_show_Instruments_header(void);
-    void P_show_all_instruments(int patch_id);
-    void P_show_Instrument_description(int patch_id, int instrument_id, bool editing);
-    void P_show_Sound_number(int instrument_id, bool editing);
-    void P_show_Lock_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Precedence_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Midi_value(int patch_id, int instrument_id, bool editing);
-    void P_show_RootKey_value(int patch_id, int instrument_id, bool editing);
-    void P_show_FromKey_value(int patch_id, int instrument_id, bool editing);
-    void P_show_ToKey_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Pan_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Gain_value(int patch_id, int instrument_id, bool editing);
-
-    void P_delete_instrument_by_position(int position);
-    void P_show_delete_Instrument_frame(float line, bool show);
-    // Tuning tone
-    void P_show_TuningTone_instrument(int patch_id);
-    void P_show_gain_TuningTone(int patch_id);
-
 
     // SETUP
     void SETUP_show_SETUP_page(void);
