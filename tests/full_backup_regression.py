@@ -24,6 +24,15 @@ constexpr int FILE_WRITE = 1, O_RDONLY = 0, O_WRONLY = 2, O_CREAT = 4, O_EXCL = 
 int DS_First_packet = 0, DS_VFS_packets = 12, DS_Last_packet = 11, VFS_packets = 12;
 int VFS_FAT_table[VFS_PACKETS_DS];
 char name_packet[VFS_PACKETS_MAX][16];
+#include <cstdio>
+#include <cstdint>
+constexpr int NAME_PACKET_SIZE = 10;
+const char *Get_packet_name(uint16_t id, char (&name)[NAME_PACKET_SIZE])
+{
+    snprintf(name, sizeof(name), "%s", name_packet[id]);
+    return name;
+}
+
 bool audio_enabled = true;
 uint32_t clock_ms = 0;
 void AudioNoInterrupts() { audio_enabled = false; }

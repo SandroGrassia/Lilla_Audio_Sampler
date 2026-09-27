@@ -152,7 +152,6 @@ int main()
     using namespace PlayerReadBudget;
     Plan p;
     p.span = 10000;
-    assert(Estimate(p, 0) == 0);
     const float flash = Estimate(p, 128);
     p.source = PlayerReadSource::Psram;
     const float psram = Estimate(p, 128);

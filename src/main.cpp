@@ -634,7 +634,6 @@ void VFS_Print_allocation(void);                      // Print the VFS and Direc
 bool VFS_Compile_FAT_table(void);                     // Build the packet ownership table from recording metadata and validate it.
 void VFS_Reset_FAT_table(void);                       // Clear the packet ownership entries in the configured Direct Sampling range.
 int VFS_Get_first_packet_free(void);                  // Find the first available recording packet.
-int VFS_Get_packets_free(void);                       // Count available packets in the recording area.
 void VFS_Erase_all_packets(void);                     // Erase all VFS packet files.
 void VFS_Erase_all_packets_for_DS(void);              // Erase packets reserved for Direct Sampling.
 bool VFS_Erase_packet(int value);                     // Erase one packet and report whether the operation succeeded.
@@ -654,9 +653,7 @@ int Get_samples_in_raw_file(int value);            // Return the sample count fo
 bool Verify_space_on_flash(int value);             // Check whether total capacity minus file sizes covers the requested byte count.
 int Get_first_raw_file_available(int start_value); // Find an unused RAW file ID at or above the starting ID, excluding pending captures.
 void Print_flash_file_list(void);                  // Print Flash filenames, file sizes and storage totals to Serial.
-int Get_flash_occupation(void);                    // Sum the sizes of files stored in Flash, in bytes.
 int Get_flashchip_size(void);                      // Read and print Flash chip identification and return its capacity in bytes.
-int Get_flash_size(void);                          // Read the Flash chip capacity in bytes.
 int Get_raw_files(void);                           // Count stored RAW files in the ordinary audio-file ID range.
 int Get_raw_files_volume(void);                    // Sum the sizes of stored ordinary RAW files, in bytes.
 const char *id2chip(const unsigned char *id);      // Translate Flash identification bytes into a chip model name.
@@ -1098,6 +1095,7 @@ void setup()
 
 void loop()
 {
+    char audio_filename[NAME_FILE_SIZE];
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
     // Recording stops asynchronously: catch storage errors even after leaving the Sampler page.
@@ -5568,7 +5566,7 @@ void loop()
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
                             {
-                                if (Capture_find(i) == nullptr && !SerialFlash.exists(name_file[i]))
+                                if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                 {
                                     file_L_RAW = i;
                                     DS_export = 1;
@@ -5587,7 +5585,7 @@ void loop()
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
                             {
-                                if (Capture_find(i) == nullptr && !SerialFlash.exists(name_file[i]))
+                                if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                 {
                                     file_L_RAW = i;
                                     DS_export = 1;
@@ -5598,7 +5596,7 @@ void loop()
                             {
                                 for (auto i = file_L_RAW + 1; i < FIRST_RECORDING_FILE; ++i)
                                 {
-                                    if (Capture_find(i) == nullptr && !SerialFlash.exists(name_file[i]))
+                                    if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                     {
                                         file_R_RAW = i;
                                         DS_export = 2;
@@ -5612,7 +5610,7 @@ void loop()
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
                             {
-                                if (Capture_find(i) == nullptr && !SerialFlash.exists(name_file[i]))
+                                if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                 {
                                     file_L_RAW = i;
                                     DS_export = 1;
@@ -8754,6 +8752,7 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
 
 bool DS_export_raw_to_SD(void)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     const auto &entry = Recording[recording];
     const int channels = entry.stereo ? 2 : 1;
     if (entry.first_packet < 0 || entry.packets <= 0 || entry.packets > VFS_PACKETS_MAX / channels || entry.first_packet > VFS_PACKETS_MAX - entry.packets * channels || entry.bytes <= 0 || entry.bytes > entry.packets * PACKET_DIM)
@@ -8797,7 +8796,7 @@ bool DS_export_raw_to_SD(void)
         uint32_t remaining = static_cast<uint32_t>(entry.bytes);
         for (int index = 0; remaining > 0 && exported; ++index)
         {
-            SerialFlashFile source = SerialFlash.open(name_packet[entry.first_packet + index * channels + channel]);
+            SerialFlashFile source = SerialFlash.open(Get_packet_name(entry.first_packet + index * channels + channel, packet_filename));
             if (!source)
             {
                 exported = false;
@@ -8962,12 +8961,14 @@ bool DS_back_to_first_DS_Recording(void)
 FLASHMEM
 void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording channel into a RAW file.
 {
+    char audio_filename[NAME_FILE_SIZE];
+    char packet_filename[NAME_PACKET_SIZE];
     P_Invalidate_file_cache(file_L_RAW);
     Serial.println("*** Convert file_L ***");
 
     // create the file on the Flash chip and copy data
     Serial.print(F("Create file: "));
-    Serial.print(name_file[file_L_RAW]);
+    Serial.print(Get_file_name(file_L_RAW, audio_filename));
     Serial.print(F(" dimension (bytes): "));
     Serial.println(bytes);
 
@@ -8976,10 +8977,10 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
     int last_blocks = -1;
 
     // creazione file vuoto
-    SerialFlash.create(name_file[file_L_RAW], bytes);
+    SerialFlash.create(Get_file_name(file_L_RAW, audio_filename), bytes);
 
     // apertura file
-    SerialFlashFile destination_file = SerialFlash.open(name_file[file_L_RAW]);
+    SerialFlashFile destination_file = SerialFlash.open(Get_file_name(file_L_RAW, audio_filename));
 
     // copia file, caso MONO
     if (!Recording[recording].stereo)
@@ -8989,7 +8990,7 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
         {
             for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
             {
-                SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
+                SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
                 for (auto i = 0; i < 256; ++i)
                 {
                     source_file.read(buffer, 256);
@@ -8999,7 +9000,7 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
         }
         // copia l'ultimo packet
         packet = Recording[recording].first_packet + Recording[recording].packets - 1;
-        SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
+        SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
         last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
         for (auto i = 0; i < last_blocks; ++i)
         {
@@ -9017,7 +9018,7 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
         {
             for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
             {
-                SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
+                SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
                 for (auto i = 0; i < 256; ++i)
                 {
                     source_file.read(buffer, 256);
@@ -9027,7 +9028,7 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
         }
         // copia l'ultimo packet
         packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
-        SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
+        SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
         last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
         for (auto i = 0; i < last_blocks; ++i)
         {
@@ -9040,12 +9041,14 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
 FLASHMEM
 void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording channel into a RAW file.
 {
+    char audio_filename[NAME_FILE_SIZE];
+    char packet_filename[NAME_PACKET_SIZE];
     P_Invalidate_file_cache(file_R_RAW);
     Serial.println("*** Convert file_R ***");
 
     // create the file on the Flash chip and copy data
     Serial.print(F("Create file: "));
-    Serial.print(name_file[file_R_RAW]);
+    Serial.print(Get_file_name(file_R_RAW, audio_filename));
     Serial.print(F(" dimension (bytes): "));
     Serial.println(bytes);
 
@@ -9053,15 +9056,15 @@ void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording
     int packet = 0;
     int last_blocks = -1;
 
-    SerialFlash.create(name_file[file_R_RAW], bytes);
-    SerialFlashFile destination_file = SerialFlash.open(name_file[file_R_RAW]);
+    SerialFlash.create(Get_file_name(file_R_RAW, audio_filename), bytes);
+    SerialFlashFile destination_file = SerialFlash.open(Get_file_name(file_R_RAW, audio_filename));
 
     // copia dal primo al penultimo packet
     if (Recording[recording].packets > 1)
     {
         for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
         {
-            SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
+            SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
             for (auto i = 0; i < 256; ++i)
             {
                 source_file.read(buffer, 256);
@@ -9072,7 +9075,7 @@ void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording
 
     // copia l'ultimo packet
     packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
-    SerialFlashFile source_file = SerialFlash.open(name_packet[packet]);
+    SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
     last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
     for (auto i = 0; i < last_blocks; ++i)
     {
@@ -9240,11 +9243,12 @@ int DS_get_previous_Recording(int value)
 
 bool DS_check_conversion(void)
 {
+    char audio_filename[NAME_FILE_SIZE];
     if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
     {
         for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
         {
-            if (Capture_find(i) == nullptr && !SerialFlash.exists(name_file[i]))
+            if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
             {
                 return true;
             }
@@ -10927,6 +10931,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 
 void VFS_Make_VFS(void)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     Display_Storage.VFS_Make_presentation();
 
     // calcola DS_packets Free space, in PACKET_DIM
@@ -10976,7 +10981,7 @@ void VFS_Make_VFS(void)
         // create VFS
         for (auto i = 0; i < VFS_packets; ++i)
         {
-            SerialFlash.createErasable(name_packet[i], PACKET_DIM);
+            SerialFlash.createErasable(Get_packet_name(i, packet_filename), PACKET_DIM);
         }
 
         Serial.print(F("Created Virtual File System  - VFS_packets are "));
@@ -10995,10 +11000,11 @@ void VFS_Make_VFS(void)
 
 int VFS_Get_packets(void)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     int value = 0;
     for (auto i = 0; i < VFS_PACKETS_MAX; ++i)
     {
-        if (SerialFlash.exists(name_packet[i]))
+        if (SerialFlash.exists(Get_packet_name(i, packet_filename)))
         {
             ++value;
         }
@@ -11125,25 +11131,13 @@ int VFS_Get_first_packet_free(void)
     return -1;
 }
 
-int VFS_Get_packets_free(void)
-{
-    int value = 0;
-    for (auto i = DS_First_packet; i < DS_VFS_packets; ++i)
-    {
-        if (VFS_FAT_table[i] == -1)
-        {
-            ++value;
-        }
-    }
-    return value;
-}
-
 void VFS_Erase_all_packets(void)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     Serial.println("*** Erase ALL Packets and VFS_FAT ***");
     for (auto i = 0; i < VFS_PACKETS_MAX; ++i) // for(auto i = 0; i < VFS_packets; ++i)
     {
-        if (SerialFlash.exists(name_packet[i]))
+        if (SerialFlash.exists(Get_packet_name(i, packet_filename)))
         {
             Require_VFS(VFS_Erase_packet(i));
         }
@@ -11184,11 +11178,12 @@ bool VFS_Wait_flash(void)
 FLASHMEM
 bool VFS_Open_packet(int id, SerialFlashFile &file)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     if (id < 0 || id >= VFS_PACKETS_MAX || !VFS_Wait_flash())
     {
         return false;
     }
-    file = SerialFlash.open(name_packet[id]);
+    file = SerialFlash.open(Get_packet_name(id, packet_filename));
     const uint32_t block = SerialFlash.blockSize();
     return file && file.size() == PACKET_DIM && block > 0 && PACKET_DIM % block == 0 && file.getFlashAddress() % block == 0;
 }
@@ -11602,6 +11597,7 @@ bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bo
 FLASHMEM
 bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio = false, bool *config_error = nullptr)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     char path[64];
     snprintf(path, sizeof(path), "%s/%s", directory, BACKUP_CONFIG);
     File config = SD.open(path);
@@ -11619,7 +11615,7 @@ bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_
     bool gap = false;
     for (int packet = 0; packet < VFS_PACKETS_MAX; ++packet)
     {
-        if (!SerialFlash.exists(name_packet[packet]))
+        if (!SerialFlash.exists(Get_packet_name(packet, packet_filename)))
         {
             gap = true;
             continue;
@@ -11954,11 +11950,12 @@ bool Verify_space_on_flash(int value)
 
 int Get_first_raw_file_available(int start_value)
 {
+    char audio_filename[NAME_FILE_SIZE];
     if (start_value >= 0)
     {
         for (auto i = start_value; i < FIRST_RECORDING_FILE; ++i)
         {
-            if (Capture_find(i) == nullptr && !SerialFlash.exists(name_file[i]))
+            if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
             {
                 return i;
             }
@@ -12003,26 +12000,6 @@ void Print_flash_file_list(void)
     Serial.println(F("---------------"));
 }
 
-int Get_flash_occupation(void)
-{
-    uint32_t filesize;
-    int occupation = 0;
-    SerialFlash.opendir();
-    while (1)
-    {
-        char filename[64];
-        if (SerialFlash.readdir(filename, sizeof(filename), filesize))
-        {
-            occupation += filesize; // ceil((float)filesize/PACKET_DIM) * PACKET_DIM;
-        }
-        else // no more files
-        {
-            break;
-        }
-    }
-    return occupation;
-}
-
 FLASHMEM
 int Get_flashchip_size(void)
 {
@@ -12057,21 +12034,13 @@ int Get_flashchip_size(void)
     return chipsize;
 }
 
-int Get_flash_size(void)
-{
-    unsigned char buf[256];
-    unsigned long chipsize;
-    SerialFlash.readID(buf);
-    chipsize = SerialFlash.capacity(buf); // bytes
-    return chipsize;
-}
-
 int Get_raw_files(void)
 {
+    char audio_filename[NAME_FILE_SIZE];
     int value = 0;
     for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
     {
-        if (SerialFlash.exists(name_file[i]))
+        if (SerialFlash.exists(Get_file_name(i, audio_filename)))
         {
             ++value;
         }
@@ -12081,12 +12050,13 @@ int Get_raw_files(void)
 
 int Get_raw_files_volume(void)
 {
+    char audio_filename[NAME_FILE_SIZE];
     unsigned long value = 0;
     for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
     {
-        if (SerialFlash.exists(name_file[i]))
+        if (SerialFlash.exists(Get_file_name(i, audio_filename)))
         {
-            SerialFlashFile raw_file = SerialFlash.open(name_file[i]);
+            SerialFlashFile raw_file = SerialFlash.open(Get_file_name(i, audio_filename));
             value += raw_file.size();
             raw_file.close();
         }
@@ -12415,6 +12385,7 @@ void Print_Instrument(int patch_id, int instrument_id)
 FLASHMEM
 void Print_Sound(int sound_id)
 {
+    char audio_filename[NAME_FILE_SIZE];
     Serial.println();
     Serial.print("sound_id:");
     Serial.print(sound_id);
@@ -12424,7 +12395,7 @@ void Print_Sound(int sound_id)
     Serial.print(" file_id:");
     Serial.print(Sound[sound_id].file);
     Serial.print(" file name: ");
-    Serial.print(name_file[Sound[sound_id].file]);
+    Serial.print(Get_file_name(Sound[sound_id].file, audio_filename));
     Serial.print(" samples:");
 
     // xxx.raw file (standard files coming from micro SD)
@@ -12693,6 +12664,7 @@ FLASHMEM void LS_Capture_collect(void)
 
 FLASHMEM void LS_Capture_sound(int selected)
 {
+    char audio_filename[NAME_FILE_SIZE];
     AudioNoInterrupts();
     const bool empty = LS_state == EMPTY || (LiveSampler.first_write_flag && LiveSampler.Q_sample < 0);
     AudioInterrupts();
@@ -12802,7 +12774,7 @@ FLASHMEM void LS_Capture_sound(int selected)
         {
             for (int file = 1; file < FIRST_RECORDING_FILE; ++file)
             {
-                if (file != files[0] && Capture_find(file) == nullptr && !SerialFlash.exists(name_file[file]))
+                if (file != files[0] && Capture_find(file) == nullptr && !SerialFlash.exists(Get_file_name(file, audio_filename)))
                 {
                     files[channel] = file;
                     break;
@@ -12912,12 +12884,13 @@ FLASHMEM void LS_Capture_sound(int selected)
 
 FLASHMEM bool LS_Capture_write(CaptureSource &source)
 {
+    char audio_filename[NAME_FILE_SIZE];
     if (source.written)
     {
         return true; // A retry after another channel failed must not allocate again.
     }
 
-    const char *name = name_file[source.audio.file_id];
+    const char *name = Get_file_name(source.audio.file_id, audio_filename);
     const uint32_t bytes = source.audio.samples * sizeof(int16_t);
 
     if (SerialFlash.exists(name) || !SerialFlash.create(name, bytes))

@@ -75,3 +75,12 @@ Si devono mantenere in evidenza i blocchi contenuti all'interno di AudioNoInterr
 # Popup
 
 Per i popup si devono possibilmente utilizzare le funzioni Show_popup_text (per la scrittura del testo) e Confirm_frame_on_RED (per effettuare una selezione)
+
+# Merge
+
+Ogni volta che si esegue il merge del branch attuale nel main, occorre conservare tutti i Commit intermedi e garantire la visualizzazione del ramo branch e del ramo main.
+
+# Dichiarazioni e Definizioni
+
+Dichiarazioni e definizioni dello di un oggetto/variabile/costante/funzione vanno sempre inserite nella stessa coppia abcd.h/abcd.cpp.
+Si deve evitare di inserire una dichiarazione in un file abcd.h e la corrispondente definizione in efgh.cpp

@@ -143,6 +143,8 @@ bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination,
 
 void FlashFileRegisterParser::Read_all_file_data(void)
 {
+    char audio_filename[NAME_FILE_SIZE];
+    char packet_filename[NAME_PACKET_SIZE];
   elapsedMicros T;
   int tempo;
   SerialFlashFile rawfile;
@@ -155,11 +157,11 @@ void FlashFileRegisterParser::Read_all_file_data(void)
     T = 0;
     if (i < RAW_FILES) // n.raw, n.rec (.liv sono su PSRAM)
     {
-      rawfile = SerialFlash.open(name_file[i]);
+      rawfile = SerialFlash.open(Get_file_name(i, audio_filename));
     }
     else //  P(acket)n.raw
     {
-      rawfile = SerialFlash.open(name_packet[i - RAW_FILES]);
+      rawfile = SerialFlash.open(Get_packet_name(i - RAW_FILES, packet_filename));
     }
 
     // T e' il tempo impiegato per da SerialFlash per accedere al file ed e' in gran parte dovuto al parsing
@@ -181,11 +183,11 @@ void FlashFileRegisterParser::Read_all_file_data(void)
     {
       if (i < RAW_FILES)
       {
-        Serial.print(name_file[i]);
+        Serial.print(Get_file_name(i, audio_filename));
       }
       else
       {
-        Serial.print(name_packet[i - RAW_FILES]);
+        Serial.print(Get_packet_name(i - RAW_FILES, packet_filename));
       }
 
       Serial.print(" SerialFlash.open() waste time:");

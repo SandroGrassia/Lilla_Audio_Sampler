@@ -36,18 +36,8 @@ bool AudioTables::Begin_prepare(uint16_t used_instruments_mask)
 
 bool AudioTables::Prepare_instrument(uint8_t instrument_id, const Preset_struct &preset)
 {
-    if (preparing_bank < 0 || instrument_id >= INSTRUMENTS)
-    {
-        return false;
-    }
-
     Bank &bank = banks[preparing_bank];
     const uint16_t instrument_mask = static_cast<uint16_t>(1u << instrument_id);
-
-    if ((bank.required_mask & instrument_mask) == 0)
-    {
-        return false;
-    }
 
     // Un nuovo tentativo invalida l'eventuale preparazione precedente.
     bank.prepared_mask &= static_cast<uint16_t>(~instrument_mask);

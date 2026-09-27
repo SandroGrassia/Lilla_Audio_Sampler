@@ -10,6 +10,7 @@
 // Samples in mono recording or in Left channel's recording
 int InfoMaster::DS_recording_samples(int recording)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     int first_packet = Recording[recording].first_packet;
     int packets = Recording[recording].packets;
     bool stereo = Recording[recording].stereo;
@@ -32,12 +33,12 @@ int InfoMaster::DS_recording_samples(int recording)
     // Look for the last packet of recording
     if (!stereo)
     {
-        rawfile = SerialFlash.open(name_packet[first_packet + packets - 1]);
+        rawfile = SerialFlash.open(Get_packet_name(first_packet + packets - 1, packet_filename));
     }
     else
         // 0 1 2 3 4 5 6 7 8 9 10 11
         //         L R L R L R
-        rawfile = SerialFlash.open(name_packet[first_packet + 2 * (packets - 1)]); // 4 + 2*(3 - 1) = 8
+        rawfile = SerialFlash.open(Get_packet_name(first_packet + 2 * (packets - 1), packet_filename)); // 4 + 2*(3 - 1) = 8
 
     // Verify if packet is empty
     uint16_t sample_value;
@@ -75,7 +76,7 @@ int InfoMaster::Raw_file_samples(int file_id)
     }
     int result;
     LillaSerialFlashFile rawfile; // SerialFlashFile rawfile;
-    rawfile.fast_open(file_id);   // rawfile = SerialFlash.open(name_file[file_id]);
+    rawfile.fast_open(file_id);
 
     if (!rawfile)
     {
@@ -470,14 +471,14 @@ void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, in
         // Serial.print("needed_packet is: ");
         // Serial.println(needed_packet);
 
-        rawfile.packet_fast_open(first_packet + packet_delta); // rawfile = SerialFlash.open(name_packet[first_packet + packet_delta]);
+        rawfile.packet_fast_open(first_packet + packet_delta);
         if (!rawfile)
         {
             return;
         }
 
         // Serial.print(F("1 - Packet played is: "));
-        // Serial.println(name_packet[first_packet + packet_delta]);
+
 
         int local_last_byte = local_first_byte + total_bytes - 1;
 
@@ -500,7 +501,7 @@ void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, in
             rawfile.close();
 
             packet_delta += 2;
-            rawfile.packet_fast_open(first_packet + packet_delta); // rawfile = SerialFlash.open(name_packet[first_packet + packet_delta]);
+            rawfile.packet_fast_open(first_packet + packet_delta);
             if (!rawfile)
             {
                 return;
@@ -511,7 +512,7 @@ void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, in
             rawfile.close();
 
             // Serial.print(F("2 - Packet played is: "));
-            // Serial.println(name_packet[first_packet + packet_delta]);
+
         }
     }
 

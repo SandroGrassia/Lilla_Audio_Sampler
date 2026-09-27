@@ -31,6 +31,15 @@ constexpr int RECORDINGS = 30, PACKET_DIM = 65536, VFS_PACKETS_MAX = 512, VFS_PA
 int DS_First_packet = 0, DS_VFS_packets = 24, DS_Last_packet = 23;
 int VFS_FAT_table[VFS_PACKETS_DS];
 char name_packet[VFS_PACKETS_MAX][16];
+#include <cstdio>
+#include <cstdint>
+constexpr int NAME_PACKET_SIZE = 10;
+const char *Get_packet_name(uint16_t id, char (&name)[NAME_PACKET_SIZE])
+{
+    snprintf(name, sizeof(name), "%s", name_packet[id]);
+    return name;
+}
+
 bool audio_enabled = true;
 void AudioNoInterrupts() { audio_enabled = false; }
 void AudioInterrupts() { audio_enabled = true; }

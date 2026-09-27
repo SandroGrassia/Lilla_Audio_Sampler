@@ -26,6 +26,15 @@ struct Entry { int first_packet, packets, bytes; bool stereo; };
 Entry Recording[1];
 int recording = 0;
 const char *name_packet[512];
+#include <cstdio>
+#include <cstdint>
+constexpr int NAME_PACKET_SIZE = 10;
+const char *Get_packet_name(uint16_t id, char (&name)[NAME_PACKET_SIZE])
+{
+    snprintf(name, sizeof(name), "%s", name_packet[id]);
+    return name;
+}
+
 std::string packet_names[512];
 std::map<std::string, std::vector<byte>> flash, files;
 bool card_ok, mkdir_ok, sync_ok, close_ok, directory_exists;

@@ -109,6 +109,7 @@ void PointerMidiLoop::Move_pointer(const int value)
                 pointer.track_value_element = value_LOOP_level;
             }
         }
+
         else if (value == -1)
         {
             if (position > 0)
@@ -145,6 +146,7 @@ void PointerMidiLoop::Move_pointer(const int value)
                 pointer.track_value_element = value_LOOP_Track_none;
             }
         }
+
         else if (value == -1)
         {
             if (pointer.track_value_element == value_LOOP_pitch)

@@ -217,9 +217,10 @@ void DisplaySound::Show_Release_value(int instrument_id)
 FLASHMEM
 void DisplaySound::Show_File_value(int instrument_id)
 {
+    char audio_filename[NAME_FILE_SIZE];
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(name_file[Preset[instrument_id].file]);
+    tft.print(Get_file_name(Preset[instrument_id].file, audio_filename));
 }
 
 FLASHMEM

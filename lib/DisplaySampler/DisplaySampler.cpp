@@ -233,6 +233,7 @@ void DisplaySampler::DS_advice_no_conversion(int DS_export, bool value)
 FLASHMEM
 void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export)
 {
+    char audio_filename[NAME_FILE_SIZE];
     tft.fillRect(0, 120, 320, 120, ILI9341_BLACK);
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(DS_column_row_POPUP_LINE_0[0]), display_coordinate_y(DS_column_row_POPUP_LINE_0[1]));
@@ -249,9 +250,9 @@ void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int D
     }
 
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(name_file[recording + FIRST_RECORDING_FILE]);
+    tft.print(Get_file_name(recording + FIRST_RECORDING_FILE, audio_filename));
     tft.print(" --> ");
-    tft.print(name_file[file_L_RAW]);
+    tft.print(Get_file_name(file_L_RAW, audio_filename));
     tft.print(" (");
     tft.print(Recording[recording].bytes >> 10);
     tft.print("kB)");
@@ -263,9 +264,9 @@ void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int D
         tft.print("- RIGHT ");
 
         tft.setTextColor(ILI9341_WHITE);
-        tft.print(name_file[recording + FIRST_RECORDING_FILE + 1]);
+        tft.print(Get_file_name(recording + FIRST_RECORDING_FILE + 1, audio_filename));
         tft.print(" --> ");
-        tft.print(name_file[file_R_RAW]);
+        tft.print(Get_file_name(file_R_RAW, audio_filename));
         tft.print(" (");
         tft.print(Recording[recording].bytes >> 10);
         tft.print("kB)");
@@ -275,6 +276,7 @@ void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int D
 FLASHMEM
 void DisplaySampler::DS_export_options(int file_L_RAW, int file_R_RAW, int DS_export)
 {
+    char audio_filename[NAME_FILE_SIZE];
     tft.fillRect(0, 120, 320, 120, ILI9341_BLACK);
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(DS_column_row_POPUP_LINE_0[0]), display_coordinate_y(DS_column_row_POPUP_LINE_0[1]));
@@ -291,7 +293,7 @@ void DisplaySampler::DS_export_options(int file_L_RAW, int file_R_RAW, int DS_ex
     }
 
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(name_file[recording + FIRST_RECORDING_FILE]);
+    tft.print(Get_file_name(recording + FIRST_RECORDING_FILE, audio_filename));
     tft.print(" --> ");
     tft.print(" (");
     tft.print(Recording[recording].bytes >> 10);
@@ -304,7 +306,7 @@ void DisplaySampler::DS_export_options(int file_L_RAW, int file_R_RAW, int DS_ex
         tft.print("- RIGHT ");
 
         tft.setTextColor(ILI9341_WHITE);
-        tft.print(name_file[recording + FIRST_RECORDING_FILE + 1]);
+        tft.print(Get_file_name(recording + FIRST_RECORDING_FILE + 1, audio_filename));
         tft.print(" --> ");
         tft.print(" (");
         tft.print(Recording[recording].bytes >> 10);
@@ -315,6 +317,7 @@ void DisplaySampler::DS_export_options(int file_L_RAW, int file_R_RAW, int DS_ex
 FLASHMEM
 void DisplaySampler::DS_Recording_description(int recording, bool led, bool update_header)
 {
+    char audio_filename[NAME_FILE_SIZE];
     if (DS_recording_controls_visible)
     {
         return;
@@ -358,7 +361,7 @@ void DisplaySampler::DS_Recording_description(int recording, bool led, bool upda
             tft.print("MONO_FILE ");
         }
         tft.setTextColor(ILI9341_WHITE);
-        tft.print(name_file[2 * recording + FIRST_RECORDING_FILE]);
+        tft.print(Get_file_name(2 * recording + FIRST_RECORDING_FILE, audio_filename));
     }
 
     if (recording >= 0 && Recording[recording].stereo)
@@ -367,7 +370,7 @@ void DisplaySampler::DS_Recording_description(int recording, bool led, bool upda
         tft.setTextColor(TEXT_COLOR);
         tft.print("RIGHT_FILE ");
         tft.setTextColor(ILI9341_WHITE);
-        tft.print(name_file[2 * recording + FIRST_RECORDING_FILE + 1]);
+        tft.print(Get_file_name(2 * recording + FIRST_RECORDING_FILE + 1, audio_filename));
     }
 
     DS_recording_seconds();

@@ -53,7 +53,6 @@ void PointerMixer::Move_pointer(const int value)
                 }
                 else
                 {
-
                     pointer.source = LINE_IN_source;
                     changed = true;
                 }

@@ -670,6 +670,7 @@ void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int 
 
 void AudioPlayer::Start_playing(void)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     live_forward_last_sample = 0;
     patch_release_pending = false; // A replacement note must not inherit the previous patch deadline.
     Close_source();
@@ -715,13 +716,13 @@ void AudioPlayer::Start_playing(void)
         }
 
         packet_delta = 0;
-        rawfile.packet_fast_open(first_packet); // rawfile = SerialFlash.open(name_packet[first_packet]); // open first Packet
+        rawfile.packet_fast_open(first_packet);
 
         if (false)
         {
             Serial.print("First packet played is: ");
             Serial.println(first_packet);
-            Serial.println(name_packet[first_packet]);
+            Serial.println(Get_packet_name(first_packet, packet_filename));
         }
     }
 
@@ -2999,6 +3000,7 @@ void AudioPlayer::Append(int16_t *target_ptr, uint16_t first_index, int16_t *sou
 
 void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total_samples)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     if (total_samples <= 0)
     {
         return;
@@ -3051,7 +3053,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             rawfile.packet_fast_open(first_packet + packet_delta); // 13
 
             // Serial.print(F("1 - Packet played is: "));
-            // Serial.println(name_packet[first_packet + packet_delta]);
+
         }
 
         int local_first_byte = first_byte % PACKET_DIM;           // (PD - 2)%PD = (PD - 2)
@@ -3101,7 +3103,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
                 Serial.println("*** Player.h  ****  Flash reading_time is: ");
                 Serial.println(local_timer);
                 Serial.print(F("2 - Packet played is: "));
-                Serial.println(name_packet[first_packet + packet_delta]);
+                Serial.println(Get_packet_name(first_packet + packet_delta, packet_filename));
                 Serial.println();
             }
         }

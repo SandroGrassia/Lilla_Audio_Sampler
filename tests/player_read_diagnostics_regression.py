@@ -38,6 +38,15 @@ struct SerialStub
     void println() {}
 } Serial;
 const char *name_packet[4] = {};
+#include <cstdio>
+#include <cstdint>
+constexpr int NAME_PACKET_SIZE = 10;
+const char *Get_packet_name(uint16_t id, char (&name)[NAME_PACKET_SIZE])
+{
+    snprintf(name, sizeof(name), "%s", name_packet[id]);
+    return name;
+}
+
 enum Storage { Flash, Psram };
 struct Source { Storage storage = Flash; uint32_t samples = 0; const int16_t *psram_ptr = nullptr; };
 struct File

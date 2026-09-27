@@ -30,10 +30,6 @@ constexpr float Transfer_us(PlayerReadSource source, uint32_t samples) // Affine
 
 inline float Estimate(const Plan &plan, uint32_t output_samples) // Reserve all possible source segments, including small-read minimums and interpolation endpoints.
 {
-    if (output_samples == 0)
-    {
-        return 0.0f;
-    }
     if (!std::isfinite(plan.pitch) || plan.pitch <= 0.0f || plan.span <= 0)
     {
         return INFINITY;

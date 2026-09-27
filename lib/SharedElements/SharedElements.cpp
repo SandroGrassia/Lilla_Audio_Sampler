@@ -5,6 +5,60 @@
  */
 
 #include "SharedElements.h"
+#include <SerialFlash.h>
+#include "SharedLiveSampler.h"
+#include <cstdio>
+#include <cstring>
+
+const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE])
+{
+    if (file_id < FIRST_RECORDING_FILE)
+    {
+        snprintf(name, sizeof(name), "%u.raw", static_cast<unsigned int>(file_id));
+    }
+    else if (file_id < FIRST_LIVE_SAMPLING_FILE)
+    {
+        snprintf(name, sizeof(name), "%u.rec", static_cast<unsigned int>(file_id - FIRST_RECORDING_FILE));
+    }
+    else
+    {
+        static constexpr char live_names[3][NAME_FILE_SIZE] = {"Mono.liv", "Left.liv", "Right.liv"};
+        memcpy(name, live_names[file_id - FIRST_LIVE_SAMPLING_FILE], sizeof(name));
+    }
+    return name;
+}
+
+
+FLASHMEM
+int Get_flash_size(void)
+{
+    unsigned char buf[256];
+    unsigned long chipsize;
+    SerialFlash.readID(buf);
+    chipsize = SerialFlash.capacity(buf); // bytes
+    return chipsize;
+}
+
+FLASHMEM
+int Get_flash_occupation(void)
+{
+    uint32_t filesize;
+    int occupation = 0;
+    SerialFlash.opendir();
+    while (1)
+    {
+        char filename[64];
+        if (SerialFlash.readdir(filename, sizeof(filename), filesize))
+        {
+            occupation += filesize; // ceil((float)filesize/PACKET_DIM) * PACKET_DIM;
+        }
+        else // no more files
+        {
+            break;
+        }
+    }
+    return occupation;
+}
 
 // PSRAM timing
 elapsedMicros audio_update_time_micros;

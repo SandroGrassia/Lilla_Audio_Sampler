@@ -64,10 +64,7 @@ int16_t *PatchCacheManager::Reserve_capture(uint8_t slot, int16_t file_id, uint3
 
 void PatchCacheManager::Set_cache_pointer(uint8_t cache_id, int16_t *pointer)
 {
-    if (cache_id < PATCH_CACHE_ARRAY_COUNT)
-    {
         cache_pointer[cache_id] = pointer;
-    }
 }
 
 int PatchCacheManager::Find_required(int16_t file_id) const
@@ -107,11 +104,14 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
 {
     const auto previous = required_count;
     Request old_required[INSTRUMENTS];
+
     for (uint8_t i = 0; i < previous; ++i)
     {
         old_required[i] = required[i];
     }
+
     required_count = 0;
+
     for (const auto &preset : presets)
     {
         if (!preset.active || preset.file >= FIRST_LIVE_SAMPLING_FILE || Find_required(preset.file) >= 0)
@@ -131,14 +131,17 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
         }
         required[required_count++] = request;
     }
+
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
         if (Capture_find(cache[i].file_id) != nullptr)
         {
             continue; // Unsaved sources must survive sampler and patch changes.
         }
+
         const int request = Find_required(cache[i].file_id);
         const bool keep = request >= 0 && !required[request].failed && required[request].samples == cache[i].samples;
+        
         if (!keep)
         {
             if (cache[i].state == Loading)
@@ -151,12 +154,14 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
             }
         }
     }
+
     for (uint8_t i = 0; i < required_count; ++i)
     {
         if (required[i].failed)
         {
             continue;
         }
+
         const int ready = Find_complete(required[i].file_id, required[i].samples);
         if (ready >= 0)
         {
@@ -172,9 +177,11 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
     {
         return capture->audio;
     }
+
     AudioFileSource result;
     result.file_id = file_id;
     result.samples = File_samples(file_id);
+
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
         if (cache[i].state == Ready && cache[i].valid && cache[i].file_id == file_id)
@@ -201,6 +208,7 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
             break;
         }
     }
+
     if (selected < 0)
     {
         for (uint8_t request = 0; request < required_count; ++request)
@@ -224,10 +232,12 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
             break;
         }
     }
+
     if (selected < 0)
     {
         return false;
     }
+
     const auto &item = cache[selected];
     job.cache_id = selected;
     job.file_id = item.file_id;
@@ -240,15 +250,12 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
 
 bool PatchCacheManager::Complete_copy(const CopyJob &job, bool success)
 {
-    if (job.cache_id < 0 || job.cache_id >= PATCH_CACHE_ARRAY_COUNT)
-    {
-        return false;
-    }
     auto &item = cache[job.cache_id];
     if (item.state != Loading || item.file_id != job.file_id || item.copied != job.first_sample)
     {
         return false;
     }
+
     if (!success)
     {
         const int request = Find_required(item.file_id);
@@ -259,6 +266,7 @@ bool PatchCacheManager::Complete_copy(const CopyJob &job, bool success)
         item = {};
         return false;
     }
+    
     item.copied += job.samples;
     if (item.copied == item.samples)
     {
@@ -280,6 +288,7 @@ uint16_t PatchCacheManager::Get_reclaim_mask(void) const
     {
         return 0;
     }
+
     int oldest = -1;
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
@@ -292,6 +301,7 @@ uint16_t PatchCacheManager::Get_reclaim_mask(void) const
             oldest = i;
         }
     }
+
     return oldest < 0 ? 0 : static_cast<uint16_t>(1u << oldest);
 }
 
@@ -313,6 +323,7 @@ void PatchCacheManager::Invalidate_file(int16_t file_id)
             Retire(i);
         }
     }
+    
     const int request = Find_required(file_id);
     if (request >= 0)
     {

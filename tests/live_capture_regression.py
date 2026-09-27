@@ -42,6 +42,15 @@ int midi_starts=0, midi_stops=0, creates=0, scans=0, fail_file=-1, corrupt_file=
 int16_t mono[2048], left[2048], right[2048], cache[8][1024];
 int16_t *LS_buffer_mono_ptr=mono,*LS_buffer_L_ptr=left,*LS_buffer_R_ptr=right;
 char name_file[22][10];
+#include <cstdio>
+#include <cstdint>
+constexpr int NAME_FILE_SIZE = 10;
+const char *Get_file_name(uint16_t id, char (&name)[NAME_FILE_SIZE])
+{
+    snprintf(name, sizeof(name), "%s", name_file[id]);
+    return name;
+}
+
 std::map<std::string,std::vector<uint8_t>> flash;
 std::vector<std::string> messages;
 struct Screen { void fillRoundRect(int,int,int,int,int,int) {} void setTextColor(int) {} void setCursor(int,int) {} void print(const char *s) { messages.emplace_back(s); } } tft;

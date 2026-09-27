@@ -45,15 +45,15 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
     Recording[recording_id].consistent = false; // consistent will be set TRUE in Main code, after stop()
     increment_packets_flag = true;
 
-    Packet_L.packet_fast_open(packet_open_L); // Packet_L = SerialFlash.open(name_packet[packet_open_L]);
+    Packet_L.packet_fast_open(packet_open_L);
     // Serial.print(F("SSampler - First packet Left/Mono is: "));
-    // Serial.println(name_packet[packet_open_L]);
+
 
     if (stereo_flag)
     {
-        Packet_R.packet_fast_open(packet_open_R); // Packet_R = SerialFlash.open(name_packet[packet_open_R]);
+        Packet_R.packet_fast_open(packet_open_R);
         // Serial.print("SSampler - First packet Right is: ");
-        // Serial.println(name_packet[packet_open_R]);
+
     }
 
     attack_gain_flag = true;
@@ -69,6 +69,7 @@ void StereoSampler::Book_stop(void)
 }
 void StereoSampler::update(void)
 {
+    char packet_filename[NAME_PACKET_SIZE];
     // only update if we're recording
     if (!recording)
     {
@@ -278,18 +279,18 @@ void StereoSampler::update(void)
             if (next_packet_L <= last_packet_L)
             {
                 packet_open_L = next_packet_L;
-                Packet_L.packet_fast_open(packet_open_L); // Packet_L = SerialFlash.open(name_packet[packet_open_L]);
+                Packet_L.packet_fast_open(packet_open_L);
                 packet_open_R = packet_open_R + 2;
-                Packet_R.packet_fast_open(packet_open_R); // Packet_R = SerialFlash.open(name_packet[packet_open_R]);
+                Packet_R.packet_fast_open(packet_open_R);
 
                 increment_packets_flag = true;
 
                 if (false)
                 {
                     Serial.print(F("SSampler - Next Packet_L is: "));
-                    Serial.print(name_packet[packet_open_L]);
+                    Serial.print(Get_packet_name(packet_open_L, packet_filename));
                     Serial.print(F("  and next Packet_R is: "));
-                    Serial.println(name_packet[packet_open_R]);
+                    Serial.println(Get_packet_name(packet_open_R, packet_filename));
                 }
             }
 
@@ -309,11 +310,11 @@ void StereoSampler::update(void)
             if (next_packet_L <= last_packet_L)
             {
                 packet_open_L = next_packet_L;
-                Packet_L.packet_fast_open(packet_open_L); // Packet_L = SerialFlash.open(name_packet[packet_open_L]);
+                Packet_L.packet_fast_open(packet_open_L);
                 increment_packets_flag = true;
 
                 // Serial.print(F("SSampler - Next packet_L is: "));
-                // Serial.println(name_packet[packet_open_L]);
+
             }
 
             // Packets finished!
