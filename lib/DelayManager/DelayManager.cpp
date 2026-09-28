@@ -85,10 +85,6 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
 
 bool DelayManager::New_values(const Delay_data_struct *data) // Publish a stable patch snapshot through the same setters used by the UI.
 {
-    if (data == nullptr)
-    {
-        return false;
-    }
     const Delay_data_struct target = *data;
     bool pending = false;
     pending |= Set_value(SAMPLES, target.samples);

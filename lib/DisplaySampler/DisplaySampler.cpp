@@ -134,7 +134,7 @@ void DisplaySampler::DS_sampler_IO(void)
 
 void DisplaySampler::DS_bar(int channel, int value)
 {
-    if (!DS_recording_controls_visible || channel < 0 || channel > 1)
+    if (!DS_recording_controls_visible)
     {
         return;
     }
