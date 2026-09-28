@@ -69,12 +69,8 @@ bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination,
         return complete;
     }
 
+    static_assert(FIRST_LIVE_SAMPLING_FILE - FIRST_RECORDING_FILE == 2 * RECORDINGS); // The validated file ID already bounds the recording index.
     const int recording_id = (file_id - FIRST_RECORDING_FILE) / 2;
-
-    if (recording_id >= RECORDINGS)
-    {
-        return false;
-    }
 
     const VFS_Recording &source = Recording[recording_id];
 

@@ -149,9 +149,9 @@ public:
     void Prepare_read_budget(void); // Revalidate edits and source changes before any Player renders.
 
     using ReadSource = PlayerReadSource; // Select seek+read, zero+copy, or RAM2 copy into RAM1 respectively.
-    [[nodiscard]] static bool Get_read_time_us(ReadSource source, uint32_t samples, float &time_us); // Linear cold-cache estimate in us; zero samples cost zero, 1..9 use 10. Invalid source or count >4500 returns false and infinity. Sum separate calls for multiple reads; this excludes other Player processing.
+    [[nodiscard]] static bool Get_read_time_us(ReadSource source, uint32_t samples, float &time_us); // Linear cold-cache estimate in us; zero samples cost zero, 1..9 use 10. Requires a valid source; count >4500 returns false and infinity. Sum separate calls for multiple reads; this excludes other Player processing.
 
-    [[nodiscard]] static bool Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us); // Sum the affine model per operation, including its fixed cost and per-read minimum.
+    [[nodiscard]] static bool Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us); // Requires a valid source. Sum the affine model per operation, including its fixed cost and per-read minimum.
     void Enable_read_diagnostics(bool enabled); // Call with audio IRQ disabled; enabling resets the observation window.
     void Collect_read_diagnostics(void); // Called after ALL Players by CacheCycleFinalizer; never changes voice selection.
     bool Copy_read_diagnostics(ReadDiagnosticsSnapshot &last, ReadDiagnosticsSnapshot &peak, ReadDiagnosticsSnapshot &restart, ReadDiagnosticsSnapshot &gap) const; // Call with audio IRQ disabled, then print outside the critical section.

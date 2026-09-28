@@ -28,10 +28,6 @@ constexpr float Ram_read_time_us(uint32_t samples)
 bool PlayersManager::Get_read_time_us(ReadSource source, uint32_t samples, float &time_us)
 {
     time_us = INFINITY; // A failed estimate must never look like a free operation if a caller ignores the status.
-    if (source != ReadSource::Flash && source != ReadSource::Psram && source != ReadSource::Ram)
-    {
-        return false;
-    }
     if (samples == 0)
     {
         time_us = 0.0f;
@@ -60,10 +56,6 @@ bool PlayersManager::Get_read_time_us(ReadSource source, uint32_t samples, float
 bool PlayersManager::Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us)
 {
     time_us = INFINITY;
-    if (source != ReadSource::Flash && source != ReadSource::Psram && source != ReadSource::Ram)
-    {
-        return false;
-    }
     if (usage.uncovered_operations != 0)
     {
         return false;

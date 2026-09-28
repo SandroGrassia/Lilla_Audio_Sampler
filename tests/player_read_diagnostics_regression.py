@@ -128,7 +128,6 @@ int main()
         near(actual, one + nine + hundred + large * 2);
     }
     sum.Add(4501); assert(!PlayersManager::Get_read_usage_time_us(S::Flash, sum, actual) && std::isinf(actual));
-    assert(!PlayersManager::Get_read_time_us(static_cast<S>(99), 10, actual));
     assert(PlayersManager::Get_read_time_us(S::Ram, 0, actual) && actual == 0);
     AudioPlayer p;
     int16_t source[8] = {10,11,12,13,14,15,16,17}, output[32] = {};
