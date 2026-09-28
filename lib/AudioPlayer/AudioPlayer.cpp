@@ -2368,7 +2368,7 @@ bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, 
 {
     const int period = Loop_period(first, last, crossfade, mode);
     const bool live_noclick = LS_flag && mode == LOOP_FWD && crossfade > 1 && crossfade <= PlayerReadBudget::Live_noclick_samples;
-    if (period == 0 || count < 0 || destination == nullptr || (mode != LOOP_FWD_REV && crossfade > 0 && noclick == nullptr && !live_noclick))
+    if (mode != LOOP_FWD_REV && crossfade > 0 && noclick == nullptr && !live_noclick)
     {
         return false;
     }

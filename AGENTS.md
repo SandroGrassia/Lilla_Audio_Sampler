@@ -24,8 +24,8 @@ Una modifica non e' completata se un file risulta `w/lf` o `w/mixed`.
 Codex deve preservare o ripristinare CRLF esclusivamente nei file autorizzati,
 senza normalizzare o modificare altri file.
 
-# Espressioni di codice su una sola riga
 
+# Espressioni di codice su una sola riga
 
 In caso di scrittura o modifica di codice, Codex non deve inserire interruzioni di riga all'interno delle espressioni. Ogni espressione deve essere mantenuta su una sola riga.
 
@@ -43,6 +43,7 @@ return FRAM_PATCH_ADDRESS
                * sizeof(FRAM_Patch_struct);
 ```
 
+
 # Graffe obbligatorie per if ed else
 
 I blocchi `if`, `else if` ed `else` devono sempre usare le graffe, anche quando contengono una sola istruzione. Le graffe di apertura e chiusura devono essere su righe separate, allineate alla relativa condizione o a `else`; le istruzioni interne devono essere indentate di quattro spazi.
@@ -57,6 +58,7 @@ else
     ++report.cleared_sounds;
 }
 ```
+
 # Recap per Commit
 
 Anche senza indicazione esplicita, si devono intendere sempre in lingua Inglese.
@@ -72,15 +74,23 @@ Si devono mantenere in evidenza i blocchi contenuti all'interno di AudioNoInterr
     AudioInterrupts();
 }
 
+
 # Popup
 
 Per i popup si devono possibilmente utilizzare le funzioni Show_popup_text (per la scrittura del testo) e Confirm_frame_on_RED (per effettuare una selezione)
+
 
 # Merge
 
 Ogni volta che si esegue il merge del branch attuale nel main, occorre conservare tutti i Commit intermedi e garantire la visualizzazione del ramo branch e del ramo main.
 
+
 # Dichiarazioni e Definizioni
 
 Dichiarazioni e definizioni dello di un oggetto/variabile/costante/funzione vanno sempre inserite nella stessa coppia abcd.h/abcd.cpp.
 Si deve evitare di inserire una dichiarazione in un file abcd.h e la corrispondente definizione in efgh.cpp
+
+
+# Controlli di sicurezza nelle funzioni
+
+Per assicurare la massima velocità di esecuzione, le funzioni NON devono includere il controllo dei valori ammissibili se i chiamanti NON violano mai i range ammissibili.

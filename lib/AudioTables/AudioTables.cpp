@@ -100,11 +100,6 @@ bool AudioTables::Prepare_instrument(uint8_t instrument_id, const Preset_struct 
 
 bool AudioTables::Prepare_all(const Preset_struct (&presets)[INSTRUMENTS])
 {
-    if (preparing_bank < 0)
-    {
-        return false;
-    }
-
     const uint16_t required_mask = banks[preparing_bank].required_mask;
 
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)

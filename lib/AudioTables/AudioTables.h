@@ -68,7 +68,7 @@ public:
 
     bool Begin_prepare(uint16_t used_instruments_mask); // Reserve a free bank with audio interrupts disabled.
     bool Prepare_instrument(uint8_t instrument_id, const Preset_struct &preset); // Generate one required slot in the bank reserved by Begin_prepare(); keep audio SPI use registered throughout the call.
-    bool Prepare_all(const Preset_struct (&presets)[INSTRUMENTS]); // Generate every required slot in the reserved bank, cancelling on failure; keep audio SPI use registered throughout the call.
+    bool Prepare_all(const Preset_struct (&presets)[INSTRUMENTS]); // Requires a successful Begin_prepare(). Generate every required slot, cancelling on failure; keep audio SPI use registered throughout the call.
     bool Activate_prepared(void); // Publish a complete bank with audio interrupts disabled.
     void Cancel_prepare(void); // Discard the unpublished bank after preparation fails.
     Pointers Get_active_pointers(uint8_t instrument_id); // Inspect an active slot from the audio IRQ or with audio interrupts disabled.
