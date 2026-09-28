@@ -10,9 +10,7 @@ AudioTables::AudioTables() = default;
 
 bool AudioTables::Begin_prepare(uint16_t used_instruments_mask)
 {
-    const uint16_t valid_mask = static_cast<uint16_t>((1u << INSTRUMENTS) - 1u);
-
-    if (preparing_bank >= 0 || (used_instruments_mask & ~valid_mask) != 0)
+    if (preparing_bank >= 0)
     {
         return false;
     }
@@ -202,7 +200,7 @@ AudioTables::Pointers AudioTables::Get_active_pointers(uint8_t instrument_id, co
     Bank &bank = banks[bank_id];
     const uint16_t instrument_mask = static_cast<uint16_t>(1u << instrument_id);
 
-    if ((bank.required_mask & instrument_mask) == 0 || (bank.prepared_mask & instrument_mask) == 0)
+    if ((bank.required_mask & instrument_mask) == 0)
     {
         return result;
     }

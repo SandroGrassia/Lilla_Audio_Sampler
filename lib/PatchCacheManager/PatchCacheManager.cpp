@@ -49,7 +49,7 @@ void PatchCacheManager::Begin(void)
 
 int16_t *PatchCacheManager::Reserve_capture(uint8_t slot, int16_t file_id, uint32_t samples)
 {
-    if (slot >= CAPTURE_SOURCES || samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || cache_pointer[slot] == nullptr)
+    if (samples == 0 || samples > PATCH_CACHE_ARRAY_SAMPLES || cache_pointer[slot] == nullptr)
     {
         return nullptr;
     }

@@ -10,13 +10,6 @@ int16_t WavetableManager::cache[WavetableManager::WAVETABLE_DIM] = {0};
 
 bool WavetableManager::Make(int file_id, int8_t mode, int A_Flash_sample, int B_Flash_sample, uint16_t delta_Noclick, int16_t *p_Noclick, int16_t *destination)
 {
-    const bool crossfade_mode = mode == LOOP_FWD || mode == LOOP_REV;
-
-    if (!crossfade_mode)
-    {
-        delta_Noclick = 0;
-    }
-
     // A------(A+d-1)(A+d)-----------------(B-d)(B-d+1)------(B)
     // ********************************************************
     int length_max = B_Flash_sample - A_Flash_sample + 1;
