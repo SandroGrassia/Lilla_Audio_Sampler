@@ -34,8 +34,12 @@ int LS_XY_delta;
 int LS_constrain_position(int value)
 {
     while (value < 0)
+    {
         value += LS_buffer_dim;
+    }
     while (value > LS_buffer_dim - 1)
+    {
         value -= LS_buffer_dim;
+    }
     return value;
 }

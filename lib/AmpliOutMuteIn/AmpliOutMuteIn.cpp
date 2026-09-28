@@ -117,11 +117,13 @@ void AmpliOutMuteIn::Apply_gain(const int channel, int16_t *data, const int32_t 
         {
             Get_mults(channel);
         }
+
         uint32_t tmp32 = *p; // read 2 samples from *data
         int32_t val1 = signed_multiply_32x16b(mult_1, tmp32);
         int32_t val2 = signed_multiply_32x16t(mult_2, tmp32);
         val1 = signed_saturate_rshift(val1, 16, 0);
         val2 = signed_saturate_rshift(val2, 16, 0);
+
         *p++ = pack_16b_16b(val2, val1);
     } while (p < end);
 }
@@ -147,6 +149,7 @@ void AmpliOutMuteIn::Apply_gain_then_add(const int channel, int16_t *data, const
         val2 = signed_saturate_rshift(val2, 16, 0);
         tmp32 = pack_16b_16b(val2, val1);
         uint32_t tmp32b = *dst;
+
         *dst++ = signed_add_16_and_16(tmp32, tmp32b);
     } while (dst < end);
 }
@@ -169,6 +172,7 @@ void AmpliOutMuteIn::Apply_gain(int16_t *data, const int32_t mult)
         int32_t val2 = signed_multiply_32x16t(mult_2, tmp32);
         val1 = signed_saturate_rshift(val1, 16, 0);
         val2 = signed_saturate_rshift(val2, 16, 0);
+        
         *p++ = pack_16b_16b(val2, val1);
     } while (p < end);
 }

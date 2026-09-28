@@ -18,6 +18,7 @@ namespace
     uint32_t FRAM_Calculate_crc32(const uint8_t *bytes, uint32_t count)
     {
         uint32_t crc = 0xFFFFFFFFUL;
+
         for (uint32_t offset = 0; offset < count; ++offset)
         {
             crc ^= bytes[offset];
@@ -26,6 +27,7 @@ namespace
                 crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
             }
         }
+
         return crc ^ 0xFFFFFFFFUL;
     }
 
@@ -39,12 +41,14 @@ namespace
             const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
             memcpy(buffer, bytes + offset, count);
             const byte result = LillaFram.writeArray(address + offset, count, buffer);
+
             if (result != LillaFRAM_2x512::ERROR_0)
             {
                 return result; // Earlier blocks may already have been written.
             }
             offset += count;
         }
+
         return LillaFRAM_2x512::ERROR_0;
     }
 
@@ -55,12 +59,14 @@ namespace
             const uint32_t remaining = size - offset;
             const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
             const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
+
             if (result != LillaFRAM_2x512::ERROR_0)
             {
                 return result;
             }
             offset += count;
         }
+
         return LillaFRAM_2x512::ERROR_0;
     }
 
@@ -81,6 +87,7 @@ namespace
             const uint32_t remaining = sizeof(T) - offset;
             const uint32_t count = remaining < FRAM_TRANSFER_BYTES ? remaining : FRAM_TRANSFER_BYTES;
             const byte result = LillaFram.readArray(address + offset, count, bytes + offset);
+
             if (result != LillaFRAM_2x512::ERROR_0)
             {
                 return result;
@@ -98,21 +105,27 @@ byte ArchivingManager::Set_FRAM_archive_state(uint32_t state)
     uint32_t header[4] = {0x4C465241, 1, state, 0};
     header[3] = FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(header), 12);
     const byte result = FRAM_Write_bytes(FRAM_HEADER_ADDRESS, reinterpret_cast<const uint8_t *>(header), 12);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     const byte crc_result = FRAM_Write_record(FRAM_HEADER_ADDRESS + 12, header[3]);
+
     if (crc_result != LillaFRAM_2x512::ERROR_0)
     {
         return crc_result;
     }
+
     uint32_t actual[4]{};
     const byte read_result = FRAM_Read_record(FRAM_HEADER_ADDRESS, actual);
+
     if (read_result != LillaFRAM_2x512::ERROR_0)
     {
         return read_result;
     }
+
     return memcmp(header, actual, sizeof(header)) == 0 ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_VERIFY;
 }
 
@@ -120,17 +133,21 @@ byte ArchivingManager::Check_FRAM_archive()
 {
     uint32_t header[4]{};
     const byte result = FRAM_Read_record(FRAM_HEADER_ADDRESS, header);
+
     if (result != LillaFRAM_2x512::ERROR_0)
     {
         return result;
     }
+
     bool blank_zero = true;
     bool blank_ff = true;
+
     for (const auto word : header)
     {
         blank_zero = blank_zero && word == 0;
         blank_ff = blank_ff && word == UINT32_MAX;
     }
+
     if (blank_zero || blank_ff)
     {
         // Enrol only an intact pre-header archive. Never repair while its state is unknown.
@@ -138,6 +155,7 @@ byte ArchivingManager::Check_FRAM_archive()
         FRAM_Sound_struct sound{};
         FRAM_Recording_struct recording{};
         FRAM_System_struct system{};
+
         for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
         {
             const byte read_result = FRAM_Read_patch(id, patch);
@@ -169,10 +187,12 @@ byte ArchivingManager::Check_FRAM_archive()
         }
         return Set_FRAM_archive_state(ARCHIVE_READY);
     }
+
     if (header[0] != 0x4C465241 || header[1] != 1 || header[2] != ARCHIVE_READY || header[3] != FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(header), 12))
     {
         return FRAM_ERROR_SOURCE;
     }
+
     return LillaFRAM_2x512::ERROR_0;
 }
 
@@ -183,6 +203,7 @@ byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
     {
         return started;
     }
+
     const FRAM_Patch_struct empty_patch{};
     for (uint16_t id = 0; id < FRAM_PATCHES; ++id)
     {
@@ -221,6 +242,7 @@ byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
     {
         return result;
     }
+
     return publish_ready ? Set_FRAM_archive_state(ARCHIVE_READY) : LillaFRAM_2x512::ERROR_0;
 }
 
@@ -230,6 +252,7 @@ bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio
     {
         return false;
     }
+
     FRAM_Backup_header_struct header{};
     const uint8_t magic[8] = {'L', 'I', 'L', 'L', 'A', 'F', 'R', 'M'};
     memcpy(header.magic, magic, sizeof(magic));
@@ -258,6 +281,7 @@ bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio
             }
         }
     }
+
     const auto *manifest = reinterpret_cast<const uint8_t *>(audio);
     for (uint32_t offset = 0; offset < audio_bytes; ++offset)
     {
@@ -267,11 +291,13 @@ bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio
             crc = (crc >> 1) ^ ((crc & 1U) != 0 ? 0xEDB88320UL : 0UL);
         }
     }
+
     header.payload_crc32 = crc ^ 0xFFFFFFFFUL;
     if (file.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header)) != sizeof(header))
     {
         return false;
     }
+
     for (uint32_t address = 0; address < config_bytes; address += sizeof(buffer))
     {
         const uint32_t remaining = config_bytes - address;
@@ -290,14 +316,18 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
     {
         return false;
     }
+
     FRAM_Backup_header_struct header{};
     const uint8_t magic[8] = {'L', 'I', 'L', 'L', 'A', 'F', 'R', 'M'};
+
     if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header))
     {
         return false;
     }
+
     const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
     const bool supported = (header.version == 1 && header.payload_bytes == FRAM_FIRST_FREE_ADDRESS) || (header.version == FRAM_BACKUP_VERSION && header.payload_bytes == config_bytes) || (header.version == 3 && header.payload_bytes == config_bytes + RECORDINGS * sizeof(Recording_backup_audio));
+    
     if (memcmp(header.magic, magic, sizeof(magic)) != 0 || !supported || header.header_bytes != sizeof(header) || file.size() != sizeof(header) + header.payload_bytes)
     {
         return false;
@@ -306,6 +336,7 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
     uint8_t buffer[128];
     uint32_t crc = 0xFFFFFFFFUL;
     uint32_t remaining_payload = header.payload_bytes;
+    
     while (remaining_payload > 0)
     {
         const uint32_t count = remaining_payload < sizeof(buffer) ? remaining_payload : sizeof(buffer);
@@ -323,6 +354,7 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
         }
         remaining_payload -= count;
     }
+
     return (crc ^ 0xFFFFFFFFUL) == header.payload_crc32;
 }
 
@@ -332,19 +364,23 @@ bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
     {
         return false;
     }
+
     FRAM_Backup_header_struct header{};
     if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || !file.seek(sizeof(header) + (header.version == 1 ? FRAM_HEADER_BYTES : 0)))
     {
         return false;
     }
+
     if (header.version == 3 && publish_ready)
     {
         return false; // Only the full restore may publish READY, after the audio and relocated metadata.
     }
+
     if (Set_FRAM_archive_state(RESTORE_IN_PROGRESS) != LillaFRAM_2x512::ERROR_0)
     {
         return false;
     }
+
     uint8_t buffer[128];
     for (uint32_t address = FRAM_PATCH_ADDRESS; address < FRAM_FIRST_FREE_ADDRESS; address += sizeof(buffer))
     {
@@ -370,18 +406,22 @@ bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *aud
         return false;
     }
     FRAM_Backup_header_struct header{};
+
     if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || header.version != 3)
     {
         return false; // Metadata-only backups cannot recover audio.
     }
+
     if (!file.seek(sizeof(header) + FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES) || file.read(reinterpret_cast<uint8_t *>(audio), RECORDINGS * sizeof(*audio)) != RECORDINGS * sizeof(*audio))
     {
         return false;
     }
+
     if (!file.seek(sizeof(header) + FRAM_RECORDING_ADDRESS - FRAM_HEADER_BYTES))
     {
         return false;
     }
+
     for (int id = 0; id < RECORDINGS; ++id)
     {
         FRAM_Recording_struct entry{};
@@ -389,16 +429,19 @@ bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *aud
         {
             return false;
         }
+
         const uint32_t span = entry.packets * (entry.stereo ? 2U : 1U);
         if (entry.stereo > 1 || entry.consistent != 1 || span > VFS_PACKETS_MAX || (span > 0 && entry.first_packet > VFS_PACKETS_MAX - span))
         {
             return false;
         }
+
         const uint32_t bytes = static_cast<uint32_t>(entry.packets) * PACKET_DIM;
         if (audio[id].bytes[0] != bytes || audio[id].bytes[1] != (entry.stereo ? bytes : 0U))
         {
             return false;
         }
+
         for (int channel = 0; channel < 2; ++channel)
         {
             if (audio[id].bytes[channel] == 0 && audio[id].crc32[channel] != 0)
@@ -406,6 +449,7 @@ bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *aud
                 return false;
             }
         }
+
         recordings[id] = {};
         recordings[id].first_packet = entry.first_packet;
         recordings[id].packets = entry.packets;
@@ -1938,6 +1982,7 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
         payload[offset++] = instrument.Filter.index;
         payload[offset++] = instrument.Filter.frequency_time;
     }
+    
     if (file.println("LILLA_PATCH_1") == 0)
     {
         return false;
@@ -2057,17 +2102,21 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
     {
         return false;
     }
+
     const char magic[] = "LILLA_PATCH_1\r\n";
     char prefix[sizeof(magic) - 1]{};
     const bool versioned = file.read(reinterpret_cast<uint8_t *>(prefix), sizeof(prefix)) == sizeof(prefix) && memcmp(prefix, magic, sizeof(prefix)) == 0;
+
     if (!versioned && !file.seek(0))
     {
         return false;
     }
+
     uint8_t payload[130]{};
     size_t count = 0;
     unsigned value = 0;
     bool digits = false;
+
     while (file.available())
     {
         const int character = file.read();
@@ -2095,11 +2144,13 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
             return false;
         }
     }
+
     if (digits || (versioned && count != 122) || (!versioned && count != 114 && count != 122 && count != 130))
     {
         return false;
     }
     Patch_struct candidate{};
+
     if (payload[0] > 1 || payload[1] > INSTRUMENTS)
     {
         return false;
@@ -2108,6 +2159,7 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
     candidate.instruments = payload[1];
     size_t offset = 2;
     uint8_t used = 0;
+
     for (auto &instrument : candidate.Instrument)
     {
         const uint8_t active = payload[offset++];
@@ -2115,25 +2167,30 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
         {
             return false;
         }
+
         instrument.used = active != 0;
         if (count == 130)
         {
             ++offset; // Legacy RAM export included alignment before the 16-bit Sound ID.
         }
+
         instrument.sound_id = payload[offset++];
         if (count != 114)
         {
             instrument.sound_id |= static_cast<uint16_t>(payload[offset++]) << 8;
         }
+
         instrument.root_key = payload[offset++];
         instrument.from_note = payload[offset++];
         instrument.to_note = payload[offset++];
         const uint8_t precedence = payload[offset++];
         const uint8_t lock = payload[offset++];
+
         if (precedence > 1 || lock > 1 || (active && instrument.sound_id >= SOUNDS_MAX))
         {
             return false;
         }
+
         instrument.precedence = precedence != 0;
         instrument.lock = lock != 0;
         instrument.Filter.use = payload[offset++];
@@ -2145,10 +2202,12 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
         instrument.Filter.frequency_time = payload[offset++];
         used += active;
     }
+
     if (used != candidate.instruments)
     {
         return false;
     }
+
     Patch[patch_id] = candidate;
     return true;
 }

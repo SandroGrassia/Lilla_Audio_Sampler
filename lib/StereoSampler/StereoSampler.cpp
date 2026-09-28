@@ -114,6 +114,7 @@ void StereoSampler::update(void)
     {
         ++Recording[recording_id].packets;
         const byte result = Archive.Save_DS_Recording(recording_id);
+
         if (result != LillaFRAM_2x512::ERROR_0)
         {
             storage_error = result;
@@ -128,8 +129,6 @@ void StereoSampler::update(void)
             }
             return;
         }
-        Serial.print(F("StereoSampler - packets per channel: "));
-        Serial.println(Recording[recording_id].packets);
 
         VFS_FAT_table[packet_open_L] = recording_id;
         if (stereo_flag)
@@ -167,7 +166,6 @@ void StereoSampler::update(void)
             if (samples_counter == 0)
             {
                 attack_gain_flag = false;
-                Serial.println(F("*** SS Attack stereo terminato ***"));
             }
         }
 
@@ -232,7 +230,6 @@ void StereoSampler::update(void)
             if (samples_counter == 0)
             {
                 attack_gain_flag = false;
-                Serial.println(F("*** SS Attack mono terminato ***"));
             }
         }
 
@@ -248,13 +245,13 @@ void StereoSampler::update(void)
                 *(RAM_buffer_L_ptr + sample) = (samples_counter / F_Slope_samples) * (float)(*(RAM_buffer_L_ptr + sample) + *(RAM_buffer_R_ptr + sample)) / 2.0;
                 samples_counter--;
             }
+
             // copy block from RAM_buffer_L to Packet_L
             Packet_L.write(RAM_buffer_L, 256);
 
             if (samples_counter == 0)
             {
                 decay_gain_flag = false;
-                Serial.println(F("*** SS Decay mono terminato ***"));
                 stop();
             }
         }
@@ -297,7 +294,6 @@ void StereoSampler::update(void)
             // Packets finished!
             else
             {
-                Serial.println("SSampler - Filled last packet! Recording finished!");
                 stop();
             }
         }
@@ -312,15 +308,11 @@ void StereoSampler::update(void)
                 packet_open_L = next_packet_L;
                 Packet_L.packet_fast_open(packet_open_L);
                 increment_packets_flag = true;
-
-                // Serial.print(F("SSampler - Next packet_L is: "));
-
             }
 
             // Packets finished!
             else
             {
-                Serial.println(F("SSampler - Filled last packet! Recording finished!"));
                 stop();
             }
         }

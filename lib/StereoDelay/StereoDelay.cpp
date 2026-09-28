@@ -131,24 +131,29 @@ void StereoDelay::update(void) // Advance the delay reader safely and preserve t
     // Set output data structure
     audio_block_t *out_block = NULL;
     out_block = allocate(); // al contratio di in_block, inizializzato da receiveXXOnly(ch), un block inizialmente vuoto va allocato
+
     if (out_block == nullptr)
     {
         for (uint8_t channel = 0; channel < 2; ++channel)
         {
             in_block = receiveReadOnly(channel); // Discard queued inputs when no output buffer is available.
-            if (in_block != nullptr) { release(in_block); }
+            if (in_block != nullptr)
+            {
+                release(in_block);
+            }
         }
         return; // Keep the FIFO positions and time ramp unchanged until audio storage is available.
     }
+
     if (delay_modulation_source != 2)
     {
         in_block = receiveReadOnly(1); // Release an unused modulation input instead of retaining an audio block.
-        if (in_block != nullptr) { release(in_block); }
+        if (in_block != nullptr)
+        {
+            release(in_block);
+        }
         in_block = nullptr;
     }
-
-    // Write in_block to delay_Main_Array; execution: 1,5micros @600MHz
-    // ***** spostato ****
 
     // Variazione del valore centrale delay_value
     if (J_delay_central_value_counter > 0)
@@ -297,7 +302,9 @@ void StereoDelay::update(void) // Advance the delay reader safely and preserve t
 
         ++sample_write;
         if (sample_write == DELAY_CACHE_CHANNEL_SAMPLES)
+        {
             sample_write = 0;
+        }
     }
 
     if (in_block)

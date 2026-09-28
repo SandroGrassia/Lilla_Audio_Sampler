@@ -56,7 +56,6 @@ void ShiftRegisters::Setup_physical_channels(void)
     // Set all channels as INPUT with internal PULLUP (100kohm)
     for (auto i = 0; i < SHIFTERS; ++i)
     {
-
         for (auto j = 0; j < 16; ++j)
         {
             Shifter[i].pinMode(j, INPUT_PULLUP);
@@ -204,6 +203,7 @@ void ShiftRegisters::Set_monitored_encoders_pushbuttons_switches()
     {
         Serial.println(F("Monitored shift register chips channeles"));
         Serial.println(F("b7  b6  b5  b4  b3  b2  b1  b0  a7  a6  a5  a4  a3  a2  a1  a0"));
+        
         for (auto i = 0; i < SHIFTERS; ++i)
         {
             for (auto j = (SHIFTER_CHANNELS - 1); j >= 0; --j)
