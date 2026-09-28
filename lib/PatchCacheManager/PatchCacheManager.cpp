@@ -83,7 +83,7 @@ int PatchCacheManager::Find_complete(int16_t file_id, uint32_t samples) const
 {
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        if (cache[i].valid && cache[i].state != Loading && cache[i].file_id == file_id && cache[i].samples == samples && cache[i].copied == samples)
+        if (cache[i].valid && cache[i].file_id == file_id && cache[i].samples == samples)
         {
             return i;
         }
