@@ -176,7 +176,7 @@ void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
 
 AudioTables::Pointers PlayersManager::Get_playback_tables(uint8_t instrument_id)
 {
-    if (instrument_id >= INSTRUMENTS || Audio_tables_ptr == nullptr || !AudioTables::Needs_tables(Preset[instrument_id]))
+    if (instrument_id >= INSTRUMENTS || !AudioTables::Needs_tables(Preset[instrument_id]))
     {
         return {};
     }
@@ -1147,11 +1147,6 @@ bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Pr
 
 bool PlayersManager::Activate_prepared_presets(const Preset_struct (&presets)[INSTRUMENTS])
 {
-    if (Audio_tables_ptr == nullptr)
-    {
-        return false;
-    }
-
     if (!Audio_tables_ptr->Activate_prepared())
     {
         return false;
@@ -1812,10 +1807,7 @@ uint8_t PlayersManager::Refresh_audio_table_references(void)
     uint8_t referenced_banks = 0;
     for (uint8_t player_id = 0; player_id < PLAYERS; ++player_id)
     {
-        if (Audio_tables_ptr != nullptr)
-        {
-            Player_ptr[player_id].Refresh_audio_table_references(*Audio_tables_ptr);
-        }
+        Player_ptr[player_id].Refresh_audio_table_references(*Audio_tables_ptr);
         referenced_banks |= Player_ptr[player_id].Get_tables_reference_mask();
     }
     return referenced_banks;
