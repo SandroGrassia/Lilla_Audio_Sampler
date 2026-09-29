@@ -52,7 +52,7 @@ enum DS_menu_element_name
     value_DS_MakeLeft,
     value_DS_MakeRight,
     value_DS_MakeBoth,
-    value_DS_ExportRawToSD
+    value_DS_ExportWavToSD
 };
 
 static constexpr int DS_value_names = 2;

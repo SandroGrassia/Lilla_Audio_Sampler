@@ -607,7 +607,7 @@ int DS_Last_packet = 0;  // Last packet in the Direct Sampling Flash area.
 
 // functions
 bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Sampler model and tables with audio interrupts disabled.
-bool DS_export_raw_to_SD(void);                       // Export the selected Direct Sampler recording to RAW files on SD.
+bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
 void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
 bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
 void DS_convert_file_L(int file_L_RAW, int bytes);    // Convert the left recording channel and invalidate its previous RAW cache.
@@ -5776,21 +5776,21 @@ void loop()
                 }
                 break;
 
-                case 11: // EXPORT AS RAW TO SD
+                case 11: // EXPORT AS WAV TO SD
                 {
                     DS_state = DS_export_SD_state;
-                    const bool exported = DS_export_raw_to_SD();
+                    const bool exported = DS_export_wav_to_SD();
                     if (!exported)
                     {
                         Show_popup_text("EXPORT FAILED", ILI9341_WHITE, ILI9341_RED, 0);
                     }
                     else if (!Recording[recording].stereo)
                     {
-                        Show_popup_text("MONO FILE EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                        Show_popup_text("MONO WAV EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
                     }
                     else
                     {
-                        Show_popup_text("LEFT AND RIGHT FILES EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
+                        Show_popup_text("STEREO WAV EXPORTED TO SD", ILI9341_BLACK, ILI9341_GREEN);
                     }
                     delay(exported ? 2000 : 4000);
                     DS_state = DS_waiting_state;
@@ -8750,27 +8750,26 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     return true;
 }
 
-bool DS_export_raw_to_SD(void)
+bool DS_export_wav_to_SD(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
     const auto &entry = Recording[recording];
     const int channels = entry.stereo ? 2 : 1;
-    if (entry.first_packet < 0 || entry.packets <= 0 || entry.packets > VFS_PACKETS_MAX / channels || entry.first_packet > VFS_PACKETS_MAX - entry.packets * channels || entry.bytes <= 0 || entry.bytes > entry.packets * PACKET_DIM)
+    if (entry.first_packet < 0 || entry.packets <= 0 || entry.packets > VFS_PACKETS_MAX / channels || entry.first_packet > VFS_PACKETS_MAX - entry.packets * channels || entry.bytes <= 0 || entry.bytes > entry.packets * PACKET_DIM || (entry.bytes & 1) != 0)
     {
         return false;
     }
-    if (!SD.begin(BUILTIN_SDCARD) || (!SD.exists("/LILLARAW_EXPORT") && !SD.mkdir("/LILLARAW_EXPORT")))
+    if (!SD.begin(BUILTIN_SDCARD) || (!SD.exists("/LILLAWAV_EXPORT") && !SD.mkdir("/LILLAWAV_EXPORT")))
     {
         return false;
     }
-    char paths[3][48];
+    char paths[2][48];
     bool available = false;
     for (int id = 0; id < 100000; ++id)
     {
-        snprintf(paths[0], sizeof(paths[0]), "/LILLARAW_EXPORT/%dM.raw", id);
-        snprintf(paths[1], sizeof(paths[1]), "/LILLARAW_EXPORT/%dL.raw", id);
-        snprintf(paths[2], sizeof(paths[2]), "/LILLARAW_EXPORT/%dR.raw", id);
-        if (!SD.exists(paths[0]) && !SD.exists(paths[1]) && !SD.exists(paths[2]))
+        snprintf(paths[0], sizeof(paths[0]), "/LILLAWAV_EXPORT/%dM.wav", id);
+        snprintf(paths[1], sizeof(paths[1]), "/LILLAWAV_EXPORT/%dS.wav", id);
+        if (!SD.exists(paths[0]) && !SD.exists(paths[1]))
         {
             available = true;
             break;
@@ -8780,58 +8779,101 @@ bool DS_export_raw_to_SD(void)
     {
         return false;
     }
-    bool created[3] = {};
-    bool exported = true;
-    byte buffer[256];
-    for (int channel = 0; channel < channels && exported; ++channel)
+    const char *path = paths[entry.stereo ? 1 : 0];
+    FsFile destination = SD.sdfs.open(path, O_WRONLY | O_CREAT | O_EXCL);
+    if (!destination)
     {
-        const int target = entry.stereo ? channel + 1 : 0;
-        FsFile destination = SD.sdfs.open(paths[target], O_WRONLY | O_CREAT | O_EXCL);
-        if (!destination)
+        return false;
+    }
+
+    // Serialize the canonical 44-byte PCM header explicitly in little-endian order.
+    byte header[44] = {};
+    const auto put16 = [&header](int offset, uint16_t value)
+    {
+        header[offset] = static_cast<byte>(value);
+        header[offset + 1] = static_cast<byte>(value >> 8);
+    };
+    const auto put32 = [&header](int offset, uint32_t value)
+    {
+        header[offset] = static_cast<byte>(value);
+        header[offset + 1] = static_cast<byte>(value >> 8);
+        header[offset + 2] = static_cast<byte>(value >> 16);
+        header[offset + 3] = static_cast<byte>(value >> 24);
+    };
+    const uint32_t data_bytes = static_cast<uint32_t>(entry.bytes) * channels;
+    memcpy(header, "RIFF", 4);
+    put32(4, data_bytes + 36);
+    memcpy(header + 8, "WAVEfmt ", 8);
+    put32(16, 16);
+    put16(20, 1);
+    put16(22, channels);
+    put32(24, 44100);
+    put32(28, 44100 * channels * 2);
+    put16(32, channels * 2);
+    put16(34, 16);
+    memcpy(header + 36, "data", 4);
+    put32(40, data_bytes);
+    bool exported = destination.write(header, sizeof(header)) == sizeof(header);
+    byte channel_buffer[2][256];
+    byte interleaved[512];
+    uint32_t remaining = static_cast<uint32_t>(entry.bytes);
+    for (int index = 0; remaining > 0 && exported; ++index)
+    {
+        SerialFlashFile source[2];
+        for (int channel = 0; channel < channels; ++channel)
         {
-            exported = false;
-            break;
-        }
-        created[target] = true;
-        uint32_t remaining = static_cast<uint32_t>(entry.bytes);
-        for (int index = 0; remaining > 0 && exported; ++index)
-        {
-            SerialFlashFile source = SerialFlash.open(Get_packet_name(entry.first_packet + index * channels + channel, packet_filename));
-            if (!source)
+            source[channel] = SerialFlash.open(Get_packet_name(entry.first_packet + index * channels + channel, packet_filename));
+            if (!source[channel])
             {
                 exported = false;
                 break;
             }
-            uint32_t packet_remaining = remaining < PACKET_DIM ? remaining : PACKET_DIM;
-            while (packet_remaining > 0)
+        }
+        uint32_t packet_remaining = remaining < PACKET_DIM ? remaining : PACKET_DIM;
+        while (packet_remaining > 0 && exported)
+        {
+            const uint32_t count = packet_remaining < sizeof(channel_buffer[0]) ? packet_remaining : sizeof(channel_buffer[0]);
+            for (int channel = 0; channel < channels; ++channel)
             {
-                const uint32_t count = packet_remaining < sizeof(buffer) ? packet_remaining : sizeof(buffer);
-                if (source.read(buffer, count) != count || destination.write(buffer, count) != count)
+                if (source[channel].read(channel_buffer[channel], count) != count)
                 {
                     exported = false;
                     break;
                 }
-                packet_remaining -= count;
-                remaining -= count;
             }
-            source.close();
-        }
-        const bool synced = destination.sync();
-        const bool sized = destination.fileSize() == static_cast<uint32_t>(entry.bytes);
-        const bool closed = destination.close();
-        exported = exported && synced && sized && closed;
-    }
-    if (!exported)
-    {
-        // Roll back both stereo channels, including a channel already completed.
-        for (int target = 0; target < 3; ++target)
-        {
-            if (created[target] && !SD.remove(paths[target]))
+            if (!exported)
             {
-                Serial.print(F("Unable to remove incomplete export: "));
-                Serial.println(paths[target]);
+                break;
             }
+            const byte *output = channel_buffer[0];
+            if (entry.stereo)
+            {
+                for (uint32_t offset = 0; offset < count; offset += 2)
+                {
+                    interleaved[offset * 2] = channel_buffer[0][offset];
+                    interleaved[offset * 2 + 1] = channel_buffer[0][offset + 1];
+                    interleaved[offset * 2 + 2] = channel_buffer[1][offset];
+                    interleaved[offset * 2 + 3] = channel_buffer[1][offset + 1];
+                }
+                output = interleaved;
+            }
+            exported = destination.write(output, count * channels) == count * channels;
+            packet_remaining -= count;
+            remaining -= count;
         }
+        for (int channel = 0; channel < channels; ++channel)
+        {
+            source[channel].close();
+        }
+    }
+    const bool synced = destination.sync();
+    const bool sized = destination.fileSize() == data_bytes + sizeof(header);
+    const bool closed = destination.close();
+    exported = exported && synced && sized && closed;
+    if (!exported && !SD.remove(path))
+    {
+        Serial.print(F("Unable to remove incomplete export: "));
+        Serial.println(path);
     }
     return exported;
 }
@@ -9272,7 +9314,7 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
     Menu_DS[8] = true;  // CONVERT LEFT
     Menu_DS[9] = true;  // CONVERT RIGHT
     Menu_DS[10] = true; // CONVERT BOTH
-    Menu_DS[11] = true; // EXPORT_RAW_TO_SD
+    Menu_DS[11] = true; // EXPORT_WAV_TO_SD
 
     if (DS_state == DS_pause_state || DS_state == DS_recording_state || DS_state == DS_convert_state || recordings == 0)
     {

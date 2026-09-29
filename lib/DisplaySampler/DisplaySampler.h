@@ -57,7 +57,7 @@ private:
     static constexpr float DS_column_row_volume[2] = {48, 0};
     static constexpr float DS_column_row_recording[2] = {12, DS_ROW_RECORDING};
     static constexpr float DS_column_row_available_memory[2] = {22, DS_ROW_MEMORY + 1};
-    static constexpr float DS_column_row_raw_available_memory[2] = {21, DS_ROW_MEMORY + 2};
+    static constexpr float DS_column_row_audio_available_memory[2] = {23, DS_ROW_MEMORY + 2};
     static constexpr float DS_column_row_length[2] = {7, DS_ROW_RECORDING + 2}; // row overridden for stereo
 
     // dynamic row offsets for length and volume (depend on mono/stereo/no-recording state)
@@ -71,7 +71,7 @@ private:
     static constexpr int DS_chars_volume = 4;
     static constexpr int DS_chars_recording = 4; // Allow the NONE label to fit with the standard frame padding.
     static constexpr int DS_chars_available_memory = 10;
-    static constexpr int DS_chars_raw_available_memory = 6;
+    static constexpr int DS_chars_audio_available_memory = 6;
     static constexpr int DS_chars_length = 7;
 
     // Recording controls use the existing character-grid row numbering.

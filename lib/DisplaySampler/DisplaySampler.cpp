@@ -71,7 +71,7 @@ void DisplaySampler::DS_page_lower(int recording)
 
     tft.setCursor(display_coordinate_x(DS_column_row_FREE_RAW_FILES[0]), display_coordinate_y(DS_column_row_FREE_RAW_FILES[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("- FREE FOR RAW FILES ");
+    tft.print("- FREE FOR AUDIO FILES ");
     DS_raw_available_memory();
 
     if (DS_recording_controls_visible)
@@ -187,7 +187,7 @@ void DisplaySampler::DS_available_memory(void)
 FLASHMEM
 void DisplaySampler::DS_raw_available_memory(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(DS_column_row_raw_available_memory[0]), display_coordinate_y(DS_column_row_raw_available_memory[1]), DS_chars_raw_available_memory);
+    Cancel_text_reset_cursor(display_coordinate_x(DS_column_row_audio_available_memory[0]), display_coordinate_y(DS_column_row_audio_available_memory[1]), DS_chars_audio_available_memory);
     tft.setTextColor(ILI9341_WHITE);
     tft.print((Get_flash_size() - Get_flash_occupation() - FLASH_FREE_SPACE) / 88200.0f);
     Show_measure_unit("sec", 3);
