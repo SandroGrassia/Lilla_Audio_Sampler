@@ -488,11 +488,11 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_
     tft.setCursor(display_coordinate_x(22), display_coordinate_y(12) - 5);
     tft.print("IMPORTANT");
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("- RAW FILES IMPORT WILL DELETE ALL AUDIO FILES AND"));
+    tft.print(F("- AUDIO IMPORT WILL DELETE ALL AUDIO FILES AND"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print(F("  RECORDINGS IN LILLA!"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(15) - 5);
-    tft.print(F("- .raw / .RAW FILES ARE SAVED AS .raw"));
+    tft.print(F("- .raw / .wav FILES ARE SAVED AS .raw"));
 }
 
 FLASHMEM
@@ -506,7 +506,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(void)
     //        "012345678901234567890 234 X 432 98765432109876543210"); // max 52 char
     tft.print(F("PLEASE WAIT: FLASH MEMORY ERASE IS RUNNING."));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("THAN RAW FILES WILL BE COPYED FROM SD/LILLARAW TO "));
+    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/LILLARAW TO "));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print("LILLA FLASH MEMORY");
 }
@@ -573,6 +573,24 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, cons
     tft.print("  ");
     tft.print(length / 1024);
     tft.print("KB");
+}
+
+FLASHMEM
+void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_invalid_wav(int row, const char *filename)
+{
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
+    tft.setTextColor(ILI9341_RED);
+    tft.print(filename);
+    tft.print(" INVALID WAV - NOT IMPORTED");
+}
+
+FLASHMEM
+void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const char *filename)
+{
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
+    tft.setTextColor(ILI9341_RED);
+    tft.print(filename);
+    tft.print(" DUPLICATE - NOT IMPORTED");
 }
 
 FLASHMEM
