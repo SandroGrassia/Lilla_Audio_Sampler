@@ -23,6 +23,15 @@ void DisplayDelay::D_show_page()
     }
     break;
 
+    case DIRECT_SAMPLING:
+    {
+        Backgorund_red(0, 0, 20);
+        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print("DIRECT SAMPLER DELAY");
+    }
+    break;
+
     case LIVE_SAMPLING:
     {
         Backgorund_red(0, 0, 18); // DISPLAY_board(float col, float row, int chars)
@@ -101,6 +110,10 @@ void DisplayDelay::D_show_page()
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD PHASE L/R");
     D_modulation_phase_LR();
+    if (Lilla_state_0 == DIRECT_SAMPLING)
+    {
+        D_disabled();
+    }
 }
 
 FLASHMEM
@@ -256,18 +269,7 @@ void DisplayDelay::D_modulation_phase_LR(void) // Display the requested setting 
 FLASHMEM
 void DisplayDelay::D_disabled(void)
 {
-    const int L_POPUP = 228; // 106;
-    const int H_POPUP = 28;
-    const int X_POPUP = Centered_element_left(L_POPUP);
-    const int Y_POPUP = Centered_element_top(H_POPUP);
-    const int Y_POPUP_TXT = 10;
-
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED); // does NOT delete frame
-    tft.setCursor(X_POPUP + display_coordinate_x(3), Y_POPUP + Y_POPUP_TXT);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //"0123456789012345678901234567890123456789109876543210";
-    tft.print("DELAY IS DISABLED WHILE SAMPLING");
+    Show_popup_text("DELAY IS DISABLED WHILE SAMPLING", ILI9341_WHITE, ILI9341_RED);
 }
 
 void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show)

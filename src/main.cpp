@@ -1147,12 +1147,14 @@ void loop()
     // Panic
     if (Read_pushbutton(EN_PB_LineOutVol)) // LINE OUT VOLUME
     {
-        Delay_data.loop_gain = 0;
-        Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-
         AudioNoInterrupts();
-        D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-        D_gain_R_n.Set_gain(Delay_values.loop_gain);
+        if (Lilla_state != DELAY_SETTINGS || Lilla_state_0 != DIRECT_SAMPLING)
+        {
+            Delay_data.loop_gain = 0;
+            Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
+            D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
+            D_gain_R_n.Set_gain(Delay_values.loop_gain);
+        }
         Players_Manager.Stop_all_players();
         if (Lilla_state == MIDI_LOOP)
         {
@@ -1168,7 +1170,7 @@ void loop()
             Loop_led_set.Request_all_LED_switch_off();
         }
 
-        if (Lilla_state == DELAY_SETTINGS)
+        if (Lilla_state == DELAY_SETTINGS && Lilla_state_0 != DIRECT_SAMPLING)
         {
             Display_Delay.D_feedback();
         }
@@ -3973,21 +3975,7 @@ void loop()
 
             case SwToolsDelay:
             {
-                if (Lilla_state_0 == DIRECT_SAMPLING)
-                {
-                    Display_Delay.D_disabled();
-                    delay(2000);
-
-                    Display_Mixer.MX_page();
-                    for (auto source = 0; source < MX_sources; ++source)
-                    {
-                        Display_Mixer.MX_source_values(source, (source == 0 ? true : false));
-                    }
-                }
-                else
-                {
-                    Golive_DELAY_SETTINGS();
-                }
+                Golive_DELAY_SETTINGS();
             }
             break;
 
@@ -4135,7 +4123,7 @@ void loop()
     // *************************************************************
     // ********************   DELAY_SETTINGS  **********************
     // *************************************************************
-    if (Lilla_state == DELAY_SETTINGS)
+    if (Lilla_state == DELAY_SETTINGS && Lilla_state_0 != DIRECT_SAMPLING)
     {
         // Change Patch VOLUME
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
@@ -4233,7 +4221,11 @@ void loop()
                 Display_Delay.D_sounds();
             }
         }
+    }
 
+    // Navigation remains available while the Direct Sampler locks the Delay controls.
+    if (Lilla_state == DELAY_SETTINGS)
+    {
         // Switch Mode
         if (Read_pushbutton(PB_Tools))
         {
@@ -5874,27 +5866,8 @@ void loop()
 
             case SwToolsDelay:
             {
-                Serial.println("DISPLAY_delay_disabled!");
-                Display_Delay.D_disabled();
-                delay(2000);
-                Lilla_state = DIRECT_SAMPLING;
-
-                Display_Sampler.DS_page_upper();
-                Display_Sampler.DS_page_lower(recording);
-
-                // Menu
-                DS_define_menu();
-                Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-
-                // Pointer
-                Pointer_Sampler.Set_pointer_to_first_menu_element();
-                DS_local_pointer = Pointer_Sampler.Get_pointer();
-
-                // Display the VU meter
-                Display_Sampler.DS_bar(0, 0);
-                Display_Sampler.DS_bar(1, 0);
-
-                Clear_UI_events();
+                Lilla_state_0 = DIRECT_SAMPLING;
+                Golive_DELAY_SETTINGS();
             }
             break;
 
@@ -9624,8 +9597,11 @@ void Golive_DELAY_SETTINGS(void)
     Lilla_state = DELAY_SETTINGS;
 
     Display_Delay.D_show_page();
-    Pointer_Delay.Set_pointer_to_Feedback();
-    DELAY_local_pointer = Pointer_Delay.Get_element_name();
+    if (Lilla_state_0 != DIRECT_SAMPLING)
+    {
+        Pointer_Delay.Set_pointer_to_Feedback();
+        DELAY_local_pointer = Pointer_Delay.Get_element_name();
+    }
 
     Clear_UI_events();
 }
