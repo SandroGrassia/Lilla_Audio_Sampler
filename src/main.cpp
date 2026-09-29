@@ -13411,7 +13411,7 @@ byte CC_Read_all_Sound_gain()
 // ****************************   COPY RAW FILES FROM SD/LILLARAW TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
-static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length)
+static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
 {
     const auto read16 = [&file](uint16_t &value) -> bool
     {
@@ -13463,12 +13463,11 @@ static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_l
         if (memcmp(id, "fmt ", 4) == 0)
         {
             uint16_t encoding;
-            uint16_t channels;
             uint32_t sample_rate;
             uint32_t byte_rate;
             uint16_t block_align;
             uint16_t bits;
-            if (format_found || chunk_length < 16 || !read16(encoding) || !read16(channels) || !read32(sample_rate) || !read32(byte_rate) || !read16(block_align) || !read16(bits) || encoding != 1 || channels != 1 || sample_rate != 44100 || byte_rate != 88200 || block_align != 2 || bits != 16)
+            if (format_found || chunk_length < 16 || !read16(encoding) || !read16(channels) || !read32(sample_rate) || !read32(byte_rate) || !read16(block_align) || !read16(bits) || encoding != 1 || (channels != 1 && channels != 2) || sample_rate != 44100 || byte_rate != 88200U * channels || block_align != 2U * channels || bits != 16)
             {
                 return false;
             }
@@ -13486,7 +13485,13 @@ static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_l
         }
         position = chunk_start + chunk_length + (chunk_length & 1U);
     }
-    return format_found && data_found;
+    if (!format_found || !data_found || data_length % (sizeof(int16_t) * channels) != 0)
+    {
+        return false;
+    }
+    // Report the mono output size for Flash allocation and the import summary.
+    data_length /= channels;
+    return true;
 }
 
 FLASHMEM
@@ -13569,7 +13574,8 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         {
             uint32_t offset = 0;
             uint32_t length = f.size();
-            if (!wav || SET_WAV_raw_data(f, offset, length))
+            uint16_t channels = 1;
+            if (!wav || SET_WAV_raw_data(f, offset, length, channels))
             {
                 SD_raw_volume += length;
                 ++SD_raw_files;
@@ -13741,7 +13747,8 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         const bool is_zero_raw = strcmp(filename, "0.raw") == 0;
         uint32_t offset = 0;
         uint32_t length = f.size();
-        if (wav && !SET_WAV_raw_data(f, offset, length))
+        uint16_t channels = 1;
+        if (wav && !SET_WAV_raw_data(f, offset, length, channels))
         {
             ++row;
             if (row > 14)
@@ -13801,16 +13808,30 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
         unsigned long count = 0;
         while (copied && count < length)
         {
-            char buf[256];
+            int16_t buf[128];
             const unsigned long remaining = length - count;
-            const unsigned int bytes = remaining < sizeof(buf) ? remaining : sizeof(buf);
-            const int n = f.read(buf, bytes);
-            if (n <= 0 || static_cast<unsigned int>(n) > bytes || ff.write(buf, static_cast<uint32_t>(n)) != static_cast<uint32_t>(n))
+            const unsigned int capacity = sizeof(buf) / channels;
+            const unsigned int bytes = remaining < capacity ? remaining : capacity;
+            const unsigned int input_bytes = bytes * channels;
+            if (f.read(buf, input_bytes) != input_bytes)
             {
                 copied = false;
                 break;
             }
-            count += static_cast<unsigned int>(n);
+            if (channels == 2)
+            {
+                // Average stereo pairs in place, using 32 bits to avoid overflow.
+                for (unsigned int sample = 0; sample < bytes / sizeof(int16_t); ++sample)
+                {
+                    buf[sample] = static_cast<int16_t>((static_cast<int32_t>(buf[2 * sample]) + static_cast<int32_t>(buf[2 * sample + 1])) / 2);
+                }
+            }
+            if (ff.write(buf, bytes) != bytes)
+            {
+                copied = false;
+                break;
+            }
+            count += bytes;
         }
         SerialFlash.wait();
         ff.close();
