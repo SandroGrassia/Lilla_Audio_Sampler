@@ -82,26 +82,12 @@ void StereoDelay::Set_delay_central_value(int value) // Retarget the single dela
 // La variazione della sorgente di modulazione del delay va applicata immediatamente
 void StereoDelay::Set_delay_modulation_source(int value) // 0:none 1:LFO 2:input_1
 {
-    if (value < 0)
-    {
-        value = 0;
-    }
-
     delay_modulation_source = value;
 }
 
 // La variazione dell'indice di modulazione va applicata immediatamente
-void StereoDelay::Set_delay_modulation_gain(float value) // 0.0 --> 4.0
+void StereoDelay::Set_delay_modulation_gain(float value) // 0.0 --> 1.0
 {
-    if (value < 0)
-    {
-        value = 0.0;
-    }
-    else if (value > 4.0)
-    {
-        value = 4.0;
-    }
-
     delay_modulation_gain_value = value;
 }
 
@@ -262,11 +248,7 @@ void StereoDelay::update(void) // Advance the delay reader safely and preserve t
         // Restore values
         delay_delta = 0;
 
-        sample_read = D_sample_read; // D_sample_read > -1 -->  sample_read >= 0
-        if (sample_read < 0)         // should be useless
-        {
-            sample_read = 0;
-        }
+        sample_read = D_sample_read; // D_sample_read > -1; truncation toward zero gives sample_read >= 0
     }
 
     else

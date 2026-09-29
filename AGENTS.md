@@ -14,16 +14,6 @@ In questo repository Codex può effettuare le operazioni GIT locali e su GitHub 
 
 Tutti i file di testo del repository devono usare esclusivamente terminatori CRLF.
 
-Prima di modificare un file, Codex deve controllarne i terminatori con:
-
-`git ls-files --eol -- <file>`
-
-Dopo ogni modifica, Codex deve verificare nuovamente tutti i file modificati.
-
-Una modifica non e' completata se un file risulta `w/lf` o `w/mixed`.
-Codex deve preservare o ripristinare CRLF esclusivamente nei file autorizzati,
-senza normalizzare o modificare altri file.
-
 
 # Espressioni di codice su una sola riga
 

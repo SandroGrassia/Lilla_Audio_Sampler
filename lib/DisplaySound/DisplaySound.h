@@ -53,7 +53,7 @@ private:
     // Character widths used when clearing and redrawing each value field.
     static constexpr int S_chars_File = 7;
     static constexpr int S_chars_Midi = 2;
-    static constexpr int S_chars_Pitch = 6;
+    static constexpr int S_chars_Pitch = 5;
     static constexpr int S_chars_Gain = 4;
     static constexpr int S_chars_Pan = 2;
     static constexpr int S_chars_Attack = 12;

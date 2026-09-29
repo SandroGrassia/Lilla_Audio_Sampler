@@ -121,11 +121,6 @@ void AudioVCF::Update(void)
 // Set the biquad coefficients directly
 void AudioVCF::setCoefficients(uint32_t stage, const int *coefficients)
 {
-    if (stage >= 4)
-    {
-        return;
-    }
-
     int32_t *dest = definition + (stage << 3);
 
     if (stage > 0)

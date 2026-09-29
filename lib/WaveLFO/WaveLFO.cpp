@@ -111,15 +111,6 @@ void WaveLFO::Set_amplitude(int max_value) // sinus wave
     periodic = true;
     phase_accumulator = 0;
 
-    if (max_value < 0)
-    {
-        max_value = 0;
-    }
-    else if (max_value > 32767)
-    {
-        max_value = 32767;
-    }
-
     magnitude = 2 * max_value; // peak to peak amplitude
 }
 
