@@ -765,12 +765,8 @@ void PlayersManager::End_midi_batch(void)
     midi_batch_active = false;
 }
 
-void PlayersManager::Set_modulation(uint8_t midi_channel, uint8_t value)
+void PlayersManager::Set_modulation(uint8_t midi_channel, uint8_t value) // MidiReader supplies the parsed MIDI channel as an index from 0 to 15.
 {
-    if (midi_channel >= 16)
-    {
-        return;
-    }
     modulation_value[midi_channel] = value;
     for (int player = 0; player < PLAYERS; ++player)
     {

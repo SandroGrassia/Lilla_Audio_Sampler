@@ -84,7 +84,7 @@ public:
     void Record_read(PlayerReadSource, int, uint16_t = 0);
     void Read_samples(int16_t *, int, int);
     int Loop_period(int, int, int, uint8_t) const;
-    bool Fill_loop_samples(int16_t *, int, int, int, int, int, uint8_t, const int16_t *);
+    bool Fill_loop_samples(int16_t *, int, int, int, int, int, uint8_t, const int16_t *, int);
     void Wavetable_harvest();
     void Harvest_samples();
     const PlayerReadDiagnostics &Get_read_diagnostics() const { return read_diagnostics; }
@@ -148,12 +148,12 @@ int main()
     assert(p.read_diagnostics.flags & PlayerReadDiagnostics::PacketOpen);
     p.read_diagnostics = {}; p.recording_flag = false; p.source_now = {Psram, 8, source};
     int16_t noclick[2] = {90,91};
-    assert(p.Fill_loop_samples(output, 12, 0, 0, 7, 2, LOOP_FWD, noclick));
+    assert(p.Fill_loop_samples(output, 12, 0, 0, 7, 2, LOOP_FWD, noclick, p.Loop_period(0, 7, 2, LOOP_FWD)));
     assert(output[0] == 12 && output[4] == 90 && output[5] == 91 && output[6] == 12 && output[11] == 91);
     assert(p.read_diagnostics.sources[1].operations == 2 && p.read_diagnostics.sources[1].samples == 8);
     assert(p.read_diagnostics.sources[2].operations == 2 && p.read_diagnostics.sources[2].samples == 4);
     p.read_diagnostics = {};
-    assert(p.Fill_loop_samples(output, 5, 7, 0, 7, 0, LOOP_FWD_REV, nullptr));
+    assert(p.Fill_loop_samples(output, 5, 7, 0, 7, 0, LOOP_FWD_REV, nullptr, p.Loop_period(0, 7, 0, LOOP_FWD_REV)));
     assert(output[0] == 17 && output[1] == 16 && output[4] == 13);
     assert(p.read_diagnostics.sources[1].operations == 2);
     // A full 35x block crosses many short loop periods; guard both ends of the destination.
@@ -163,7 +163,7 @@ int main()
     {
         p.source_now = {Psram, 8, source};
         p.LS_flag = false;
-        assert(p.Fill_loop_samples(guarded + 1, 4447, 0, 0, 7, 0, mode, nullptr));
+        assert(p.Fill_loop_samples(guarded + 1, 4447, 0, 0, 7, 0, mode, nullptr, p.Loop_period(0, 7, 0, mode)));
         for (int i = 0; i < 4447; ++i)
         {
             const int phase = i % (mode == LOOP_FWD_REV ? 14 : 8);
@@ -172,7 +172,7 @@ int main()
         }
         assert(guarded[0] == -1234 && guarded[4448] == -1234);
         p.source_now.storage = Flash; p.LS_flag = true;
-        assert(p.Fill_loop_samples(guarded + 1, 4447, 0, 6, 13, 0, mode, nullptr));
+        assert(p.Fill_loop_samples(guarded + 1, 4447, 0, 6, 13, 0, mode, nullptr, p.Loop_period(6, 13, 0, mode)));
         for (int i = 0; i < 4447; ++i)
         {
             const int phase = i % (mode == LOOP_FWD_REV ? 14 : 8);
@@ -193,7 +193,7 @@ int main()
     p.source_now.storage = Flash;
     for (int pass = 0; pass < 2; ++pass)
     {
-        assert(p.Fill_loop_samples(guarded + 1, 4447, 250, 900, 1412, 128, LOOP_FWD, nullptr));
+        assert(p.Fill_loop_samples(guarded + 1, 4447, 250, 900, 1412, 128, LOOP_FWD, nullptr, p.Loop_period(900, 1412, 128, LOOP_FWD)));
         for (int i = 0; i < 4447; ++i)
         {
             const int phase = (250 + i) % 385;

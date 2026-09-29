@@ -302,7 +302,7 @@ private:
     void Fade_live_forward_end(void);
     void Flash_memory_harvest(void);
     int Loop_period(int first, int last, int crossfade, uint8_t mode) const; // Return the sample period for forward, reverse or ping-pong loops.
-    bool Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick); // Caller supplies a valid buffer, positive count and geometry with a positive Loop_period(). Fill through the active sample reader.
+    bool Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period); // Caller supplies a valid buffer, positive count, nonnegative phase and the positive Loop_period() already validated for this geometry. Fill through the active sample reader.
     void Loop_memory_harvest(void); // Fill repeated file loops from Flash/cache without reading beyond A/B or NoClick.
     void Wavetable_harvest(void);
     void Read_samples(int16_t *destination, int first_sample, int total_samples); // Read logical samples from Flash, a complete cache or the live circular buffer.

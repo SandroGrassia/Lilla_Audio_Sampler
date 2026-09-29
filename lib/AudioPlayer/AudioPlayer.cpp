@@ -2364,19 +2364,14 @@ int AudioPlayer::Loop_period(int first, int last, int crossfade, uint8_t mode) c
     return mode == LOOP_FWD || mode == LOOP_REV ? span - crossfade : 0;
 }
 
-bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick) // Fill repeated loop segments without crossing source or NoClick boundaries.
+bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period) // Fill repeated loop segments without crossing source or NoClick boundaries.
 {
-    const int period = Loop_period(first, last, crossfade, mode);
     const bool live_noclick = LS_flag && mode == LOOP_FWD && crossfade > 1 && crossfade <= PlayerReadBudget::Live_noclick_samples;
     if (mode != LOOP_FWD_REV && crossfade > 0 && noclick == nullptr && !live_noclick)
     {
         return false;
     }
     phase %= period;
-    if (phase < 0)
-    {
-        phase += period;
-    }
     const int span = last - first + 1;
     const int raw_count = span - 2 * crossfade;
     while (count > 0)
@@ -2464,7 +2459,7 @@ void AudioPlayer::Loop_memory_harvest(void) // Assemble loop samples and preserv
     const int first = static_cast<int>(floorf(phase));
     const int count = static_cast<int>(ceilf(phase + distance)) - first + 1;
     initial_index_offset = phase - first;
-    if (count <= 0 || count > BASKET_DIM || !Fill_loop_samples(samples_basket, count, first, A_Flash_sample, B_Flash_sample, crossfade, mode_player, Noclick_ptr))
+    if (count <= 0 || count > BASKET_DIM || !Fill_loop_samples(samples_basket, count, first, A_Flash_sample, B_Flash_sample, crossfade, mode_player, Noclick_ptr, period))
     {
         memset(samples_basket, 0, sizeof(samples_basket)); // Clear the sample buffer to silence when the requested count is invalid or loop assembly fails.
         Fast_stop();

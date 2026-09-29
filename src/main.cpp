@@ -10706,16 +10706,15 @@ void LOOP_set_time_order(int track)
         }
 
         /*
-        Gli eventi sono cosÃƒÆ’Ã‚Â¬ ordinati:
+        Gli eventi sono così ordinati:
         LOOP_time_order[track][0] = evento con time minimo
         LOOP_time_order[track][0] = evento successivo
         */
-
         for (uint32_t i = 0; i < LOOP_events[track]; ++i)
         {
             LOOP_time_order[track][i] = (min_time_index + i) % LOOP_events[track];
         }
-
+        
         return;
     }
     return;
@@ -10818,7 +10817,6 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
             Serial.println(LOOP_element[track][event].note_on);
         }
     }
-
     return true;
 }
 
