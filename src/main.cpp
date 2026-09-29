@@ -61,7 +61,7 @@
     - Critical Warning (VUSB/VIN Separation): If using an external power source on VIN, you must cut the trace between the VUSB and VIN pads on the bottom of the board. Failure to do so can back-feed voltage to your computer's USB port, causing damage.
     - Fact (USB Host Power): The Teensy 4.1's USB Host port (VHST pin) provides a software-controllable 5V rail with built-in current limiting (~850mA hardware limit, but practically limited by the main 0.5A fuse if USB-powered). This is a feature unique to the T4.1.
 
-    - INPUT_PULLUP: Use pinMode(pin, INPUT_PULLUP) for connecting switches to ground. This activates an internal ~47kÃŽÂ© pull-up resistor, eliminating the need for external components.
+    - INPUT_PULLUP: Use pinMode(pin, INPUT_PULLUP) for connecting switches to ground. This activates an internal ~47kÃƒÅ½Ã‚Â© pull-up resistor, eliminating the need for external components.
     - Synchronization: Sequential digitalWriteFast() calls to multiple pins are not perfectly simultaneous. For true atomic, multi-pin state changes, direct port register manipulation is required.
     - Audio Library: The Audio library can conflict with other DMA-based libraries (like FastLED/ObjectFLED). This is often a low-level hardware resource contention, which can sometimes be mitigated by adjusting timing parameters in the conflicting library.
 
@@ -1991,7 +1991,7 @@ void loop()
                     Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
                     // Reset pointer
-                    Pointer_Sound.Set_pointer_to_file(S_menu_max);
+                    Pointer_Sound.Set_pointer_to_first_menu_element();
                     S_pointer = Pointer_Sound.Get_pointer();
                     Pointer_Sound.Display_pointer();
 
@@ -2825,8 +2825,8 @@ void loop()
             Display_Sound.Show_Trim_step_value();
         }
 
-        // Toggle TO/SLICE mode with the step encoder button; rotation still changes trim speed.
-        if (Read_pushbutton(EN_PB_Step))
+        // Toggle TO/SLICE mode with the TO encoder button.
+        if (Read_pushbutton(EN_PB_To))
         {
             slicing_mode = !slicing_mode;
             if (!slicing_mode)
@@ -2834,6 +2834,13 @@ void loop()
                 S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
             }
             Display_Sound.Show_wave(Instrument_id);
+        }
+
+        if (Read_pushbutton(EN_PB_Step))
+        {
+            trim_speed = 5;
+            S_trim_step = S_Calc_trim_step(trim_speed);
+            Display_Sound.Show_Trim_step_value();
         }
 
         // Change A
@@ -2981,17 +2988,12 @@ void loop()
             }
         }
 
-        // Change B by rotation or jump to the last file sample with the encoder button.
+        // Change B by rotating the TO encoder.
         result = Read_encoder_simple(EN_PB_To);
-        const bool trim_to_end = Read_pushbutton(EN_PB_To);
-        if (result != 0 || trim_to_end)
+        if (result != 0)
         {
             uint32_t So_B_change;
-            if (trim_to_end)
-            {
-                So_B_change = samples_in_file - 1; // Reuse the normal B edit path to rebuild tables and update playback and display.
-            }
-            else if (result == 1)
+            if (result == 1)
             {
                 if ((Sound[Sound_id].B + 1 + S_trim_step) <= samples_in_file)
                 {
@@ -3546,7 +3548,8 @@ void loop()
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                        // Restore pointer to the previously selected in SOUND_EDIT
+                        // Select RETURN when entering SOUND_EDIT.
+                        Pointer_Sound.Set_pointer_to_first_menu_element();
                         S_pointer = Pointer_Sound.Get_pointer();
                         Pointer_Sound.Display_pointer();
 
@@ -3660,7 +3663,8 @@ void loop()
                         S_Select_menu_elements();
                         Display_Sound.Show_SOUND_menu(); // displays the menu and updates "SO_menu_max" used by encoder_menu
 
-                        // Restore pointer to the previously selected in SOUND_EDIT
+                        // Select RETURN when entering SOUND_EDIT.
+                        Pointer_Sound.Set_pointer_to_first_menu_element();
                         S_pointer = Pointer_Sound.Get_pointer();
                         Pointer_Sound.Display_pointer();
 
@@ -4547,7 +4551,7 @@ void loop()
         /*
         Live Sampling (LIVE SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX.
 
-        Se la registrazione ÃƒÂ¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
+        Se la registrazione ÃƒÆ’Ã‚Â¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
         - Patch[PATCHES_MAX].Instrument[0].sound_id == PATCHES_MAX
 
         L'Instrument ha:
@@ -4556,11 +4560,11 @@ void loop()
         root_key = 60
         midi_ch = 0 (midi channel 1)
 
-        Il Sound ÃƒÂ¨ associato al file Mono.liv:
+        Il Sound ÃƒÆ’Ã‚Â¨ associato al file Mono.liv:
         Sound[SOUNDS_MAX].file = FIRST_LIVE_SAMPLING_FILE;
 
 
-        Se la registrazione ÃƒÂ¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
+        Se la registrazione ÃƒÆ’Ã‚Â¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
         - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left
         - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
 
@@ -4587,12 +4591,12 @@ void loop()
         i samples visualizzati vanno da LS_window_A_sample a LS_window_B_sample; l'ampiezza della window e' LS_window_width.
 
 
-        LS_X_sample - LS_Y_sample ÃƒÂ¨ l'intervallo di esecuzione:
+        LS_X_sample - LS_Y_sample ÃƒÆ’Ã‚Â¨ l'intervallo di esecuzione:
         - FWD e REV : parte da LS_X_sample
         - Loop FWD e Loop FWD/REV : da LS_X_sample a LS_Y_sample.
 
 
-        LS_X_sample e' sempre al centro della window; al primo accesso a LIVE SAMPLER ÃƒÂ¨ sul sample 0:
+        LS_X_sample e' sempre al centro della window; al primo accesso a LIVE SAMPLER ÃƒÆ’Ã‚Â¨ sul sample 0:
         .................................(LS_X_sample).........................................(LS_buffer_dim -1)
                   (LS_window_A_sample)+++++++++|+++++++(LS_window_B_sample)
 
@@ -4612,7 +4616,7 @@ void loop()
         1) fissi su un punto del buffer (se fosse un tape sono solidali al tape, solidali ai campioni registrati): LS_XY_lock == true.
         2) spostarsi lungo il buffer (se fosse un tape sono solidali con la testa di registrazione, i campioni sottostanti cambiano con continuita'): LS_XY_lock == false
 
-        In entrambi i casi, con il NoteOn le posizioni di partenza (modi FWD e REV) e di arrivo (modi loop FWD, loop FWD/REV) sono congelate sul buffer (non sono piÃƒÂ¹ mobili). Importante notare
+        In entrambi i casi, con il NoteOn le posizioni di partenza (modi FWD e REV) e di arrivo (modi loop FWD, loop FWD/REV) sono congelate sul buffer (non sono piÃƒÆ’Ã‚Â¹ mobili). Importante notare
         che nel modo loop il suono sambia se il segmento di buffer LS_X_sample/LS_Y_sample viene riscritto.
 
         Calcolo degli estremi della window
@@ -4620,7 +4624,7 @@ void loop()
         LS_window_B_sample = LS_window_A_sample + LS_window_width - 1 (NON scalato se supera (LS_buffer_dim -1))
 
         1) Caso LS_XY_lock == true
-        LS_X_sample ÃƒÂ¨ fisso su una certa posizione del buffer; la waveform cresce verso DESTRA (nuovi campioni a DESTRA)
+        LS_X_sample ÃƒÆ’Ã‚Â¨ fisso su una certa posizione del buffer; la waveform cresce verso DESTRA (nuovi campioni a DESTRA)
         0 <= LS_X_sample <= (LS_buffer_dim -1)
         LS_Y_sample = LS_X_sample + LS_XY_delta
 
@@ -5259,7 +5263,7 @@ void loop()
         root_key = 60
         midi_ch = 0 (midi channel 1)
 
-        Se la registrazione ÃƒÂ¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
+        Se la registrazione ÃƒÆ’Ã‚Â¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
 
         */
 
@@ -6544,7 +6548,7 @@ void loop()
                     }
 
                     // Learnig closed. From here: LOOP_learn_flag == false
-                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track ÃƒÂ¨ vuoto e non viene eseguito
+                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track ÃƒÆ’Ã‚Â¨ vuoto e non viene eseguito
 
                     Clear_UI_events();
 
@@ -8759,7 +8763,7 @@ uint32_t S_Calc_trim_step(int value)
         return 10000;
         break;
     case 5:
-        return (Sound[Sound_id].B - Sound[Sound_id].A) / 16;
+        return (Sound[Sound_id].B - Sound[Sound_id].A + 1) / 16;
         break;
 
     default:
@@ -10702,7 +10706,7 @@ void LOOP_set_time_order(int track)
         }
 
         /*
-        Gli eventi sono cosÃƒÂ¬ ordinati:
+        Gli eventi sono cosÃƒÆ’Ã‚Â¬ ordinati:
         LOOP_time_order[track][0] = evento con time minimo
         LOOP_time_order[track][0] = evento successivo
         */
@@ -13997,7 +14001,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
             delay(4000);
             return false;
         }
-        Serial.println(F("0.raw reconstructed from firmware: 44100 samples, 88200 bytes."));
+        Serial.println(F("0.raw reconstructed from firmware: 43996 samples, 87992 bytes."));
     }
 
     // Start copying RAW files from SD to Flash chip.
@@ -14734,6 +14738,15 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************   FILE SCANNER   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Install the bundled middle-C sine before building file inventory and caches.
+    if (!ZeroRaw_ensure_file(true))
+    {
+        Serial.println(F("ERROR: cannot install sine 0.raw"));
+        while (true)
+        {
+            delay(1000);
+        }
+    }
     File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
 
     // Note-to-pitch conversion array
@@ -15093,7 +15106,7 @@ bool TEST_Current_Patch_SD_round_trip(void)
     Serial.println(F("Patch successfully saved"));
 
     // 2. Alterazione intenzionale della Patch in RAM.
-    // Serve a dimostrare che Resume non ÃƒÂ¨ un semplice no-op.
+    // Serve a dimostrare che Resume non ÃƒÆ’Ã‚Â¨ un semplice no-op.
     Patch[test_patch_id].used = !Original_Patch.used;
 
     if (Patch[test_patch_id] == Original_Patch)
@@ -15122,7 +15135,7 @@ bool TEST_Current_Patch_SD_round_trip(void)
     const bool data_match = Patch[test_patch_id] == Original_Patch;
 
     // Ripristino finale garantito.
-    // In caso di successo l'assegnazione ÃƒÂ¨ ridondante ma innocua.
+    // In caso di successo l'assegnazione ÃƒÆ’Ã‚Â¨ ridondante ma innocua.
     Patch[test_patch_id] = Original_Patch;
 
     if (!data_match)
