@@ -115,28 +115,6 @@ void DisplayCommon::Downsampling(void)
 {
     const float Y_EFF = 2.5;
 
-    if (Lilla_state == MIDI_LOOP)
-    {
-        Cancel_text_reset_cursor(display_coordinate_x(43), display_coordinate_y(Y_EFF), 9);
-        tft.setTextColor(ILI9341_YELLOW);
-        float down = AUDIO_SAMPLE_RATE / downsampling;
-
-        if (down < 1000)
-        {
-            tft.print(down, 0);
-            tft.setTextColor(ILI9341_ORANGE);
-            tft.print("Hz");
-        }
-        else
-        {
-            tft.print(down / 1000.0f, 3);
-            tft.setTextColor(ILI9341_ORANGE);
-            tft.print("kHz");
-        }
-
-        return;
-    }
-
     Cancel_text_reset_cursor(display_coordinate_x(43), display_coordinate_y(Y_EFF), 9);
     tft.setTextColor(ILI9341_YELLOW);
     float down = AUDIO_SAMPLE_RATE / downsampling;
@@ -146,6 +124,10 @@ void DisplayCommon::Downsampling(void)
         tft.print(down, 0);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("Hz");
+    }
+    else if (down > 44000)
+    {
+        tft.print("NONE");
     }
     else
     {
