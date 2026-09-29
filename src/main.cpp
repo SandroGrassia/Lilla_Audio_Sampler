@@ -107,6 +107,7 @@
 #include <input_i2s.h>
 #include <mixer.h>
 #include <output_i2s.h>
+#include <analyze_fft1024.h>
 #include <SD.h>
 #include <SerialFlash.h> // accesso alla Flash memory SPI
 #include <utility/dspinst.h>
@@ -211,6 +212,38 @@
 // *************************************************************
 
 // Attenzione: la funzione update() e' chiamata nell'ordine in cui vengono dichiarati gli oggetti Audiostream
+class AutoTuneInput : public AudioStream
+{
+private:
+    const int16_t *samples = nullptr;
+    volatile uint16_t position = 1024;
+
+public:
+    AutoTuneInput() : AudioStream(0, nullptr) {}
+    bool Idle() const { return position == 1024; }
+    void Begin(const int16_t *input) // Called with audio interrupts disabled and the previous window fully sent.
+    {
+        samples = input;
+        position = 0;
+    }
+    void update() override
+    {
+        if (Idle())
+        {
+            return;
+        }
+        audio_block_t *block = allocate();
+        if (block == nullptr)
+        {
+            return;
+        }
+        memcpy(block->data, samples + position, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+        transmit(block);
+        release(block);
+        position += AUDIO_BLOCK_SAMPLES;
+    }
+};
+
 LillaClock Trigger;
 AudioPlayer Player[PLAYERS];
 Router_16x3 Router_L;
@@ -223,6 +256,8 @@ AudioPeakDetector PeakTracking_R;
 AudioFeedback LS_Feedback_L;
 AudioFeedback LS_Feedback_R;
 StereoLiveSampler LiveSampler;
+AutoTuneInput AutoTune_input;
+AudioAnalyzeFFT1024 AutoTune_fft;
 
 ArchivingManager Archive;
 StereoSampler DirectSampler(Archive);
@@ -338,7 +373,8 @@ AudioConnection patchCord71(LINE_IN_amplifier, 0, DirectSampler, 0);
 AudioConnection patchCord72(LINE_IN_amplifier, 1, DirectSampler, 1);
 
 AudioConnection patchCord73(PWM_mixer_out_L, 0, PWM_L, 0);
-AudioConnection patchCord74(PWM_mixer_out_R, 0, PWM_R, 0); 
+AudioConnection patchCord74(PWM_mixer_out_R, 0, PWM_R, 0);
+AudioConnection autoTuneCord(AutoTune_input, 0, AutoTune_fft, 0);
 
 AudioControlSGTL5000 Audio_shield;
 
@@ -364,7 +400,7 @@ WaveLFO LFO_D[2];                          // Modulation oscillators for the two
 PlayersStatistics Players_statistics;      // Track active voices and their instrument and loop-track assignments.
 FlashFileRegisterParser File_scanner;      // Scan Flash files and cache their metadata.
 
-DisplayCommon Display_Common;           // Render shared UI elements.
+DisplayCommon Display_Common; // Render shared UI elements.
 DisplaySetup Display_Setup;
 DisplayStorage Display_Storage;
 DisplayDiagnostics Display_Diagnostics;
@@ -512,6 +548,7 @@ void S_Drop_Instrument(const int instrument_id);                                
 struct PatchEditSnapshot;                                                                                                                                      // Forward declaration of the state snapshot used for reversible patch edits.
 bool S_Clone_Instrument(const int instrument_id, int &new_instrument, PatchEditSnapshot &snapshot);                                                            // Insert a clone below the selected instrument; use the snapshot to preserve edit state.
 bool S_Verify_is_Sound_original(int sound_id);                                                                                                                 // Compare a Sound with its reference metadata.
+FLASHMEM const char *S_Auto_tune_pitch(int sound_id);                                                                                                          // Tune the selected loop; return null on success or the reason it could not be tuned.
 void S_Refresh_source_limits(bool force);                                                                                                                      // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
 void S_Copy_all_Sound_to_Sound_cache_P(void);                                                                                                                  // Save current Sound metadata as the reference for editing and discard.
 bool S_Pull_all_Sound_from_Sound_cache_P(PatchEditSnapshot *snapshot = nullptr);                                                                               // Restore Sound metadata from the reference, optionally using an edit snapshot.
@@ -981,7 +1018,7 @@ void setup()
       Each block holds 128 audio samples, or approx 2.9 ms of sound. Usually an initial guess is made for numberBlocks and the actual
       usage is checked with AudioMemoryUsageMax().
     */
-    AudioMemory(80);
+    AudioMemory(96);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //   *************** SETUP HARDWARE E OBJECTS *****************
@@ -2335,13 +2372,40 @@ void loop()
                     }
                 }
 
-                // Set pitch = 1.0
                 else if (Read_pushbutton(EN_PB_Value))
                 {
-                    if (Sound[Sound_id].pitch != 0)
+                    if (Sound[Sound_id].pitch == 0)
                     {
-                        Sound[Sound_id].pitch = 0;
+                        break;
+                    }
 
+                    Sound[Sound_id].pitch = 0;
+
+                    AudioNoInterrupts();
+                    Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
+                    Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                    AudioInterrupts();
+
+                    Display_Sound.Show_Pitch_value(Instrument_id);
+
+                    auto sound_original_0 = S_sound_original;
+                    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+                    if (sound_original_0 != S_sound_original)
+                    {
+                        if (Lilla_state_0 != MIDI_LOOP)
+                        {
+                            S_Select_menu_elements();
+                        }
+                        Display_Sound.Show_SOUND_menu();
+                    }
+                }
+
+                // Analyze the selected loop and tune its strongest component.
+                else if (Read_pushbutton(EN_PB_Select))
+                {
+                    const char *auto_tune_error = S_Auto_tune_pitch(Sound_id);
+                    if (auto_tune_error == nullptr)
+                    {
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
@@ -2359,6 +2423,23 @@ void loop()
                             }
                             Display_Sound.Show_SOUND_menu();
                         }
+                        Show_popup_text("AUTO TUNE", ILI9341_BLACK, ILI9341_GREEN);
+                        delay(800);
+                        Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+                        Display_Sound.Show_SOUND_menu();
+                        Display_Sound.Show_wave(Instrument_id);
+                        Pointer_Sound.Display_pointer();
+                        Clear_UI_events();
+                    }
+                    else
+                    {
+                        Show_popup_text(auto_tune_error, ILI9341_WHITE, ILI9341_RED, 0);
+                        delay(800);
+                        Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+                        Display_Sound.Show_SOUND_menu();
+                        Display_Sound.Show_wave(Instrument_id);
+                        Pointer_Sound.Display_pointer();
+                        Clear_UI_events();
                     }
                 }
             }
@@ -8299,6 +8380,205 @@ void P_Select_menu_elements(void)
 // ***************************************************************************************************************
 // **********************************           SOUND, INSTRUMENT              ***********************************
 // ***************************************************************************************************************
+
+FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
+{
+    const auto &sound = Sound[sound_id];
+    if (sound.mode < LOOP_FWD)
+    {
+        return "AUTO-TUNE: SELECT LOOP MODE";
+    }
+    if (sound.B <= sound.A)
+    {
+        return "AUTO-TUNE: INVALID LOOP";
+    }
+
+    // A timed-out request keeps draining its complete window. Never overwrite its samples.
+    const uint32_t pending_started = millis();
+    while (!AutoTune_input.Idle())
+    {
+        if (static_cast<uint32_t>(millis() - pending_started) >= 100u)
+        {
+            return "AUTO-TUNE: AUDIO BUSY";
+        }
+        yield();
+    }
+
+    const AudioFileSource source = PatchCache_Manager.Get_source(sound.file);
+    if (source.samples <= sound.B)
+    {
+        return "AUTO-TUNE: SOURCE UNAVAILABLE";
+    }
+
+    static DMAMEM int16_t window[1024];
+    static DMAMEM int16_t short_loop[1024];
+    const uint32_t length = sound.B - sound.A + 1u;
+    const bool short_grain = length < 1024u;
+    const bool pingpong = sound.mode == LOOP_FWD_REV || sound.mode == LOOP_REV_FWD;
+    const auto &preset = Preset[Instrument_id];
+    const uint32_t crossfade = pingpong ? 0u : static_cast<uint32_t>(preset.Noclick);
+    const uint32_t period = pingpong ? 2u * (length - 1u) : length - crossfade;
+
+    AudioTables::Pointers tables;
+    if (short_grain)
+    {
+        AudioNoInterrupts();
+        tables = Audio_tables.Get_active_pointers(Instrument_id, preset);
+        AudioInterrupts();
+
+        if ((preset.use_Wavetable && tables.wavetable == nullptr) || (crossfade > 0 && tables.noclick == nullptr))
+        {
+            return "AUTO-TUNE: TABLES UNAVAILABLE";
+        }
+
+        if (!preset.use_Wavetable)
+        {
+            if (source.storage == Psram && source.psram_ptr != nullptr)
+            {
+                memcpy(short_loop, source.psram_ptr + sound.A, length * sizeof(int16_t));
+            }
+            else if (!LillaSerialFlashFile::Read_audio_samples(sound.file, short_loop, sound.A, length))
+            {
+                return "AUTO-TUNE: READ FAILED";
+            }
+        }
+    }
+
+    float peak = 0.0f;
+    unsigned int peak_bin = 0;
+    float left = 0.0f;
+    float right = 0.0f;
+    const uint32_t positions = length > 1024u ? length - 1024u : 0u;
+    const unsigned int windows = positions == 0 ? 1 : 4;
+
+    for (unsigned int pass = 0; pass < windows; ++pass)
+    {
+        const uint32_t first = sound.A + (windows == 1 ? 0u : positions * pass / (windows - 1u));
+
+        if (short_grain)
+        {
+            // Repeat the actual playback period, including ping-pong and NoClick crossfades.
+            for (uint32_t i = 0; i < 1024u; ++i)
+            {
+                const uint32_t phase = i % period;
+                if (preset.use_Wavetable)
+                {
+                    window[i] = tables.wavetable[phase];
+                }
+                else if (pingpong)
+                {
+                    window[i] = short_loop[phase < length ? phase : period - phase];
+                }
+                else if (sound.mode == LOOP_REV)
+                {
+                    const uint32_t index = period - 1u - phase;
+                    window[i] = index < crossfade ? tables.noclick[index] : short_loop[index];
+                }
+                else
+                {
+                    const uint32_t plain = length - 2u * crossfade;
+                    window[i] = phase < plain ? short_loop[crossfade + phase] : tables.noclick[phase - plain];
+                }
+            }
+        }
+        else if (source.storage == Psram && source.psram_ptr != nullptr)
+        {
+            memcpy(window, source.psram_ptr + first, sizeof(window));
+        }
+        else if (!LillaSerialFlashFile::Read_audio_samples(sound.file, window, first, 1024))
+        {
+            return "AUTO-TUNE: READ FAILED";
+        }
+
+        int32_t sum = 0;
+        for (int16_t sample : window)
+        {
+            sum += sample;
+        }
+
+        const int32_t mean = sum / 1024;
+        int32_t amplitude = 0;
+        for (int16_t sample : window)
+        {
+            amplitude = max(amplitude, abs(static_cast<int32_t>(sample) - mean));
+        }
+
+        if (amplitude <= 2)
+        {
+            continue;
+        }
+
+        // Normalize only the analysis copy so quiet recordings retain FFT precision.
+        for (int16_t &sample : window)
+        {
+            sample = (static_cast<int32_t>(sample) - mean) * 30000 / amplitude;
+        }
+
+        AutoTune_fft.available();
+
+        AudioNoInterrupts();
+        AutoTune_input.Begin(window);
+        AudioInterrupts();
+
+        const uint32_t started = millis();
+        while (!AutoTune_input.Idle())
+        {
+            if (static_cast<uint32_t>(millis() - started) >= 100u)
+            {
+                return "AUTO-TUNE: FFT TIMEOUT";
+            }
+            yield();
+        }
+
+        // The feeder precedes the FFT in the audio IRQ. After all eight blocks, the last output contains only this window, even when the FFT retained 512 old samples.
+        if (!AutoTune_fft.available())
+        {
+            return "AUTO-TUNE: FFT NO RESULT";
+        }
+
+        const float original_scale = amplitude / 30000.0f;
+        for (unsigned int bin = 1; bin < 511; ++bin)
+        {
+            const float magnitude = AutoTune_fft.read(bin) * original_scale;
+            if (magnitude > peak)
+            {
+                peak = magnitude;
+                peak_bin = bin;
+                left = AutoTune_fft.read(bin - 1) * original_scale;
+                right = AutoTune_fft.read(bin + 1) * original_scale;
+            }
+        }
+    }
+    if (peak <= 0.0f)
+    {
+        return "AUTO-TUNE: NO SIGNAL";
+    }
+
+    const float curvature = left - 2.0f * peak + right;
+    const float offset = curvature < 0.0f ? constrain(0.5f * (left - right) / curvature, -0.5f, 0.5f) : 0.0f;
+    float source_frequency = (peak_bin + offset) * AUDIO_SAMPLE_RATE / 1024.0f;
+
+    if (short_grain && period <= 1024u)
+    {
+        // A repeated short loop has spectral lines at integer multiples of its exact period.
+        const float harmonic = max(1.0f, roundf(source_frequency * period / AUDIO_SAMPLE_RATE));
+        source_frequency = harmonic * AUDIO_SAMPLE_RATE / period;
+    }
+
+    const float frequency = source_frequency * powf(2.0f, sound.pitch / 192.0f);
+    const float nearest_note = roundf(69.0f + 12.0f * log2f(frequency / 440.0f));
+    const float target_frequency = 440.0f * powf(2.0f, (nearest_note - 69.0f) / 12.0f);
+    const int corrected_pitch = static_cast<int>(sound.pitch + roundf(192.0f * log2f(target_frequency / frequency)));
+
+    if (corrected_pitch < -96 || corrected_pitch > 96)
+    {
+        return "AUTO-TUNE: PITCH LIMIT";
+    }
+
+    Sound[sound_id].pitch = corrected_pitch;
+
+    return nullptr;
+}
 
 void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with the preset source without scanning players or blocking audio.
 {
