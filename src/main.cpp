@@ -590,9 +590,9 @@ uint8_t Line_out_level;                         // Hardware line-output level se
 
 // functions
 bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
-float SET_eraseBytesPerSecond(const unsigned char *id);        // Estimate the Flash erase rate from the chip identification bytes.
-void SET_Ask_if_IMPORT_EXPORT_setup(void);                     // Present the setup import/export choices and handle the selected operation.
-void SET_Ask_if_FACTORY_RESET(void);                           // Request confirmation before restoring factory settings.
+float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
+void SET_Ask_if_IMPORT_EXPORT_setup(void);                       // Present the setup import/export choices and handle the selected operation.
+void SET_Ask_if_FACTORY_RESET(void);                             // Request confirmation before restoring factory settings.
 
 // CC Control Change
 uint8_t CC_Sound_gain_cache[INSTRUMENTS]; // Cached per-instrument Sound gains used by the Control Change page.
@@ -1998,6 +1998,15 @@ void loop()
                     Serial.println(Instrument_id);
                     Print_Sound(Sound_id);
                 }
+
+                else
+                {
+                    char message[24];
+                    snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
+                    Show_popup_text(message, ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+                    delay(1000);
+                    Show_popup_text(message, ILI9341_BLACK, ILI9341_BLACK, display_coordinate_y(7));
+                }
             }
         }
 
@@ -3138,6 +3147,14 @@ void loop()
                     Serial.println(Instrument_id);
                     Print_Sound(Sound_id);
                 }
+                else
+                {
+                    char message[24];
+                    snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
+                    Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7.3));
+                    delay(1000);
+                    Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, display_coordinate_y(7.3));
+                }
             }
         }
 
@@ -3663,6 +3680,14 @@ void loop()
                         Display_Sound.Show_wave(Instrument_id);
 
                         Clear_UI_events();
+                    }
+                    else
+                    {
+                        char message[24];
+                        snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
+                        Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7.3));
+                        delay(1000);
+                        Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, display_coordinate_y(7.3));
                     }
                 }
             }

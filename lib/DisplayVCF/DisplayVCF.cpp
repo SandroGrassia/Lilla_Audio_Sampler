@@ -154,7 +154,7 @@ void DisplayVCF::VCF_show_filter_type_value(const int instrument_id)
         }
     }
     else
-        tft.print("(NONE)");
+        tft.print("  NONE");
 }
 
 FLASHMEM

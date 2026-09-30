@@ -59,4 +59,5 @@ void Delete_text_row(const float row); // delete text row
 // Vertical popup offset in pixels: negative moves up, positive moves down.
 void Show_popup_text(const char *text, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
 void Show_popup_text(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
+void Show_popup_text_tight(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset);
 void Backgorund_red(const float col, const float row, const int chars);
