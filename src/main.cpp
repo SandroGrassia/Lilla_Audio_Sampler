@@ -3151,9 +3151,9 @@ void loop()
                 {
                     char message[24];
                     snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
-                    Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7.3));
+                    Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, 114);
                     delay(1000);
-                    Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, display_coordinate_y(7.3));
+                    Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, 114);
                 }
             }
         }
@@ -3566,6 +3566,15 @@ void loop()
 
                         Clear_UI_events();
                     }
+
+                    else
+                    {
+                        char message[24];
+                        snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
+                        Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, 114);
+                        delay(1000);
+                        Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, 114);
+                    }
                 }
             }
         }
@@ -3583,6 +3592,7 @@ void loop()
                         LS_sound_id = SOUNDS_MAX; // Left
                         Golive_with_LIVE_SAMPLING();
                     }
+
                     else
                     {
                         Instrument_id = 0;
@@ -3604,6 +3614,7 @@ void loop()
                         LS_sound_id = SOUNDS_MAX + 1; // Right
                         Golive_with_LIVE_SAMPLING();
                     }
+
                     else
                     {
                         Instrument_id = 1;
@@ -3681,13 +3692,14 @@ void loop()
 
                         Clear_UI_events();
                     }
+
                     else
                     {
                         char message[24];
                         snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
-                        Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7.3));
+                        Show_popup_text_tight(message, "", ILI9341_WHITE, ILI9341_RED, 114);
                         delay(1000);
-                        Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, display_coordinate_y(7.3));
+                        Show_popup_text_tight(message, "", ILI9341_BLACK, ILI9341_BLACK, 114);
                     }
                 }
             }

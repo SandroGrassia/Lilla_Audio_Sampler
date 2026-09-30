@@ -91,20 +91,20 @@ void Show_popup_text_tight(const char *first_line, const char *second_line, uint
     const bool two_lines = second_length > 0;
     const size_t longest_line = first_length > second_length ? first_length : second_length;
 
-    const int L_POPUP = display_coordinate_x(longest_line + 1);
-    const int H_POPUP = display_coordinate_y(1) + (two_lines ? 15 : 0) - 4;
+    const int L_POPUP = display_coordinate_x(longest_line);
+    const int H_POPUP = display_coordinate_y(1) + (two_lines ? 15 : 0) - 6;
 
     const int X_POPUP = Centered_element_left(L_POPUP);
     const int Y_POPUP = Centered_element_top(H_POPUP) + y_offset;
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, filler_color);
     tft.setTextColor(text_color);
-    tft.setCursor(X_POPUP + display_coordinate_x(0.5), Y_POPUP + 3);
+    tft.setCursor(X_POPUP + 2, Y_POPUP + 2);
     tft.print(first_line);
 
     if (two_lines)
     {
-        tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + 18);
+        tft.setCursor(X_POPUP + 2, Y_POPUP + 17);
         tft.print(second_line);
     }
 }
