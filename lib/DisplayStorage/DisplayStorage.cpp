@@ -482,7 +482,7 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasin
     tft.setTextColor(MENU_COLOR);
     tft.print("EXIT IMPORT");
 
-    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", "AUDIO FILES OVER 3 MB ARE TRUNCATED", ILI9341_WHITE, ILI9341_RED, 75);
+    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", "AUDIO AFTER 33 SECONDS IS NOT PLAYED", ILI9341_WHITE, ILI9341_RED, 75);
 }
 
 FLASHMEM
