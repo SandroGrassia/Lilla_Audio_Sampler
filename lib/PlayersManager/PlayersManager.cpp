@@ -1121,6 +1121,12 @@ bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Pr
             continue;
         }
 
+        const int file_id = Sound[Get_sound_id(patch_id, instrument_id)].file;
+        if (file_id < FIRST_LIVE_SAMPLING_FILE && Cache_manager_ptr->Get_source(file_id).samples == 0)
+        {
+            continue; // Keep Sound metadata and patch links; an inactive preset cannot play or require tables.
+        }
+
         presets[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
 
         // Live Sampler instruments do not require AudioTables storage.
