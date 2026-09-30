@@ -589,7 +589,7 @@ uint8_t Line_in_gain = 8;                       // Shared hardware input gain; d
 uint8_t Line_out_level;                         // Hardware line-output level setting.
 
 // functions
-bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed); // Import RAW files from SD and report whether Flash contents changed.
+bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import RAW files from SD and report whether Flash contents changed.
 float SET_eraseBytesPerSecond(const unsigned char *id);        // Estimate the Flash erase rate from the chip identification bytes.
 void SET_Ask_if_IMPORT_EXPORT_setup(void);                     // Present the setup import/export choices and handle the selected operation.
 void SET_Ask_if_FACTORY_RESET(void);                           // Request confirmation before restoring factory settings.
@@ -1522,8 +1522,6 @@ void loop()
                     LS_Capture_finish_save();
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
-                    S_Read_all_Sounds();
-
                     Patch_cache_P = Patch[Patch_id];
                     S_Copy_all_Sound_to_Sound_cache_P();
 
@@ -1580,7 +1578,6 @@ void loop()
 
                         P_Read_all_Patches();
                         P_Update_Patches_number();
-                        S_Read_all_Sounds();
 
                         S_Copy_all_Sound_to_Sound_cache_P();
                         LS_Capture_collect();
@@ -1659,11 +1656,6 @@ void loop()
                                 Require_FRAM(Archive.Save_Patch(Patch_id));
                                 LS_Capture_finish_save();
                                 Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
-                                if (!S_Read_all_Sounds(&previous))
-                                {
-                                    previous.Restore();
-                                    return;
-                                }
                             }
 
                             if (!P_Jump_to_Patch(patch_change))
@@ -3254,8 +3246,6 @@ void loop()
             }
         }
 
-        // Solo
-
         // Move pointer
         result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
@@ -3324,7 +3314,7 @@ void loop()
                 }
 
                 // Solo
-                if (Read_pushbutton(EN_PB_Select))
+                if (Read_pushbutton(EN_PB_Value))
                 {
                     AudioNoInterrupts();
                     Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
@@ -4244,6 +4234,7 @@ void loop()
             if (D_Read_value(SAMPLES))
             {
                 Display_Delay.D_delay_time();
+                Display_Delay.D_delay_time_LR(); // The shorter base time may also reduce the stereo offset.
             }
             break;
         case value_DELAY_Delay_time_LR:
@@ -7274,7 +7265,7 @@ void loop()
                 }
 
                 bool flash_changed = false;
-                if (SET_Copy_raw_files_from_SD_to_Flash(flash_changed))
+                if (SET_Copy_audio_files_from_SD_to_Flash(flash_changed))
                 {
                     VFS_Make_VFS();
                     DS_seed_all_Recordings();
@@ -10518,8 +10509,9 @@ void D_Set_value(int item, int value) // Publish one UI request through the same
 bool D_Read_value(int item) // Edit a requested value locally so the encoder never writes intermediate DSP state.
 {
     int value = Delay_manager.Get_value(item);
-    const int lowest = item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0;
-    const int highest = item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2;
+    const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
+    const int lowest = item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
+    const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
     if (!Read_encoder(EN_PB_Value, value, highest, lowest, 1))
     {
         return false;
@@ -10714,7 +10706,7 @@ void LOOP_set_time_order(int track)
         {
             LOOP_time_order[track][i] = (min_time_index + i) % LOOP_events[track];
         }
-        
+
         return;
     }
     return;
@@ -13777,7 +13769,7 @@ static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_l
 }
 
 FLASHMEM
-bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
+bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
 {
     LS_Capture_collect();
     for (const auto &source : Capture_sources)
@@ -13792,7 +13784,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     flash_changed = false;
     int row;
 
-    Display_Storage.Copy_raw_files_SD_to_Flash_chip_titolo();
+    Display_Storage.Copy_audio_files_SD_to_Flash_chip_titolo();
 
     // Wait for SD card
     while (!SD.begin(BUILTIN_SDCARD))
@@ -13806,7 +13798,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     // Check if LILLARAW directory exists
     if (!SD.exists("/LILLARAW"))
     {
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
         delay(4000);
         return false;
     }
@@ -13837,7 +13829,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
         delay(4000);
         return false;
     }
@@ -13925,7 +13917,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
 
     float erasing_time_ms = Get_flash_size() / SET_eraseBytesPerSecond(id) * 1000;
     const uint32_t erasing_time_ms_step = static_cast<uint32_t>(erasing_time_ms / 100.0f);
-    Display_Storage.Copy_raw_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
+    Display_Storage.Copy_audio_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
 
     // Confirmation
     bool confirm = false;
@@ -14007,7 +13999,7 @@ bool SET_Copy_raw_files_from_SD_to_Flash(bool &flash_changed)
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lillaraw_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
         delay(4000);
         return false;
     }

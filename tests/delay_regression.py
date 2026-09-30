@@ -105,9 +105,85 @@ int main() {
  left.Set_delay_central_value(2200); for(int i=0;i<5;++i) left.update(); left.Set_delay_central_value(100); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<3000); } assert(left.delay_value==100);
  left.Set_delay_central_value(500); left.queued[0]=&left.input[0]; left.queued[1]=&left.input[1]; left.fail=true; int read=left.sample_read,write=left.sample_write,releases=left.releases,counter=left.J_delay_central_value_counter; left.update(); assert(left.releases==releases+2 && left.sample_read==read && left.sample_write==write && left.J_delay_central_value_counter==counter); left.fail=false; left.update();
  left.Set_delay_central_value(99); left.Setup_delay(300); assert(left.J_delay_central_value_counter==0 && left.delay_value==300);
- left.Set_delay_central_value(DELAY_CACHE_CHANNEL_SAMPLES); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<DELAY_CACHE_CHANNEL_SAMPLES); } assert(left.delay_value==DELAY_CACHE_CHANNEL_SAMPLES-AUDIO_BLOCK_SAMPLES);
+ left.Set_delay_central_value(DELAY_CACHE_CHANNEL_SAMPLES); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<DELAY_CACHE_CHANNEL_SAMPLES); } assert(left.delay_value==DELAY_CACHE_ACTIVE_SAMPLES-AUDIO_BLOCK_SAMPLES);
  left.Set_delay_central_value(-1); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<DELAY_CACHE_CHANNEL_SAMPLES); } assert(left.delay_value==0);
  Delay_data_struct same=Delay_data; assert(!m.New_values(&same)); m.Set_value(MODULATION_DEPTH,0); m.Update(); auto remaining=m.remaining[MODULATION_DEPTH]; same=Delay_data; assert(m.New_values(&same)); assert(m.remaining[MODULATION_DEPTH]==remaining); m.Stop();
+ // A short delay must read the current input block instead of stale circular-buffer contents.
+ for (int delay : {Calc_delay_samples(5), 0, 1, 126, 127, 128, 129, 441, DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES})
+ {
+    std::fill(fifo.begin(), fifo.end(), 0);
+    left.Setup_delay(delay);
+    left.Set_delay_modulation_source(0);
+    for (int block = 0; block < DELAY_CACHE_ACTIVE_SAMPLES / AUDIO_BLOCK_SAMPLES + 8; ++block)
+    {
+        for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+        {
+            left.input[0].data[sample] = ((block * AUDIO_BLOCK_SAMPLES + sample) * 37 % 20001) - 10000;
+        }
+        left.queued[0] = &left.input[0];
+        left.update();
+        for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+        {
+            const int source_sample = block * AUDIO_BLOCK_SAMPLES + sample - delay;
+            const int expected = source_sample < 0 ? 0 : (source_sample * 37 % 20001) - 10000;
+            if (left.output.data[sample] != expected)
+            {
+                std::printf("Short delay failure: delay=%d block=%d sample=%d expected=%d actual=%d\n", delay, block, sample, expected, left.output.data[sample]);
+                return 1;
+            }
+        }
+    }
+ }
+ // Exercise all UI time positions, signed offsets, patch loading and startup normalization.
+ assert(DELAY_CACHE_ACTIVE_SAMPLES == 88328);
+ assert(Calc_delay_samples(99) == 88200);
+ for (int time = 0; time <= 99; ++time)
+ {
+    const int limit = Calc_delay_samples_LR_limit(time);
+    assert(Calc_delay_samples_LR(limit) <= Calc_delay_samples(time));
+    if (limit < 10)
+    {
+        assert(Calc_delay_samples_LR(limit + 1) > Calc_delay_samples(time));
+    }
+    for (int sign : {-1, 1})
+    {
+        Delay_data_struct loaded = Delay_data;
+        loaded.samples = time;
+        loaded.samples_LR = sign * 10;
+        m.New_values(&loaded);
+        m.Update();
+        assert(Delay_data.samples_LR == sign * limit);
+        assert(std::abs(Delay_values.samples_LR) <= Delay_values.samples);
+        assert(left.delay_central_value_target <= DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+        assert(right.delay_central_value_target <= DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+        Calc_Delay_values(loaded);
+        assert(loaded.samples_LR == sign * limit);
+    }
+ }
+ m.Set_value(SAMPLES, 0);
+ m.Update();
+ assert(Delay_data.samples_LR == 0 && Delay_values.samples_LR == 0);
+ assert(left.delay_central_value_target == 0 && right.delay_central_value_target == 0);
+ // Keep a sentinel in allocated storage outside the active read/write span.
+ std::fill(fifo.begin(), fifo.begin() + DELAY_CACHE_ACTIVE_SAMPLES, 100);
+ std::fill(fifo.begin() + DELAY_CACHE_ACTIVE_SAMPLES, fifo.end(), -12345);
+ left.Setup_delay(DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+ left.Set_delay_central_value(0);
+ for (int block = 0; block < 15000; ++block)
+ {
+    left.update();
+    assert(left.sample_read >= 0 && left.sample_read < DELAY_CACHE_ACTIVE_SAMPLES);
+    assert(left.sample_write >= 0 && left.sample_write < DELAY_CACHE_ACTIVE_SAMPLES);
+    for (int sample : left.output.data)
+    {
+        assert(sample >= 0 && sample <= 100);
+    }
+ }
+ assert(left.delay_value == 0);
+ for (int i = DELAY_CACHE_ACTIVE_SAMPLES; i < DELAY_CACHE_CHANNEL_SAMPLES; ++i)
+ {
+    assert(fifo[i] == -12345);
+ }
  Serial.println(F("PASS: routing 0-7, LR zero/sign changes, patch/UI retargeting, exact endpoints, stale flags, feedback bounds/zero, gain mute, time ramps, allocation failure"));
 }
 '''

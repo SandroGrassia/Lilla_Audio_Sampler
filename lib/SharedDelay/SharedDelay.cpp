@@ -18,8 +18,10 @@ float Delay_feedback(int8_t value) // feedback
     return answer[value];
 }
 
-void Calc_Delay_values(Delay_data_struct data)
+void Calc_Delay_values(Delay_data_struct &data)
 {
+    const int limit = Calc_delay_samples_LR_limit(data.samples);
+    data.samples_LR = constrain(data.samples_LR, -limit, limit);
     Calc_delay_routing(data.instrument_route);
     Delay_values.samples = Calc_delay_samples(data.samples);
     Delay_values.samples_LR = Calc_delay_samples_LR(data.samples_LR);
@@ -139,12 +141,23 @@ int Calc_delay_samples(int value)
     const float normalized = value / 99.0f;
 
     constexpr float exponent = 2.5f;
-    constexpr int max_samples =  DELAY_CACHE_CHANNEL_SAMPLES - AUDIO_BLOCK_SAMPLES;
+    constexpr int max_samples =  DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES;
 
     return lroundf(max_samples * powf(normalized, exponent));
 }
 
-int Calc_delay_samples_LR(int value) // 0 --> 50
+int Calc_delay_samples_LR_limit(int time)
+{
+    const int samples = Calc_delay_samples(time);
+    int limit = Delay_data_limits[SAMPLES_LR][1];
+    while (Calc_delay_samples_LR(limit) > samples)
+    {
+        --limit;
+    }
+    return limit;
+}
+
+int Calc_delay_samples_LR(int value) // Signed offset in milliseconds
 {
     return lroundf(value * (AUDIO_SAMPLE_RATE / 1000));
 }

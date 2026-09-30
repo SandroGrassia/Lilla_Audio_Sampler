@@ -51,11 +51,11 @@ public:
     void Confirm_factory_reset_popup(void);
     void Factory_reset_wait_popup(void);
     void Config_reset_popup(void);
-    void Copy_raw_files_SD_to_Flash_chip_titolo(void);           // importa i file RAW dalla scheda SD
+    void Copy_audio_files_SD_to_Flash_chip_titolo(void);           // importa i file RAW dalla scheda SD
     void Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void);   // attesa 10sec scheda SD
-    void Copy_raw_files_SD_to_Flash_chip_lillaraw_missing(void); // manca /LILLARAW
+    void Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing(void); // manca /LILLARAW
     void Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int flash_raw_volume, int flash_raw_files);
-    void Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_time_ms);
+    void Copy_audio_files_SD_to_Flash_chip_last_warning(float erasing_time_ms);
     void Copy_raw_files_SD_to_Flash_chip_job_start(void); // inizia la cancellazione (erasing) della Flash memory
     void Update_raw_copy_progress(int barcount);
     void Copy_raw_files_SD_to_Flash_chip_popup_landscape(void); // black panel

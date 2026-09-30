@@ -10,6 +10,10 @@
 #include "SharedElements.h"
 #include "config.h"
 
+static constexpr int DELAY_CACHE_ACTIVE_SECONDS = 2; // Maximum delay time per channel.
+static constexpr int DELAY_CACHE_ACTIVE_SAMPLES = static_cast<int>(DELAY_CACHE_ACTIVE_SECONDS * AUDIO_SAMPLE_RATE) + AUDIO_BLOCK_SAMPLES; // Read/write span includes one block reserved for incoming audio.
+static_assert(DELAY_CACHE_ACTIVE_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES);
+
 
 static constexpr float depth_array[40] = {
         0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0,
@@ -70,11 +74,12 @@ extern Delay_values_struct Delay_values;
 extern Delay_data_struct Delay_data;
 
 float Delay_feedback(int8_t value);
-void Calc_Delay_values(const Delay_data_struct data);
+void Calc_Delay_values(Delay_data_struct &data); // Normalize the stored stereo offset before initializing the DSP.
 void Turn_ON_Delay(bool ON);
 void Calc_delay_routing(uint8_t value);
 int Calc_delay_samples(int value);
 int Calc_delay_samples_LR(int value);
+int Calc_delay_samples_LR_limit(int time); // Largest allowed whole-millisecond offset for this delay-time index.
 float Calc_delay_depth (int value);
 float Calc_delay_frequency(int value);
 void Print_Delay_data(const Delay_data_struct &data);

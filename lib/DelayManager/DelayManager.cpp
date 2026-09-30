@@ -44,6 +44,11 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     {
         value = constrain(value, 0, item == INSTRUMENT_ROUTE ? 255 : 2);
     }
+    if (item == SAMPLES_LR)
+    {
+        const int limit = Calc_delay_samples_LR_limit(Delay_data.samples);
+        value = constrain(value, -limit, limit);
+    }
     if (value == Get_value(item))
     {
         return flag[item];
@@ -52,6 +57,7 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     {
     case SAMPLES:
         Delay_data.samples = value;
+        Set_value(SAMPLES_LR, Delay_data.samples_LR); // Reduce the requested offset when the base time becomes shorter.
         break;
     case SAMPLES_LR:
         Delay_data.samples_LR = value;

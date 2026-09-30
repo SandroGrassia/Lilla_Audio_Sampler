@@ -392,7 +392,7 @@ void DisplayStorage::VFS_Make_not_enough_memory_for_sampler(void)
 }
 
 FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_titolo(void)
+void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_titolo(void)
 {
     tft.fillScreen(ILI9341_BLACK);
     tft.setTextColor(TEXT_COLOR);
@@ -409,7 +409,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void)
 }
 
 FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_lillaraw_missing(void)
+void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(ILI9341_YELLOW);
@@ -467,7 +467,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 }
 
 FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_time_ms)
+void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasing_time_ms)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
     tft.setTextColor(TEXT_COLOR);
@@ -482,17 +482,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_last_warning(float erasing_
     tft.setTextColor(MENU_COLOR);
     tft.print("EXIT IMPORT");
 
-    tft.setTextColor(ILI9341_MAGENTA);
-
-    //        "012345678901234567890 234 X 432 98765432109876543210"); // max 52 char
-    tft.setCursor(display_coordinate_x(22), display_coordinate_y(12) - 5);
-    tft.print("IMPORTANT");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("- AUDIO IMPORT WILL DELETE ALL AUDIO FILES AND"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
-    tft.print(F("  RECORDINGS IN LILLA!"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(15) - 5);
-    tft.print(F("- .raw / .wav FILES ARE SAVED AS .raw"));
+    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", ".raw / .wav FILES ARE SAVED AS .raw", ILI9341_WHITE, ILI9341_RED, 75);
 }
 
 FLASHMEM

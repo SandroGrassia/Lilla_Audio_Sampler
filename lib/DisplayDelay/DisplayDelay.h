@@ -56,7 +56,7 @@ private:
     static constexpr float DELAY_column_row_modulation_phase_LR[2] = {DEL_COL_MOD_SOURCE + 14, DEL_ROW_SOUND + 5};
 
     static constexpr int DELAY_chars_feedback = 6;
-    static constexpr int DELAY_chars_delay_time = 7;
+    static constexpr int DELAY_chars_delay_time = 8;
     static constexpr int DELAY_chars_delay_time_LR = 10;
     static constexpr int DELAY_chars_modulation_source = 6;
     static constexpr int DELAY_chars_modulation_frequency = 7;
