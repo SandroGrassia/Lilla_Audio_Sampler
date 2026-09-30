@@ -13,6 +13,7 @@
 static constexpr int DELAY_CACHE_ACTIVE_SECONDS = 2; // Maximum delay time per channel.
 static constexpr int DELAY_CACHE_ACTIVE_SAMPLES = static_cast<int>(DELAY_CACHE_ACTIVE_SECONDS * AUDIO_SAMPLE_RATE) + AUDIO_BLOCK_SAMPLES; // Read/write span includes one block reserved for incoming audio.
 static_assert(DELAY_CACHE_ACTIVE_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES);
+static constexpr int DELAY_TIME_MAX_INDEX = 102; // Last position: 2000 ms.
 
 
 static constexpr float depth_array[40] = {
@@ -50,12 +51,12 @@ struct Delay_data_struct // DELAY_DATA_DIM byte
 static constexpr int DELAY_DATA_DIM = sizeof(Delay_data_struct);
 
 static constexpr int Delay_data_limits[DELAY_LPF_ITEMS][2] = {
-    {0, 99}, // SAMPLES
+    {0, DELAY_TIME_MAX_INDEX}, // SAMPLES
     {-10, 10}, // SAMPLES_LR
     {0, 39}, // MODULATION_DEPTH
     {0, 90}, // MODULATION_FREQUENCY
     {0, 359}, // MODULATION_PHASE_LR
-    {0, 9} // LOOP_GAIN
+    {0, 98} // LOOP_GAIN, integer percent
 };
 
 struct Delay_values_struct
@@ -78,6 +79,8 @@ void Calc_Delay_values(Delay_data_struct &data); // Normalize the stored stereo 
 void Turn_ON_Delay(bool ON);
 void Calc_delay_routing(uint8_t value);
 int Calc_delay_samples(int value);
+int Calc_delay_time_tenths(int value); // Nominal delay time in tenths of a millisecond.
+void Convert_legacy_delay(Delay_data_struct &data);
 int Calc_delay_samples_LR(int value);
 int Calc_delay_samples_LR_limit(int time); // Largest allowed whole-millisecond offset for this delay-time index.
 float Calc_delay_depth (int value);

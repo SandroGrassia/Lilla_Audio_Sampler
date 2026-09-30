@@ -13,9 +13,7 @@ Delay_data_struct Delay_data;
 
 float Delay_feedback(int8_t value) // feedback
 {
-    const float answer[] = {0, -0.07, -0.18, -0.4, -0.6, -0.65, -0.71, -0.80, -0.92, -0.98};
-    value = constrain(value, 0, 9); // The feedback table has ten entries, indexed from zero through nine.
-    return answer[value];
+    return -constrain(value, 0, 98) / 100.0f;
 }
 
 void Calc_Delay_values(Delay_data_struct &data)
@@ -135,15 +133,47 @@ void Turn_ON_Delay(bool ON) // switch on/off Delay (using Instrument routing)
     }
 }
 
+void Convert_legacy_delay(Delay_data_struct &data)
+{
+    static constexpr uint16_t feedback_percent[] = {0, 7, 18, 40, 60, 65, 71, 80, 92, 98};
+    const int old_samples = lroundf((DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES) * powf(constrain(data.samples, 0, 99) / 99.0f, 2.5f));
+    int nearest = 0;
+    for (int index = 1; index <= DELAY_TIME_MAX_INDEX; ++index)
+    {
+        if (abs(Calc_delay_samples(index) - old_samples) < abs(Calc_delay_samples(nearest) - old_samples))
+        {
+            nearest = index;
+        }
+    }
+    data.samples = nearest;
+    data.loop_gain = feedback_percent[constrain(data.loop_gain, 0, 9)];
+}
+
 int Calc_delay_samples(int value)
 {
-    value = constrain(value, 0, 99);
-    const float normalized = value / 99.0f;
+    return lroundf(Calc_delay_time_tenths(value) * (AUDIO_SAMPLE_RATE / 10000.0f));
+}
 
-    constexpr float exponent = 2.5f;
-    constexpr int max_samples =  DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES;
-
-    return lroundf(max_samples * powf(normalized, exponent));
+int Calc_delay_time_tenths(int value)
+{
+    value = constrain(value, 0, DELAY_TIME_MAX_INDEX);
+    if (value <= 10)
+    {
+        return value;
+    }
+    if (value <= 19)
+    {
+        return 10 + (value - 10) * 10;
+    }
+    if (value <= 57)
+    {
+        return 100 + (value - 19) * 50;
+    }
+    if (value <= 87)
+    {
+        return 2000 + (value - 57) * 100;
+    }
+    return 5000 + (value - 87) * 1000;
 }
 
 int Calc_delay_samples_LR_limit(int time)

@@ -98,7 +98,7 @@ int main() {
  for(int i=0;i<DELAY_ITEMS;++i) assert(!m.flag[i]);
  float frequency=Delay_values.modulation_frequency; m.Set_value(INSTRUMENT_ROUTE,1); for(int i=0;i<40;++i) m.Update(); assert(Delay_values.modulation_frequency==frequency);
  m.Set_value(LOOP_GAIN,0); m.Stop(); DrainGain(gainL); DrainGain(gainR); assert(gainL.gain_runtime==0 && gainL.multiplier==0); assert(Delay_data.loop_gain==0);
- m.Set_value(MODULATION_DEPTH,400); assert(Delay_data.modulation_depth==39); m.Set_value(LOOP_GAIN,10); assert(Delay_data.loop_gain==9); assert(Delay_feedback(10)==Delay_feedback(9)); m.Stop();
+ m.Set_value(MODULATION_DEPTH,400); assert(Delay_data.modulation_depth==39); m.Set_value(LOOP_GAIN,99); assert(Delay_data.loop_gain==98); assert(Delay_feedback(99)==Delay_feedback(98)); m.Stop();
  AudioGain tiny; tiny.Set_gain(0.5001f); DrainGain(tiny); assert(tiny.gain_runtime==0.5001f); tiny.Mute(); DrainGain(tiny); assert(tiny.multiplier==0); tiny.Unmute(); DrainGain(tiny); assert(tiny.gain_runtime==0.5001f);
  left.Setup_delay(0); left.Set_delay_central_value(501); int blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<3000); } assert(left.delay_value==501);
  left.Set_delay_central_value(3); blocks=0; while(left.J_delay_central_value_counter) { left.update(); assert(++blocks<3000); } assert(left.delay_value==3);
@@ -136,9 +136,32 @@ int main() {
  }
  // Exercise all UI time positions, signed offsets, patch loading and startup normalization.
  assert(DELAY_CACHE_ACTIVE_SAMPLES == 88328);
- assert(Calc_delay_samples(99) == 88200);
- for (int time = 0; time <= 99; ++time)
+ assert(Calc_delay_samples(DELAY_TIME_MAX_INDEX) == 88200);
+ std::vector<int> times;
+ for (int t = 0; t <= 10; ++t) { times.push_back(t); }
+ for (int t = 20; t <= 100; t += 10) { times.push_back(t); }
+ for (int t = 150; t <= 2000; t += 50) { times.push_back(t); }
+ for (int t = 2100; t <= 5000; t += 100) { times.push_back(t); }
+ for (int t = 6000; t <= 20000; t += 1000) { times.push_back(t); }
+ assert(times.size() == DELAY_TIME_MAX_INDEX + 1);
+ const int legacy_gains[] = {0, 7, 18, 40, 60, 65, 71, 80, 92, 98};
+ for (int old_index = 0; old_index <= 99; ++old_index)
  {
+    Delay_data_struct legacy{};
+    legacy.samples = old_index;
+    legacy.loop_gain = old_index % 10;
+    Convert_legacy_delay(legacy);
+    assert(legacy.loop_gain == legacy_gains[old_index % 10]);
+    const int old_samples = lroundf(88200 * powf(old_index / 99.0f, 2.5f));
+    for (int index = 0; index <= DELAY_TIME_MAX_INDEX; ++index)
+    {
+        assert(abs(Calc_delay_samples(legacy.samples) - old_samples) <= abs(Calc_delay_samples(index) - old_samples));
+    }
+ }
+ for (int gain = 0; gain <= 98; ++gain) { m.Set_value(LOOP_GAIN, gain); assert(Delay_data.loop_gain == gain); assert(std::abs(Delay_feedback(gain) + gain / 100.0f) < 0.000001f); }
+ for (int time = 0; time <= DELAY_TIME_MAX_INDEX; ++time)
+ {
+    assert(Calc_delay_time_tenths(time) == times[time]);
     const int limit = Calc_delay_samples_LR_limit(time);
     assert(Calc_delay_samples_LR(limit) <= Calc_delay_samples(time));
     if (limit < 10)

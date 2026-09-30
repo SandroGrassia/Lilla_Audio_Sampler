@@ -159,7 +159,7 @@ void DisplayDelay::D_feedback(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback[0]), display_coordinate_y(DELAY_column_row_feedback[1]), DELAY_chars_feedback);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(-Delay_feedback(Delay_data.loop_gain) * 100);
+    tft.print(Delay_data.loop_gain);
     tft.print("%");
 }
 
@@ -169,15 +169,16 @@ void DisplayDelay::D_delay_time(void) // Display the requested setting while the
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time[0]), display_coordinate_y(DELAY_column_row_delay_time[1]), DELAY_chars_delay_time);
     tft.setTextColor(ILI9341_YELLOW);
 
-    if (static_cast<float>(Calc_delay_samples(Delay_data.samples)) < AUDIO_SAMPLE_RATE)
+    const int time_tenths = Calc_delay_time_tenths(Delay_data.samples);
+    if (time_tenths < 10000)
     {
-        tft.print(1000 * static_cast<float>(Calc_delay_samples(Delay_data.samples)) / AUDIO_SAMPLE_RATE, 1);
+        tft.print(time_tenths / 10.0f, time_tenths < 10 ? 1 : 0);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms");
     }
     else
     {
-        tft.print(static_cast<float>(Calc_delay_samples(Delay_data.samples)) / AUDIO_SAMPLE_RATE, 2);
+        tft.print(time_tenths / 10000.0f, 1);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("sec");
     }
@@ -189,23 +190,23 @@ void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while 
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time_LR[0]), display_coordinate_y(DELAY_column_row_delay_time_LR[1]), DELAY_chars_delay_time_LR);
     tft.setTextColor(ILI9341_YELLOW);
 
-    if (static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) == 0)
+    if (Delay_data.samples_LR == 0)
     {
         tft.print(0);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms R");
     }
-    else if (static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) > 0)
+    else if (Delay_data.samples_LR > 0)
     {
         tft.print("+");
-        tft.print(1000 * static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) / AUDIO_SAMPLE_RATE);
+        tft.print(Delay_data.samples_LR);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms L");
     }
     else
     {
         tft.print("+");
-        tft.print(-1000 * static_cast<float>(Calc_delay_samples_LR(Delay_data.samples_LR)) / AUDIO_SAMPLE_RATE);
+        tft.print(-Delay_data.samples_LR);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms R");
     }

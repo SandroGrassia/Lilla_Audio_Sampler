@@ -1358,6 +1358,10 @@ byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_dat
     candidate.modulation_frequency = source.modulation_frequency;
     candidate.modulation_phase_LR = source.modulation_phase_LR;
     candidate.loop_gain = source.loop_gain;
+    if (source.reserved[0] == 0)
+    {
+        Convert_legacy_delay(candidate);
+    }
     delay_data = candidate;
     return LillaFRAM_2x512::ERROR_0;
 }
@@ -1382,6 +1386,7 @@ byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &del
     destination.modulation_frequency = delay_data.modulation_frequency;
     destination.modulation_phase_LR = delay_data.modulation_phase_LR;
     destination.loop_gain = delay_data.loop_gain;
+    destination.reserved[0] = 1; // Delay encoding: stepped time and integer feedback percent.
     return FRAM_Write_delay(patch_id, destination);
 }
 

@@ -12594,14 +12594,14 @@ void Factory_setup_FRAM(void)
     // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
 
     // Assegna e salva in FRAM i parametri iniziali del Delay.
-    Delay_data.samples = 20;                  // value ; 0 --> 99
+    Delay_data.samples = 24;                  // 35 ms.
     Delay_data.samples_LR = 0;                // value L/R ; -10 --> 10
     Delay_data.instrument_route = 0b00000000; // all Instruments are NOT routed to Delay
     Delay_data.modulation_source = 0;         // 0: none 1:LFO(sinus) 2:input_1
     Delay_data.modulation_depth = 30;         // 0 --> 40 modulation depth
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
-    Delay_data.loop_gain = 5;
+    Delay_data.loop_gain = 65;
     Require_FRAM(Archive.Save_Delay(0, Delay_data));
 
     // cancella il contenute dei packet sulla Flash aggiuntiva
@@ -14977,14 +14977,14 @@ void Reload_system_state(void)
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
     if (false)
     {
-        Delay_data.samples = 20;
+        Delay_data.samples = 24;
         Delay_data.samples_LR = 0;
         Delay_data.instrument_route = 0b11111111;
         Delay_data.modulation_source = 0;
         Delay_data.modulation_depth = 30;
         Delay_data.modulation_frequency = 12;
         Delay_data.modulation_phase_LR = 0;
-        Delay_data.loop_gain = 5;
+        Delay_data.loop_gain = 65;
 
         if (Patch_id < PATCHES_MAX)
         {

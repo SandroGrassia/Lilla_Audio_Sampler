@@ -1,6 +1,7 @@
 """Exercise production runtime codecs and versioned/legacy Patch SD round trips."""
 from pathlib import Path
 import os
+import re
 import runpy
 import subprocess
 import tempfile
@@ -39,6 +40,12 @@ mock = backup["mock"].replace("    void close()", r"""
     void close()""")
 delay_header = (base["ROOT"] / "lib/SharedDelay/SharedDelay.h").read_text(encoding="utf-8")
 mock += delay_header[delay_header.index("struct Delay_data_struct"):delay_header.index("static constexpr int DELAY_DATA_DIM")]
+mock += '\n#include <cmath>\n#define constrain(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))\nconstexpr float AUDIO_SAMPLE_RATE = 44100.0f;\nconstexpr int AUDIO_BLOCK_SAMPLES = 128;\nconstexpr int DELAY_CACHE_CHANNEL_SAMPLES = 882128;\n'
+mock += delay_header[delay_header.index("static constexpr int DELAY_CACHE_ACTIVE_SECONDS"):delay_header.index("static constexpr float depth_array")]
+mock += '\nint Calc_delay_samples(int value);\nint Calc_delay_time_tenths(int value);\n'
+delay_source = (base["ROOT"] / "lib/SharedDelay/SharedDelay.cpp").read_text(encoding="utf-8")
+for signature in ["void Convert_legacy_delay", "int Calc_delay_samples", "int Calc_delay_time_tenths"]:
+    mock += re.search(r'^' + signature + r'\(.*?^}', delay_source, re.M | re.S).group(0) + '\n'
 mock += r"""
 #define FLASHMEM
 #define bitRead(value, bit) (((value) >> (bit)) & 1U)
@@ -83,6 +90,16 @@ int main()
     assert(archive.Read_Patch(199) == 0 && Patch[199] == expected);
     Delay_data_struct actual{};
     assert(archive.Read_Delay(199, actual) == 0 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    ArchivingManager::FRAM_Patch_delay_struct old_delay{};
+    old_delay.samples = 20;
+    old_delay.loop_gain = 5;
+    assert(archive.FRAM_Write_delay(197, old_delay) == 0);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65);
+    ArchivingManager::FRAM_Patch_delay_struct stored{};
+    assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 20 && stored.reserved[0] == 0);
+    assert(archive.Save_Delay(197, actual) == 0);
+    assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 24 && stored.reserved[0] == 1);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65);
     assert(archive.Save_Sound(800) == 11 && archive.Save_Patch(200) == 11);
     File wire{std::make_shared<std::vector<uint8_t>>()};
     assert(archive.Copy_Patch_from_RAM_to_SD(199, wire));
