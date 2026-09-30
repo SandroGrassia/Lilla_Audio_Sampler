@@ -589,7 +589,7 @@ uint8_t Line_in_gain = 8;                       // Shared hardware input gain; d
 uint8_t Line_out_level;                         // Hardware line-output level setting.
 
 // functions
-bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import RAW files from SD and report whether Flash contents changed.
+bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
 float SET_eraseBytesPerSecond(const unsigned char *id);        // Estimate the Flash erase rate from the chip identification bytes.
 void SET_Ask_if_IMPORT_EXPORT_setup(void);                     // Present the setup import/export choices and handle the selected operation.
 void SET_Ask_if_FACTORY_RESET(void);                           // Request confirmation before restoring factory settings.
@@ -13682,7 +13682,7 @@ byte CC_Read_all_Sound_gain()
 }
 
 // ***************************************************************************************************************
-// ****************************   COPY RAW FILES FROM SD/LILLARAW TO FLASH MEMORY CHIP  **************************
+// ****************************   COPY RAW FILES FROM SD/LILLA_AUDIO TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
 static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
@@ -13795,8 +13795,8 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
     Delete_text_row(3);
 
-    // Check if LILLARAW directory exists
-    if (!SD.exists("/LILLARAW"))
+    // Check if LILLA_AUDIO directory exists
+    if (!SD.exists("/LILLA_AUDIO"))
     {
         Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
         delay(4000);
@@ -13825,7 +13825,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
     bool SD_has_zero_raw = false;
-    File rootdir = SD.open("/LILLARAW");
+    File rootdir = SD.open("/LILLA_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
@@ -13995,7 +13995,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
 
     // Start copying RAW files from SD to Flash chip.
-    rootdir = SD.open("/LILLARAW");
+    rootdir = SD.open("/LILLA_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();

@@ -8,7 +8,7 @@
 
 #include "DisplayPrimitives.h"
 
-// Storage, RAW import, backup, restore and reset screens.
+// Storage, audio import, backup, restore and reset screens.
 class DisplayStorage
 {
 private:
@@ -16,8 +16,8 @@ private:
     //                         "0123456789012345678901234..7890123456789109876543210";
     const char ADV_VFS_0[50] = "    NOT ENOUGH MEMORY LEFT FOR DIRECT-SAMPLING!";
     const char ADV_VFS_1[50] = "     IF DIRECT-SAMPLING IS NEEDED PLEASE REPEAT";
-    const char ADV_VFS_2[50] = "         IMPORT WITH MAX 63MB OF RAW FILES";
-    const char ADV_VFS_3[50] = "     RAW FILES IMPORT AND MEMORY CONFIGURATION";
+    const char ADV_VFS_2[50] = "        IMPORT WITH MAX 63MB OF AUDIO FILES";
+    const char ADV_VFS_3[50] = "    AUDIO FILES IMPORT AND MEMORY CONFIGURATION";
     const char ADV_VFS_4[50] = "     COMPLETED. LILLA RESTARTS IN FEW SECONDS.";
 
     // Show_popup_text
@@ -51,9 +51,9 @@ public:
     void Confirm_factory_reset_popup(void);
     void Factory_reset_wait_popup(void);
     void Config_reset_popup(void);
-    void Copy_audio_files_SD_to_Flash_chip_titolo(void);           // importa i file RAW dalla scheda SD
+    void Copy_audio_files_SD_to_Flash_chip_titolo(void);           // importa i file audio dalla scheda SD
     void Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void);   // attesa 10sec scheda SD
-    void Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing(void); // manca /LILLARAW
+    void Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing(void); // manca /LILLA_AUDIO
     void Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int flash_raw_volume, int flash_raw_files);
     void Copy_audio_files_SD_to_Flash_chip_last_warning(float erasing_time_ms);
     void Copy_raw_files_SD_to_Flash_chip_job_start(void); // inizia la cancellazione (erasing) della Flash memory

@@ -343,7 +343,7 @@ void DisplayStorage::VFS_Make_presentation(void)
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.setTextColor(TEXT_COLOR);
-    tft.print(F("RAW FILES IMPORTED "));
+    tft.print(F("AUDIO FILES IMPORTED "));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(Get_flash_occupation() / 1048576.0f);
     Show_measure_unit("MB", 2);
@@ -397,7 +397,7 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_titolo(void)
     tft.fillScreen(ILI9341_BLACK);
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-    tft.print(F("IMPORT RAW FILES FROM SD TO FLASH MEMORY"));
+    tft.print(F("IMPORT AUDIO FILES FROM SD TO FLASH MEMORY"));
 }
 
 FLASHMEM
@@ -413,7 +413,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(F("NO FILES TO IMPORT: MISSING /LILLARAW DIRECTORY!"));
+    tft.print(F("NO FILES TO IMPORT: MISSING /LILLA_AUDIO DIRECTORY!"));
 }
 
 FLASHMEM
@@ -421,10 +421,10 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(TEXT_COLOR);
-    tft.print(F("SOURCE: SD CARD /LILLARAW"));
+    tft.print(F("SOURCE: SD CARD /LILLA_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
-    tft.print(F("- RAW FILES"));
-    tft.setCursor(display_coordinate_x(12), display_coordinate_y(4));
+    tft.print(F("- AUDIO FILES"));
+    tft.setCursor(display_coordinate_x(14), display_coordinate_y(4));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(SD_raw_files);
     tft.print(" (");
@@ -447,8 +447,8 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("- RAW FILES");
-    tft.setCursor(display_coordinate_x(12), display_coordinate_y(8));
+    tft.print("- AUDIO FILES");
+    tft.setCursor(display_coordinate_x(14), display_coordinate_y(8));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(flash_raw_files); // Get_raw_files()
     tft.print(" (");
@@ -482,7 +482,7 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasin
     tft.setTextColor(MENU_COLOR);
     tft.print("EXIT IMPORT");
 
-    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", ".raw / .wav FILES ARE SAVED AS .raw", ILI9341_WHITE, ILI9341_RED, 75);
+    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", "AUDIO FILES OVER 3 MB ARE TRUNCATED", ILI9341_WHITE, ILI9341_RED, 75);
 }
 
 FLASHMEM
@@ -496,7 +496,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(void)
     //        "012345678901234567890 234 X 432 98765432109876543210"); // max 52 char
     tft.print(F("PLEASE WAIT: FLASH MEMORY ERASE IS RUNNING."));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/LILLARAW TO "));
+    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/LILLA_AUDIO TO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print("LILLA FLASH MEMORY");
 }
@@ -542,7 +542,7 @@ void DisplayStorage::Update_raw_copy_progress(int percentage)
 FLASHMEM
 void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_popup_landscape(void)
 {
-    // Start copying RAW files from SD to Flash chip
+    // Start copying AUDIO files from SD to Flash chip
     tft.fillRect(0, 12, 320, 240, ILI9341_BLACK);
 }
 
@@ -604,7 +604,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_done(void)
     tft.fillRect(0, 12, 320, 240, ILI9341_BLACK);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(2));
     tft.setTextColor(TEXT_COLOR);
-    tft.print(F("RAW FILES IMPORT COMPLETED. FILE LIST:"));
+    tft.print(F("AUDIO FILES IMPORT COMPLETED. FILE LIST:"));
 }
 
 FLASHMEM
