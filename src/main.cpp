@@ -1501,6 +1501,8 @@ void loop()
 
                     Display_Performance.P_show_Performance_menu(); // Draw the menu and update its navigation layout.
                     Display_Performance.P_show_all_instruments(Patch_id);
+                    Performance_led_set.Restore_all_LED();
+                    Update_instruments_leds();
 
                     Pointer_Performance.Set_pointer_to_Patch();
                     P_pointer = Pointer_Performance.Get_pointer();
@@ -1588,6 +1590,8 @@ void loop()
                     {
                         P_Select_menu_elements();
                         Display_Performance.P_show_PERFORMANCE_page(false, true);
+                        Performance_led_set.Restore_all_LED();
+                        Update_instruments_leds();
 
                         Pointer_Performance.Set_pointer_to_Patch();
                         P_pointer = Pointer_Performance.Get_pointer();
@@ -9891,10 +9895,10 @@ void Golive_with_PERFORMANCE(int patch_id)
     P_Update_line_of_all_instruments();
 
     Display_Performance.P_show_PERFORMANCE_page(true, true);
+    Performance_led_set.Restore_all_LED();
+    Update_instruments_leds();
 
     Clear_UI_events();
-
-    Performance_led_set.Request_all_LED_switch_off();
 
     // pointer
     Pointer_Performance.Set_pointer_to_Patch();
