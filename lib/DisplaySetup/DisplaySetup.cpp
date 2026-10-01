@@ -83,7 +83,7 @@ void DisplaySetup::SETUP_show_frame(int8_t value)
     Frame_by_col_row(9, 2, 5, false);   // First octave
     Frame_by_col_row(13, 3, 2, false);  // First octave
     Frame_by_col_row(0, 4, 25, false);  // Control Change Assignment
-    Frame_by_col_row(0, 5, 31, false);  // Import raw files
+    Frame_by_col_row(0, 5, 36, false);  // Import audio files
     Frame_by_col_row(0, 6, 45, false);  // Import configuration from
     Frame_by_col_row(0, 7, 46, false);  // Export configuration to SD
     Frame_by_col_row(0, 8, 13, false);  // Factory Reset
@@ -100,7 +100,7 @@ void DisplaySetup::SETUP_show_frame(int8_t value)
         Frame_by_col_row(0, 4, 25, true); // Control Change
         break;
     case 3:
-        Frame_by_col_row(0, 5, 31, true); // Import audio files
+        Frame_by_col_row(0, 5, 36, true); // Import audio files
         break;
     case 4:
         Frame_by_col_row(0, 6, 45, true); // Import configuration to SD

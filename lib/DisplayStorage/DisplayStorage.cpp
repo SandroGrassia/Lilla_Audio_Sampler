@@ -434,10 +434,6 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
     tft.setTextColor(ILI9341_WHITE);
     tft.print(")");
 
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(F("30 SECONDS MAX PER FILE, EXCESS TRUNCATED"));
-
     // Flash chip info
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.setTextColor(TEXT_COLOR);
@@ -486,7 +482,7 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasin
     tft.setTextColor(MENU_COLOR);
     tft.print("EXIT IMPORT");
 
-    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", "AUDIO AFTER 33 SECONDS IS NOT PLAYED", ILI9341_WHITE, ILI9341_RED, 75);
+    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", "AUDIO FILES LONGER THAN 33 SECONDS ARE TRUNCATED.", ILI9341_WHITE, ILI9341_RED, 75);
 }
 
 FLASHMEM

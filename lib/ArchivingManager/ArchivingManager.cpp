@@ -1461,6 +1461,10 @@ bool ArchivingManager::Validate_Sound_AB_file_raw(uint32_t sound_id)
     if (Sound[sound_id].file < FIRST_RECORDING_FILE)
     {
         sample_count = Info.Raw_file_samples(Sound[sound_id].file);
+        if (sample_count <= 0)
+        {
+            return true; // Preserve missing audio references; preset preparation keeps the instrument inactive.
+        }
     }
 
     const bool invalid = sample_count <= 0 || Sound[sound_id].A >= static_cast<uint32_t>(sample_count) || Sound[sound_id].B >= static_cast<uint32_t>(sample_count) || Sound[sound_id].B < Sound[sound_id].A;
