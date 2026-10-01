@@ -436,7 +436,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(F("MAX 3 MB/FILE; LONGER FILES TRUNCATED"));
+    tft.print(F("30 SECONDS MAX PER FILE, EXCESS TRUNCATED"));
 
     // Flash chip info
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
