@@ -14,11 +14,11 @@ class DisplayStorage
 private:
     // Avvisi
     //                         "0123456789012345678901234..7890123456789109876543210";
-    const char ADV_VFS_0[50] = "    NOT ENOUGH MEMORY LEFT FOR DIRECT-SAMPLING!";
-    const char ADV_VFS_1[50] = "     IF DIRECT-SAMPLING IS NEEDED PLEASE REPEAT";
-    const char ADV_VFS_2[50] = "        IMPORT WITH MAX 63MB OF AUDIO FILES";
+    const char ADV_VFS_0[50] = "        NOT ENOUGH MEMORY LEFT FOR SAMPLING!";
+    const char ADV_VFS_1[50] = "PLEASE IMPORT SHORTER AUDIO FILES TO FREE UP MEMORY";
+    const char ADV_VFS_2[50] = "";
     const char ADV_VFS_3[50] = "    AUDIO FILES IMPORT AND MEMORY CONFIGURATION";
-    const char ADV_VFS_4[50] = "     COMPLETED. LILLA RESTARTS IN FEW SECONDS.";
+    const char ADV_VFS_4[50] = "     COMPLETED - LILLA RESTARTS IN FEW SECONDS";
 
     // Show_popup_text
     int L_POPUP;     // Larghezza

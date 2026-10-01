@@ -481,8 +481,10 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasin
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(1));
     tft.setTextColor(MENU_COLOR);
     tft.print("EXIT IMPORT");
-
-    Show_popup_text("IMPORT DELETES ALL AUDIO FILES AND RECORDINGS!", "AUDIO FILES LONGER THAN 33 SECONDS ARE TRUNCATED.", ILI9341_WHITE, ILI9341_RED, 75);
+    
+    //            "012345678901234567890 234 X 432 98765432109876543210";
+    //                                                                 "012345678901234567890 234 X 432 98765432109876543210");
+    Show_popup_text("IMPORT DELETES LILLA AUDIO FILES AND RECORDINGS", "AUDIO FILES LONGER THAN 33 SECONDS WILL BE TRUNCATED", ILI9341_WHITE, ILI9341_RED, 75);
 }
 
 FLASHMEM
@@ -493,12 +495,12 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(void)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(12) - 5);
     tft.setTextColor(ILI9341_YELLOW);
 
-    //        "012345678901234567890 234 X 432 98765432109876543210"); // max 52 char
+    //        "012345678901234567890 234 X 432 98765432109876543210"; // max 52 char
     tft.print(F("PLEASE WAIT: FLASH MEMORY ERASE IS RUNNING."));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/LILLA_AUDIO TO"));
+    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/LILLA_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
-    tft.print("LILLA FLASH MEMORY");
+    tft.print("TO LILLA FLASH MEMORY");
 }
 
 FLASHMEM
