@@ -27,7 +27,7 @@ void DisplaySetup::SETUP_show_SETUP_page(void)
     // tft.setCursor(x_pos(0), display_coordinate_y(5));
     // tft.print("*FUTURE DEVELOPMENTS*");
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
-    tft.print(F("IMPORT RAW FILES FROM /LILLA_AUDIO"));
+    tft.print(F("IMPORT AUDIO FILES FROM /LILLA_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.print(F("RESTORE CONFIG + AUDIO FROM /LILLABACKUP ROOT"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));

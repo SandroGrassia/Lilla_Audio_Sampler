@@ -13726,6 +13726,16 @@ byte CC_Read_all_Sound_gain()
 // ****************************   COPY RAW FILES FROM SD/LILLA_AUDIO TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
+static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES = 3U * 1024U * 1024U;
+
+enum class SET_Audio_format : uint8_t
+{
+    Raw,
+    Wav,
+    Aiff
+};
+
+FLASHMEM
 static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
 {
     const auto read16 = [&file](uint16_t &value) -> bool
@@ -13754,8 +13764,8 @@ static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_l
     {
         return false;
     }
-    const uint32_t file_length = file.size();
-    if (riff_length < 4 || static_cast<uint64_t>(riff_length) + 8 > file_length)
+    const uint64_t file_length = file.size();
+    if (riff_length < 4 || riff_length > UINT32_MAX - 8 || static_cast<uint64_t>(riff_length) + 8 > file_length)
     {
         return false;
     }
@@ -13810,6 +13820,114 @@ static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_l
 }
 
 FLASHMEM
+static bool SET_AIFF_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
+{
+    const auto read16 = [&file](uint16_t &value) -> bool
+    {
+        uint8_t bytes[2];
+        if (file.read(bytes, sizeof(bytes)) != sizeof(bytes))
+        {
+            return false;
+        }
+        value = static_cast<uint16_t>(bytes[0]) << 8 | static_cast<uint16_t>(bytes[1]);
+        return true;
+    };
+    const auto read32 = [&file](uint32_t &value) -> bool
+    {
+        uint8_t bytes[4];
+        if (file.read(bytes, sizeof(bytes)) != sizeof(bytes))
+        {
+            return false;
+        }
+        value = static_cast<uint32_t>(bytes[0]) << 24 | static_cast<uint32_t>(bytes[1]) << 16 | static_cast<uint32_t>(bytes[2]) << 8 | static_cast<uint32_t>(bytes[3]);
+        return true;
+    };
+    char id[4];
+    uint32_t form_length;
+    if (!file.seek(0) || file.read(id, sizeof(id)) != sizeof(id) || memcmp(id, "FORM", 4) != 0 || !read32(form_length) || file.read(id, sizeof(id)) != sizeof(id) || memcmp(id, "AIFF", 4) != 0)
+    {
+        return false;
+    }
+    if (form_length < 4 || form_length > UINT32_MAX - 8 || static_cast<uint64_t>(form_length) + 8 > file.size())
+    {
+        return false;
+    }
+    const uint32_t form_end = form_length + 8;
+    bool format_found = false;
+    bool data_found = false;
+    uint32_t frames = 0;
+    uint32_t position = 12;
+    while (position <= form_end && form_end - position >= 8)
+    {
+        uint32_t chunk_length;
+        if (!file.seek(position) || file.read(id, sizeof(id)) != sizeof(id) || !read32(chunk_length))
+        {
+            return false;
+        }
+        const uint32_t chunk_start = position + 8;
+        if (chunk_length > form_end - chunk_start || (chunk_length & 1U) > form_end - chunk_start - chunk_length)
+        {
+            return false;
+        }
+        if (memcmp(id, "COMM", 4) == 0)
+        {
+            uint16_t bits;
+            uint8_t sample_rate[10];
+            // Canonical 80-bit extended representation of 44100 Hz.
+            static constexpr uint8_t rate_44100[10] = {0x40, 0x0E, 0xAC, 0x44, 0, 0, 0, 0, 0, 0};
+            if (format_found || chunk_length != 18 || !read16(channels) || !read32(frames) || !read16(bits) || file.read(sample_rate, sizeof(sample_rate)) != sizeof(sample_rate) || (channels != 1 && channels != 2) || bits != 16 || frames == 0 || memcmp(sample_rate, rate_44100, sizeof(sample_rate)) != 0)
+            {
+                return false;
+            }
+            format_found = true;
+        }
+        else if (memcmp(id, "SSND", 4) == 0)
+        {
+            uint32_t offset;
+            uint32_t block_size;
+            if (data_found || chunk_length < 8 || !read32(offset) || !read32(block_size) || offset > chunk_length - 8)
+            {
+                return false;
+            }
+            // Alignment bytes precede the first frame; trailing block padding is not audio.
+            data_offset = chunk_start + 8 + offset;
+            data_length = chunk_length - 8 - offset;
+            data_found = true;
+        }
+        position = chunk_start + chunk_length + (chunk_length & 1U);
+    }
+    if (position != form_end || !format_found || !data_found || static_cast<uint64_t>(frames) * channels * sizeof(int16_t) > data_length)
+    {
+        return false;
+    }
+    data_length = frames * sizeof(int16_t);
+    return true;
+}
+
+FLASHMEM
+static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
+{
+    data_offset = 0;
+    const uint64_t file_length = file.size();
+    data_length = file_length < SET_AUDIO_MAX_RAW_BYTES ? static_cast<uint32_t>(file_length) : SET_AUDIO_MAX_RAW_BYTES;
+    channels = 1;
+    if (format == SET_Audio_format::Wav && !SET_WAV_raw_data(file, data_offset, data_length, channels))
+    {
+        return false;
+    }
+    if (format == SET_Audio_format::Aiff && !SET_AIFF_raw_data(file, data_offset, data_length, channels))
+    {
+        return false;
+    }
+    // Apply the same mono output limit to the summary, Flash allocation and copy loop.
+    if (data_length > SET_AUDIO_MAX_RAW_BYTES)
+    {
+        data_length = SET_AUDIO_MAX_RAW_BYTES;
+    }
+    return true;
+}
+
+FLASHMEM
 bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
 {
     LS_Capture_collect();
@@ -13845,20 +13963,36 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
 
     // Preserve the basename and normalize the audio extension for Flash.
-    const auto raw_filename = [](const char *source, char *destination, size_t capacity, bool &wav) -> bool
+    const auto raw_filename = [](const char *source, char *destination, size_t capacity, SET_Audio_format &format) -> bool
     {
-        const size_t length = strlen(source);
-        if (length <= 4 || length >= capacity)
+        const char *extension = strrchr(source, '.');
+        if (extension == nullptr || extension == source)
         {
             return false;
         }
-        wav = strcasecmp(source + length - 4, ".wav") == 0;
-        if (!wav && strcasecmp(source + length - 4, ".raw") != 0)
+        const size_t basename_length = extension - source;
+        if (basename_length + 5 > capacity)
         {
             return false;
         }
-        memcpy(destination, source, length - 4);
-        memcpy(destination + length - 4, ".raw", 5);
+        if (strcasecmp(extension, ".raw") == 0)
+        {
+            format = SET_Audio_format::Raw;
+        }
+        else if (strcasecmp(extension, ".wav") == 0)
+        {
+            format = SET_Audio_format::Wav;
+        }
+        else if (strcasecmp(extension, ".aif") == 0 || strcasecmp(extension, ".aiff") == 0)
+        {
+            format = SET_Audio_format::Aiff;
+        }
+        else
+        {
+            return false;
+        }
+        memcpy(destination, source, basename_length);
+        memcpy(destination + basename_length, ".raw", 5);
         return true;
     };
 
@@ -13884,13 +14018,13 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         }
 
         char filename[256];
-        bool wav = false;
-        if (!f.isDirectory() && raw_filename(f.name(), filename, sizeof(filename), wav))
+        SET_Audio_format format;
+        if (!f.isDirectory() && raw_filename(f.name(), filename, sizeof(filename), format))
         {
             uint32_t offset = 0;
             uint32_t length = f.size();
             uint16_t channels = 1;
-            if (!wav || SET_WAV_raw_data(f, offset, length, channels))
+            if (SET_Audio_raw_data(f, format, offset, length, channels))
             {
                 SD_raw_volume += length;
                 ++SD_raw_files;
@@ -14035,7 +14169,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         Serial.println(F("0.raw reconstructed from firmware: 43996 samples, 87992 bytes."));
     }
 
-    // Start copying RAW files from SD to Flash chip.
+    // Import audio as mono RAW files from SD to Flash chip.
     rootdir = SD.open("/LILLA_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
@@ -14052,8 +14186,8 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             break;
         }
         char filename[256];
-        bool wav = false;
-        if (f.isDirectory() || !raw_filename(f.name(), filename, sizeof(filename), wav))
+        SET_Audio_format format;
+        if (f.isDirectory() || !raw_filename(f.name(), filename, sizeof(filename), format))
         {
             f.close();
             continue;
@@ -14063,7 +14197,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         uint32_t offset = 0;
         uint32_t length = f.size();
         uint16_t channels = 1;
-        if (wav && !SET_WAV_raw_data(f, offset, length, channels))
+        if (!SET_Audio_raw_data(f, format, offset, length, channels))
         {
             ++row;
             if (row > 14)
@@ -14071,7 +14205,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
                 Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
                 row = 3;
             }
-            Display_Storage.Copy_raw_files_SD_to_Flash_chip_invalid_wav(row, f.name());
+            Display_Storage.Copy_audio_files_SD_to_Flash_chip_invalid_audio(row, f.name());
             f.close();
             continue;
         }
@@ -14094,7 +14228,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             continue;
         }
 
-        if (wav && !f.seek(offset))
+        if (format != SET_Audio_format::Raw && !f.seek(offset))
         {
             f.close();
             rootdir.close();
@@ -14132,6 +14266,17 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             {
                 copied = false;
                 break;
+            }
+            if (format == SET_Audio_format::Aiff)
+            {
+                // AIFF PCM is big endian; Flash RAW and the Teensy use little endian.
+                uint8_t *pcm = reinterpret_cast<uint8_t *>(buf);
+                for (unsigned int index = 0; index < input_bytes; index += 2)
+                {
+                    const uint8_t first = pcm[index];
+                    pcm[index] = pcm[index + 1];
+                    pcm[index + 1] = first;
+                }
             }
             if (channels == 2)
             {

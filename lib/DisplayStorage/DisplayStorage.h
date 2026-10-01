@@ -61,7 +61,7 @@ public:
     void Copy_raw_files_SD_to_Flash_chip_popup_landscape(void); // black panel
     void Copy_raw_files_SD_to_Flash_chip_list_landscape(void);
     void Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, const char *filename, unsigned long length);
-    void Copy_raw_files_SD_to_Flash_chip_invalid_wav(int row, const char *filename);
+    void Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, const char *filename);
     void Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const char *filename);
     void Copy_raw_files_SD_to_Flash_chip_flash_error(void);      // Flash memory error!
     void Copy_raw_files_SD_to_Flash_chip_flash_full_error(void); // Flash memory full!

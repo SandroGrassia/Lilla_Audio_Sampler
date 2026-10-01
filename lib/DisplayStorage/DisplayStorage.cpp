@@ -434,6 +434,10 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
     tft.setTextColor(ILI9341_WHITE);
     tft.print(")");
 
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(F("MAX 3 MB/FILE; LONGER FILES TRUNCATED"));
+
     // Flash chip info
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.setTextColor(TEXT_COLOR);
@@ -566,12 +570,12 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, cons
 }
 
 FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_invalid_wav(int row, const char *filename)
+void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, const char *filename)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
     tft.setTextColor(ILI9341_RED);
     tft.print(filename);
-    tft.print(" INVALID WAV - NOT IMPORTED");
+    tft.print(" INVALID AUDIO - NOT IMPORTED");
 }
 
 FLASHMEM
