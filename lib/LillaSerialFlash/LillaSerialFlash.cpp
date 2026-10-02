@@ -7,6 +7,41 @@
 #include "CaptureSources.h"
 #include "LillaSerialFlash.h"
 #include "SharedLiveSampler.h"
+#include <spi_interrupt.h>
+
+bool LillaSerialFlashFile::Read_audio_samples_background(int file_id, int16_t *destination, int first_sample, int samples_count)
+{
+    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
+    AudioStartUsingSPI(); // Keep the reservation alive even when the last Flash voice stops between chunks.
+    if (audio_enabled)
+    {
+        NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
+    }
+
+    bool success = true;
+    while (samples_count > 0)
+    {
+        const int chunk = samples_count < 128 ? samples_count : 128;
+        if (!Read_audio_samples(file_id, destination, first_sample, chunk))
+        {
+            success = false;
+            break;
+        }
+        // Each completed transaction restores the audio IRQ before another chunk can acquire SPI.
+        destination += chunk;
+        first_sample += chunk;
+        samples_count -= chunk;
+    }
+
+    NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
+    AudioStopUsingSPI();
+    if (audio_enabled)
+    {
+        NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
+    }
+    return success;
+}
 
 void LillaSerialFlashFile::fast_open(int id_file)
 {

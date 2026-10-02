@@ -27,7 +27,7 @@ using std::abs;
 constexpr double pi = 3.14159265358979323846;
 constexpr int AUDIO_BLOCK_SAMPLES = 128;
 constexpr float AUDIO_SAMPLE_RATE = 44100;
-constexpr int LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4, LOOP_REV = 5;
+constexpr int ONCE_FWD = 0, ONCE_REV = 1, LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4, LOOP_REV = 5;
 template <typename T> T constrain(T value, T low, T high) { return std::clamp(value, low, high); }
 void AudioNoInterrupts() {}
 void AudioInterrupts() {}
@@ -187,8 +187,17 @@ int main()
     assert(S_Auto_tune_pitch(0) == nullptr); // Quiet but periodic audio is usable.
     configure(100, 0, true);
     expect_error("AUTO-TUNE: NO SIGNAL");
-    configure(100, 20000, true, 0);
-    expect_error("AUTO-TUNE: SELECT LOOP MODE");
+    for (int mode : {ONCE_FWD, ONCE_REV})
+    {
+        configure(100, 20000, false, mode);
+        assert(S_Auto_tune_pitch(0) == nullptr);
+        std::array<int16_t, 1024> expected{};
+        for (unsigned int i = 0; i < recording.size(); ++i)
+        {
+            expected[i] = recording[mode == ONCE_REV ? recording.size() - 1u - i : i];
+        }
+        expect_frame(expected);
+    }
     configure(100, 20000, true);
     table_ok = false;
     expect_error("AUTO-TUNE: TABLES UNAVAILABLE");

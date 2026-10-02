@@ -422,102 +422,18 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
 
 void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, int samples_in) // samples_in <= BASKET_INFO
 {
+    if (file_id < FIRST_LIVE_SAMPLING_FILE)
+    {
+        LillaSerialFlashFile::Read_audio_samples_background(file_id, destination, seek_in, samples_in);
+        return;
+    }
     if (Capture_find(file_id) != nullptr)
     {
         Capture_read(file_id, destination, seek_in, samples_in);
         return;
     }
-    int first_byte;
-    int total_bytes = samples_in * 2;
-    byte *destination_byte = (byte *)destination;
-    LillaSerialFlashFile rawfile; // SerialFlashFile rawfile;
-    int first_packet;
-
-    // .raw files
-    if (file_id < FIRST_RECORDING_FILE)
-    {
-        first_byte = seek_in * 2;
-        rawfile.fast_open(file_id); // rawfile = SerialFlash.open(filename);
-        if (!rawfile)
-        {
-            return;
-        }
-
-        rawfile.seek(first_byte);
-        rawfile.read(destination_byte, total_bytes);
-        rawfile.close();
-    }
-
-    // Direct Sampling
-    // .rec files; indicano solo una registrazione, i samples sono contenuti nei Packet (registrati con Direct Sampler)
-    else if (file_id < FIRST_LIVE_SAMPLING_FILE)
-    {
-        first_byte = seek_in * 2;
-        int recording = (file_id - FIRST_RECORDING_FILE) / 2;
-        bool file_L_flag = ((file_id - FIRST_RECORDING_FILE) % 2 == 0); // 0.rec, 2.rec, 4.rec
-
-        if (file_L_flag)
-        {
-            first_packet = Recording[recording].first_packet;
-        }
-        else
-        {
-            first_packet = Recording[recording].first_packet + 1;
-        }
-
-        int packet_delta = first_byte >> 16;
-        int local_first_byte = first_byte % PACKET_DIM; // updated
-
-        // Serial.print("needed_packet is: ");
-        // Serial.println(needed_packet);
-
-        rawfile.packet_fast_open(first_packet + packet_delta);
-        if (!rawfile)
-        {
-            return;
-        }
-
-        // Serial.print(F("1 - Packet played is: "));
-
-
-        int local_last_byte = local_first_byte + total_bytes - 1;
-
-        if (local_last_byte < PACKET_DIM) // 1 only Packet is needed
-        {
-            // timer = 0;
-            rawfile.seek(local_first_byte);
-            rawfile.read(destination_byte, total_bytes);
-            rawfile.close();
-            // Serial.println(timer);
-        }
-        else // 2 Packets are needed - with T41@600MHz adds 40us
-        {
-            // timer = 0;
-            int first_part = PACKET_DIM - local_first_byte;
-            int second_part = total_bytes - first_part;
-
-            rawfile.seek(local_first_byte);
-            rawfile.read(destination_byte, first_part);
-            rawfile.close();
-
-            packet_delta += 2;
-            rawfile.packet_fast_open(first_packet + packet_delta);
-            if (!rawfile)
-            {
-                return;
-            }
-
-            rawfile.seek(0);
-            rawfile.read(destination_byte + first_part, second_part);
-            rawfile.close();
-
-            // Serial.print(F("2 - Packet played is: "));
-
-        }
-    }
-
-    // Live Sampling
-    else
+    const int total_bytes = samples_in * 2;
+    // Live Sampling reads its RAM ring directly.
     {
         if (seek_in > FIFO_dim - 1)
         {

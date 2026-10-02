@@ -1999,8 +1999,8 @@ void loop()
                     Clear_UI_events();
 
                     // Report
-                    Serial.print("Editing Sound: ");
-                    Serial.println(Instrument_id);
+                    Serial.print("Editing Instrument: ");
+                    Serial.print(Instrument_id);
                     Print_Sound(Sound_id);
                 }
 
@@ -3148,8 +3148,8 @@ void loop()
                     Clear_UI_events();
 
                     // Report
-                    Serial.print("Editing Sound: ");
-                    Serial.println(Instrument_id);
+                    Serial.print("Editing Instrument: ");
+                    Serial.print(Instrument_id);
                     Print_Sound(Sound_id);
                 }
                 else
@@ -7220,8 +7220,8 @@ void loop()
                     Clear_UI_events();
 
                     // Report
-                    Serial.print("Editing Sound: ");
-                    Serial.println(Instrument_id);
+                    Serial.print("Editing Instrument: ");
+                    Serial.print(Instrument_id);
                     Print_Sound(Sound_id);
                 }
             }
@@ -8421,13 +8421,9 @@ void P_Select_menu_elements(void)
 FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
 {
     const auto &sound = Sound[sound_id];
-    if (sound.mode < LOOP_FWD)
-    {
-        return "AUTO-TUNE: SELECT LOOP MODE";
-    }
     if (sound.B <= sound.A)
     {
-        return "AUTO-TUNE: INVALID LOOP";
+        return "AUTO-TUNE: INVALID RANGE";
     }
 
     // A timed-out request keeps draining its complete window. Never overwrite its samples.
@@ -8451,9 +8447,10 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
     static DMAMEM int16_t short_loop[1024];
     const uint32_t length = sound.B - sound.A + 1u;
     const bool short_grain = length < 1024u;
+    const bool looping = sound.mode >= LOOP_FWD;
     const bool pingpong = sound.mode == LOOP_FWD_REV || sound.mode == LOOP_REV_FWD;
     const auto &preset = Preset[Instrument_id];
-    const uint32_t crossfade = pingpong ? 0u : static_cast<uint32_t>(preset.Noclick);
+    const uint32_t crossfade = looping && !pingpong ? static_cast<uint32_t>(preset.Noclick) : 0u;
     const uint32_t period = pingpong ? 2u * (length - 1u) : length - crossfade;
 
     AudioTables::Pointers tables;
@@ -8463,7 +8460,7 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
         tables = Audio_tables.Get_active_pointers(Instrument_id, preset);
         AudioInterrupts();
 
-        if ((preset.use_Wavetable && tables.wavetable == nullptr) || (crossfade > 0 && tables.noclick == nullptr))
+        if ((preset.use_Wavetable && tables.wavetable == nullptr) || (looping && crossfade > 0 && tables.noclick == nullptr))
         {
             return "AUTO-TUNE: TABLES UNAVAILABLE";
         }
@@ -8494,27 +8491,45 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
 
         if (short_grain)
         {
-            // Repeat the actual playback period, including ping-pong and NoClick crossfades.
+            // Repeat loop playback periods; preserve one-shot direction and pad the remaining FFT window with silence.
             for (uint32_t i = 0; i < 1024u; ++i)
             {
-                const uint32_t phase = i % period;
-                if (preset.use_Wavetable)
+                if (!looping)
                 {
-                    window[i] = tables.wavetable[phase];
-                }
-                else if (pingpong)
-                {
-                    window[i] = short_loop[phase < length ? phase : period - phase];
-                }
-                else if (sound.mode == LOOP_REV)
-                {
-                    const uint32_t index = period - 1u - phase;
-                    window[i] = index < crossfade ? tables.noclick[index] : short_loop[index];
+                    if (i >= length)
+                    {
+                        window[i] = 0;
+                    }
+                    else if (preset.use_Wavetable)
+                    {
+                        window[i] = tables.wavetable[sound.mode == ONCE_REV ? length - 1u - i : i];
+                    }
+                    else
+                    {
+                        window[i] = short_loop[sound.mode == ONCE_REV ? length - 1u - i : i];
+                    }
                 }
                 else
                 {
-                    const uint32_t plain = length - 2u * crossfade;
-                    window[i] = phase < plain ? short_loop[crossfade + phase] : tables.noclick[phase - plain];
+                    const uint32_t phase = i % period;
+                    if (preset.use_Wavetable)
+                    {
+                        window[i] = tables.wavetable[phase];
+                    }
+                    else if (pingpong)
+                    {
+                        window[i] = short_loop[phase < length ? phase : period - phase];
+                    }
+                    else if (sound.mode == LOOP_REV)
+                    {
+                        const uint32_t index = period - 1u - phase;
+                        window[i] = index < crossfade ? tables.noclick[index] : short_loop[index];
+                    }
+                    else
+                    {
+                        const uint32_t plain = length - 2u * crossfade;
+                        window[i] = phase < plain ? short_loop[crossfade + phase] : tables.noclick[phase - plain];
+                    }
                 }
             }
         }
@@ -8595,7 +8610,7 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
     const float offset = curvature < 0.0f ? constrain(0.5f * (left - right) / curvature, -0.5f, 0.5f) : 0.0f;
     float source_frequency = (peak_bin + offset) * AUDIO_SAMPLE_RATE / 1024.0f;
 
-    if (short_grain && period <= 1024u)
+    if (short_grain && looping && period <= 1024u)
     {
         // A repeated short loop has spectral lines at integer multiples of its exact period.
         const float harmonic = max(1.0f, roundf(source_frequency * period / AUDIO_SAMPLE_RATE));
@@ -12736,7 +12751,7 @@ void Print_Sound(int sound_id)
     Serial.print(" used:");
     Serial.println((Sound[sound_id].used ? "yes" : "no"));
 
-    Serial.print(" file_id:");
+    Serial.print("file_id:");
     Serial.print(Sound[sound_id].file);
     Serial.print(" file name: ");
     Serial.print(Get_file_name(Sound[sound_id].file, audio_filename));
@@ -15478,7 +15493,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     {
         return;
     }
-    const bool success = LillaSerialFlashFile::Read_audio_samples(job.file_id, job.destination, job.first_sample, job.samples); // Copy only this reserved chunk into PSRAM, with audio interrupts enabled.
+    const bool success = LillaSerialFlashFile::Read_audio_samples_background(job.file_id, job.destination, job.first_sample, job.samples); // Subdivide the reserved copy so pending audio runs between short Flash transactions.
 
     AudioNoInterrupts();
     AudioStopUsingSPI();                                               // Balance the SPI reservation even when the Flash read fails.

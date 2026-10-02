@@ -28,6 +28,7 @@ public:
     void fast_open(int id_file);
     void packet_fast_open(int id_packet);
     static bool Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count); // Read the requested Flash samples completely; the caller provides buffer capacity and protects shared SPI access.
+    static bool Read_audio_samples_background(int file_id, int16_t *destination, int first_sample, int samples_count); // Main-loop reads: reserve SPI before audio can start and release the bus every 128 samples.
 };
 
 class FlashFileRegisterParser
