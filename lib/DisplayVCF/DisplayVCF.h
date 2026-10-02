@@ -22,9 +22,10 @@ private:
     // titles
     static constexpr float VCF_column_row_LIVE_SAMPLER[2] = {0, 0};
     static constexpr float VCF_column_row_PERFORMANCE[2] = {0, 0};
-    static constexpr float VCF_column_row_SOUND[2] = {23, 0};
-    static constexpr float VCF_column_row_SOUND_NUMBER[2] = {28.5, 0};
-    static constexpr float VCF_column_row_PATCH[2] = {35, 0};
+    static constexpr float VCF_column_row_SOUND[2] = {17, 0};
+    static constexpr float VCF_column_row_SOUND_NUMBER[2] = {22.5, 0};
+    static constexpr float VCF_column_row_PATCH[2] = {27, 0};
+    static constexpr float VCF_column_row_PATCH_NUMBER[2] = {32.5, 0};
     static constexpr float VCF_column_row_GAIN[2] = {43, 0};
     static constexpr float VCF_column_row_VOLUME[2] = {41, 0};
     static constexpr float VCF_column_row_RETURN[2] = {0, 1};

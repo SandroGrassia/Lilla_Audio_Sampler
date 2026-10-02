@@ -20,7 +20,7 @@ Missing files retain their names and IDs. Reimporting the same name reconnects i
 
 Direct and Live Sampler allocation excludes reserved IDs and numeric names already assigned elsewhere. Their generated numeric names are committed before writing audio. A failed audio write may leave a reserved identity, which is safer than reassigning it to unrelated audio.
 
-The SOUND header uses its existing compact layout: it omits `.raw` when necessary and abbreviates basenames longer than eight characters with `~`. The complete name remains in FRAM and in import/diagnostic output. Missing audio displays the Sound's retained association rather than the inactive Preset's default file.
+The SOUND header always omits `.raw` and displays the first eight characters of the basename. The complete name remains in FRAM and in import/diagnostic output. Missing audio displays the Sound's retained association rather than the inactive Preset's default file.
 
 ## Backup compatibility
 
