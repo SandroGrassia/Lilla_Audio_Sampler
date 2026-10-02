@@ -100,6 +100,13 @@ with tempfile.TemporaryDirectory(prefix='lilla-zero-raw-') as directory:
         for name, rate, channels, duration, options in [('mono', 44100, 1, 0.2, ['-b:a', '128k']), ('stereo', 44100, 2, 0.2, ['-b:a', '192k']), ('vbr', 44100, 2, 0.2, ['-q:a', '4']), ('untagged', 44100, 1, 0.2, ['-write_xing', '0']), ('long', 44100, 2, 37, ['-q:a', '6']), ('rate48000', 48000, 2, 0.2, []), ('rate22050', 22050, 1, 0.2, [])]:
             signal = f'sine=frequency=440:sample_rate={rate}:duration={duration}' if channels == 1 else f'aevalsrc=0.1*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s={rate}:d={duration}'
             subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', signal, '-ac', str(channels), '-c:a', 'libmp3lame', '-metadata', 'title=Lilla import test', *options, str(build / (name + '.mp3'))], check=True)
+        for rate in [8000, 11025, 12000, 16000, 22050, 24000, 32000, 48000]:
+            for channels in [1, 2]:
+                name = f'resample_{rate}_{channels}'
+                signal = f'aevalsrc=0.1*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s={rate}:d=0.4'
+                subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', signal, '-ac', str(channels), '-c:a', 'libmp3lame', '-q:a', '2', str(build / (name + '.mp3'))], check=True)
+                subprocess.run([str(ffmpeg), '-v', 'error', '-i', str(build / (name + '.mp3')), '-ac', '1', '-ar', '44100', '-f', 's16le', str(build / (name + '.raw'))], check=True)
+        subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=37', '-c:a', 'libmp3lame', '-q:a', '6', str(build / 'long48000.mp3')], check=True)
         mp3_tests = '#include <fstream>\n#include <iterator>\nstatic const char *mp3_test_directory = R"(' + str(build) + ')";\n' + (ROOT / 'tests/mp3_import_cases.inc').read_text(encoding='utf-8')
         tests = tests.replace('int main()\n{', mp3_tests + '\nint main()\n{\n    test_mp3_import();', 1)
     cpp.write_text(fixture + display + parsers + method + '\nvoid run_menu_case()\n{\n    switch (4)\n    {\n' + menu_case + '\n    }\n}\n' + tests, encoding='utf-8', newline='\r\n')
