@@ -11,6 +11,7 @@
 #include <array>
 #include <AudioStream.h>
 #include "config.h"
+#include "FileNameRegistry.h"
 
 static constexpr int AUDIO_BLOCK_BYTES = AUDIO_BLOCK_SAMPLES * 2;
 
@@ -41,9 +42,10 @@ extern int8_t first_octave;
 // .raw .rec (produced by Sampler)
 // .liv (used by Live Sampler)
 // FILES
-static constexpr int NAME_FILE_SIZE = 10;
+static constexpr int NAME_FILE_SIZE = 36;
 static constexpr int RAW_FILES = 323; // nomi dei file audio (n.raw, m.rec, x.liv) esclusi i packet (Px.raw)
 static constexpr int FIRST_RECORDING_FILE = 260;
+static_assert(NAME_FILE_SIZE == FileNameRegistry::FILENAME_BYTES && FIRST_RECORDING_FILE == FileNameRegistry::FILES);
 
 // Requires a valid file ID; the returned pointer belongs to the caller buffer.
 const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE]);

@@ -81,14 +81,17 @@ int main() {
     recording.packets = 7;
     recording.consistent = 1;
     assert(archive.FRAM_Write_recording(0, recording) == 0);
-    const auto baseline = LillaFram.memory;
+    auto baseline = LillaFram.memory;
     std::fill_n(LillaFram.memory.begin(), 16, 0);
     assert(archive.Check_FRAM_archive() == 0);
-    assert(std::equal(baseline.begin() + 256, baseline.end(), LillaFram.memory.begin() + 256));
+    assert(std::equal(baseline.begin() + 256, baseline.begin() + 0xFE00, LillaFram.memory.begin() + 256));
+    baseline = LillaFram.memory;
+    assert(FileNameRegistry::Add("kick.raw") == 1 && FileNameRegistry::Save());
+    baseline = LillaFram.memory;
     File backup = SD.open("/metadata.test", FILE_WRITE);
     assert(archive.Save_FRAM_backup(backup));
     const auto good = *backup.data;
-    assert(good.size() == 20 + 0xFE00 - 256);
+    assert(good.size() == 20 + A::FRAM_FIRST_FREE_ADDRESS - 256);
     assert(archive.Verify_FRAM_backup(backup));
     (*backup.data)[25] ^= 1;
     LillaFram.clear_io();
@@ -111,6 +114,7 @@ int main() {
         }
         assert(archive.Restore_FRAM_backup(backup));
         assert(archive.Check_FRAM_archive() == 0);
+        assert(FileNameRegistry::Find("kick.raw") == 1);
         assert(std::equal(baseline.begin() + 256, baseline.begin() + 0xFE00, LillaFram.memory.begin() + 256));
         A::FRAM_Recording_struct actual{};
         assert(archive.FRAM_Read_recording(0, actual) == 0 && actual.packets == 7);
@@ -149,6 +153,11 @@ int main() {
     old.header_bytes = sizeof(old);
     old.payload_bytes = 0xFE00;
     auto legacy = baseline;
+    A::FRAM_Sound_struct missing{};
+    missing.used = 1;
+    missing.file = 37;
+    missing.crc32 = FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(&missing), offsetof(A::FRAM_Sound_struct, crc32));
+    memcpy(legacy.data() + A::FRAM_SOUND_ADDRESS, &missing, sizeof(missing));
     std::fill_n(legacy.begin(), 256, 0xCC);
     old.payload_crc32 = FRAM_Calculate_crc32(legacy.data(), old.payload_bytes);
     auto bytes = std::make_shared<std::vector<uint8_t>>(sizeof(old) + old.payload_bytes);
@@ -158,11 +167,36 @@ int main() {
     assert(archive.Restore_FRAM_backup(v1));
     assert(archive.Check_FRAM_archive() == 0);
     assert(LillaFram.memory[100] == baseline[100]);
+    assert(FileNameRegistry::Find("kick.raw") == -1); // Legacy backup restores numeric identities only.
+    assert(FileNameRegistry::Find("37.raw") == 37); // A referenced but absent legacy file keeps its ID.
+    for (uint16_t version : {2, 3})
+    {
+        old.version = version;
+        old.payload_bytes = A::FRAM_LEGACY_END_ADDRESS - 256 + (version == 3 ? sizeof(audio) : 0);
+        bytes = std::make_shared<std::vector<uint8_t>>(sizeof(old) + old.payload_bytes);
+        memcpy(bytes->data() + sizeof(old), legacy.data() + 256, A::FRAM_LEGACY_END_ADDRESS - 256);
+        if (version == 3)
+        {
+            audio[0].bytes[0] = 7 * PACKET_DIM;
+            memcpy(bytes->data() + sizeof(old) + A::FRAM_LEGACY_END_ADDRESS - 256, audio, sizeof(audio));
+        }
+        old.payload_crc32 = FRAM_Calculate_crc32(bytes->data() + sizeof(old), old.payload_bytes);
+        memcpy(bytes->data(), &old, sizeof(old));
+        File previous{bytes};
+        assert(archive.Verify_FRAM_backup(previous));
+        if (version == 3)
+        {
+            assert(archive.Read_backup_audio(previous, audio, entries));
+        }
+        assert(archive.Restore_FRAM_backup(previous, false));
+        assert(FileNameRegistry::Find("37.raw") == 37);
+        assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
+    }
     assert(archive.Factory_reset_FRAM(false) == 0);
     assert(archive.Check_FRAM_archive() != 0);
     assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
     assert(archive.Check_FRAM_archive() == 0);
-    std::puts("PASS: header initialization, V1/V2 codecs, V3 audio manifest, deferred READY, interruption/retry and CRC rejection");
+    std::puts("PASS: legacy migration, V4/V5 registry backup, audio manifest, deferred READY, interruption/retry and CRC rejection");
 }
 '''
 compiler = base["compiler"]

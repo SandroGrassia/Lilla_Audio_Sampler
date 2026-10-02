@@ -5676,7 +5676,7 @@ void loop()
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
                             {
-                                if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
+                                if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                 {
                                     file_L_RAW = i;
                                     DS_export = 1;
@@ -5695,7 +5695,7 @@ void loop()
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
                             {
-                                if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
+                                if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                 {
                                     file_L_RAW = i;
                                     DS_export = 1;
@@ -5706,7 +5706,7 @@ void loop()
                             {
                                 for (auto i = file_L_RAW + 1; i < FIRST_RECORDING_FILE; ++i)
                                 {
-                                    if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
+                                    if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                     {
                                         file_R_RAW = i;
                                         DS_export = 2;
@@ -5720,7 +5720,7 @@ void loop()
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
                             {
-                                if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
+                                if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
                                 {
                                     file_L_RAW = i;
                                     DS_export = 1;
@@ -9293,6 +9293,11 @@ bool DS_back_to_first_DS_Recording(void)
 FLASHMEM
 void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording channel into a RAW file.
 {
+    if (!FileNameRegistry::Bind_numeric(file_L_RAW) || !FileNameRegistry::Save())
+    {
+        Show_popup_text("CANNOT SAVE FILE NAME", ILI9341_WHITE, ILI9341_RED, 75);
+        return;
+    }
     char audio_filename[NAME_FILE_SIZE];
     char packet_filename[NAME_PACKET_SIZE];
     P_Invalidate_file_cache(file_L_RAW);
@@ -9373,6 +9378,11 @@ void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording 
 FLASHMEM
 void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording channel into a RAW file.
 {
+    if (!FileNameRegistry::Bind_numeric(file_R_RAW) || !FileNameRegistry::Save())
+    {
+        Show_popup_text("CANNOT SAVE FILE NAME", ILI9341_WHITE, ILI9341_RED, 75);
+        return;
+    }
     char audio_filename[NAME_FILE_SIZE];
     char packet_filename[NAME_PACKET_SIZE];
     P_Invalidate_file_cache(file_R_RAW);
@@ -9580,7 +9590,7 @@ bool DS_check_conversion(void)
     {
         for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
         {
-            if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
+            if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
             {
                 return true;
             }
@@ -12289,7 +12299,7 @@ int Get_first_raw_file_available(int start_value)
     {
         for (auto i = start_value; i < FIRST_RECORDING_FILE; ++i)
         {
-            if (Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
+            if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
             {
                 return i;
             }
@@ -12374,7 +12384,7 @@ int Get_raw_files(void)
     int value = 0;
     for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
     {
-        if (SerialFlash.exists(Get_file_name(i, audio_filename)))
+        if (FileNameRegistry::Assigned(i) && SerialFlash.exists(Get_file_name(i, audio_filename)))
         {
             ++value;
         }
@@ -12388,7 +12398,7 @@ int Get_raw_files_volume(void)
     unsigned long value = 0;
     for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
     {
-        if (SerialFlash.exists(Get_file_name(i, audio_filename)))
+        if (FileNameRegistry::Assigned(i) && SerialFlash.exists(Get_file_name(i, audio_filename)))
         {
             SerialFlashFile raw_file = SerialFlash.open(Get_file_name(i, audio_filename));
             value += raw_file.size();
@@ -12687,8 +12697,8 @@ void Print_Instrument(int patch_id, int instrument_id)
     Serial.print(" sound_id:");
     Serial.print(Get_sound_id(patch_id, instrument_id));
     Serial.print(" file:");
-    Serial.print(Sound[Get_sound_id(patch_id, instrument_id)].file);
-    Serial.print(".raw");
+    char audio_filename[NAME_FILE_SIZE];
+    Serial.print(Get_file_name(Sound[Get_sound_id(patch_id, instrument_id)].file, audio_filename));
     Serial.print(" root_key:");
     Serial.print(Patch[patch_id].Instrument[instrument_id].root_key);
     Serial.print(" from_note:");
@@ -13108,7 +13118,7 @@ FLASHMEM void LS_Capture_sound(int selected)
         {
             for (int file = 1; file < FIRST_RECORDING_FILE; ++file)
             {
-                if (file != files[0] && Capture_find(file) == nullptr && !SerialFlash.exists(Get_file_name(file, audio_filename)))
+                if (file != files[0] && FileNameRegistry::Numeric_available(file) && Capture_find(file) == nullptr && !SerialFlash.exists(Get_file_name(file, audio_filename)))
                 {
                     files[channel] = file;
                     break;
@@ -13224,6 +13234,10 @@ FLASHMEM bool LS_Capture_write(CaptureSource &source)
         return true; // A retry after another channel failed must not allocate again.
     }
 
+    if (!FileNameRegistry::Bind_numeric(source.audio.file_id) || !FileNameRegistry::Save())
+    {
+        return false;
+    }
     const char *name = Get_file_name(source.audio.file_id, audio_filename);
     const uint32_t bytes = source.audio.samples * sizeof(int16_t);
 
@@ -14145,6 +14159,45 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         return false;
     }
 
+    // Stage and commit every accepted name before erasing audio. Missing names retain their IDs.
+    rootdir = SD.open("/LILLA_AUDIO");
+    bool registry_ok = rootdir && rootdir.isDirectory();
+    const char *registry_error = "CANNOT READ AUDIO DIRECTORY";
+    while (registry_ok)
+    {
+        File source = rootdir.openNextFile();
+        if (!source)
+        {
+            break;
+        }
+        char filename[256];
+        SET_Audio_format format;
+        if (!source.isDirectory() && raw_filename(source.name(), filename, sizeof(filename), format))
+        {
+            uint32_t offset = 0;
+            uint32_t length = source.size();
+            uint16_t channels = 1;
+            if (SET_Audio_raw_data(source, format, offset, length, channels))
+            {
+                registry_error = FileNameRegistry::Valid_name(filename) ? "FILE NAME TABLE FULL" : "NAME TOO LONG OR RESERVED";
+                registry_ok = FileNameRegistry::Add(filename) >= 0;
+            }
+        }
+        source.close();
+    }
+    rootdir.close();
+    if (!registry_ok)
+    {
+        FileNameRegistry::Load();
+        Show_popup_text(registry_error, ILI9341_WHITE, ILI9341_RED, 75);
+        return false;
+    }
+    if (!FileNameRegistry::Save())
+    {
+        Show_popup_text("CANNOT SAVE FILE NAMES", ILI9341_WHITE, ILI9341_RED, 75);
+        return false;
+    }
+
     // Start erasing flash chip
     Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_start();
 
@@ -14225,6 +14278,14 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         {
             f.close();
             continue; // An empty or truncated PCM sample cannot replace the fallback.
+        }
+
+        if (FileNameRegistry::Find(filename) < 0)
+        {
+            f.close();
+            rootdir.close();
+            Show_popup_text("AUDIO DIRECTORY CHANGED", ILI9341_WHITE, ILI9341_RED, 75);
+            return false;
         }
 
         if (SerialFlash.exists(filename))
@@ -14935,7 +14996,7 @@ void Startup_hardware_and_objects(void)
             delay(1000);
         }
     }
-    File_scanner.Read_all_file_data(); // FlashFileRegisterParser::Read_all_file_data();
+    // File inventory is built after validating/loading the persistent name registry.
 
     // Note-to-pitch conversion array
     key_step = 0;
@@ -14988,6 +15049,8 @@ void Reload_system_state(void)
             delay(10);
         }
     }
+
+    File_scanner.Read_all_file_data();
 
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB

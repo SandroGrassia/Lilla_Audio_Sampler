@@ -15,6 +15,7 @@
 #include "Functions.h"
 #include "GlobalFRAM.h"
 #include "LillaFRAM_2x512.h"
+#include "FileNameRegistry.h"
 
 class ArchivingManager
 {
@@ -147,15 +148,11 @@ private:
     0x0FB00–0x0FC67	360	        30 Recording
     0x0FC68–0x0FCFF	152	        Allineamento riservato
     0x0FD00–0x0FDFF	256	        System
-    0x0FE00–0x1FFFF	66.048	    Libero
+    0x0FE00–0x0FFFF  512         Reserved
+    0x10000–0x14117  16.664      RAW filename registry (two CRC-protected banks)
+    0x14118–0x1FFFF  48.872      Free
 
-    FRAM 0: 512 byte liberi
-    FRAM 1: 65.536 byte liberi
-    Totale: 66.048 byte = 64,5 KiB
-
-    intervalli liberi
-    FRAM 0: 0x0FE00–0x0FFFF
-    FRAM 1: 0x10000–0x1FFFF
+    Names are stored once per RAW identity; Sound.file remains a uint16_t.
     */
 
     static constexpr uint16_t FRAM_PATCHES = 200;
@@ -176,7 +173,9 @@ private:
     static constexpr uint32_t FRAM_SYSTEM_ADDRESS = 0x0FD00;
     static constexpr uint32_t FRAM_SYSTEM_BYTES = sizeof(FRAM_System_struct); // 0x00100
 
-    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FE00
+    static constexpr uint32_t FRAM_LEGACY_END_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FE00
+    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FileNameRegistry::END_ADDRESS; // Includes both registry banks in backups.
+    byte Migrate_file_registry();
 
     struct alignas(4) FRAM_Backup_header_struct
     {
@@ -186,7 +185,7 @@ private:
         uint32_t payload_bytes;
         uint32_t payload_crc32;
     };
-    static constexpr uint16_t FRAM_BACKUP_VERSION = 2;
+    static constexpr uint16_t FRAM_BACKUP_VERSION = 4;
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);
     static_assert(sizeof(FRAM_Sound_struct) == 32);

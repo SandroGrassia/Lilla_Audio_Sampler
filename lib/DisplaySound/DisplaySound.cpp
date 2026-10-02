@@ -220,7 +220,18 @@ void DisplaySound::Show_File_value(int instrument_id)
     char audio_filename[NAME_FILE_SIZE];
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Get_file_name(Preset[instrument_id].file, audio_filename));
+    const uint16_t file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
+    Get_file_name(file, audio_filename);
+    if (strlen(audio_filename) > S_chars_File && file < FIRST_RECORDING_FILE)
+    {
+        audio_filename[strlen(audio_filename) - 4] = 0; // Omit the common extension in the compact header.
+    }
+    if (strlen(audio_filename) > S_chars_File)
+    {
+        audio_filename[S_chars_File - 1] = '~';
+        audio_filename[S_chars_File] = 0;
+    }
+    tft.print(audio_filename);
 }
 
 FLASHMEM

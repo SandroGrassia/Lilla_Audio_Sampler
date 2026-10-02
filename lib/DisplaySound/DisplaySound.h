@@ -51,7 +51,7 @@ private:
             {S_column_row_NoClick[0], S_column_row_NoClick[1]}};
 
     // Character widths used when clearing and redrawing each value field.
-    static constexpr int S_chars_File = 7;
+    static constexpr int S_chars_File = 8;
     static constexpr int S_chars_Midi = 2;
     static constexpr int S_chars_Pitch = 5;
     static constexpr int S_chars_Gain = 4;

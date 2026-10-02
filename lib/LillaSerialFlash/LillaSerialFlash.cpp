@@ -151,6 +151,13 @@ void FlashFileRegisterParser::Read_all_file_data(void)
   for (auto i = 0; i < (RAW_FILES + PACKETS); ++i)
   {
     T = 0;
+    if (i < FIRST_RECORDING_FILE && !FileNameRegistry::Assigned(i))
+    {
+        address_array[i] = 0;
+        length_array[i] = 0;
+        dirindex_array[i] = 0;
+        continue;
+    }
     if (i < RAW_FILES) // n.raw, n.rec (.liv sono su PSRAM)
     {
       rawfile = SerialFlash.open(Get_file_name(i, audio_filename));
