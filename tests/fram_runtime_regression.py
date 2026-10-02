@@ -51,7 +51,6 @@ mock += r"""
 #define bitRead(value, bit) (((value) >> (bit)) & 1U)
 #define bitWrite(value, bit, flag) ((value) = ((value) & ~(1U << (bit))) | ((flag) << (bit)))
 #define PRINT_ERROR(value) ((void)(value))
-constexpr int FIRST_RECORDING_FILE = 2000;
 int Capture_new_patch = -1, pending_file = -1;
 Delay_data_struct Capture_patch_delay{};
 bool Capture_pending(int file) { return file == pending_file; }

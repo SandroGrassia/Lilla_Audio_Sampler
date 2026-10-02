@@ -36,6 +36,7 @@ prefix = r"""
 #include <cstdio>
 #include <vector>
 #define F(x) x
+#define FLASHMEM
 struct SerialStub {
     void print(const char *text) { std::fputs(text, stdout); }
     void println(const char *text) { std::puts(text); }
@@ -81,6 +82,10 @@ struct LillaFRAM_2x512 {
     }
 } LillaFram;
 """
+registry_header = (ROOT / "lib/FileNameRegistry/FileNameRegistry.h").read_text(encoding="utf-8").replace("#pragma once", "")
+registry_source = (ROOT / "lib/FileNameRegistry/FileNameRegistry.cpp").read_text(encoding="utf-8")
+registry_source = "\n".join(line for line in registry_source.splitlines() if not line.startswith('#include "'))
+prefix += "\n#define DMAMEM\nconstexpr int FIRST_RECORDING_FILE = 260;\nconstexpr int NAME_FILE_SIZE = 36;\nstruct FlashMock { bool exists(const char *) { return false; } } SerialFlash;\n" + registry_header + registry_source
 fixture = "class ArchivingManager {\npublic:\n" + layout + settings_declarations + declarations + "};\n"
 tests = r"""
 template<class T, class Write, class Read>

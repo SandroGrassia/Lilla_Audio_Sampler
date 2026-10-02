@@ -6,11 +6,12 @@ import re
 import shutil
 import subprocess
 import tempfile
+from file_registry_fixture import REGISTRY_FIXTURE
 
 ROOT = Path(__file__).resolve().parents[1]
 headers = '\n'.join((ROOT / path).read_text(encoding='utf-8') for path in ['lib/SharedElements/SharedElements.h', 'lib/SharedVFS/SharedVFS.h', 'lib/SharedLiveSampler/SharedLiveSampler.h'])
 constants = '\n'.join(re.search(r'^static constexpr int ' + name + r' = \d+;', headers, re.M).group(0) for name in ['NAME_FILE_SIZE', 'NAME_PACKET_SIZE', 'RAW_FILES', 'PACKETS', 'FIRST_RECORDING_FILE', 'FIRST_LIVE_SAMPLING_FILE'])
-methods = []
+methods = [REGISTRY_FIXTURE]
 for path, function in [('lib/SharedElements/SharedElements.cpp', 'Get_file_name'), ('lib/SharedVFS/SharedVFS.cpp', 'Get_packet_name')]:
     source = (ROOT / path).read_text(encoding='utf-8')
     methods.append(re.search(r'^const char \*' + function + r'\([^\n]+\)\n\{.*?^\}', source, re.M | re.S).group(0))
@@ -18,6 +19,11 @@ for path, function in [('lib/SharedElements/SharedElements.cpp', 'Get_file_name'
 checks = r'''
 int main()
 {
+    reset_registry();
+    for (int id = 1; id < FIRST_RECORDING_FILE; ++id)
+    {
+        assert(FileNameRegistry::Bind_numeric(id));
+    }
     struct FileBuffer
     {
         char before = 'A';
@@ -53,6 +59,10 @@ int main()
     assert(strcmp(file.name, "0.raw") == 0);
     assert(strcmp(other, "Right.liv") == 0);
     assert(strcmp(packet.name, "P1023.raw") == 0);
+    reset_registry();
+    assert(FileNameRegistry::Add("long_audio_filename.raw") == 1);
+    assert(strcmp(Get_file_name(1, file.name), "long_audio_filename.raw") == 0);
+    assert(file.before == 'A' && file.after == 'Z');
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

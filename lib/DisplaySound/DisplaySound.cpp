@@ -37,21 +37,21 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
         Display_Common.P_show_PERFORMANCE_title();
     }
 
-    tft.setCursor(display_coordinate_x(29), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(27), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("PATCH");
     tft.setCursor(display_coordinate_x(S_column_row_Patch[0]), display_coordinate_y(S_column_row_Patch[1]));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(Patch_id);
 
-    tft.setCursor(display_coordinate_x(19), display_coordinate_y(0));// 23 -4
+    tft.setCursor(display_coordinate_x(17), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("SOUND");
     tft.setCursor(display_coordinate_x(S_column_row_Sound[0]), display_coordinate_y(S_column_row_Sound[1]));
     tft.setTextColor(ILI9341_WHITE);
     tft.print(instrument_id + 1);
 
-    tft.setCursor(display_coordinate_x(39), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(37), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FILE");
     Show_File_value(instrument_id);
@@ -220,7 +220,17 @@ void DisplaySound::Show_File_value(int instrument_id)
     char audio_filename[NAME_FILE_SIZE];
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Get_file_name(Preset[instrument_id].file, audio_filename));
+    const uint16_t file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
+    Get_file_name(file, audio_filename);
+    if (file < FIRST_RECORDING_FILE)
+    {
+        audio_filename[strlen(audio_filename) - 4] = 0; // Always omit .raw in the compact header.
+    }
+    if (strlen(audio_filename) > S_chars_File)
+    {
+        audio_filename[S_chars_File] = 0;
+    }
+    tft.print(audio_filename);
 }
 
 FLASHMEM
@@ -494,11 +504,11 @@ void DisplaySound::Led_SOUND_EDIT_instrument(int instrument_id, bool on)
 {
     if (on)
     {
-        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+        tft.drawBitmap(display_coordinate_x(16) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
     }
     else
     {
-        tft.drawBitmap(display_coordinate_x(18) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+        tft.drawBitmap(display_coordinate_x(16) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
     }
     return;
 }

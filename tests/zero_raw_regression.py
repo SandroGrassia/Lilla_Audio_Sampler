@@ -7,6 +7,8 @@ import shutil
 import struct
 import subprocess
 import tempfile
+import sys
+from file_registry_fixture import REGISTRY_FIXTURE
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'src/ZeroRaw.cpp').read_text(encoding='utf-8')
@@ -39,6 +41,10 @@ for name in methods:
 display += '} Display_Manager, Display_Storage, Display_Setup;\n'
 
 tests = '\nvoid reset()\n{\n    SerialFlash = FlashStub();\n    SD = SDStub();\n    entries.clear();\n    Display_Manager = DisplayStub();\n    Display_Storage = DisplayStub();\n    Display_Setup = DisplayStub();\n    File_scanner = ScannerStub();\n    confirm_import = true;\n    Trigger.Start();\n    Midi_reader.Start();\n    reloaded = 0;\n    tables_rebuilt = 0;\n}\nstd::shared_ptr<Entry> add(const char *name, size_t bytes, bool directory = false)\n{\n    auto file = std::make_shared<Entry>();\n    file->name = name;\n    file->directory = directory;\n    file->data.resize(bytes);\n    for (size_t index = 0; index < bytes; ++index)\n    {\n        file->data[index] = static_cast<uint8_t>(index * 37 + 11);\n    }\n    entries.push_back(file);\n    return file;\n}\nvoid verify_fallback()\n{\n    const auto &data = SerialFlash.files.at("0.raw");\n    assert(data.size() == 87992);\n    assert(std::memcmp(data.data(), zeroraw, sizeof(zeroraw)) == 0);\n}\nint main()\n{\n    reset();\n    assert(ZeroRaw_ensure_file());\n    verify_fallback();\n    assert(SerialFlash.first_write_source == zeroraw);\n    assert(SerialFlash.writes == 344 && SerialFlash.waits == 344 && SerialFlash.reads == 0);\n    assert(ZeroRaw_ensure_file() && SerialFlash.writes == 344);\n\n    assert(ZeroRaw_ensure_file(true) && SerialFlash.writes == 344);\n    SerialFlash.files["0.raw"][1000] ^= 1;\n    assert(ZeroRaw_ensure_file(true));\n    verify_fallback();\n\n    for (uint32_t size : {0u, 1u, 3u})\n    {\n        reset();\n        SerialFlash.files["0.raw"].assign(size, 123);\n        assert(ZeroRaw_ensure_file());\n        verify_fallback();\n    }\n    reset();\n    SerialFlash.files["0.raw"] = {12, 34};\n    assert(ZeroRaw_ensure_file() && SerialFlash.writes == 0);\n    assert(SerialFlash.files.at("0.raw") == std::vector<uint8_t>({12, 34}));\n\n    for (int offset : {0, 256, 87808})\n    {\n        reset();\n        SerialFlash.fail_write_at = offset;\n        assert(!ZeroRaw_ensure_file());\n        assert(SerialFlash.files.count("0.raw") == 0);\n    }\n    reset();\n    SerialFlash.fail_create = true;\n    assert(!ZeroRaw_ensure_file());\n    reset();\n    SerialFlash.fail_open = "0.raw";\n    assert(!ZeroRaw_ensure_file());\n    reset();\n    SerialFlash.files["0.raw"] = {};\n    SerialFlash.fail_remove = true;\n    assert(!ZeroRaw_ensure_file() && SerialFlash.writes == 0);\n\n    bool changed = false;\n    reset();\n    SerialFlash.files["0.raw"] = {1, 2};\n    auto other = add("7.raw", 600);\n    add("subdirectory", 0, true);\n    assert(SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    verify_fallback();\n    assert(SerialFlash.created == std::vector<std::string>({"0.raw", "7.raw"}));\n    assert(SerialFlash.files.at("7.raw") == other->data && Display_Storage.completed == 1);\n\n    for (const char *name : {"0.raw", "0.RAW", "0.RaW"})\n    {\n        reset();\n        auto zero = add(name, 917580);\n        zero->read_limit = 256;\n        assert(SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n        assert(SerialFlash.files.size() == 1 && SerialFlash.files.at("0.raw") == zero->data);\n    }\n    for (size_t size : {0u, 1u, 3u})\n    {\n        reset();\n        add("0.RAW", size);\n        assert(SET_Copy_audio_files_from_SD_to_Flash(changed));\n        verify_fallback();\n    }\n    reset();\n    assert(SET_Copy_audio_files_from_SD_to_Flash(changed));\n    verify_fallback();\n\n    for (int fault = 0; fault < 4; ++fault)\n    {\n        reset();\n        if (fault == 0)\n        {\n            confirm_import = false;\n        }\n        else if (fault == 1)\n        {\n            SD.available = false;\n        }\n        else if (fault == 2)\n        {\n            SD.directory_exists = false;\n        }\n        else\n        {\n            SD.fail_open_at = 1;\n        }\n        assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && !changed);\n        assert(SerialFlash.erases == 0 && Display_Storage.completed == 0);\n    }\n    reset();\n    SerialFlash.capacity = 87992;\n    add("7.raw", 256);\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    verify_fallback();\n    assert(Display_Storage.completed == 0);\n    reset();\n    SerialFlash.capacity = 87000;\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    assert(Display_Storage.completed == 0);\n\n    for (int error : {0, -1})\n    {\n        reset();\n        auto zero = add("0.raw", 600);\n        zero->fail_at = 256;\n        zero->fail_result = error;\n        assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n        assert(Display_Storage.completed == 0 && SerialFlash.files.count("0.raw") == 0);\n    }\n    reset();\n    SD.fail_open_at = 2;\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    assert(Display_Storage.completed == 0);\n    reset();\n    SerialFlash.fail_write_at = 87808;\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    assert(Display_Storage.completed == 0);\n\n    reset();\n    run_menu_case();\n    verify_fallback();\n    assert(reloaded == 1 && File_scanner.scans == 1 && Trigger.Is_running());\n    reset();\n    confirm_import = false;\n    run_menu_case();\n    assert(tables_rebuilt == 1 && Trigger.Is_running() && SerialFlash.erases == 0);\n    reset();\n    SerialFlash.capacity = 87000;\n    run_menu_case();\n    assert(tables_rebuilt == 0 && reloaded == 0 && !Trigger.Is_running() && !Midi_reader.Is_running());\n    confirm_import = false;\n    run_menu_case();\n    assert(tables_rebuilt == 0 && !Trigger.Is_running());\n    confirm_import = true;\n    SerialFlash.capacity = 64u * 1024u * 1024u;\n    run_menu_case();\n    assert(reloaded == 1 && Trigger.Is_running());\n    std::puts("PASS: source bytes, direct Flash copy, preservation, fallback, filename case, invalid PCM, capacity, read/write faults, no audio readback, cancellation, audio recovery, inventory refresh");\n}\n'
+fixture = REGISTRY_FIXTURE + fixture
+fixture += '\nconstexpr int ILI9341_WHITE = 1, ILI9341_RED = 2;\nvoid Show_popup_text(const char *, int, int, int) {}\n'
+tests = tests.replace('void reset()\n{', 'void reset()\n{\n    reset_registry();')
+tests = tests.replace('SD.fail_open_at = 2;', 'SD.fail_open_at = 3;')
 fixture += r"""
 struct CaptureAudio { const void *psram_ptr = nullptr; };
 struct CaptureStub { CaptureAudio audio; } Capture_sources[1];
@@ -76,6 +82,50 @@ tests = tests.replace('    bool changed = false;', r"""
     bool changed = false;
 """)
 # Exercise the production RAW, WAV and AIFF import with the same SD/Flash mocks.
+tests = tests.replace('    bool changed = false;', r'''
+    reset();
+    bool registry_changed = false;
+    add("kick.raw", 256);
+    add("snare.raw", 256);
+    assert(SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
+    const int kick_id = FileNameRegistry::Find("kick.raw");
+    const int snare_id = FileNameRegistry::Find("snare.raw");
+    entries.clear();
+    add("hat.raw", 256);
+    add("snare.raw", 256);
+    assert(SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
+    assert(FileNameRegistry::Find("kick.raw") == kick_id && FileNameRegistry::Find("snare.raw") == snare_id);
+    assert(!SerialFlash.files.count("kick.raw"));
+    entries.clear();
+    add("kick.raw", 256);
+    assert(SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
+    assert(FileNameRegistry::Load() && FileNameRegistry::Find("kick.raw") == kick_id);
+    for (const char *invalid : {"P10.raw", "12345678901234567890123456789012.raw"})
+    {
+        reset();
+        add(invalid, 256);
+        assert(!SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
+        assert(!registry_changed && SerialFlash.erases == 0);
+    }
+    reset();
+    LillaFram.budget = 10;
+    add("kick.raw", 256);
+    assert(!SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
+    assert(!registry_changed && SerialFlash.erases == 0);
+    LillaFram.budget = -1;
+    assert(FileNameRegistry::Load() && FileNameRegistry::Find("kick.raw") == -1);
+    reset();
+    for (int id = 1; id < 260; ++id)
+    {
+        assert(FileNameRegistry::Bind_numeric(id));
+    }
+    assert(FileNameRegistry::Save());
+    add("kick.raw", 256);
+    assert(!SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
+    assert(!registry_changed && SerialFlash.erases == 0);
+    reset();
+    bool changed = false;
+''')
 flash = flash.replace('    bool create(const char *name, uint32_t count)', '    bool exists(const char *name) { return files.count(name) != 0; }\n    bool create(const char *name, uint32_t count)')
 fixture = fixture.replace('    void close() { entry.reset(); }', '    bool seek(uint32_t value)\n    {\n        if (value > size())\n        {\n            return false;\n        }\n        offset = value;\n        return true;\n    }\n    void close() { entry.reset(); }')
 fixture = fixture.replace('    bool directory = false;', '    uint32_t max_read_end = 0;\n    bool directory = false;')
@@ -83,16 +133,35 @@ fixture = fixture.replace('        offset += accepted;', '        offset += acce
 audio_tests = (ROOT / 'tests/audio_import_cases.inc').read_text(encoding='utf-8')
 tests = tests.replace('int main()\n{', audio_tests + '\nint main()\n{\n    test_audio_import();', 1)
 method = method.replace('f.read(buf, input_bytes) != input_bytes', 'f.read(buf, input_bytes) != static_cast<int>(input_bytes)')
+method = method.replace('f.read(buf, input_bytes) == input_bytes', 'f.read(buf, input_bytes) == static_cast<int>(input_bytes)')
+fixture = fixture.replace('    void close() { entry.reset(); }', '    uint32_t position() { return offset; }\n    void close() { entry.reset(); }')
+fixture += '\n' + (ROOT / 'src/Mp3Import.cpp').read_text(encoding='utf-8')
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-zero-raw-') as directory:
     build = Path(directory)
-    for name, contents in {'Arduino.h': arduino, 'SerialFlash.h': flash}.items():
+    for name, contents in {'Arduino.h': arduino, 'SerialFlash.h': flash, 'SD.h': '#pragma once\n'}.items():
         (build / name).write_text(contents, encoding='utf-8', newline='\r\n')
     cpp = build / 'zero_raw_test.cpp'
+    if '--mp3' in sys.argv:
+        ffmpeg = shutil.which('ffmpeg') or next((ROOT / '.pio/test-tools').glob('**/ffmpeg*.exe'), None)
+        if ffmpeg is None:
+            raise RuntimeError('MP3 tests require ffmpeg on PATH or in .pio/test-tools')
+        for name, rate, channels, duration, options in [('mono', 44100, 1, 0.2, ['-b:a', '128k']), ('stereo', 44100, 2, 0.2, ['-b:a', '192k']), ('vbr', 44100, 2, 0.2, ['-q:a', '4']), ('untagged', 44100, 1, 0.2, ['-write_xing', '0']), ('long', 44100, 2, 37, ['-q:a', '6']), ('rate48000', 48000, 2, 0.2, []), ('rate22050', 22050, 1, 0.2, [])]:
+            signal = f'sine=frequency=440:sample_rate={rate}:duration={duration}' if channels == 1 else f'aevalsrc=0.1*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s={rate}:d={duration}'
+            subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', signal, '-ac', str(channels), '-c:a', 'libmp3lame', '-metadata', 'title=Lilla import test', *options, str(build / (name + '.mp3'))], check=True)
+        for rate in [8000, 11025, 12000, 16000, 22050, 24000, 32000, 48000]:
+            for channels in [1, 2]:
+                name = f'resample_{rate}_{channels}'
+                signal = f'aevalsrc=0.1*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s={rate}:d=0.4'
+                subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', signal, '-ac', str(channels), '-c:a', 'libmp3lame', '-q:a', '2', str(build / (name + '.mp3'))], check=True)
+                subprocess.run([str(ffmpeg), '-v', 'error', '-i', str(build / (name + '.mp3')), '-ac', '1', '-ar', '44100', '-f', 's16le', str(build / (name + '.raw'))], check=True)
+        subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=37', '-c:a', 'libmp3lame', '-q:a', '6', str(build / 'long48000.mp3')], check=True)
+        mp3_tests = '#include <fstream>\n#include <iterator>\nstatic const char *mp3_test_directory = R"(' + str(build) + ')";\n' + (ROOT / 'tests/mp3_import_cases.inc').read_text(encoding='utf-8')
+        tests = tests.replace('int main()\n{', mp3_tests + '\nint main()\n{\n    test_mp3_import();', 1)
     cpp.write_text(fixture + display + parsers + method + '\nvoid run_menu_case()\n{\n    switch (4)\n    {\n' + menu_case + '\n    }\n}\n' + tests, encoding='utf-8', newline='\r\n')
     exe = build / ('zero_raw_test.exe' if os.name == 'nt' else 'zero_raw_test')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(build), '-I', str(ROOT / 'include'), str(cpp), str(ROOT / 'src/ZeroRaw.cpp'), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(build), '-I', str(ROOT / 'include'), '-I', str(ROOT / '.pio/libdeps/teensy41/dr_libs'), str(cpp), str(ROOT / 'src/ZeroRaw.cpp'), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
-    subprocess.run([str(exe)], check=True, env=environment, timeout=30)
+    subprocess.run([str(exe)], check=True, env=environment, timeout=90)
 print('PASS: 43996 sine samples, zero endpoints, middle-C pitch and Flash replacement')

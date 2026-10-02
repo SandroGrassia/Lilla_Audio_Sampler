@@ -10,6 +10,7 @@ backup = runpy.run_path(str(Path(__file__).with_name('fram_backup_regression.py'
 base = backup['base']
 main = (base['ROOT'] / 'src/main.cpp').read_text(encoding='utf-8')
 prefix = re.sub(r'struct SerialStub \{.*?\} Serial;', 'struct SerialStub { template<class T> void print(T) {} template<class T> void println(T) {} void println() {} void Stop() {} } Serial, Trigger, Midi_reader;', base['prefix'], flags=re.S)
+prefix = re.sub(r'struct FlashMock \{.*?\} SerialFlash;\n', '', prefix)
 
 mock = r'''
 #include <map>

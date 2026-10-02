@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from file_registry_fixture import REGISTRY_FIXTURE
 
 root = Path(__file__).resolve().parents[1]
 
@@ -224,7 +225,8 @@ int main()
 }
 '''
 
-program = prefix + body('lib/CaptureSources/CaptureSources.h') + body('lib/CaptureSources/CaptureSources.cpp') + ui
+checks = checks.replace('int main()\n{', 'int main()\n{\n    reset_registry();')
+program = REGISTRY_FIXTURE + prefix + body('lib/CaptureSources/CaptureSources.h') + body('lib/CaptureSources/CaptureSources.cpp') + ui
 program += body('lib/PatchCacheManager/PatchCacheManager.h') + body('lib/PatchCacheManager/PatchCacheManager.cpp')
 main_source = (root / 'src/main.cpp').read_text(encoding='utf-8')
 for name in ['P_Verify_if_Instrument_original', 'P_Verify_is_Patch_original']:

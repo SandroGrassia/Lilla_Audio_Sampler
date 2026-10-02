@@ -44,16 +44,21 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
             Display_Common.P_show_PERFORMANCE_title();
         }
 
-        Display_Common.P_show_Patch_number(false);
+        tft.setCursor(display_coordinate_x(VCF_column_row_PATCH[0]), display_coordinate_y(VCF_column_row_PATCH[1]));
+        tft.setTextColor(TEXT_COLOR);
+        tft.print("PATCH");
+        tft.setCursor(display_coordinate_x(VCF_column_row_PATCH_NUMBER[0]), display_coordinate_y(VCF_column_row_PATCH_NUMBER[1]));
+        tft.setTextColor(ILI9341_WHITE);
+        tft.print(patch_id);
 
-    tft.setCursor(display_coordinate_x(VCF_column_row_SOUND[0]), display_coordinate_y(VCF_column_row_SOUND[1]));
+        tft.setCursor(display_coordinate_x(VCF_column_row_SOUND[0]), display_coordinate_y(VCF_column_row_SOUND[1]));
         tft.setTextColor(TEXT_COLOR);
         tft.print("SOUND");
-    tft.setCursor(display_coordinate_x(VCF_column_row_SOUND_NUMBER[0]), display_coordinate_y(VCF_column_row_SOUND_NUMBER[1]));
+        tft.setCursor(display_coordinate_x(VCF_column_row_SOUND_NUMBER[0]), display_coordinate_y(VCF_column_row_SOUND_NUMBER[1]));
         tft.setTextColor(ILI9341_WHITE);
         tft.print(instrument_id + 1);
 
-    tft.setCursor(display_coordinate_x(VCF_column_row_GAIN[0]), display_coordinate_y(VCF_column_row_GAIN[1]));
+        tft.setCursor(display_coordinate_x(VCF_column_row_GAIN[0]), display_coordinate_y(VCF_column_row_GAIN[1]));
         tft.setTextColor(TEXT_COLOR);
         tft.print("GAIN");
         VCF_show_sound_gain_value(sound_id);
@@ -248,15 +253,15 @@ void DisplayVCF::VCF_show_LFO_modulation_depth(const int instrument_id)
 
 void DisplayVCF::Led_INSTRUMENT_VCF_instrument(int instrument_id, bool on)
 {
-    if (Lilla_state_0 == PERFORMANCE)
+    if (Lilla_state_0 == PERFORMANCE || Lilla_state_0 == MIDI_LOOP)
     {
         if (on)
         {
-            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
+            tft.drawBitmap(display_coordinate_x(16) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_ON : GREEN_ON));
         }
         else
         {
-            tft.drawBitmap(display_coordinate_x(22) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
+            tft.drawBitmap(display_coordinate_x(16) - 4, display_coordinate_y(0), led_pic, 8, 8, (MX_mute[instrument_id] ? RED_OFF : GREEN_OFF));
         }
     }
     else if (Lilla_state_0 == LIVE_SAMPLING)

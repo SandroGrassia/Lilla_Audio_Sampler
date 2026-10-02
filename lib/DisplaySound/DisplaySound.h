@@ -21,9 +21,9 @@ class DisplaySound
 {
 private:
     // Screen coordinates for each SOUND page value field, expressed in character columns/rows.
-    static constexpr float S_column_row_Patch[2] = {34.5, 0};
-    static constexpr float S_column_row_Sound[2] = {24.5, 0};
-    static constexpr float S_column_row_File[2] = {43.5, 0};
+    static constexpr float S_column_row_Patch[2] = {33, 0};
+    static constexpr float S_column_row_Sound[2] = {22.5, 0};
+    static constexpr float S_column_row_File[2] = {42, 0};
     static constexpr float S_column_row_Midi[2] = {49, 4.9};
     static constexpr float S_column_row_Pitch[2] = {23.5, 4.9};
     static constexpr float S_column_row_Gain[2] = {4.5, 4.9};
@@ -51,7 +51,7 @@ private:
             {S_column_row_NoClick[0], S_column_row_NoClick[1]}};
 
     // Character widths used when clearing and redrawing each value field.
-    static constexpr int S_chars_File = 7;
+    static constexpr int S_chars_File = 8;
     static constexpr int S_chars_Midi = 2;
     static constexpr int S_chars_Pitch = 5;
     static constexpr int S_chars_Gain = 4;

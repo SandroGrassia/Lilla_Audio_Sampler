@@ -14,7 +14,7 @@ const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE])
 {
     if (file_id < FIRST_RECORDING_FILE)
     {
-        snprintf(name, sizeof(name), "%u.raw", static_cast<unsigned int>(file_id));
+        FileNameRegistry::Filename(file_id, name);
     }
     else if (file_id < FIRST_LIVE_SAMPLING_FILE)
     {
