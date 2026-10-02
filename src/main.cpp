@@ -97,6 +97,7 @@
 #include <spi_interrupt.h>
 #include "CaptureSources.h"
 #include "ZeroRaw.h"
+#include "Mp3Import.h"
 
 #if defined(LILLA_READ_BENCHMARK)
 #include "ReadBenchmark.h"
@@ -13732,7 +13733,8 @@ enum class SET_Audio_format : uint8_t
 {
     Raw,
     Wav,
-    Aiff
+    Aiff,
+    Mp3
 };
 
 FLASHMEM
@@ -13911,6 +13913,11 @@ static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &da
     const uint64_t file_length = file.size();
     data_length = file_length < SET_AUDIO_MAX_RAW_BYTES ? static_cast<uint32_t>(file_length) : SET_AUDIO_MAX_RAW_BYTES;
     channels = 1;
+    if (format == SET_Audio_format::Mp3)
+    {
+        Mp3Import mp3;
+        return mp3.Open(file, data_length, channels, SET_AUDIO_MAX_RAW_BYTES);
+    }
     if (format == SET_Audio_format::Wav && !SET_WAV_raw_data(file, data_offset, data_length, channels))
     {
         return false;
@@ -13986,6 +13993,10 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         else if (strcasecmp(extension, ".aif") == 0 || strcasecmp(extension, ".aiff") == 0)
         {
             format = SET_Audio_format::Aiff;
+        }
+        else if (strcasecmp(extension, ".mp3") == 0)
+        {
+            format = SET_Audio_format::Mp3;
         }
         else
         {
@@ -14194,10 +14205,11 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         }
 
         const bool is_zero_raw = strcmp(filename, "0.raw") == 0;
+        Mp3Import mp3;
         uint32_t offset = 0;
         uint32_t length = f.size();
         uint16_t channels = 1;
-        if (!SET_Audio_raw_data(f, format, offset, length, channels))
+        if (!(format == SET_Audio_format::Mp3 ? mp3.Open(f, length, channels, SET_AUDIO_MAX_RAW_BYTES) : SET_Audio_raw_data(f, format, offset, length, channels)))
         {
             ++row;
             if (row > 14)
@@ -14228,7 +14240,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             continue;
         }
 
-        if (format != SET_Audio_format::Raw && !f.seek(offset))
+        if (format != SET_Audio_format::Raw && format != SET_Audio_format::Mp3 && !f.seek(offset))
         {
             f.close();
             rootdir.close();
@@ -14262,7 +14274,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             const unsigned int capacity = sizeof(buf) / channels;
             const unsigned int bytes = remaining < capacity ? remaining : capacity;
             const unsigned int input_bytes = bytes * channels;
-            if (f.read(buf, input_bytes) != input_bytes)
+            if (!(format == SET_Audio_format::Mp3 ? mp3.Read(buf, bytes / sizeof(int16_t)) : f.read(buf, input_bytes) == input_bytes))
             {
                 copied = false;
                 break;

@@ -7,6 +7,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'src/ZeroRaw.cpp').read_text(encoding='utf-8')
@@ -83,16 +84,28 @@ fixture = fixture.replace('        offset += accepted;', '        offset += acce
 audio_tests = (ROOT / 'tests/audio_import_cases.inc').read_text(encoding='utf-8')
 tests = tests.replace('int main()\n{', audio_tests + '\nint main()\n{\n    test_audio_import();', 1)
 method = method.replace('f.read(buf, input_bytes) != input_bytes', 'f.read(buf, input_bytes) != static_cast<int>(input_bytes)')
+method = method.replace('f.read(buf, input_bytes) == input_bytes', 'f.read(buf, input_bytes) == static_cast<int>(input_bytes)')
+fixture = fixture.replace('    void close() { entry.reset(); }', '    uint32_t position() { return offset; }\n    void close() { entry.reset(); }')
+fixture += '\n' + (ROOT / 'src/Mp3Import.cpp').read_text(encoding='utf-8')
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-zero-raw-') as directory:
     build = Path(directory)
-    for name, contents in {'Arduino.h': arduino, 'SerialFlash.h': flash}.items():
+    for name, contents in {'Arduino.h': arduino, 'SerialFlash.h': flash, 'SD.h': '#pragma once\n'}.items():
         (build / name).write_text(contents, encoding='utf-8', newline='\r\n')
     cpp = build / 'zero_raw_test.cpp'
+    if '--mp3' in sys.argv:
+        ffmpeg = shutil.which('ffmpeg') or next((ROOT / '.pio/test-tools').glob('**/ffmpeg*.exe'), None)
+        if ffmpeg is None:
+            raise RuntimeError('MP3 tests require ffmpeg on PATH or in .pio/test-tools')
+        for name, rate, channels, duration, options in [('mono', 44100, 1, 0.2, ['-b:a', '128k']), ('stereo', 44100, 2, 0.2, ['-b:a', '192k']), ('vbr', 44100, 2, 0.2, ['-q:a', '4']), ('untagged', 44100, 1, 0.2, ['-write_xing', '0']), ('long', 44100, 2, 37, ['-q:a', '6']), ('rate48000', 48000, 2, 0.2, []), ('rate22050', 22050, 1, 0.2, [])]:
+            signal = f'sine=frequency=440:sample_rate={rate}:duration={duration}' if channels == 1 else f'aevalsrc=0.1*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s={rate}:d={duration}'
+            subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', signal, '-ac', str(channels), '-c:a', 'libmp3lame', '-metadata', 'title=Lilla import test', *options, str(build / (name + '.mp3'))], check=True)
+        mp3_tests = '#include <fstream>\n#include <iterator>\nstatic const char *mp3_test_directory = R"(' + str(build) + ')";\n' + (ROOT / 'tests/mp3_import_cases.inc').read_text(encoding='utf-8')
+        tests = tests.replace('int main()\n{', mp3_tests + '\nint main()\n{\n    test_mp3_import();', 1)
     cpp.write_text(fixture + display + parsers + method + '\nvoid run_menu_case()\n{\n    switch (4)\n    {\n' + menu_case + '\n    }\n}\n' + tests, encoding='utf-8', newline='\r\n')
     exe = build / ('zero_raw_test.exe' if os.name == 'nt' else 'zero_raw_test')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(build), '-I', str(ROOT / 'include'), str(cpp), str(ROOT / 'src/ZeroRaw.cpp'), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(build), '-I', str(ROOT / 'include'), '-I', str(ROOT / '.pio/libdeps/teensy41/dr_libs'), str(cpp), str(ROOT / 'src/ZeroRaw.cpp'), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
-    subprocess.run([str(exe)], check=True, env=environment, timeout=30)
+    subprocess.run([str(exe)], check=True, env=environment, timeout=90)
 print('PASS: 43996 sine samples, zero endpoints, middle-C pitch and Flash replacement')
