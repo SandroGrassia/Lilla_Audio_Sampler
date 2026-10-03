@@ -6,7 +6,7 @@ For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.0.0**
 
 Guide edition: **3 October 2026**
 
-<img src="FOTO%20DISPLAY%20LILLA/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
 *Welcome screen. The photographs in this guide show a working instrument; patch numbers, file names and values are examples.*
 
@@ -200,7 +200,7 @@ The file-name table supports 260 RAW identities, including the fallback source, 
 
 ## Performance
 
-<img src="FOTO%20DISPLAY%20LILLA/1.jpg" alt="Performance page showing a seven-sound keyboard mapping" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/1.jpg" alt="Performance page showing a seven-sound keyboard mapping" width="37%">
 
 *An example patch spread across seven sound slots. Each row has its own root key, range and gain.*
 
@@ -281,7 +281,7 @@ Use `CLONE` when you want a second patch to develop from an existing one. Use `S
 
 ## Editing a sound
 
-<img src="FOTO%20DISPLAY%20LILLA/2.jpg" alt="Sound Edit page with envelope, playback mode and sample waveform" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/2.jpg" alt="Sound Edit page with envelope, playback mode and sample waveform" width="37%">
 
 *The waveform belongs to the selected source. `FROM`, `TO` and `TOT` describe the playable region; `TRIM STEP` controls the editing increment.*
 
@@ -363,7 +363,7 @@ Save the patch after finishing. Removing a sound slot is different from deleting
 
 > **Import replaces the audio library.** Confirming import erases the previous Flash audio files and Sampler recordings. Create a backup and keep your source audio on your computer before proceeding.
 
-<img src="FOTO%20DISPLAY%20LILLA/12.jpg" alt="Audio import page showing source files, Flash capacity and the erase warning" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/12.jpg" alt="Audio import page showing source files, Flash capacity and the erase warning" width="37%">
 
 *Check both the source report and destination capacity before importing. This photograph says 35 seconds; the current firmware limit is 3 MiB of decoded mono PCM, approximately 35.7 seconds.*
 
@@ -419,7 +419,7 @@ The import screen reports invalid files, duplicates and Flash capacity problems.
 
 Sampler records the line input into Flash and lets you audition, convert or export the result.
 
-<img src="FOTO%20DISPLAY%20LILLA/6.jpg" alt="Sampler in PAUSE+REC with left and right input meters" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/6.jpg" alt="Sampler in PAUSE+REC with left and right input meters" width="37%">
 
 *The input meters let you set recording gain before starting. Free recording time and free audio-file space are shown separately.*
 
@@ -476,7 +476,7 @@ WAV export is useful when you want to edit a take on a computer, share a recordi
 
 ## Live Sampler
 
-<img src="FOTO%20DISPLAY%20LILLA/4.jpg" alt="Live Sampler before recording, with playback and buffer controls" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/4.jpg" alt="Live Sampler before recording, with playback and buffer controls" width="37%">
 
 *The empty-buffer view shows capacity, input gain, playback mode, feedback and start-point controls.*
 
@@ -496,7 +496,7 @@ The live buffer is temporary and is lost at power-off. Use the capture-to-patch 
 
 ### Read and navigate the live waveform
 
-<img src="FOTO%20DISPLAY%20LILLA/5.jpg" alt="Live Sampler with a recorded waveform and a selected loop" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/5.jpg" alt="Live Sampler with a recorded waveform and a selected loop" width="37%">
 
 *Here the display window is 1.3 seconds, while the selected loop is 0.46 seconds. Zooming the view and changing the loop length are separate operations.*
 
@@ -575,7 +575,7 @@ You are not being asked to save patch 200. The warning protects edits to the pre
 
 ## MIDI Loop
 
-<img src="FOTO%20DISPLAY%20LILLA/8.jpg" alt="MIDI Loop page with four tracks, level, shift and transposition" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/8.jpg" alt="MIDI Loop page with four tracks, level, shift and transposition" width="37%">
 
 *The four columns are MIDI tracks. The lower sound indicators show activity associated with the patch's sounds.*
 
@@ -631,7 +631,7 @@ Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving
 
 ### Mixer
 
-<img src="FOTO%20DISPLAY%20LILLA/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="37%">
 
 *The highlighted column is the selected source. LINEOUT and MONITOR are separate routes.*
 
@@ -641,7 +641,7 @@ Use the separate line and monitor routes to decide what your audience hears and 
 
 ### Delay
 
-<img src="FOTO%20DISPLAY%20LILLA/9.jpg" alt="Delay page with sound routing, feedback, time and stereo modulation" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/9.jpg" alt="Delay page with sound routing, feedback, time and stereo modulation" width="37%">
 
 *The ROUTING row selects which sound slots feed the delay. The example values are not recommended defaults.*
 
@@ -655,7 +655,7 @@ Modulation varies the delay over time. Introduce depth gradually, then adjust it
 
 ### Filters and sound character
 
-<img src="FOTO%20DISPLAY%20LILLA/3.jpg" alt="Instrument VCF page with low-pass filtering and LFO modulation" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/3.jpg" alt="Instrument VCF page with low-pass filtering and LFO modulation" width="37%">
 
 *The individual VCF shapes one instrument. The common LPF cutoff remains visible above it.*
 
@@ -681,7 +681,7 @@ A locked instrument is protected from selected performance changes. Check `LOCK`
 
 ## Setup and MIDI controls
 
-<img src="FOTO%20DISPLAY%20LILLA/10.jpg" alt="Setup page with tuning conventions, MIDI assignment and storage operations" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/10.jpg" alt="Setup page with tuning conventions, MIDI assignment and storage operations" width="37%">
 
 *Setup combines global playing preferences with audio-library and backup operations.*
 
@@ -700,7 +700,7 @@ With `KEY STEP` at one semitone, adjacent MIDI notes use the normal chromatic pi
 
 ### Assign a controller knob
 
-<img src="FOTO%20DISPLAY%20LILLA/11.jpg" alt="Control Change Assignment page for eight sound gains and LPF cutoff" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/11.jpg" alt="Control Change Assignment page for eight sound gains and LPF cutoff" width="37%">
 
 *Each destination can have a CC assignment. A dash means no assignment.*
 
@@ -715,7 +715,7 @@ Use a dash to leave a destination unassigned. Check both the controller number a
 
 ### Check incoming MIDI
 
-<img src="FOTO%20DISPLAY%20LILLA/15.jpg" alt="MIDI monitor displaying a NoteOn message, channel, note and velocity" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/15.jpg" alt="MIDI monitor displaying a NoteOn message, channel, note and velocity" width="37%">
 
 *This example confirms reception of a NoteOn on channel 1. The note name follows the current octave-display convention.*
 
@@ -756,7 +756,7 @@ Keep your imported source library separately. The backup operation does not copy
 
 ### Restore a backup
 
-<img src="FOTO%20DISPLAY%20LILLA/13.jpg" alt="Restore confirmation warning that patches, sounds and recordings will be replaced" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/13.jpg" alt="Restore confirmation warning that patches, sounds and recordings will be replaced" width="37%">
 
 *Choose YES only after preparing the intended backup in the card's backup root.*
 
@@ -783,7 +783,7 @@ Restoration replaces configuration and restores recording audio. Back up the cur
 
 ### Factory reset
 
-<img src="FOTO%20DISPLAY%20LILLA/14.jpg" alt="Factory reset confirmation on the Setup page" width="25%">
+<img src="FOTO%20DISPLAY%20LILLA/14.jpg" alt="Factory reset confirmation on the Setup page" width="37%">
 
 *Factory reset is a destructive configuration operation, not a way to leave an editing page.*
 
