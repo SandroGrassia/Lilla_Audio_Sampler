@@ -56,7 +56,14 @@ std::map<std::string,std::vector<uint8_t>> flash;
 std::vector<std::string> messages;
 struct Screen { void fillRoundRect(int,int,int,int,int,int) {} void setTextColor(int) {} void setCursor(int,int) {} void print(const char *s) { messages.emplace_back(s); } } tft;
 void Show_popup_text(const char *text, int, int, int = 0) { messages.emplace_back(text); }
-void Show_popup_text(const char *first, const char *second, int, int, int = 0) { messages.emplace_back(first); messages.emplace_back(second); }
+void Show_popup_text(const char *first, const char *second, int, int, int = 0)
+{
+    messages.emplace_back(first);
+    if (second[0] != '\0')
+    {
+        messages.emplace_back(second);
+    }
+}
 void Frame_by_pixels_on_RED(int, int, int, bool) {}
 struct DisplayLiveSamplerStub
 {
@@ -170,7 +177,7 @@ int main()
     LiveSampler.Q_sample = 1023;
     Sound[30].pan=4;
     LS_Capture_sound(0);
-    assert(!Patch[1].used && messages.back()=="SAVE CURRENT PATCH FIRST");
+    assert(!Patch[1].used && messages[messages.size() - 2] == "OPEN PERFORMANCE" && messages.back() == "AND SAVE THE PREVIOUS PATCH");
     Sound[30].pan=0;
     // Cancel and guard failures allocate neither metadata nor Flash.
     cancel=true; LS_Capture_sound(0); cancel=false;

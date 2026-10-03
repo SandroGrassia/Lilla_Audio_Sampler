@@ -728,7 +728,7 @@ void LS_update_both_X_Y_samples(void);                                // Update 
 void LS_update_Q_sample(void);                                        // Snapshot the current recording write position with audio interrupts disabled.
 void LS_Reset_buffer(void);                                           // Clear the Live Sampler storage, reconnect its views and reset recording positions.
 void LS_setup_LS_Patch(bool stereo);                                  // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
-FLASHMEM void LS_Capture_notice(const char *message);                 // Show a centered notice for two seconds and discard pending UI events.
+FLASHMEM void LS_Capture_notice(const char *message, const char *second_line = "");                 // Show a centered notice for two seconds and discard pending UI events.
 FLASHMEM bool LS_Capture_confirm(void);                               // Ask whether to replace an existing capture; return true if confirmed.
 FLASHMEM bool LS_Capture_root(uint8_t &root);                         // Learn the capture root note from a key press; return false if cancelled.
 FLASHMEM bool LS_Capture_drain(void);                                 // Stop MIDI input and wait up to 100 ms for players to stop; leave MIDI stopped on success.
@@ -12898,9 +12898,9 @@ void Print_map_instrument_for_note(int midi_channel)
 // ***************************************************************************************************************
 
 // Live capture creates ordinary patch/Sound metadata; RAW storage is deferred until Save.
-FLASHMEM void LS_Capture_notice(const char *message)
+FLASHMEM void LS_Capture_notice(const char *message, const char *second_line)
 {
-    Show_popup_text(message, ILI9341_WHITE, ILI9341_RED, 0);
+    Show_popup_text(message, second_line, ILI9341_WHITE, ILI9341_RED, 0);
     const uint32_t started = millis();
     while (static_cast<uint32_t>(millis() - started) < 2000u)
     {
@@ -13051,7 +13051,7 @@ FLASHMEM void LS_Capture_sound(int selected)
 
     if (target < 0 || (creating && !P_Verify_is_Patch_original(Patch_id_old)))
     {
-        LS_Capture_notice(target < 0 ? "NO FREE PATCH" : "SAVE CURRENT PATCH FIRST");
+        LS_Capture_notice(target < 0 ? "NO FREE PATCH" : "OPEN PERFORMANCE", target < 0 ? "" : "AND SAVE THE PREVIOUS PATCH");
         LS_refresh_LS_page();
         return;
     }
