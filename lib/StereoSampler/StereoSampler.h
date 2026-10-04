@@ -23,8 +23,6 @@ private:
     void stop(void);
 
     audio_block_t *inputQueueArray[2] = {nullptr};
-    audio_block_t *in_block_L = nullptr;
-    audio_block_t *in_block_R = nullptr;
 
     volatile bool recording;
     volatile byte storage_error = 0;
@@ -54,7 +52,6 @@ private:
     static constexpr int Slope_samples = Slope_blocks * AUDIO_BLOCK_SAMPLES;
     int countdown_blocks = 0;
     bool countdown_flag = false;
-    elapsedMicros timer;
 
     // riferimenti esterni
     ArchivingManager &Archive;

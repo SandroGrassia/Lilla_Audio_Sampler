@@ -69,7 +69,6 @@ void StereoSampler::Book_stop(void)
 }
 void StereoSampler::update(void)
 {
-    char packet_filename[NAME_PACKET_SIZE];
     // only update if we're recording
     if (!recording)
     {
@@ -104,10 +103,8 @@ void StereoSampler::update(void)
         book_stop_flag = false;
     }
 
-    in_block_L = receiveWritable(0);
-    in_block_R = receiveWritable(1);
-
-    timer = 0;
+    audio_block_t *in_block_L = receiveReadOnly(0);
+    audio_block_t *in_block_R = receiveReadOnly(1);
 
     // update .packets, update FAT table
     if (increment_packets_flag)
@@ -145,7 +142,7 @@ void StereoSampler::update(void)
         {
             // direcly copy from AudioQueue.s to Packet.s
             Packet_L.write((byte *)in_block_L->data, 256);
-            Packet_R.write((byte *)in_block_L->data, 256);
+            Packet_R.write((byte *)in_block_R->data, 256);
         }
 
         else if (attack_gain_flag)
@@ -257,14 +254,6 @@ void StereoSampler::update(void)
         }
     }
 
-    if (false)
-    {
-        Serial.print(" next position on Packet: ");
-        Serial.print(Packet_L.position()); // next position to be written
-        Serial.print(F(" --> AUDIO_BLOCK (128 samples) written in micros:"));
-        Serial.println(timer);
-    }
-
     if (Packet_L.position() == PACKET_DIM) // Packet_L is full (if stereo_flag also Packet_R is full)
     {
         if (stereo_flag)
@@ -282,13 +271,6 @@ void StereoSampler::update(void)
 
                 increment_packets_flag = true;
 
-                if (false)
-                {
-                    Serial.print(F("SSampler - Next Packet_L is: "));
-                    Serial.print(Get_packet_name(packet_open_L, packet_filename));
-                    Serial.print(F("  and next Packet_R is: "));
-                    Serial.println(Get_packet_name(packet_open_R, packet_filename));
-                }
             }
 
             // Packets finished!

@@ -55,8 +55,8 @@ void StereoLiveSampler::update(void)
         book_stop_flag = false;
     }
 
-    in_block_L = receiveWritable(0);
-    in_block_R = receiveWritable(1);
+    audio_block_t *in_block_L = receiveReadOnly(0);
+    audio_block_t *in_block_R = receiveReadOnly(1);
 
     if (!in_block_L || !in_block_R)
     {
@@ -81,8 +81,8 @@ void StereoLiveSampler::update(void)
     }
     if (stereo) // si copiano i sample entranti direttamente su PSRAM, array L e array R
     {
-        memcpy((uint32_t *)(LS_buffer_L_ptr + Q_sample + 1), (uint32_t *)in_block_L->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
-        memcpy((uint32_t *)(LS_buffer_R_ptr + Q_sample + 1), (uint32_t *)in_block_R->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
+        memcpy(LS_buffer_L_ptr + Q_sample + 1, in_block_L->data, AUDIO_BLOCK_BYTES);
+        memcpy(LS_buffer_R_ptr + Q_sample + 1, in_block_R->data, AUDIO_BLOCK_BYTES);
     }
     else // Mix directly from the input blocks, preserving the existing mono rounding.
     {
