@@ -120,7 +120,7 @@ public:
 
     // Renders the full Live Sampler page (title, all labels and values).
     void Page(void);
-    void Compressor(bool enabled); // Selectable ON/OFF status on the feedback row; S3 remains a shortcut.
+    void Compressor(bool enabled); // Selectable ON/OFF status on the feedback row, toggled with Select.
     void Update_no_recorded_audio(bool requested); // Erase only the popup rectangle when it expires.
 
     // Redraws the Feedback parameter value.

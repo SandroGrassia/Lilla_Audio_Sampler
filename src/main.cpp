@@ -4575,19 +4575,7 @@ void loop()
         {
             if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                if (Inst_id == 2) // S3 temporarily controls compression instead of capturing into slot 3.
-                {
-                    AudioNoInterrupts();
-                    const bool compressor_enabled = !LS_Compressor.Is_enabled();
-                    LS_Compressor.Set_enabled(compressor_enabled);
-                    AudioInterrupts();
-
-                    Display_LiveSampler.Compressor(compressor_enabled);
-                }
-                else
-                {
-                    LS_Capture_sound(Inst_id);
-                }
+                LS_Capture_sound(Inst_id);
                 return;
             }
         }

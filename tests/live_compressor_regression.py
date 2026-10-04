@@ -104,26 +104,21 @@ void Run(AudioLiveCompressor &processor, int blocks, int left, int right, int fe
 
 int main()
 {
-    // The actual Live Sampler button handler reserves S3 and leaves all other captures intact.
+    // All eight sound buttons, including S3, capture without changing compression.
     for (int slot = 0; slot < INSTRUMENTS; ++slot)
     {
         pressed = slot;
         captured = -1;
         const bool before = LS_Compressor.Is_enabled();
         Handle_buttons();
-        if (slot == 2)
-        {
-            assert(captured == -1 && LS_Compressor.Is_enabled() != before);
-            assert(Display_LiveSampler.enabled == LS_Compressor.Is_enabled());
-        }
-        else
-        {
-            assert(captured == slot && LS_Compressor.Is_enabled() == before);
-        }
+        assert(captured == slot && LS_Compressor.Is_enabled() == before);
     }
+    LS_Compressor.Set_enabled(true);
     pressed = 2;
+    captured = -1;
     Handle_buttons();
-    assert(!LS_Compressor.Is_enabled() && !Display_LiveSampler.enabled);
+    assert(captured == 2 && LS_Compressor.Is_enabled());
+    LS_Compressor.Set_enabled(false);
 
     for (unsigned mask = 0; mask < 4; ++mask)
     {

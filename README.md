@@ -32,7 +32,7 @@ Sound shaping includes sample trimming, forward/reverse and loop playback, envel
 - A stereo-linked compressor processes the sum of line input and feedback before recording. Mixing uses 32-bit intermediate samples to preserve headroom before compression.
 - A precalculated soft-knee curve starts reducing gain around -6 dBFS and limits sample peaks to approximately -1 dBFS once fully enabled.
 - ON/OFF transitions take 10 ms. A 128-sample lookahead adds approximately 2.9 ms in both enabled and bypass states; the release time constant is approximately 100 ms.
-- Select the yellow ON/OFF value beside **COMPRESSOR** and press **Select**, or use **S3** as a temporary shortcut. S3 currently replaces direct capture selection for slot 3. Compression starts off at power-on and retains its setting during the session.
+- Select the yellow ON/OFF value beside **COMPRESSOR** and press **Select** to toggle compression. All sound buttons, **S1-S8**, select their capture slots. Compression starts off at power-on and retains its setting during the session.
 - The compressor block processes audio only while Live Sampler is recording, including while visiting Mixer or Delay. Otherwise it releases incoming blocks without allocating output blocks.
 - **FWD playback continues around the buffer while recording**, with both SYNC and FIXED start points. Held low notes no longer stop after one buffer length. Unrecorded regions remain protected during the first fill; after recording stops, normal one-shot FWD behavior resumes.
 
