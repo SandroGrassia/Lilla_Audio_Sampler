@@ -102,6 +102,8 @@ If there is no suitable audio loaded, follow [Importing audio](#importing-audio)
 | Firmware_upload mode button | Button | Enter firmware upload mode. |
 | On/off button | Button | Switch the instrument on or off. |
 
+**Future development:** MIDI OUT, Gate IN and Gate OUT are physically available and accessible through classes already included in the firmware codebase. No user-facing features currently use these connections; they are available for future development.
+
 ## Controls and navigation
 
 <img src="doc/assets/images/top.jpg" alt="LILLA top panel showing the display, encoders, mode selectors and sound buttons" width="100%">
