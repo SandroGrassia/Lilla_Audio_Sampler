@@ -9,7 +9,7 @@ This repository contains the firmware project for the LILLA Audio Sampler, a Tee
 The codebase targets a Teensy 4.1 running at 600 MHz and is organized as a standalone PlatformIO project with custom audio, display, storage, MIDI, and user-interface modules.
 
 <p align="center">
-    <img width="1000" alt="LILLA Audio Sampler in blue" src="doc/assets/images/lilla_blue.jpg">
+    <img width="1000" alt="LILLA Audio Sampler in blue" src="doc/assets/images/lilla_blue_1.jpg">
 </p>
 
 Read the illustrated [User Guide](USER_GUIDE.md) for connections, controls and operating procedures.
