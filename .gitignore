@@ -11,8 +11,8 @@ compile_commands.json
 AGENTS.md
 .gitignore
 .gitattributes
-.github
-.vscode
-.docs
-.scripts
-.tests
+/.github/
+/.vscode/
+/.docs/
+/.scripts/
+/.tests/
