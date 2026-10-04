@@ -171,7 +171,7 @@
 #include "AudioPeakDetector.h"
 #include "StereoSampler.h"
 #include "StereoLiveSampler.h"
-#include "AudioFeedback.h"
+#include "AudioLiveCompressor.h"
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
 #include "CacheCycleFinalizer.h"
@@ -254,8 +254,7 @@ AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
 AudioPeakDetector PeakTracking_L;
 AudioPeakDetector PeakTracking_R;
-AudioFeedback LS_Feedback_L;
-AudioFeedback LS_Feedback_R;
+AudioLiveCompressor LS_Compressor;
 StereoLiveSampler LiveSampler;
 AutoTuneInput AutoTune_input;
 AudioAnalyzeFFT1024 AutoTune_fft;
@@ -344,8 +343,8 @@ AudioConnection patchCord50(mixer_R, 0, biquad_R, 0);
 AudioConnection patchCord51(biquad_L, 0, MAIN_mixer_out_L, 0);
 AudioConnection patchCord52(biquad_R, 0, MAIN_mixer_out_R, 0);
 
-AudioConnection patchCord53(biquad_L, 0, LS_Feedback_L, 1);
-AudioConnection patchCord54(biquad_R, 0, LS_Feedback_R, 1);
+AudioConnection patchCord53(biquad_L, 0, LS_Compressor, 2);
+AudioConnection patchCord54(biquad_R, 0, LS_Compressor, 3);
 
 AudioConnection patchCord55(InputDevice, 0, LINE_IN_amplifier, 0);
 AudioConnection patchCord56(InputDevice, 1, LINE_IN_amplifier, 1);
@@ -364,11 +363,11 @@ AudioConnection patchCord64(Router_R, 2, PWM_mixer_out_R, 0);
 AudioConnection patchCord65(LINE_IN_amplifier, 0, PWM_mixer_out_L, 1);
 AudioConnection patchCord66(LINE_IN_amplifier, 1, PWM_mixer_out_R, 1);
 
-AudioConnection patchCord67(LINE_IN_amplifier, 0, LS_Feedback_L, 0);
-AudioConnection patchCord68(LINE_IN_amplifier, 1, LS_Feedback_R, 0);
+AudioConnection patchCord67(LINE_IN_amplifier, 0, LS_Compressor, 0);
+AudioConnection patchCord68(LINE_IN_amplifier, 1, LS_Compressor, 1);
 
-AudioConnection patchCord69(LS_Feedback_L, 0, LiveSampler, 0);
-AudioConnection patchCord70(LS_Feedback_R, 0, LiveSampler, 1);
+AudioConnection patchCord69(LS_Compressor, 0, LiveSampler, 0);
+AudioConnection patchCord70(LS_Compressor, 1, LiveSampler, 1);
 
 AudioConnection patchCord71(LINE_IN_amplifier, 0, DirectSampler, 0);
 AudioConnection patchCord72(LINE_IN_amplifier, 1, DirectSampler, 1);
@@ -4576,7 +4575,19 @@ void loop()
         {
             if (Read_pushbutton(PB_Sound[Inst_id]))
             {
-                LS_Capture_sound(Inst_id);
+                if (Inst_id == 2) // S3 temporarily controls compression instead of capturing into slot 3.
+                {
+                    AudioNoInterrupts();
+                    const bool compressor_enabled = !LS_Compressor.Is_enabled();
+                    LS_Compressor.Set_enabled(compressor_enabled);
+                    AudioInterrupts();
+
+                    Display_LiveSampler.Compressor(compressor_enabled);
+                }
+                else
+                {
+                    LS_Capture_sound(Inst_id);
+                }
                 return;
             }
         }
@@ -4888,8 +4899,7 @@ void loop()
                 if (Read_encoder(EN_PB_Value, LS_feedback, 8, 0, 1))
                 {
                     AudioNoInterrupts();
-                    LS_Feedback_L.value(LS_fbk_table[LS_feedback]);
-                    LS_Feedback_R.value(LS_fbk_table[LS_feedback]);
+                    LS_Compressor.Set_feedback(LS_fbk_table[LS_feedback]);
                     AudioInterrupts();
 
                     Pointer_LiveSampler.Show_pointer(false);
@@ -4897,6 +4907,19 @@ void loop()
                     Pointer_LiveSampler.Show_pointer(true);
 
                     Serial.println(LS_fbk_table[LS_feedback]);
+                }
+            }
+            break;
+            case value_LS_Compressor:
+            {
+                if (Read_pushbutton(EN_PB_Select))
+                {
+                    AudioNoInterrupts();
+                    const bool compressor_enabled = !LS_Compressor.Is_enabled();
+                    LS_Compressor.Set_enabled(compressor_enabled);
+                    AudioInterrupts();
+
+                    Display_LiveSampler.Compressor(compressor_enabled);
                 }
             }
             break;
@@ -14920,11 +14943,9 @@ void Startup_hardware_and_objects(void)
 
     // Setup Wavetable-s
 
-    // Setup Live Sampling Feedback mixers
-    LS_Feedback_L.identity = 0;
-    LS_Feedback_R.identity = 1;
-    LS_Feedback_L.value(0); // nessun feedback
-    LS_Feedback_R.value(0); // nessun feedback
+    // Setup stereo Live Sampler feedback and compressor (initially bypassed).
+    LS_Compressor.Recorder_ptr = &LiveSampler;
+    LS_Compressor.Set_feedback(0);
 
     // Setup Display (module)
     tft.begin();

@@ -75,12 +75,13 @@ enum LS_menu_element_name
     value_LS_MonoStereo,
     value_LS_Erase
 };
-static constexpr int LS_value_names = 4;
+static constexpr int LS_value_names = 5;
 enum LS_value_name
 {
     value_LS_Gain,
     value_LS_Play_mode,
     value_LS_Feedback,
+    value_LS_Compressor,
     value_LS_Window
 };
 

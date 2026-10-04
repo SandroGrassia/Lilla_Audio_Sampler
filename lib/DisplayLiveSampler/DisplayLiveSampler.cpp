@@ -72,6 +72,7 @@ void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
         const int height = display_coordinate_y(1);
         const int top = display_coordinate_y(LS_column_row_FEEDBACK[1]) - 5;
         tft.fillRect(Centered_element_left(width), top, width, height, ILI9341_BLACK);
+        Compressor(compressor_enabled); // Restore the label overlapped by the temporary notice.
     }
 }
 
@@ -82,6 +83,7 @@ void DisplayLiveSampler::Page(void)
     //("012345678901234567890"); // Size 1: 21 chars
     tft.fillScreen(ILI9341_BLACK);
     Page_title();
+    Compressor(compressor_enabled);
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(LS_column_row_VOLUME[0]), display_coordinate_y(LS_column_row_VOLUME[1]));
@@ -127,6 +129,18 @@ void DisplayLiveSampler::Page(void)
     tft.setCursor(display_coordinate_x(LS_column_row_STEP[0]), display_coordinate_y(LS_column_row_STEP[1]));
     tft.print("STEP");
     Step();
+}
+
+FLASHMEM
+void DisplayLiveSampler::Compressor(bool enabled)
+{
+    compressor_enabled = enabled;
+    tft.setCursor(display_coordinate_x(LS_column_row_COMPRESSOR[0]), display_coordinate_y(LS_column_row_COMPRESSOR[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("COMPRESSOR");
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_compressor[0]), display_coordinate_y(LS_column_row_compressor[1]), 3);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(enabled ? "ON" : "OFF");
 }
 
 FLASHMEM
@@ -338,6 +352,7 @@ void DisplayLiveSampler::Delete_menu_frames(void)
     }
 }
 
+FLASHMEM
 void DisplayLiveSampler::Show_wave(const int sound_id)
 {
     int id_file = Sound[sound_id].file;
@@ -557,6 +572,7 @@ uint16_t DisplayLiveSampler::Get_wave_color(const int point)
     return (31 << 11) + (green << 5); // (red << 11) + (green << 5) + blue
 }
 
+FLASHMEM
 void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
 {
     if (pointer.field_name == field_LS_Menu)
@@ -573,6 +589,10 @@ void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, 
 
         case value_LS_Feedback:
             Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], LS_chars_feedback, show);
+            break;
+
+        case value_LS_Compressor:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], 3, show);
             break;
 
         case value_LS_Window:

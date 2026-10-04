@@ -124,7 +124,7 @@ The same controls perform different tasks depending on the active page. Follow t
 | Select, turn | Move the highlight between fields and menu items. |
 | Select, press | Execute a menu command, confirm a choice, or enter/leave a group of fields. |
 | Value, turn | Change the highlighted parameter. |
-| S1-S8 | Open the corresponding active sound for editing in Performance; capture into sound slots in Live Sampler. |
+| S1-S8 | Open the corresponding active sound for editing in Performance; capture into sound slots in Live Sampler, except S3, which toggles its compressor. |
 | From / To | Adjust sample boundaries in Sound Edit; adjust the live playback region in Live Sampler. |
 | Step | Change editing increments; its push function depends on the page. |
 | Line Out Vol | Adjust patch playback volume on performance-related pages. |
@@ -544,12 +544,26 @@ For your first capture, stop recording and work on a fixed region. Once you are 
 
 `ERASE` clears the recorded buffer. Changing mono/stereo also resets it, so choose the layout before recording material you want to keep.
 
+### Continuous FWD playback while recording
+
+While Live Sampler is recording, held notes in **FWD** continue around the circular buffer instead of stopping after one buffer length. This applies to **SYNC**, relative start positions and **FIXED**, in mono and stereo. Lower notes can therefore remain active beyond 40 seconds in mono (80 seconds at half speed). Note-off and the sound envelope still control the voice.
+
+During the first fill, reaching audio that has not yet been recorded still fades and stops the voice. Once recording stops, FWD resumes its normal one-shot behavior from the current playback position. Reverse and loop modes are unchanged.
+
+### Stereo recording compressor
+
+On the Live Sampler page, turn **Select** to highlight the yellow `ON`/`OFF` value beside `COMPRESSOR`, then press **Select** to toggle it. The control is on the `FEEDBACK` row, aligned with `LOOP`. **S3** also toggles the compressor as a shortcut. It starts **off** at power-on; its setting is retained during the current session but is not saved in a patch. S3 is temporarily reserved for this control rather than starting a capture into slot 3. Slot 3 can still hold the right channel of a stereo capture started with S2.
+
+The compressor acts on the sum of line input and feedback before writing to the live buffer. Audio processing runs only while Live Sampler is recording, including when its Mixer or Delay page is open; otherwise the block drains its inputs without allocating output blocks. The ON/OFF setting is retained, and lookahead history is cleared when recording resumes. Left and right share the same gain reduction, including when recording a mono mix. It begins reducing gain around -6 dBFS and limits sample peaks to approximately -1 dBFS once fully enabled. It does not repair clipping that has already occurred at the input or elsewhere in the feedback path, and does not process material already recorded.
+
+A 128-sample lookahead adds approximately 2.9 ms to the recording path, including when the compressor is off. Switching uses a gradual 10 ms transition between equally delayed signals, so the recording timeline does not jump. Gain recovery takes approximately 100 ms per time constant. Strong compression can still change the sound and feedback behavior. During bypass or the transition to/from bypass, full peak protection is not guaranteed.
+
 ### Capture a live loop into a patch
 
 1. Save any pending edits to the performance patch before starting this workflow.
 2. Record some live audio, then select `STOP`.
 3. Select a **loop** playback mode and refine the region.
-4. Press the desired **S1-S8** slot button.
+4. Press the desired **S1-S8** slot button, except **S3**, which is currently reserved for the compressor.
 5. If replacing an occupied capture slot, answer `REPLACE CAPTURE?` before continuing.
 6. When prompted, play a MIDI key to set the captured sound's root key, or choose Cancel.
 7. Capture more regions into other slots if desired.
@@ -874,7 +888,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 3. Press S1 and play the desired trigger key when prompted.
 4. Move the region to a second event.
 5. Press another free slot and choose another trigger key.
-6. Repeat for the remaining events, allowing pairs of slots for stereo captures.
+6. Repeat for the remaining events, allowing pairs of slots for stereo captures. S3 currently toggles the compressor instead of starting a capture.
 7. Switch to Performance and check the trigger-key assignments.
 8. Open each sound to choose its final one-shot or loop mode and envelope.
 9. Save the patch and wait for its audio to be written to Flash.
@@ -907,7 +921,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Turn a recording into a source | Sampler > MAKE_RAW. |
 | Export a recording | Sampler > EXPORT_WAV_TO_SD > SD `/LILLAWAV_EXPORT`. |
 | Record temporary live audio | Live Sampler > CAPTURE > STOP. |
-| Preserve a live loop | Stop live recording > loop mode > S1-S8 > set root key > save patch. |
+| Preserve a live loop | Stop live recording > loop mode > S1-S8 (except S3) > set root key > save patch. |
 | Record a MIDI loop | MIDI Loop > Rec 1 > play > Rec 1 again. |
 | Back up configuration and recordings | Tools > Setup > new numbered backup. |
 | Restore a numbered backup | Copy its contents to SD `/LILLABACKUP` > Tools > Setup > restore. |
@@ -918,7 +932,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | --- | --- |
 | ADSR | Attack, decay, sustain and release: the stages that shape a sound's level over time. |
 | Basename | A file name without its extension, such as `BassDry` in `BassDry.wav`. |
-| Capture | On the Live Sampler menu, record into the live buffer; with S1-S8, copy a selected region into a patch sound. |
+| Capture | On the Live Sampler menu, record into the live buffer; with S1-S8 (except S3), copy a selected region into a patch sound. |
 | Circular buffer | Recording memory that wraps around and overwrites older material. |
 | Flash | Persistent audio storage inside LILLA. |
 | FRAM | Persistent storage used for configuration and patch/sound metadata. |
