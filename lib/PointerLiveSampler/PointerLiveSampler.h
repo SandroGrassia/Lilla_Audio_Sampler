@@ -12,16 +12,6 @@
 #include "DisplayPrimitives.h"
 #include "GlobalDisplayLiveSampler.h"
 
-/*
-
-enum LS_element_name
-{
-    value_LS_Play_mode,
-    value_LS_Feedback,
-};
-
-*/
-
 // Manages the navigation pointer for the Live Sampler page. The pointer can be in one of two fields: the menu row (field_LS_Menu)
 // or the value section (field_LS_Value). Movement between fields and between elements within a field is handled by Move_pointer().
 // All visual feedback is delegated to DisplayLiveSampler via LS_show_pointer_frame().

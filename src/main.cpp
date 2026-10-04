@@ -7903,7 +7903,7 @@ void Compile_tables(void)
 
 void Calc_pitch_from_note(const int &key_step)
 {
-    float keys = (key_step + 1) * 12;
+    const float keys = static_cast<float>(12 << key_step); // 12, 24, 48 or 96 MIDI keys per octave.
     for (auto note = 0; note < NOTE_NUMBERS; ++note)
     {
         pitch_from_note[note] = pow(2.0f, (note - 60.0f) / keys); // array used to translate note number to pitch value

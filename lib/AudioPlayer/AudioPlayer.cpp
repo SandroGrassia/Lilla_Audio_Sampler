@@ -1690,7 +1690,7 @@ void AudioPlayer::Update_volume_gain(void)
     {
         volume_gain += K_volume_gain;
     }
-    else if (samples_counter > JV0)
+    else
     {
         volume_flag = false;
     }
@@ -1703,7 +1703,7 @@ void AudioPlayer::Update_pan_gain(void)
         pan_gain_L += K_pan_gain_L;
         pan_gain_R += K_pan_gain_R;
     }
-    else if (samples_counter > JP0)
+    else
     {
         pan_flag = false;
     }

@@ -28,8 +28,6 @@ private:
     int samples_counter = 0;
     static constexpr float Slope_samples = 3 * AUDIO_BLOCK_SAMPLES;
     bool stereo;
-    int16_t Buffer_L[AUDIO_BLOCK_SAMPLES];
-    int16_t Buffer_R[AUDIO_BLOCK_SAMPLES];
     // elapsedMicros microtimer;
 
 public:

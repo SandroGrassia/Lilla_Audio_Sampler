@@ -5,12 +5,11 @@
 
 namespace
 {
-constexpr std::array<float, 258> Make_gain_table()
+constexpr std::array<float, 258> Make_gain_table(float ceiling)
 {
     std::array<float, 258> table = {};
     constexpr float threshold = 16384.0f; // Compression starts at -6.02 dBFS.
-    constexpr float ceiling = 29204.0f;
-    constexpr float knee_end = 2.0f * ceiling - threshold;
+    const float knee_end = 2.0f * ceiling - threshold;
     for (unsigned index = 0; index < table.size(); ++index)
     {
         const float input = static_cast<float>(index * 256);
@@ -31,7 +30,7 @@ constexpr std::array<float, 258> Make_gain_table()
 }
 
 // Constant-initialized LUT: no logarithms or curve construction in the audio interrupt.
-const std::array<float, 258> AudioLiveCompressor::gain_table = Make_gain_table();
+const std::array<float, 258> AudioLiveCompressor::gain_table = Make_gain_table(CEILING);
 
 FLASHMEM
 AudioLiveCompressor::AudioLiveCompressor() : AudioStream(4, input_queue)

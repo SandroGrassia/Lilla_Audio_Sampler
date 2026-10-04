@@ -84,14 +84,11 @@ void StereoLiveSampler::update(void)
         memcpy((uint32_t *)(LS_buffer_L_ptr + Q_sample + 1), (uint32_t *)in_block_L->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
         memcpy((uint32_t *)(LS_buffer_R_ptr + Q_sample + 1), (uint32_t *)in_block_R->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
     }
-    else // si copiano i sample entranti su due Buffer, poi il valore medio viene copiato su un unico array mono
+    else // Mix directly from the input blocks, preserving the existing mono rounding.
     {
-        memcpy((uint32_t *)(Buffer_L), (uint32_t *)in_block_L->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
-        memcpy((uint32_t *)(Buffer_R), (uint32_t *)in_block_R->data, AUDIO_BLOCK_BYTES); // memcpy(destination pointer, origin pointer, bytes to be copied)
-
         for (auto i = 0; i < AUDIO_BLOCK_SAMPLES; ++i)
         {
-            LS_buffer_mono_ptr[Q_sample + 1 + i] = (Buffer_L[i] >> 1) + (Buffer_R[i] >> 1);
+            LS_buffer_mono_ptr[Q_sample + 1 + i] = (in_block_L->data[i] >> 1) + (in_block_R->data[i] >> 1);
         }
     }
 
