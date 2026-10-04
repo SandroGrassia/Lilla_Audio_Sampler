@@ -16,7 +16,7 @@ private:
     void Note(const int note_number);
 
     static constexpr float P_column_Instrument_frame = 3;
-    static constexpr float P_chars_width_Instrument_frame = 50;
+    static constexpr float P_chars_width_Instrument_frame = 49;
 
     static constexpr float P_row_Instrument_title = 5;
     static constexpr float P_column_SOUND_title = 0.5;
