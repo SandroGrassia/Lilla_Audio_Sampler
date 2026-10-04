@@ -1766,6 +1766,22 @@ bool AudioPlayer::Harvest_live_forward_end(void)
     return true;
 }
 
+bool AudioPlayer::Harvest_live_continuous(void)
+{
+    if (!LS_flag || mode_player != ONCE_FWD || !LiveSampler_ptr->Is_writing())
+    {
+        return false;
+    }
+
+    const int first = static_cast<int>(floorf(a_sample));
+    const int count = static_cast<int>(ceilf(b_sample)) - first + 1;
+    const int position = ((first % LS_buffer_dim) + LS_buffer_dim) % LS_buffer_dim;
+    Read_samples(samples_basket, position, count);
+    // Keep the fractional phase and original start reference, also for FWD after recording stops.
+    a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));
+    return true;
+}
+
 bool AudioPlayer::Take_live_unrecorded_notice(void)
 {
     const bool pending = live_unrecorded_notice;
@@ -1790,6 +1806,11 @@ void AudioPlayer::Flash_memory_harvest(void)
 {
     live_forward_end = Harvest_live_forward_end();
     if (live_forward_end)
+    {
+        return;
+    }
+
+    if (Harvest_live_continuous())
     {
         return;
     }

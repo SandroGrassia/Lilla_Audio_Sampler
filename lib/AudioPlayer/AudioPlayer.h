@@ -298,6 +298,7 @@ private:
     void Update_pan_gain(void);
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
+    bool Harvest_live_continuous(void); // Circular FWD reading while recording, for SYNC and FIXED alike.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.
     void Fade_live_forward_end(void);
     void Flash_memory_harvest(void);

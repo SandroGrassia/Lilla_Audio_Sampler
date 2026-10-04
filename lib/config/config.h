@@ -10,7 +10,7 @@
 #include "PlaybackProfile.h"
 
 // Firmware version
-constexpr char FIRMWARE_VERSION[] = "7.0.0 29/09/2026";
+constexpr char FIRMWARE_VERSION[] = "7.0.0 04/10/2026";
 
 // Hardware versions
 /*

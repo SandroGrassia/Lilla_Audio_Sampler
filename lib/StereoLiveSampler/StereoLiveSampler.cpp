@@ -60,14 +60,14 @@ void StereoLiveSampler::update(void)
 
     if (!in_block_L || !in_block_R)
     {
-        for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+        if (in_block_L)
         {
-            in_block_L->data[sample] = 0;
-            in_block_R->data[sample] = 0;
+            release(in_block_L);
         }
-
-        release(in_block_L);
-        release(in_block_R);
+        if (in_block_R)
+        {
+            release(in_block_R);
+        }
         return;
     }
 
