@@ -187,7 +187,7 @@ Special thanks to:
 - **Stefano Spada**, for contributing to the development of advanced features and improving usability.
 - **Thomas Spada**, for helping define the core features and improve usability.
 - **Andrea Lombardini**, for the C++ lessons.
-- **[François Best](https://francoisbest.com/)**, for guidance on using the MIDI.h library within a class.
+- **François Best**, for guidance on using the MIDI.h library within a class.
 
 ## License
 
