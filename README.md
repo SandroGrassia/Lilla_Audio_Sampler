@@ -14,6 +14,8 @@ The codebase targets a Teensy 4.1 running at 600 MHz and is organized as a stand
 
 Read the illustrated [User Guide](USER_GUIDE.md) for connections, controls and operating procedures.
 
+See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
+
 ## What This Project Does
 
 LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work with imported audio, self-recorded audio, and live input.
@@ -160,6 +162,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 - [doc/assets/images](doc/assets/images): images used by the README and User Guide
 - [docs](docs): technical notes and implementation details
 - [USER_GUIDE.md](USER_GUIDE.md): illustrated operating guide
+- [FIRMWARE_ARCHITECTURE.md](FIRMWARE_ARCHITECTURE.md): technical architecture and maintenance guide
 - [platformio.ini](platformio.ini): PlatformIO build configuration
 
 ## Build
@@ -182,12 +185,13 @@ The project targets Teensy 4.1 at 600 MHz. Building does not upload firmware to 
 
 Special thanks to:
 
+- **François Best**, for guidance on using the MIDI.h library within a class.
 - **Giuliano Cardinali**, for valuable suggestions on hardware and software design and implementation.
 - **Andreas Huelsmann**, for suggestions on MIDI Loop functionality and for beta testing it.
 - **Stefano Spada**, for contributing to the development of advanced features and improving usability.
 - **Thomas Spada**, for helping define the core features and improve usability.
 - **Andrea Lombardini**, for the C++ lessons.
-- **François Best**, for guidance on using the MIDI.h library within a class.
+
 
 ## License
 
