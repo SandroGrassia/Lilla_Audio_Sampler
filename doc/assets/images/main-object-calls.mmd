@@ -1,0 +1,701 @@
+---
+config:
+  layout: elk
+  flowchart:
+    curve: basis
+---
+flowchart TB
+  mainNode(("main"))
+  trigger0["Trigger_0"]
+  routerL["Router_L"]
+  routerR["Router_R"]
+  trigger1["Trigger_1"]
+  input["InputDevice"]
+  lineIn["LINE_IN_amplifier"]
+  peakL["PeakTracking_L"]
+  peakR["PeakTracking_R"]
+  feedbackL["LS_Feedback_L"]
+  feedbackR["LS_Feedback_R"]
+  liveSampler["LiveSampler"]
+  archive["Archive"]
+  directSampler["DirectSampler"]
+  gainLF["D_gain_L_feedback"]
+  mixLF["D_mixer_L_feedback"]
+  delayL["Delay_L"]
+  gainRF["D_gain_R_n"]
+  mixRF["D_mixer_R_in"]
+  delayR["Delay_R"]
+  tone["Tone_generator"]
+  mixerL["mixer_L"]
+  mixerR["mixer_R"]
+  biquadL["biquad_L"]
+  biquadR["biquad_R"]
+  mainOutL["MAIN_mixer_out_L"]
+  mainOutR["MAIN_mixer_out_R"]
+  pwmOutL["PWM_mixer_out_L"]
+  pwmOutR["PWM_mixer_out_R"]
+  pwmL["PWM_L"]
+  pwmR["PWM_R"]
+  audioOut["audio_out"]
+  audioShield["Audio_shield"]
+  tft["tft"]
+  canvas["canvas"]
+  info["Info"]
+  vibrato["Vibrato"]
+  midi["MIDI"]
+  filterManager["Filter_Biquad_Manager"]
+  playersStats["Players_statistics"]
+  fileScanner["File_scanner"]
+  psram["PSRAM_Manager"]
+  displayManager["Display_Manager"]
+  displaySound["Display_Sound"]
+  displayVCF["Display_VCF"]
+  displayMixer["Display_Mixer"]
+  displayDelay["Display_Delay"]
+  displayLive["Display_LiveSampler"]
+  displaySampler["Display_Sampler"]
+  displayMidiLoop["Display_MidiLoop"]
+  loopLeds["Loop_led_set"]
+  performanceLeds["Performance_led_set"]
+  metronome["LOOP_metronomo"]
+  playersManager["Players_Manager"]
+  midiReader["Midi_reader"]
+  delayManager["Delay_manager"]
+  midiOut["Midi_out"]
+  gateIn["Gate_in"]
+  gateOut["Gate_out"]
+  encoders["Encoders_manager"]
+  pushbuttons["Pushbuttons_manager"]
+  switches["Switches_manager"]
+  shifters["Shifters_manager"]
+  fram["FRAMarray"]
+  ptrPerformance["Pointer_Performance"]
+  ptrSound["Pointer_Sound"]
+  ptrVCF["Pointer_VCF"]
+  ptrMixer["Pointer_Mixer"]
+  ptrDelay["Pointer_Delay"]
+  ptrLive["Pointer_LiveSampler"]
+  ptrSampler["Pointer_Sampler"]
+  ptrMidiLoop["Pointer_MidiLoop"]
+  player0["Player[0]"]
+  player1["Player[1]"]
+  player2["Player[2]"]
+  player3["Player[3]"]
+  player4["Player[4]"]
+  player5["Player[5]"]
+  player6["Player[6]"]
+  player7["Player[7]"]
+  player8["Player[8]"]
+  player9["Player[9]"]
+  player10["Player[10]"]
+  player11["Player[11]"]
+  player12["Player[12]"]
+  player13["Player[13]"]
+  player14["Player[14]"]
+  player15["Player[15]"]
+  patchCord1["patchCord1"]
+  patchCord2["patchCord2"]
+  patchCord3["patchCord3"]
+  patchCord4["patchCord4"]
+  patchCord5["patchCord5"]
+  patchCord6["patchCord6"]
+  patchCord7["patchCord7"]
+  patchCord8["patchCord8"]
+  patchCord9["patchCord9"]
+  patchCord10["patchCord10"]
+  patchCord11["patchCord11"]
+  patchCord12["patchCord12"]
+  patchCord13["patchCord13"]
+  patchCord14["patchCord14"]
+  patchCord15["patchCord15"]
+  patchCord16["patchCord16"]
+  patchCord17["patchCord17"]
+  patchCord18["patchCord18"]
+  patchCord19["patchCord19"]
+  patchCord20["patchCord20"]
+  patchCord21["patchCord21"]
+  patchCord22["patchCord22"]
+  patchCord23["patchCord23"]
+  patchCord24["patchCord24"]
+  patchCord25["patchCord25"]
+  patchCord26["patchCord26"]
+  patchCord27["patchCord27"]
+  patchCord28["patchCord28"]
+  patchCord29["patchCord29"]
+  patchCord30["patchCord30"]
+  patchCord31["patchCord31"]
+  patchCord32["patchCord32"]
+  patchCord33["patchCord33"]
+  patchCord34["patchCord34"]
+  patchCord35["patchCord35"]
+  patchCord36["patchCord36"]
+  patchCord37["patchCord37"]
+  patchCord38["patchCord38"]
+  patchCord39["patchCord39"]
+  patchCord40["patchCord40"]
+  patchCord41["patchCord41"]
+  patchCord42["patchCord42"]
+  patchCord43["patchCord43"]
+  patchCord44["patchCord44"]
+  patchCord45["patchCord45"]
+  patchCord46["patchCord46"]
+  patchCord47["patchCord47"]
+  patchCord48["patchCord48"]
+  patchCord49["patchCord49"]
+  patchCord50["patchCord50"]
+  patchCord51["patchCord51"]
+  patchCord52["patchCord52"]
+  patchCord53["patchCord53"]
+  patchCord54["patchCord54"]
+  patchCord55["patchCord55"]
+  patchCord56["patchCord56"]
+  patchCord57["patchCord57"]
+  patchCord58["patchCord58"]
+  patchCord59["patchCord59"]
+  patchCord60["patchCord60"]
+  patchCord61["patchCord61"]
+  patchCord62["patchCord62"]
+  patchCord63["patchCord63"]
+  patchCord64["patchCord64"]
+  patchCord65["patchCord65"]
+  patchCord66["patchCord66"]
+  patchCord67["patchCord67"]
+  patchCord68["patchCord68"]
+  patchCord69["patchCord69"]
+  patchCord70["patchCord70"]
+  patchCord71["patchCord71"]
+  patchCord72["patchCord72"]
+  patchCord73["patchCord73"]
+  patchCord74["patchCord74"]
+  patchCord75["patchCord75"]
+  patchCord76["patchCord76"]
+  noclick0["Noclick[0]"]
+  noclick1["Noclick[1]"]
+  noclick2["Noclick[2]"]
+  noclick3["Noclick[3]"]
+  noclick4["Noclick[4]"]
+  noclick5["Noclick[5]"]
+  noclick6["Noclick[6]"]
+  noclick7["Noclick[7]"]
+  wavetable0["Wavetable[0]"]
+  wavetable1["Wavetable[1]"]
+  wavetable2["Wavetable[2]"]
+  wavetable3["Wavetable[3]"]
+  wavetable4["Wavetable[4]"]
+  wavetable5["Wavetable[5]"]
+  wavetable6["Wavetable[6]"]
+  wavetable7["Wavetable[7]"]
+  vcf0["VCF[0]"]
+  vcf1["VCF[1]"]
+  vcf2["VCF[2]"]
+  vcf3["VCF[3]"]
+  vcf4["VCF[4]"]
+  vcf5["VCF[5]"]
+  vcf6["VCF[6]"]
+  vcf7["VCF[7]"]
+  vcf8["VCF[8]"]
+  vcf9["VCF[9]"]
+  vcf10["VCF[10]"]
+  vcf11["VCF[11]"]
+  vcf12["VCF[12]"]
+  vcf13["VCF[13]"]
+  vcf14["VCF[14]"]
+  vcf15["VCF[15]"]
+  lfoP0["LFO_P0[0]"]
+  lfoP1["LFO_P0[1]"]
+  lfoP2["LFO_P0[2]"]
+  lfoP3["LFO_P0[3]"]
+  lfoP4["LFO_P0[4]"]
+  lfoP5["LFO_P0[5]"]
+  lfoP6["LFO_P0[6]"]
+  lfoP7["LFO_P0[7]"]
+  lfoP8["LFO_P0[8]"]
+  lfoP9["LFO_P0[9]"]
+  lfoP10["LFO_P0[10]"]
+  lfoP11["LFO_P0[11]"]
+  lfoP12["LFO_P0[12]"]
+  lfoP13["LFO_P0[13]"]
+  lfoP14["LFO_P0[14]"]
+  lfoP15["LFO_P0[15]"]
+  lfoD0["LFO_D[0]"]
+  lfoD1["LFO_D[1]"]
+  adsr0["ADSR[0]"]
+  adsr1["ADSR[1]"]
+  adsr2["ADSR[2]"]
+  adsr3["ADSR[3]"]
+  adsr4["ADSR[4]"]
+  adsr5["ADSR[5]"]
+  adsr6["ADSR[6]"]
+  adsr7["ADSR[7]"]
+  adsr8["ADSR[8]"]
+  adsr9["ADSR[9]"]
+  adsr10["ADSR[10]"]
+  adsr11["ADSR[11]"]
+  adsr12["ADSR[12]"]
+  adsr13["ADSR[13]"]
+  adsr14["ADSR[14]"]
+  adsr15["ADSR[15]"]
+  mainNode --> trigger0
+  mainNode --> trigger1
+  mainNode --> lineIn
+  mainNode --> peakL
+  mainNode --> peakL
+  mainNode --> peakL
+  mainNode --> peakR
+  mainNode --> peakR
+  mainNode --> peakR
+  mainNode --> feedbackL
+  mainNode --> feedbackR
+  mainNode --> liveSampler
+  mainNode --> liveSampler
+  mainNode --> liveSampler
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> archive
+  mainNode --> directSampler
+  mainNode --> directSampler
+  mainNode --> directSampler
+  mainNode --> gainLF
+  mainNode --> delayL
+  mainNode --> delayL
+  mainNode --> delayL
+  mainNode --> delayL
+  mainNode --> gainRF
+  mainNode --> delayR
+  mainNode --> delayR
+  mainNode --> delayR
+  mainNode --> delayR
+  mainNode --> tone
+  mainNode --> biquadL
+  mainNode --> biquadR
+  mainNode --> mainOutL
+  mainNode --> mainOutL
+  mainNode --> mainOutL
+  mainNode --> mainOutR
+  mainNode --> mainOutR
+  mainNode --> mainOutR
+  mainNode --> pwmOutL
+  mainNode --> pwmOutL
+  mainNode --> pwmOutR
+  mainNode --> pwmOutR
+  mainNode --> audioShield
+  mainNode --> audioShield
+  mainNode --> audioShield
+  mainNode --> audioShield
+  mainNode --> audioShield
+  mainNode --> tft
+  mainNode --> tft
+  mainNode --> tft
+  mainNode --> tft
+  mainNode --> canvas
+  mainNode --> info
+  mainNode --> info
+  mainNode --> info
+  mainNode --> vibrato
+  mainNode --> vibrato
+  mainNode --> vibrato
+  mainNode --> playersStats
+  mainNode --> playersStats
+  mainNode --> fileScanner
+  mainNode --> psram
+  mainNode --> psram
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displayManager
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displaySound
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayVCF
+  mainNode --> displayMixer
+  mainNode --> displayMixer
+  mainNode --> displayMixer
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayDelay
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displayLive
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displaySampler
+  mainNode --> displayMidiLoop
+  mainNode --> displayMidiLoop
+  mainNode --> displayMidiLoop
+  mainNode --> displayMidiLoop
+  mainNode --> displayMidiLoop
+  mainNode --> displayMidiLoop
+  mainNode --> displayMidiLoop
+  mainNode --> loopLeds
+  mainNode --> loopLeds
+  mainNode --> loopLeds
+  mainNode --> loopLeds
+  mainNode --> performanceLeds
+  mainNode --> performanceLeds
+  mainNode --> performanceLeds
+  mainNode --> performanceLeds
+  mainNode --> metronome
+  mainNode --> metronome
+  mainNode --> metronome
+  mainNode --> metronome
+  mainNode --> metronome
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> playersManager
+  mainNode --> midiReader
+  mainNode --> midiReader
+  mainNode --> midiReader
+  mainNode --> delayManager
+  mainNode --> gateIn
+  mainNode --> gateOut
+  mainNode --> gateOut
+  mainNode --> encoders
+  mainNode --> pushbuttons
+  mainNode --> pushbuttons
+  mainNode --> switches
+  mainNode --> switches
+  mainNode --> shifters
+  mainNode --> shifters
+  mainNode --> shifters
+  mainNode --> ptrPerformance
+  mainNode --> ptrPerformance
+  mainNode --> ptrPerformance
+  mainNode --> ptrPerformance
+  mainNode --> ptrPerformance
+  mainNode --> ptrPerformance
+  mainNode --> ptrSound
+  mainNode --> ptrSound
+  mainNode --> ptrSound
+  mainNode --> ptrSound
+  mainNode --> ptrSound
+  mainNode --> ptrVCF
+  mainNode --> ptrVCF
+  mainNode --> ptrVCF
+  mainNode --> ptrMixer
+  mainNode --> ptrMixer
+  mainNode --> ptrMixer
+  mainNode --> ptrMixer
+  mainNode --> ptrMixer
+  mainNode --> ptrDelay
+  mainNode --> ptrDelay
+  mainNode --> ptrDelay
+  mainNode --> ptrLive
+  mainNode --> ptrLive
+  mainNode --> ptrLive
+  mainNode --> ptrLive
+  mainNode --> ptrSampler
+  mainNode --> ptrSampler
+  mainNode --> ptrSampler
+  mainNode --> ptrSampler
+  mainNode --> ptrSampler
+  mainNode --> ptrMidiLoop
+  mainNode --> ptrMidiLoop
+  mainNode --> ptrMidiLoop
+  mainNode --> ptrMidiLoop
+  mainNode --> ptrMidiLoop
+  mainNode --> player0
+  mainNode --> player0
+  mainNode --> player0
+  mainNode --> player0
+  mainNode --> adsr0
+  mainNode --> player1
+  mainNode --> player1
+  mainNode --> player1
+  mainNode --> player1
+  mainNode --> adsr1
+  mainNode --> player2
+  mainNode --> player2
+  mainNode --> player2
+  mainNode --> player2
+  mainNode --> adsr2
+  mainNode --> player3
+  mainNode --> player3
+  mainNode --> player3
+  mainNode --> player3
+  mainNode --> adsr3
+  mainNode --> player4
+  mainNode --> player4
+  mainNode --> player4
+  mainNode --> player4
+  mainNode --> adsr4
+  mainNode --> player5
+  mainNode --> player5
+  mainNode --> player5
+  mainNode --> player5
+  mainNode --> adsr5
+  mainNode --> player6
+  mainNode --> player6
+  mainNode --> player6
+  mainNode --> player6
+  mainNode --> adsr6
+  mainNode --> player7
+  mainNode --> player7
+  mainNode --> player7
+  mainNode --> player7
+  mainNode --> adsr7
+  mainNode --> player8
+  mainNode --> player8
+  mainNode --> player8
+  mainNode --> player8
+  mainNode --> adsr8
+  mainNode --> player9
+  mainNode --> player9
+  mainNode --> player9
+  mainNode --> player9
+  mainNode --> adsr9
+  mainNode --> player10
+  mainNode --> player10
+  mainNode --> player10
+  mainNode --> player10
+  mainNode --> adsr10
+  mainNode --> player11
+  mainNode --> player11
+  mainNode --> player11
+  mainNode --> player11
+  mainNode --> adsr11
+  mainNode --> player12
+  mainNode --> player12
+  mainNode --> player12
+  mainNode --> player12
+  mainNode --> adsr12
+  mainNode --> player13
+  mainNode --> player13
+  mainNode --> player13
+  mainNode --> player13
+  mainNode --> adsr13
+  mainNode --> player14
+  mainNode --> player14
+  mainNode --> player14
+  mainNode --> player14
+  mainNode --> adsr14
+  mainNode --> player15
+  mainNode --> player15
+  mainNode --> player15
+  mainNode --> player15
+  mainNode --> adsr15
+  mainNode --> noclick0
+  mainNode --> noclick0
+  mainNode --> wavetable0
+  mainNode --> wavetable0
+  mainNode --> noclick1
+  mainNode --> noclick1
+  mainNode --> wavetable1
+  mainNode --> wavetable1
+  mainNode --> noclick2
+  mainNode --> noclick2
+  mainNode --> wavetable2
+  mainNode --> wavetable2
+  mainNode --> noclick3
+  mainNode --> noclick3
+  mainNode --> wavetable3
+  mainNode --> wavetable3
+  mainNode --> noclick4
+  mainNode --> noclick4
+  mainNode --> wavetable4
+  mainNode --> wavetable4
+  mainNode --> noclick5
+  mainNode --> noclick5
+  mainNode --> wavetable5
+  mainNode --> wavetable5
+  mainNode --> noclick6
+  mainNode --> noclick6
+  mainNode --> wavetable6
+  mainNode --> wavetable6
+  mainNode --> noclick7
+  mainNode --> noclick7
+  mainNode --> wavetable7
+  mainNode --> wavetable7
+  mainNode --> lfoD0
+  mainNode --> lfoD0
+  mainNode --> lfoD0
+  mainNode --> lfoD1
+  mainNode --> lfoD1
+  classDef mainNodeStyle fill:#193f5e,color:#fff,stroke:#102f49,stroke-width:3px
+  classDef objectNodeStyle fill:#fff,color:#172b3a,stroke:#9cabb7,stroke-width:1px
+  class mainNode mainNodeStyle
+  class trigger0,routerL,routerR,trigger1,input,lineIn,peakL,peakR,feedbackL,feedbackR,liveSampler,archive,directSampler,gainLF,mixLF,delayL,gainRF,mixRF,delayR,tone,mixerL,mixerR,biquadL,biquadR,mainOutL,mainOutR,pwmOutL,pwmOutR,pwmL,pwmR,audioOut,audioShield,tft,canvas,info,vibrato,midi,filterManager,playersStats,fileScanner,psram,displayManager,displaySound,displayVCF,displayMixer,displayDelay,displayLive,displaySampler,displayMidiLoop,loopLeds,performanceLeds,metronome,playersManager,midiReader,delayManager,midiOut,gateIn,gateOut,encoders,pushbuttons,switches,shifters,fram,ptrPerformance,ptrSound,ptrVCF,ptrMixer,ptrDelay,ptrLive,ptrSampler,ptrMidiLoop,player0,player1,player2,player3,player4,player5,player6,player7,player8,player9,player10,player11,player12,player13,player14,player15,patchCord1,patchCord2,patchCord3,patchCord4,patchCord5,patchCord6,patchCord7,patchCord8,patchCord9,patchCord10,patchCord11,patchCord12,patchCord13,patchCord14,patchCord15,patchCord16,patchCord17,patchCord18,patchCord19,patchCord20,patchCord21,patchCord22,patchCord23,patchCord24,patchCord25,patchCord26,patchCord27,patchCord28,patchCord29,patchCord30,patchCord31,patchCord32,patchCord33,patchCord34,patchCord35,patchCord36,patchCord37,patchCord38,patchCord39,patchCord40,patchCord41,patchCord42,patchCord43,patchCord44,patchCord45,patchCord46,patchCord47,patchCord48,patchCord49,patchCord50,patchCord51,patchCord52,patchCord53,patchCord54,patchCord55,patchCord56,patchCord57,patchCord58,patchCord59,patchCord60,patchCord61,patchCord62,patchCord63,patchCord64,patchCord65,patchCord66,patchCord67,patchCord68,patchCord69,patchCord70,patchCord71,patchCord72,patchCord73,patchCord74,patchCord75,patchCord76,noclick0,noclick1,noclick2,noclick3,noclick4,noclick5,noclick6,noclick7,wavetable0,wavetable1,wavetable2,wavetable3,wavetable4,wavetable5,wavetable6,wavetable7,vcf0,vcf1,vcf2,vcf3,vcf4,vcf5,vcf6,vcf7,vcf8,vcf9,vcf10,vcf11,vcf12,vcf13,vcf14,vcf15,lfoP0,lfoP1,lfoP2,lfoP3,lfoP4,lfoP5,lfoP6,lfoP7,lfoP8,lfoP9,lfoP10,lfoP11,lfoP12,lfoP13,lfoP14,lfoP15,lfoD0,lfoD1,adsr0,adsr1,adsr2,adsr3,adsr4,adsr5,adsr6,adsr7,adsr8,adsr9,adsr10,adsr11,adsr12,adsr13,adsr14,adsr15 objectNodeStyle

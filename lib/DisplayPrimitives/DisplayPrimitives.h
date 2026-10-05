@@ -1,0 +1,63 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
+#pragma once
+
+#include <Arduino.h>
+#include <Adafruit_GFX.h>
+#include <ILI9341_t3n.h>
+#include "GraphicElements.h"
+#include "GlobalDisplay.h"
+
+void Cancel_text_reset_cursor(const int X, const int Y, const int N);
+void Cancel_text(const int X, const int Y, const int N);
+
+// canvas Y-positions on display
+static constexpr int X_WAVEBOARD_LEFT = 5;
+static constexpr int WAVE_MAX = 122;
+static constexpr int WAVEBOARD_WIDTH = 310;
+static constexpr float WAVEBOARD_WIDTH_F = 310.0;
+static constexpr int WAVEBOARD_HEIGHT = 97; // deve essere DISPARI
+static constexpr int Y_FOOTER_TEXT = WAVEBOARD_HEIGHT - 12;
+
+// wave Y-positions on canvas
+static constexpr int CANVAS_WAVE_MIN = WAVEBOARD_HEIGHT - 1;
+static constexpr int CANVAS_WAVE_0 = CANVAS_WAVE_MIN / 2;
+
+// Top-left coordinates for centering an element on the 320 x 240 display.
+static constexpr int Centered_element_left(const int width)
+{
+    return (320 - width) / 2;
+}
+
+static constexpr int Centered_element_top(const int height)
+{
+    return (240 - height) / 2;
+}
+
+// conversion
+int display_coordinate_y(const float row);
+int display_coordinate_x(const float col);
+
+// frame
+static constexpr float Frame_heigh = 15;
+void Frame_by_col_row(const float col, const float row, const int chars, const bool show);
+void Frame_by_col_row(const float col, const float row, const int chars, const int high, const bool show);
+void Frame_by_pixels(const int X, const int Y, const int chars, const bool show);
+void Frame_by_pixels_on_RED(const int X, const int Y, const int chars, const bool show);
+void Frame_by_pixels(const int X, const int Y, const int chars, const int high, const bool show);
+void Confirm_frame_on_RED(int X, int Y, int chars, bool print);
+void Confirm_frame(int X, int Y, int chars, bool print);
+
+
+void Show_measure_unit(const char *what, const int lenght);
+void Delete_text_row(const float row); // delete text row
+
+// Vertical popup offset in pixels: negative moves up, positive moves down.
+void Show_popup_text(const char *text, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
+void Show_popup_text(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset = 0);
+void Show_popup_text_tight(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset);
+void Backgorund_red(const float col, const float row, const int chars);

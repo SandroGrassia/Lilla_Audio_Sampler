@@ -1,0 +1,346 @@
+/*
+ * LILLA Audio Sampler
+ * Author: Sandro Grassia, info@lillasampler.it
+ *
+ */
+
+/*
+Userinterface.h version for LILLA PCB_2026_R1
+*/
+
+#pragma once
+
+#include <Arduino.h>
+#include "config.h"
+
+// Encoders, Pushbuttons, Shift Register chips
+static constexpr int ENCODERS = 17;
+static constexpr int PUSHBUTTONS = 38;
+static constexpr uint8_t SWITCHES = 2;
+static constexpr int UI_LEDS = 5;
+static constexpr int SHIFTERS = 5;          // number of shifter chips
+static constexpr int SHIFTER_CHANNELS = 16; // number of channels in a shifter
+
+enum ShifterPort // (input/output) port id
+{
+    a0,
+    a1,
+    a2,
+    a3,
+    a4,
+    a5,
+    a6,
+    a7,
+    b0,
+    b1,
+    b2,
+    b3,
+    b4,
+    b5,
+    b6,
+    b7
+};
+
+struct Encoder_physical_struct
+{
+    uint8_t shifter_id;
+    ShifterPort DT_shifter_channel;
+    ShifterPort CLK_shifter_channel;
+};
+
+// Physical location of each rotary encoder in the shifter matrix. The array index is the logical encoder ID.
+// Each entry contains the shifter chip ID and the two channels connected to the encoder quadrature signals.
+// Format:
+//   {shifter_id, DT_shifter_channel, CLK_shifter_channel}
+static constexpr Encoder_physical_struct encoder_physical[ENCODERS] = {
+    {0, a3, a4}, // Encoder 0  -> DT_0,  CLK_0
+    {0, a6, a7}, // Encoder 1  -> DT_1,  CLK_1
+    {0, b1, b0}, // Encoder 2  -> DT_2,  CLK_2
+    {0, b5, b4}, // Encoder 3  -> DT_3,  CLK_3
+    {1, b3, b2}, // Encoder 4  -> DT_4,  CLK_4
+    {2, a6, a7}, // Encoder 5  -> DT_5,  CLK_5
+    {1, b5, b6}, // Encoder 6  -> DT_6,  CLK_6
+    {2, a4, a5}, // Encoder 7  -> DT_7,  CLK_7
+    {3, b2, b1}, // Encoder 8  -> DT_8,  CLK_8
+    {4, a5, a6}, // Encoder 9  -> DT_9,  CLK_9
+    {4, b0, b1}, // Encoder 10 -> DT_10, CLK_10
+    {3, b5, b4}, // Encoder 11 -> DT_11, CLK_11
+    {3, a6, a7}, // Encoder 12 -> DT_12, CLK_12
+    {3, a3, a4}, // Encoder 13 -> DT_13, CLK_13
+    {3, a1, a0}, // Encoder 14 -> DT_14, CLK_14
+    {4, a2, a1}, // Encoder 15 -> DT_15, CLK_15
+    {0, a1, a2}  // Encoder 16 -> DT_16, CLK_16
+};
+
+// Pushbuttons
+struct Pushbutton_physical_struct
+{
+    uint8_t shifter_id;
+    ShifterPort shifter_channel;
+};
+
+// Physical location of each pushbutton in the shifter matrix. The array index is the logical pushbutton ID.
+// Each entry contains the shifter chip ID and the channel where that pushbutton is connected.
+// Format:
+//   {shifter_id, shifter_channel}
+static constexpr Pushbutton_physical_struct pushbutton_physical[PUSHBUTTONS] = {
+    {0, a5}, // Pushbutton 0  -> PB_0
+    {0, b2}, // Pushbutton 1  -> PB_1
+    {0, b3}, // Pushbutton 2  -> PB_2
+    {0, b6}, // Pushbutton 3  -> PB_3
+
+    {1, b4}, // Pushbutton 4  -> PB_4
+    {2, a3}, // Pushbutton 5  -> PB_5
+    {1, b7}, // Pushbutton 6  -> PB_6
+    {2, b0}, // Pushbutton 7  -> PB_7
+
+    {3, b0}, // Pushbutton 8  -> PB_8
+    {4, a7}, // Pushbutton 9  -> PB_9
+    {4, b2}, // Pushbutton 10 -> PB_10
+    {3, b3}, // Pushbutton 11 -> PB_11
+
+    {3, a5}, // Pushbutton 12 -> PB_12
+    {3, a2}, // Pushbutton 13 -> PB_13
+    {3, b6}, // Pushbutton 14 -> PB_14
+    {4, a0}, // Pushbutton 15 -> PB_15
+
+    {0, a0}, // Pushbutton 16 -> PB_16
+    {2, b2}, // Pushbutton 17 -> PB_17
+    {2, b3}, // Pushbutton 18 -> PB_18
+    {2, b4}, // Pushbutton 19 -> PB_19
+
+    {2, b5}, // Pushbutton 20 -> PB_20
+    {2, a0}, // Pushbutton 21 -> PB_21
+    {4, b6}, // Pushbutton 22 -> PB_22
+    {4, b7}, // Pushbutton 23 -> PB_23
+
+    {2, a2}, // Pushbutton 24 -> PB_24
+    {2, b6}, // Pushbutton 25 -> PB_25
+    {4, b3}, // Pushbutton 26 -> PB_26
+    {4, a4}, // Pushbutton 27 -> PB_27
+
+    {1, a7}, // Pushbutton 28 -> PB_28
+    {1, a6}, // Pushbutton 29 -> PB_29
+    {1, b1}, // Pushbutton 30 -> PB_30
+    {1, b0}, // Pushbutton 31 -> PB_31
+
+    {1, a4}, // Pushbutton 32 -> PB_32
+    {1, a0}, // Pushbutton 33 -> PB_33
+    {1, a1}, // Pushbutton 34 -> PB_34
+    {1, a2}, // Pushbutton 35 -> PB_35
+    {1, a3}, // Pushbutton 36 -> PB_36
+    {2, b1}  // Pushbutton 37 -> PB_37
+};
+
+// Switch names
+enum SwitchNames : int
+{
+    SwitchTools = 0,
+    SwitchModes = 1
+};
+
+enum SwitchToolsPositions : int
+{
+    SwToolsMixer = 0,
+    SwToolsDelay = 1,
+    SwToolsSetup = 2,
+    SwToolsTest = 3
+};
+
+enum SwitchModesPositions : int
+{
+    SwModesSampler = 0,
+    SwModesLiveSampler = 1,
+    SwModesPerformance = 2,
+    SwModesMidiLoop = 3
+};
+
+struct Switch_physical_struct
+{
+    uint8_t shifter_id;
+    ShifterPort A_pin_shifter_channel;
+    ShifterPort B_pin_shifter_channel;
+    ShifterPort C_pin_shifter_channel;
+    ShifterPort D_pin_shifter_channel;
+};
+
+// Physical location of each multi-position switch in the shifter matrix. The array index is the logical switch ID; each entry maps contacts A-D
+// to channels on the same MCP23S17 shifter.
+static constexpr Switch_physical_struct switch_physical[SWITCHES] = {
+    {1, a7, a6, b1, b0}, // SwitchTools = 0,
+    {1, a0, a1, a2, a3}  // SwitchModes = 1
+};
+
+// Loop Rec LED
+struct UI_LEDs_physical_struct
+{
+    uint8_t shifter_id;
+    ShifterPort shifter_channel;
+};
+
+// LED names
+enum LedNames : int
+{
+    LED_Rec_1 = 0,
+    LED_Rec_2 = 1,
+    LED_Rec_3 = 2,
+    LED_Rec_4 = 3,
+    LED_Tools = 4
+};
+
+// Physical location of each UI LED in the shifter matrix.
+// The array index is the logical LED ID; each entry maps that LED to one MCP23S17 output channel.
+static constexpr UI_LEDs_physical_struct UI_leds[UI_LEDS] = {
+    {2, a1}, // LED_P8 (LED_Rec_1)
+    {2, b7}, // LED_P9 (LED_Rec_2)
+    {4, a3}, // LED_P11 (LED_Rec_3)
+    {4, b4}, // LED_P10 (LED_Rec_4)
+    {1, a5}, // LED_P12 (LED_Tools)
+};
+
+enum DeviceType : uint8_t
+{
+    NoDevice = 0,
+    Encoder = 1,
+    Pushbutton = 2,
+    Switch = 3
+};
+
+struct Shifter_channel_to_device_struct
+{
+    DeviceType device_type;
+    int8_t device_id;
+};
+
+static constexpr Shifter_channel_to_device_struct Shifter_channel_to_device[SHIFTERS][SHIFTER_CHANNELS] = {
+    /* ===================== SHIFTER 0 ===================== */
+    {/* a0 */ {Pushbutton, 16}, // PB_16
+     /* a1 */ {Encoder, 16},    // DT_16
+     /* a2 */ {Encoder, 16},    // CLK_16
+     /* a3 */ {Encoder, 0},     // DT_0
+     /* a4 */ {Encoder, 0},     // CLK_0
+     /* a5 */ {Pushbutton, 0},  // PB_0
+     /* a6 */ {Encoder, 1},     // DT_1
+     /* a7 */ {Encoder, 1},     // CLK_1
+     /* b0 */ {Encoder, 2},     // CLK_2
+     /* b1 */ {Encoder, 2},     // DT_2
+     /* b2 */ {Pushbutton, 1},  // PB_1
+     /* b3 */ {Pushbutton, 2},  // PB_2
+     /* b4 */ {Encoder, 3},     // CLK_3
+     /* b5 */ {Encoder, 3},     // DT_3
+     /* b6 */ {Pushbutton, 3},  // PB_3
+     /* b7 */ {NoDevice, -1}},
+
+    /* ===================== SHIFTER 1 ===================== */
+    {/* a0 */ {Switch, 1},       // SW_1_A (SW_MODES)
+     /* a1 */ {Switch, 1},       // SW_1_B (SW_MODES)
+     /* a2 */ {Switch, 1},       // SW_1_C (SW_MODES)
+     /* a3 */ {Switch, 1},       // SW_1_D (SW_MODES)
+     /* a4 */ {Pushbutton, 32},  // PB_32
+     /* a5 */ {NoDevice, -1},    // LED_P12 (LED_Tools)
+     /* a6 */ {Switch, 0},       // SW_0_B (SW_TOOLS)
+     /* a7 */ {Switch, 0},       // SW_0_A (SW_TOOLS)
+     /* b0 */ {Switch, 0},       // SW_0_D (SW_TOOLS)
+     /* b1 */ {Switch, 0},       // SW_0_C (SW_TOOLS)
+     /* b2 */ {Encoder, 4},      // CLK_4
+     /* b3 */ {Encoder, 4},      // DT_4
+     /* b4 */ {Pushbutton, 4},   // PB_4
+     /* b5 */ {Encoder, 6},      // DT_6
+     /* b6 */ {Encoder, 6},      // CLK_6
+     /* b7 */ {Pushbutton, 6}},  // PB_6
+
+    /* ===================== SHIFTER 2 ===================== */
+    {/* a0 */ {Pushbutton, 21},  // PB_21
+     /* a1 */ {NoDevice, -1},    // LED_P8 (LED_Rec_1)
+     /* a2 */ {Pushbutton, 24},  // PB_24
+     /* a3 */ {Pushbutton, 5},   // PB_5
+     /* a4 */ {Encoder, 7},      // DT_7
+     /* a5 */ {Encoder, 7},      // CLK_7
+     /* a6 */ {Encoder, 5},      // DT_5
+     /* a7 */ {Encoder, 5},      // CLK_5
+     /* b0 */ {Pushbutton, 7},   // PB_7
+     /* b1 */ {Pushbutton, 37},  // PB_37
+     /* b2 */ {Pushbutton, 17},  // PB_17
+     /* b3 */ {Pushbutton, 18},  // PB_18
+     /* b4 */ {Pushbutton, 19},  // PB_19
+     /* b5 */ {Pushbutton, 20},  // PB_20
+     /* b6 */ {Pushbutton, 25},  // PB_25
+     /* b7 */ {NoDevice, -1}},   // LED_P9 (LED_Rec_2)
+
+    /* ===================== SHIFTER 3 ===================== */
+    {/* a0 */ {Encoder, 14},     // CLK_14
+     /* a1 */ {Encoder, 14},     // DT_14
+     /* a2 */ {Pushbutton, 13},  // PB_13
+     /* a3 */ {Encoder, 13},     // DT_13
+     /* a4 */ {Encoder, 13},     // CLK_13
+     /* a5 */ {Pushbutton, 12},  // PB_12
+     /* a6 */ {Encoder, 12},     // DT_12
+     /* a7 */ {Encoder, 12},     // CLK_12
+     /* b0 */ {Pushbutton, 8},   // PB_8
+     /* b1 */ {Encoder, 8},      // CLK_8
+     /* b2 */ {Encoder, 8},      // DT_8
+     /* b3 */ {Pushbutton, 11},  // PB_11
+     /* b4 */ {Encoder, 11},     // CLK_11
+     /* b5 */ {Encoder, 11},     // DT_11
+     /* b6 */ {Pushbutton, 14},  // PB_14
+     /* b7 */ {NoDevice, -1}},
+
+    /* ===================== SHIFTER 4 ===================== */
+    {/* a0 */ {Pushbutton, 15},  // PB_15
+     /* a1 */ {Encoder, 15},     // CLK_15
+     /* a2 */ {Encoder, 15},     // DT_15
+     /* a3 */ {NoDevice, -1},    // LED_P11 (LED_Rec_3)
+     /* a4 */ {Pushbutton, 27},  // PB_27
+     /* a5 */ {Encoder, 9},      // DT_9
+     /* a6 */ {Encoder, 9},      // CLK_9
+     /* a7 */ {Pushbutton, 9},   // PB_9
+     /* b0 */ {Encoder, 10},     // DT_10
+     /* b1 */ {Encoder, 10},     // CLK_10
+     /* b2 */ {Pushbutton, 10},  // PB_10
+     /* b3 */ {Pushbutton, 26},  // PB_26
+     /* b4 */ {NoDevice, -1},    // LED_P10 (LED_Rec_4)
+     /* b5 */ {NoDevice, -1},
+     /* b6 */ {Pushbutton, 22},  // PB_22
+     /* b7 */ {Pushbutton, 23}}  // PB_23
+};
+
+// Encoders an pushbuttons (and switch positions) names
+enum EnPbNames : int
+{
+    EN_PB_TuningTone = 0,
+    EN_PB_Resolution = 1,
+    EN_PB_Downsampling = 2,
+    EN_PB_Cutoff = 3,
+    EN_PB_Tempo = 4,
+    EN_PB_Loop = 5,
+    EN_PB_Track1 = 6,
+    EN_PB_Track2 = 7,
+    EN_PB_Value = 8,
+    EN_PB_Track3 = 9,
+    EN_PB_Track4 = 10,
+    EN_PB_Select = 11,
+    EN_PB_From = 12,
+    EN_PB_Step = 13,
+    EN_PB_To = 14,
+    EN_PB_LineOutVol = 15,
+    EN_PB_PreListenVol = 16,
+    PB_S2 = 17,
+    PB_S3 = 18,
+    PB_S4 = 19,
+    PB_S5 = 20,
+    PB_S6 = 21,
+    PB_S7 = 22,
+    PB_S8 = 23,
+    PB_Rec1 = 24,
+    PB_Rec2 = 25,
+    PB_Rec4 = 26,
+    PB_Rec3 = 27,
+    PB_Tools = 32,
+    PB_S1 = 37
+};
+
+constexpr EnPbNames EN_PB_Track[TRACKS] = {EN_PB_Track1, EN_PB_Track2, EN_PB_Track3, EN_PB_Track4};
+constexpr EnPbNames PB_Rec[TRACKS] = {PB_Rec1, PB_Rec2, PB_Rec3, PB_Rec4};
+constexpr EnPbNames PB_Sound[INSTRUMENTS] = {PB_S1, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8};
+constexpr LedNames LED_Rec[TRACKS] = {LED_Rec_1, LED_Rec_2, LED_Rec_3, LED_Rec_4};
+
