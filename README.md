@@ -178,6 +178,17 @@ The project targets Teensy 4.1 at 600 MHz. Building does not upload firmware to 
 - [Facebook page](https://www.facebook.com/Lilla.audio.sampler)
 - [Tindie product page](https://www.tindie.com/products/lillasampler/lilla-audio-sampler-2/)
 
+## Acknowledgements
+
+Special thanks to:
+
+- **Giuliano Cardinali**, for valuable suggestions on hardware and software design and implementation.
+- **Andreas Huelsmann**, for suggestions on MIDI Loop functionality and for beta testing it.
+- **Stefano Spada**, for contributing to the development of advanced features and improving usability.
+- **Thomas Spada**, for helping define the core features and improve usability.
+- **Andrea Lombardini**, for the C++ lessons.
+- **[François Best](https://francoisbest.com/)**, for guidance on using the MIDI.h library within a class.
+
 ## License
 
 This repository includes a [LICENSE](LICENSE) file. See it for the applicable terms.
