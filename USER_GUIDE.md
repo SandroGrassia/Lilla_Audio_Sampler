@@ -1,10 +1,8 @@
 # LILLA User Guide
 
-**Play samples. Shape sounds. Capture a moment. Build a performance.**
-
 For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.0.0**
 
-Guide edition: **3 October 2026**
+Guide edition: **5 October 2026**
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -33,6 +31,8 @@ Procedures have been reviewed against the firmware and supplied display photogra
 - [Mixer, delay and filters](#mixer-delay-and-filters)
 - [Setup and MIDI controls](#setup-and-midi-controls)
 - [Backup and restore](#backup-and-restore)
+- [Updating the firmware on Windows](#updating-the-firmware-on-windows)
+- [Updating the firmware on Mac](#updating-the-firmware-on-mac)
 - [Troubleshooting](#troubleshooting)
 - [Practical projects](#practical-projects)
 - [Quick reference](#quick-reference)
@@ -826,6 +826,111 @@ Restoration replaces configuration and restores recording audio. Back up the cur
 
 `FACTORY RESET` deletes patches, sounds and recordings. Make a backup before confirming. Wait for the reset and restart to complete.
 
+## Updating the firmware on Windows
+
+The firmware is the program that runs LILLA. To load a compiled firmware on Windows 10 or 11, use **Teensy Loader (`teensy.exe`)**. It is a standalone application: download it and run it without an installer. **Teensyduino** is the Arduino development add-on; you do not need it, Arduino IDE or PlatformIO to upload the supplied HEX file. See the [PJRC download page](https://www.pjrc.com/teensy/td_download.html) for the distinction between development tools and the standalone loader.
+
+### What you need
+
+- Your LILLA instrument, which uses a Teensy 4.1.
+- A Windows 10 or 11 computer.
+- A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
+- The LILLA firmware file, for example `Lilla_v7_0_0_0.hex`.
+- Teensy Loader, downloaded from PJRC.
+
+### Download the firmware
+
+1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_0_0_0.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
+4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
+
+The four numbers in `Lilla_v7_0_0_0.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+
+### Download Teensy Loader
+
+Open the [official PJRC Windows loader page](https://www.pjrc.com/teensy/loader_win10.html) and click **Teensy Loader Program**. Save `teensy.exe` and double-click it. The small Teensy Loader window should appear. You can keep the executable in the same folder as the HEX file. PJRC's [first-use instructions](https://www.pjrc.com/teensy/first_use.html) explain that programming mode uses the USB drivers built into Windows; no separate programming driver is required.
+
+### Prepare LILLA
+
+Save your current patch and any MIDI loops, and complete pending recording or export operations. Use [Backup and restore](#backup-and-restore) to preserve your work before changing firmware. Check any compatibility or migration instructions supplied with the new version.
+
+Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the computer with the data cable. Keep power and USB connected throughout programming.
+
+### Upload and restart
+
+1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_0_0_0.hex`. Confirm the filename shown in the loader.
+3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
+4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
+5. Choose **Operations > Reboot**. LILLA should restart.
+6. Check the firmware version on LILLA's welcome screen. The fourth revision number in the filename may not appear on the display. Load a familiar patch and check playback at a low listening level.
+
+The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
+
+### If the upload does not start
+
+| Symptom | What to check |
+| --- | --- |
+| The loader does not detect LILLA | Press and release the Firmware_upload mode button after connecting USB. Try a known data cable and another computer USB port. |
+| The HEX file cannot be opened | Download the raw `.hex` file again. Check that you did not save the GitHub web page or a source archive. |
+| Programming finishes but LILLA does not start | Choose Operations > Reboot after Download Complete. If necessary, reconnect and repeat with the correct LILLA firmware. |
+| The welcome screen shows the old version | Check which HEX file is open in the loader and repeat Program, followed by Reboot. |
+
+## Updating the firmware on Mac
+
+On macOS, use the standalone **Teensy Loader** application and the published LILLA `.hex` file. Arduino IDE, PlatformIO and the Teensyduino development add-on are not required to upload a compiled firmware. PJRC lists the standalone loader on its [download page](https://www.pjrc.com/teensy/td_download.html).
+
+### What you need on Mac
+
+- Your LILLA instrument, which uses a Teensy 4.1.
+- A Mac compatible with the current Teensy Loader download.
+- A USB **data** cable matching the Mac and LILLA's USB-C connector. If an adapter is necessary, it must support USB data.
+- The published LILLA HEX file and the macOS Teensy Loader application.
+
+### Download the firmware on Mac
+
+1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_0_0_0.hex`.
+3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
+4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
+
+Use firmware from **main** only. Files on **develop** are work in progress and may be faulty or untested. If main has no HEX file, wait for the maintainer to publish it. Keep the downloaded copy to preserve that exact build.
+
+### Download and open Teensy Loader on Mac
+
+1. Open the [official PJRC Mac loader page](https://www.pjrc.com/teensy/loader_mac.html) and download **Teensy Loader Disk Image**.
+2. In Finder, open the downloaded `.dmg`. It contains the Teensy Loader application.
+3. Copy the application to **Applications** for convenient reuse, then open it. Confirm **Open** if macOS asks about the downloaded application.
+
+If macOS blocks an unverified application, first check that it came from the official PJRC download. After attempting to open it, use **Apple menu > System Settings > Privacy & Security > Open Anyway**, then confirm **Open**, if that option is available. Follow [Apple's instructions for opening downloaded apps](https://support.apple.com/en-us/102445); do not disable macOS security globally. If the loader reports an unsupported system, obtain a compatible version from PJRC.
+
+### Prepare LILLA on Mac
+
+Save your patch and MIDI loops, finish pending recording or export operations, and make a backup using [Backup and restore](#backup-and-restore). Read any compatibility or migration instructions accompanying the firmware.
+
+Lower the listening level. Connect LILLA's USB-C connector to the Mac with the data cable, and keep power and USB connected throughout programming. Allow the USB accessory connection if your Mac asks for permission.
+
+### Upload and restart on Mac
+
+1. Leave Teensy Loader's **Automatic Mode** off.
+2. Choose **File > Open HEX File** and select the downloaded LILLA HEX file.
+3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
+4. Choose **Operations > Program** and wait for **Download Complete**.
+5. Choose **Operations > Reboot** to restart LILLA.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. The fourth revision number in the HEX filename may not appear on the display.
+
+These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
+
+### If the Mac cannot upload
+
+| Symptom | What to check |
+| --- | --- |
+| Teensy Loader will not open | Check the download source, macOS permission prompt and the loader's system requirements. |
+| LILLA is not detected | Reconnect USB, allow the accessory if prompted, and briefly press Firmware_upload mode. Try another data cable, port or adapter. |
+| The HEX cannot be opened | Download the raw HEX from main again and check its extension in Finder. |
+| Programming completes but LILLA does not restart | Choose Operations > Reboot after Download Complete. |
+
 ## Troubleshooting
 
 ### Diagnose silence in a useful order
@@ -951,6 +1056,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 3 October 2026*
+*LILLA User Guide - English edition - 5 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*
