@@ -158,7 +158,6 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 - [include](include): global headers and shared declarations
 - [lib](lib): custom modules for audio, display, control, storage, and routing
 - [doc/assets/images](doc/assets/images): images used by the README and User Guide
-- [tests](tests): host regression tests for audio, storage and navigation
 - [docs](docs): technical notes and implementation details
 - [USER_GUIDE.md](USER_GUIDE.md): illustrated operating guide
 - [platformio.ini](platformio.ini): PlatformIO build configuration
