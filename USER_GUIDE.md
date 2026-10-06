@@ -452,6 +452,8 @@ Sampler records the line input into Flash and lets you audition, convert or expo
 
 Monitoring in `PAUSE+REC` lets you prepare the source and levels. `MONO_REC` or `STEREO_REC` begins the take. `STOP` ends it. Afterward, `MAKE_RAW` creates a source for a patch, while `EXPORT_WAV_TO_SD` creates a file for use outside LILLA.
 
+Starting a take records audio for 20 ms before accepting the next control action, allowing the initial fade-in to finish. An immediate Stop is processed after this short pause and preserves the take. Stopping or leaving Sampler waits for recording to finish before saving it.
+
 A Flash recording and a RAW sound source are separate items. You can keep the original take while creating a playable source from it.
 
 ### Make a recording
@@ -492,6 +494,10 @@ The available choices depend on the selected recording. For stereo recordings, l
 Insert a microSD card, select a recording and choose `EXPORT_WAV_TO_SD`. The exported WAV preserves the recording's mono or stereo layout and uses 16-bit PCM at 44.1 kHz.
 
 Files are written to `/LILLAWAV_EXPORT`, with names such as `0M.wav` for mono or `0S.wav` for stereo. Wait for the success message before removing the card.
+
+After a successful WAV export, LILLA deletes the original Sampler recording and frees its recording slot and Flash packets. If the export fails, the original recording is retained. To keep the recording in LILLA as well as an external copy, use backup instead.
+
+Sampler supports up to 30 recordings. When every slot is occupied, `PAUSE+REC` is hidden and a temporary notice asks you to delete or export a recording before recording another take.
 
 WAV export is useful when you want to edit a take on a computer, share a recording, or keep an audio copy independent of LILLA's configuration. This command exports Sampler recordings; it is not a general export command for every RAW source in Flash.
 

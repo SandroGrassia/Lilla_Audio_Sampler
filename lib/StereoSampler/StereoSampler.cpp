@@ -38,7 +38,9 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
         last_packet_R = last_packet_L + 1; // 14
     }
     else
+    {
         last_packet_L = last_packet;
+    }
 
     Recording[recording_id].first_packet = from_packet;
     Recording[recording_id].packets = 0;
@@ -60,12 +62,26 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
     samples_counter = Slope_samples;
     decay_gain_flag = false;
     countdown_flag = false;
+    book_stop_flag = false;
+    storage_error = 0;
+    missing_blocks_L = 0;
+    missing_blocks_R = 0;
     recording = true;
+    // Main only: let the audio IRQ finish the three-block attack before another UI command.
+    delay(20);
     return true;
 }
-void StereoSampler::Book_stop(void)
+
+void StereoSampler::Stop_and_wait(void)
 {
-    book_stop_flag = true;
+    if (recording)
+    {
+        book_stop_flag = true;
+        while (recording)
+        {
+            delayMicroseconds(50);
+        }
+    }
 }
 void StereoSampler::update(void)
 {
@@ -98,13 +114,27 @@ void StereoSampler::update(void)
 
     if (book_stop_flag)
     {
-        decay_gain_flag = true;
-        samples_counter = Slope_samples;
         book_stop_flag = false;
+        if (!decay_gain_flag)
+        {
+            decay_gain_flag = true;
+            samples_counter = Slope_samples;
+        }
     }
 
     audio_block_t *in_block_L = receiveReadOnly(0);
     audio_block_t *in_block_R = receiveReadOnly(1);
+    static const int16_t silence[AUDIO_BLOCK_SAMPLES] = {};
+    const int16_t *samples_L = in_block_L != nullptr ? in_block_L->data : silence;
+    const int16_t *samples_R = in_block_R != nullptr ? in_block_R->data : silence;
+    if (in_block_L == nullptr)
+    {
+        missing_blocks_L = missing_blocks_L + 1;
+    }
+    if (in_block_R == nullptr)
+    {
+        missing_blocks_R = missing_blocks_R + 1;
+    }
 
     // update .packets, update FAT table
     if (increment_packets_flag)
@@ -141,14 +171,14 @@ void StereoSampler::update(void)
         if (!attack_gain_flag && !decay_gain_flag)
         {
             // direcly copy from AudioQueue.s to Packet.s
-            Packet_L.write((byte *)in_block_L->data, 256);
-            Packet_R.write((byte *)in_block_R->data, 256);
+            Packet_L.write(samples_L, 256);
+            Packet_R.write(samples_R, 256);
         }
 
         else if (attack_gain_flag)
         {
-            memcpy((uint32_t *)RAM_buffer_L, (uint32_t *)in_block_L->data, 256); // memcpy neglects pointer types
-            memcpy((uint32_t *)RAM_buffer_R, (uint32_t *)in_block_R->data, 256);
+            memcpy(RAM_buffer_L, samples_L, 256);
+            memcpy(RAM_buffer_R, samples_R, 256);
 
             for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
             {
@@ -168,8 +198,8 @@ void StereoSampler::update(void)
 
         else if (decay_gain_flag)
         {
-            memcpy((uint32_t *)RAM_buffer_L, (uint32_t *)in_block_L->data, 256); // memcpy neglects pointer types
-            memcpy((uint32_t *)RAM_buffer_R, (uint32_t *)in_block_R->data, 256);
+            memcpy(RAM_buffer_L, samples_L, 256);
+            memcpy(RAM_buffer_R, samples_R, 256);
 
             for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
             {
@@ -195,8 +225,8 @@ void StereoSampler::update(void)
         if (!attack_gain_flag && !decay_gain_flag)
         {
             // copy blocks from AudioQueue.s to RAM_buffer.s
-            memcpy((uint32_t *)RAM_buffer_L, (uint32_t *)in_block_L->data, 256); // memcpy neglects pointer types
-            memcpy((uint32_t *)RAM_buffer_R, (uint32_t *)in_block_R->data, 256);
+            memcpy(RAM_buffer_L, samples_L, 256);
+            memcpy(RAM_buffer_R, samples_R, 256);
 
             // calculate average values
             for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
@@ -211,8 +241,8 @@ void StereoSampler::update(void)
         else if (attack_gain_flag)
         {
             // copy blocks from AudioQueue.s to RAM_buffer.s
-            memcpy((uint32_t *)RAM_buffer_L, (uint32_t *)in_block_L->data, 256); // memcpy neglects pointer types
-            memcpy((uint32_t *)RAM_buffer_R, (uint32_t *)in_block_R->data, 256);
+            memcpy(RAM_buffer_L, samples_L, 256);
+            memcpy(RAM_buffer_R, samples_R, 256);
 
             // calculate average values
             for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
@@ -233,8 +263,8 @@ void StereoSampler::update(void)
         else if (decay_gain_flag)
         {
             // copy blocks from AudioQueue.s to RAM_buffer.s
-            memcpy((uint32_t *)RAM_buffer_L, (uint32_t *)in_block_L->data, 256); // memcpy neglects pointer types
-            memcpy((uint32_t *)RAM_buffer_R, (uint32_t *)in_block_R->data, 256);
+            memcpy(RAM_buffer_L, samples_L, 256);
+            memcpy(RAM_buffer_R, samples_R, 256);
 
             // calculate average values
             for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
@@ -254,7 +284,7 @@ void StereoSampler::update(void)
         }
     }
 
-    if (Packet_L.position() == PACKET_DIM) // Packet_L is full (if stereo_flag also Packet_R is full)
+    if (recording && Packet_L.position() == PACKET_DIM) // Do not open another packet after the fade has completed.
     {
         if (stereo_flag)
         {
@@ -299,8 +329,14 @@ void StereoSampler::update(void)
             }
         }
     }
-    release(in_block_L);
-    release(in_block_R);
+    if (in_block_L != nullptr)
+    {
+        release(in_block_L);
+    }
+    if (in_block_R != nullptr)
+    {
+        release(in_block_R);
+    }
     return;
 }
 
@@ -327,7 +363,10 @@ void StereoSampler::stop(void)
             Packet_R.close();
         }
 
-        recording = false;
+        book_stop_flag = false;
+        attack_gain_flag = false;
+        decay_gain_flag = false;
         AudioStopUsingSPI();
+        recording = false;
     }
 }

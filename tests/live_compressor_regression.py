@@ -136,7 +136,7 @@ int main()
         }
         bool continued = false;
         Recorder_input_guard(left, right, continued);
-        assert(continued == (mask == 3));
+        assert(continued);
         assert(AudioStream::outstanding == 0);
     }
 
@@ -321,7 +321,7 @@ select_end = main_source.index('            case value_LS_Window:', select_start
 select_body = main_source[select_start:select_end].split(':', 1)[1].rsplit('break;', 1)[0]
 handler += '\nconstexpr int EN_PB_Select = 99;\nvoid Handle_select()\n{\n' + select_body + '\n}\n'
 recorder = (ROOT / 'lib/StereoLiveSampler/StereoLiveSampler.cpp').read_text(encoding='utf-8')
-guard_start = recorder.index('    if (!in_block_L || !in_block_R)')
+guard_start = recorder.index('    static const int16_t silence')
 guard_end = recorder.index('    // microtimer', guard_start)
 guard = r'''
 void release(audio_block_t *block)
@@ -333,9 +333,9 @@ void release(audio_block_t *block)
 void Recorder_input_guard(audio_block_t *in_block_L, audio_block_t *in_block_R, bool &continued)
 {
 ''' + recorder[guard_start:guard_end] + r'''
+    assert(samples_L != nullptr && samples_R != nullptr);
     continued = true;
-    release(in_block_L);
-    release(in_block_R);
+''' + recorder[recorder.rindex('    if (in_block_L != nullptr)'):recorder.index('    return;', recorder.rindex('    if (in_block_L != nullptr)'))] + r'''
 }
 '''
 with tempfile.TemporaryDirectory(prefix='lilla-live-compressor-') as folder:

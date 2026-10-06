@@ -26,6 +26,8 @@ private:
 
     volatile bool recording;
     volatile byte storage_error = 0;
+    volatile uint32_t missing_blocks_L = 0;
+    volatile uint32_t missing_blocks_R = 0;
     int recording_id = 0;          // equivalent to file_id
     LillaSerialFlashFile Packet_L; // SerialFlashFile Packet_L;
     LillaSerialFlashFile Packet_R; // SerialFlashFile Packet_R;
@@ -45,7 +47,7 @@ private:
 
     bool attack_gain_flag = false;
     bool decay_gain_flag = false;
-    bool book_stop_flag = false;
+    volatile bool book_stop_flag = false;
     int samples_counter = 0;
     static constexpr float Slope_blocks = 3.0;
     static constexpr float F_Slope_samples = Slope_blocks * AUDIO_BLOCK_SAMPLES;
@@ -64,8 +66,10 @@ public:
 
     virtual void update(void);
     void Begin(void);
-    bool Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in);
-    void Book_stop(void);
+    bool Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in); // Main only, audio IRQ enabled; records for 20 ms before returning.
+    void Stop_and_wait(void); // Main only, with audio interrupts enabled; wait until packet writes have stopped.
     bool Is_recording(void);
     byte Storage_error(void) const { return storage_error; }
+    uint32_t Missing_blocks_left(void) const { return missing_blocks_L; } // Reset at Start; disable audio interrupts when reading both counters together.
+    uint32_t Missing_blocks_right(void) const { return missing_blocks_R; }
 };

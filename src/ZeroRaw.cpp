@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <SerialFlash.h>
 #include "ZeroRaw.h"
 
 // Mono PCM16 at 44100 Hz: 261 complete sine periods, 261.6229117 Hz (middle C).
@@ -180,70 +179,3 @@ const int16_t zeroraw[43996] PROGMEM = {
 };
 
 static_assert(sizeof(zeroraw) == 87992);
-
-FLASHMEM
-bool ZeroRaw_ensure_file(bool require_sine)
-{
-    SerialFlashFile file = SerialFlash.open("0.raw");
-    if (file)
-    {
-        bool valid = file.size() >= sizeof(int16_t) && file.size() % sizeof(int16_t) == 0;
-        if (require_sine)
-        {
-            valid = file.size() == sizeof(zeroraw);
-            const uint8_t *source = reinterpret_cast<const uint8_t *>(zeroraw);
-            uint8_t buffer[256];
-            for (uint32_t offset = 0; valid && offset < sizeof(zeroraw); offset += sizeof(buffer))
-            {
-                const uint32_t remaining = sizeof(zeroraw) - offset;
-                const uint32_t bytes = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
-                valid = file.read(buffer, bytes) == bytes && memcmp(buffer, source + offset, bytes) == 0;
-            }
-        }
-        file.close();
-        if (valid)
-        {
-            return true;
-        }
-        if (!SerialFlash.remove("0.raw"))
-        {
-            return false;
-        }
-    }
-
-    if (!SerialFlash.create("0.raw", sizeof(zeroraw)))
-    {
-        return false;
-    }
-    file = SerialFlash.open("0.raw");
-    if (!file || file.size() != sizeof(zeroraw))
-    {
-        file.close();
-        SerialFlash.remove("0.raw");
-        return false;
-    }
-
-    const uint8_t *source = reinterpret_cast<const uint8_t *>(zeroraw);
-    constexpr uint32_t block_bytes = 256;
-    bool complete = true;
-
-    for (uint32_t offset = 0; offset < sizeof(zeroraw); offset += block_bytes)
-    {
-        const uint32_t remaining = sizeof(zeroraw) - offset;
-        const uint32_t bytes = remaining < block_bytes ? remaining : block_bytes;
-        if (file.write(source + offset, bytes) != bytes)
-        {
-            complete = false;
-            break;
-        }
-        SerialFlash.wait();
-    }
-    file.close();
-
-    if (!complete)
-    {
-        SerialFlash.remove("0.raw");
-    }
-    
-    return complete;
-}

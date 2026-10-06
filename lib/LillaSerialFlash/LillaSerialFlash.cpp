@@ -7,6 +7,7 @@
 #include "CaptureSources.h"
 #include "LillaSerialFlash.h"
 #include "SharedLiveSampler.h"
+#include "ZeroRaw.h"
 #include <spi_interrupt.h>
 
 bool LillaSerialFlashFile::Read_audio_samples_background(int file_id, int16_t *destination, int first_sample, int samples_count)
@@ -45,6 +46,7 @@ bool LillaSerialFlashFile::Read_audio_samples_background(int file_id, int16_t *d
 
 void LillaSerialFlashFile::fast_open(int id_file)
 {
+    firmware_source = id_file == 0 && FlashFileRegisterParser::Zero_from_firmware();
   // se usato per Packet: id_file = id_packet + RAW_FILES
 
   this->address = FlashFileRegisterParser::address(id_file);
@@ -55,10 +57,28 @@ void LillaSerialFlashFile::fast_open(int id_file)
 
 void LillaSerialFlashFile::packet_fast_open(int id_packet)
 {
+    firmware_source = false;
   this->address = FlashFileRegisterParser::address(id_packet + RAW_FILES);
   this->length = FlashFileRegisterParser::length(id_packet + RAW_FILES);
   this->offset = 0;
   this->dirindex = FlashFileRegisterParser::dirindex(id_packet + RAW_FILES);
+}
+
+uint32_t LillaSerialFlashFile::read(void *buffer, uint32_t bytes)
+{
+    if (!firmware_source)
+    {
+        return SerialFlashFile::read(buffer, bytes);
+    }
+    if (offset >= length)
+    {
+        return 0;
+    }
+    const uint32_t available_bytes = length - offset;
+    const uint32_t copied = bytes < available_bytes ? bytes : available_bytes;
+    memcpy(buffer, reinterpret_cast<const uint8_t *>(zeroraw) + offset, copied);
+    offset += copied;
+    return copied;
 }
 
 bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count)
@@ -174,6 +194,7 @@ bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination,
 
 void FlashFileRegisterParser::Read_all_file_data(void)
 {
+    zero_from_firmware = !SerialFlash.exists("0.raw"); // Presence alone decides; never replace or validate the user's external file here.
     char audio_filename[NAME_FILE_SIZE];
     char packet_filename[NAME_PACKET_SIZE];
   elapsedMicros T;
@@ -186,7 +207,7 @@ void FlashFileRegisterParser::Read_all_file_data(void)
   for (auto i = 0; i < (RAW_FILES + PACKETS); ++i)
   {
     T = 0;
-    if (i < FIRST_RECORDING_FILE && !FileNameRegistry::Assigned(i))
+    if (i != 0 && i < FIRST_RECORDING_FILE && !FileNameRegistry::Assigned(i))
     {
         address_array[i] = 0;
         length_array[i] = 0;
@@ -210,6 +231,10 @@ void FlashFileRegisterParser::Read_all_file_data(void)
 
     address_array[i] = rawfile.getFlashAddress();
     length_array[i] = rawfile.size();
+    if (i == 0 && zero_from_firmware)
+    {
+        length_array[i] = sizeof(zeroraw);
+    }
 
     if (length_array[i] > 0)
     {
@@ -243,6 +268,7 @@ void FlashFileRegisterParser::Read_all_file_data(void)
 }
 
 uint32_t FlashFileRegisterParser::address_array[RAW_FILES + PACKETS] = {0};
+bool FlashFileRegisterParser::zero_from_firmware = false;
 uint32_t FlashFileRegisterParser::length_array[RAW_FILES + PACKETS] = {0};
 uint16_t FlashFileRegisterParser::dirindex_array[RAW_FILES + PACKETS] = {0};
 

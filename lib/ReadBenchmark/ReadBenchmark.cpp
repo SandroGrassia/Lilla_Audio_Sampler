@@ -43,6 +43,11 @@ void ReadBenchmark::Run(PatchCacheManager &cache, AudioTables &tables, bool allo
         Serial.println(F("BENCH_ALIGN: unavailable during recording/conversion or metadata replacement"));
         return;
     }
+    if (FlashFileRegisterParser::Zero_from_firmware())
+    {
+        Serial.println(F("BENCH_ALIGN: external 0.raw required to measure SPI Flash reads"));
+        return;
+    }
     int16_t *ram_source = static_cast<int16_t *>(malloc(source_capacity * sizeof(int16_t)));
     if (ram_source == nullptr)
     {

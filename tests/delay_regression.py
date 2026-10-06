@@ -207,7 +207,43 @@ int main() {
  {
     assert(fifo[i] == -12345);
  }
- Serial.println(F("PASS: routing 0-7, LR zero/sign changes, patch/UI retargeting, exact endpoints, stale flags, feedback bounds/zero, gain mute, time ramps, allocation failure"));
+ // Panic must cancel a rising target and an already-requested zero without losing other transitions.
+ for (int target : {98, 0})
+ {
+    m.Set_value(LOOP_GAIN, 60);
+    m.Stop();
+    DrainGain(gainL);
+    DrainGain(gainR);
+    m.Set_value(LOOP_GAIN, target);
+    m.Update();
+    m.Set_value(MODULATION_DEPTH, Delay_data.modulation_depth == 0 ? 10 : 0);
+    assert(m.flag[LOOP_GAIN]);
+    m.Silence_feedback();
+    assert(!m.flag[LOOP_GAIN] && m.remaining[LOOP_GAIN] == 0);
+    assert(m.flag[MODULATION_DEPTH]);
+    assert(Delay_data.loop_gain == target && Delay_values.loop_gain == 0);
+    assert(!gainL.Is_silent() && !gainR.Is_silent());
+    for (int block = 0; block < 40; ++block)
+    {
+        m.Update();
+        assert(gainL.gain_target == 0 && gainR.gain_target == 0);
+    }
+    DrainGain(gainL);
+    DrainGain(gainR);
+    assert(gainL.Is_silent() && gainR.Is_silent());
+    m.Restore_feedback();
+    assert(Delay_data.loop_gain == target && Delay_values.loop_gain == Delay_feedback(target));
+    assert(gainL.gain_target == Delay_feedback(target) && gainR.gain_target == Delay_feedback(target));
+    assert(gainL.Is_silent() == (target == 0));
+    DrainGain(gainL);
+    DrainGain(gainR);
+    for (int block = 0; block < 40; ++block)
+    {
+        m.Update();
+        assert(gainL.gain_runtime == Delay_feedback(target) && gainR.gain_runtime == Delay_feedback(target));
+    }
+ }
+ Serial.println(F("PASS: routing, time ramps, allocation failure, feedback bounds, Panic silences and restores the requested feedback"));
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

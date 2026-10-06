@@ -20,28 +20,46 @@ struct SerialStub
 } Serial;
 struct SerialFlashFile
 {
-    uint32_t location = 0, bytes = 0;
-    uint32_t getFlashAddress() { return location; }
-    uint32_t size() { return bytes; }
+    uint32_t address = 0, length = 0, offset = 0;
+    uint16_t dirindex = 0;
+    operator bool() { return address != 0; }
+    uint32_t getFlashAddress() { return address; }
+    uint32_t size() { return length; }
+    void seek(uint32_t value) { offset = value; }
+    uint32_t read(void *buffer, uint32_t bytes)
+    {
+        assert(address != 0);
+        const uint32_t count = offset >= length ? 0 : std::min(bytes, length - offset);
+        memset(buffer, 0x5a, count);
+        offset += count;
+        return count;
+    }
     void close() {}
 };
 struct FlashStub
 {
     std::map<std::string, SerialFlashFile> files;
+    bool exists(const char *name) { return files.count(name) != 0; }
     SerialFlashFile open(const char *name)
     {
         const auto it = files.find(name);
         return it == files.end() ? SerialFlashFile{} : it->second;
     }
 } SerialFlash;
+const int16_t zeroraw[43996] = {111, -222, 333};
+constexpr int RECORDINGS = 30, PACKET_DIM = 65536;
+struct VFS_Recording { int first_packet = 0, packets = 0, bytes = 0; bool stereo = false; } Recording[RECORDINGS];
+const int *Capture_find(int) { return nullptr; }
+bool Capture_read(int, int16_t *, int, int) { return false; }
 '''
 methods = ''
 for path, name in [('lib/SharedElements/SharedElements.cpp', 'Get_file_name'), ('lib/SharedVFS/SharedVFS.cpp', 'Get_packet_name')]:
     source = (ROOT / path).read_text(encoding='utf-8')
     methods += re.search(r'^const char \*' + name + r'\([^\n]+\)\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
 header = (ROOT / 'lib/LillaSerialFlash/LillaSerialFlash.h').read_text(encoding='utf-8')
-methods += header[header.index('class FlashFileRegisterParser'):]
+methods += re.sub(r'^#(?:include|pragma).*$', '', header, flags=re.M)
 source = (ROOT / 'lib/LillaSerialFlash/LillaSerialFlash.cpp').read_text(encoding='utf-8')
+methods += source[source.index('void LillaSerialFlashFile::fast_open'):source.index('void FlashFileRegisterParser::Read_all_file_data')]
 methods += source[source.index('void FlashFileRegisterParser::Read_all_file_data'):source.index('/*\n** On-chip')]
 checks = r'''
 int main()
@@ -65,6 +83,39 @@ int main()
     assert(FileNameRegistry::Load());
     FlashFileRegisterParser::Read_all_file_data();
     assert(FlashFileRegisterParser::address(2) == 200000 && FlashFileRegisterParser::length(2) == 6000);
+    assert(!FlashFileRegisterParser::Zero_from_firmware());
+    SerialFlash.files.erase("0.raw");
+    FlashFileRegisterParser::Read_all_file_data();
+    assert(FlashFileRegisterParser::Zero_from_firmware() && FlashFileRegisterParser::length(0) == sizeof(zeroraw));
+    assert(SerialFlash.files.count("0.raw") == 0);
+    LillaSerialFlashFile reader;
+    reader.fast_open(0);
+    assert(reader && reader.size() == sizeof(zeroraw) && reader.getFlashAddress() == 0);
+    int16_t samples[4] = {};
+    assert(reader.read(samples, 6) == 6 && memcmp(samples, zeroraw, 6) == 0);
+    reader.seek(sizeof(zeroraw) - 2);
+    assert(reader.read(samples, sizeof(samples)) == 2 && reader.read(samples, 2) == 0);
+    reader.seek(UINT32_MAX);
+    assert(reader.read(samples, 2) == 0);
+    assert(LillaSerialFlashFile::Read_audio_samples(0, samples, 1, 2));
+    assert(samples[0] == -222 && samples[1] == 333);
+    assert(!LillaSerialFlashFile::Read_audio_samples(0, samples, 43995, 2));
+    reader.packet_fast_open(0);
+    assert(reader.read(samples, 2) == 2 && samples[0] == 0x5a5a);
+    for (uint32_t bytes : {0u, 1u, 3u, 100u})
+    {
+        SerialFlash.files["0.raw"] = {100, bytes};
+        FlashFileRegisterParser::Read_all_file_data();
+        assert(!FlashFileRegisterParser::Zero_from_firmware() && FlashFileRegisterParser::length(0) == bytes);
+        assert(SerialFlash.files.at("0.raw").size() == bytes);
+        reader.fast_open(0);
+        assert(reader && reader.size() == bytes);
+        assert(reader.read(samples, 2) == std::min(bytes, 2u));
+        if (bytes >= 2)
+        {
+            assert(samples[0] == 0x5a5a);
+        }
+    }
     puts("PASS: name-to-ID inventory, no numeric aliasing, missing/restored audio and packet isolation");
 }
 '''

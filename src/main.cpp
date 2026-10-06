@@ -96,7 +96,6 @@
 #include <strings.h>
 #include <spi_interrupt.h>
 #include "CaptureSources.h"
-#include "ZeroRaw.h"
 #include "Mp3Import.h"
 
 #if defined(LILLA_READ_BENCHMARK)
@@ -635,6 +634,7 @@ DS_state_name DS_state;                 // Current Direct Sampler state: waiting
 elapsedMillis DS_recording_time;        // Elapsed recording duration in milliseconds.
 elapsedMillis DS_recording_time_update; // Timer used to throttle recording-time display updates.
 int DS_recording_change;                // Working recording selection during Direct Sampler navigation.
+static bool DS_recording_slots_full = false; // Updated whenever the Sampler menu is recalculated.
 
 // PACKETS
 int DS_packets_free;     // Number of available recording packets.
@@ -718,25 +718,25 @@ static uint8_t Capture_return_patch = 0;                                    // O
 static int8_t Capture_pair[INSTRUMENTS] = {-1, -1, -1, -1, -1, -1, -1, -1}; // Stereo partner instrument for each capture slot, or -1 for an unpaired slot.
 
 // functions
-void LS_refresh_LS_page(void);                                        // Redraw Live Sampler, restore its controls and discard notices from the previous page.
-bool LS_ask_if_exit_from_LS(void);                                    // Ask whether to stop Live Sampler recording and leave the page.
-void LS_update_menu_elements(void);                                   // Enable Live Sampler menu entries for the empty, recording or playback state.
-int LS_constrain_position(int value);                                 // Wrap a sample position into the Live Sampler circular buffer.
-void LS_lock_X_sample(void);                                          // Capture the current play point from the write position and lock it.
-void LS_update_both_X_Y_samples(void);                                // Update the write position and both playback boundaries with audio interrupts disabled.
-void LS_update_Q_sample(void);                                        // Snapshot the current recording write position with audio interrupts disabled.
-void LS_Reset_buffer(void);                                           // Clear the Live Sampler storage, reconnect its views and reset recording positions.
-void LS_setup_LS_Patch(bool stereo);                                  // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
-FLASHMEM void LS_Capture_notice(const char *message, const char *second_line = "");                 // Show a centered notice for two seconds and discard pending UI events.
-FLASHMEM bool LS_Capture_confirm(void);                               // Ask whether to replace an existing capture; return true if confirmed.
-FLASHMEM bool LS_Capture_root(uint8_t &root);                         // Learn the capture root note from a key press; return false if cancelled.
-FLASHMEM bool LS_Capture_drain(void);                                 // Stop MIDI input and wait up to 100 ms for players to stop; leave MIDI stopped on success.
-FLASHMEM bool LS_Capture_referenced(int file, int except_sound = -1); // Check current Sounds and saved snapshots for file references, excluding only the specified current Sound.
-FLASHMEM void LS_Capture_collect(void);                               // Release unreferenced capture sources and caches while preserving references held by players.
-FLASHMEM void LS_Capture_sound(int selected);                         // Capture the selected live loop into PSRAM and assign it to the target instrument or stereo pair.
-FLASHMEM bool LS_Capture_write(CaptureSource &source);                // Write and verify one capture as a RAW file in Flash; return false on failure.
-FLASHMEM bool LS_Capture_materialize(void);                           // Write pending captures referenced by used Sounds to RAW files before saving the patch.
-FLASHMEM void LS_Capture_finish_save(void);                           // Clear successfully saved capture sources and release caches no longer needed after saving.
+void LS_refresh_LS_page(void);                                                      // Redraw Live Sampler, restore its controls and discard notices from the previous page.
+bool LS_ask_if_exit_from_LS(void);                                                  // Ask whether to stop Live Sampler recording and leave the page.
+void LS_update_menu_elements(void);                                                 // Enable Live Sampler menu entries for the empty, recording or playback state.
+int LS_constrain_position(int value);                                               // Wrap a sample position into the Live Sampler circular buffer.
+void LS_lock_X_sample(void);                                                        // Capture the current play point from the write position and lock it.
+void LS_update_both_X_Y_samples(void);                                              // Update the write position and both playback boundaries with audio interrupts disabled.
+void LS_update_Q_sample(void);                                                      // Snapshot the current recording write position with audio interrupts disabled.
+void LS_Reset_buffer(void);                                                         // Clear the Live Sampler storage, reconnect its views and reset recording positions.
+void LS_setup_LS_Patch(bool stereo);                                                // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
+FLASHMEM void LS_Capture_notice(const char *message, const char *second_line = ""); // Show a centered notice for two seconds and discard pending UI events.
+FLASHMEM bool LS_Capture_confirm(void);                                             // Ask whether to replace an existing capture; return true if confirmed.
+FLASHMEM bool LS_Capture_root(uint8_t &root);                                       // Learn the capture root note from a key press; return false if cancelled.
+FLASHMEM bool LS_Capture_drain(void);                                               // Stop MIDI input and wait up to 100 ms for players to stop; leave MIDI stopped on success.
+FLASHMEM bool LS_Capture_referenced(int file, int except_sound = -1);               // Check current Sounds and saved snapshots for file references, excluding only the specified current Sound.
+FLASHMEM void LS_Capture_collect(void);                                             // Release unreferenced capture sources and caches while preserving references held by players.
+FLASHMEM void LS_Capture_sound(int selected);                                       // Capture the selected live loop into PSRAM and assign it to the target instrument or stereo pair.
+FLASHMEM bool LS_Capture_write(CaptureSource &source);                              // Write and verify one capture as a RAW file in Flash; return false on failure.
+FLASHMEM bool LS_Capture_materialize(void);                                         // Write pending captures referenced by used Sounds to RAW files before saving the patch.
+FLASHMEM void LS_Capture_finish_save(void);                                         // Clear successfully saved capture sources and release caches no longer needed after saving.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  MIDI_LOOP
 // variables
@@ -1132,6 +1132,11 @@ void setup()
 
 void loop()
 {
+    static bool recording_limit_notified = false;
+    if (Lilla_state != DIRECT_SAMPLING || !DS_recording_slots_full)
+    {
+        recording_limit_notified = false;
+    }
     char audio_filename[NAME_FILE_SIZE];
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
@@ -1185,27 +1190,59 @@ void loop()
     if (Read_pushbutton(EN_PB_LineOutVol)) // LINE OUT VOLUME
     {
         AudioNoInterrupts();
-        if (Lilla_state != DELAY_SETTINGS || Lilla_state_0 != DIRECT_SAMPLING)
+        const bool resume_midi = Midi_reader.Is_running();
+        const bool resume_controls = Trigger.Is_running();
+        Midi_reader.Stop();
+        Trigger.Stop(); // Freeze MIDI loops and parameter updates while audio objects finish their ramps.
+        Players_Manager.Reset_booked_and_restart_player();
+        Players_Manager.Reset_players_to_restart();
+        for (int player = 0; player < PLAYERS; ++player)
         {
-            Delay_data.loop_gain = 0;
-            Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-            D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-            D_gain_R_n.Set_gain(Delay_values.loop_gain);
+            Player[player].Panic_stop();
         }
-        Players_Manager.Stop_all_players();
-        if (Lilla_state == MIDI_LOOP)
+        Delay_manager.Silence_feedback();
+        for (int local_track = 0; local_track < TRACKS; ++local_track)
         {
-            for (auto local_track = 0; local_track < TRACKS; ++local_track)
-            {
-                LOOP_track_run[local_track] = false;
-            }
+            LOOP_track_run[local_track] = false;
         }
         AudioInterrupts();
 
-        if (Lilla_state == MIDI_LOOP)
+        bool silent;
+        do
         {
-            Loop_led_set.Request_all_LED_switch_off();
+            delay(1); // Keep audio interrupts running until the actual player and gain ramps finish.
+
+            AudioNoInterrupts();
+            silent = D_gain_L_feedback.Is_silent() && D_gain_R_n.Is_silent();
+            for (int player = 0; player < PLAYERS; ++player)
+            {
+                silent = silent && !Player[player].isPlaying();
+            }
+            AudioInterrupts();
+        } while (!silent);
+
+        delay(10); // Flush the last nonzero blocks through the feedback graph before clearing storage.
+        for (int offset = 0; offset < DELAY_CACHE_CHANNEL_SAMPLES; offset += AUDIO_BLOCK_SAMPLES)
+        {
+            AudioNoInterrupts();
+            memset(DELAY_fifo_L + offset, 0, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+            memset(DELAY_fifo_R + offset, 0, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+            AudioInterrupts();
         }
+
+        AudioNoInterrupts();
+        Delay_manager.Restore_feedback(); // Restore the current setting, including unsaved edits, before accepting new notes.
+        if (resume_midi)
+        {
+            Midi_reader.Start();
+        }
+        if (resume_controls)
+        {
+            Trigger.Start();
+        }
+        AudioInterrupts();
+
+        Loop_led_set.Request_all_LED_switch_off();
 
         if (Lilla_state == DELAY_SETTINGS && Lilla_state_0 != DIRECT_SAMPLING)
         {
@@ -5311,6 +5348,19 @@ void loop()
 
         */
 
+        // Show the capacity notice once per visit, after the completed recording has been published.
+        if (DS_state == DS_waiting_state && DS_recording_slots_full && !recording_limit_notified)
+        {
+            recording_limit_notified = true;
+            Show_popup_text("RECORDING LIMIT REACHED", "DELETE OR EXPORT A RECORDING", ILI9341_WHITE, ILI9341_RED);
+            delay(2000);
+            Display_Sampler.DS_page_upper();
+            Display_Sampler.DS_page_lower(recording);
+            Display_Sampler.DS_menu();
+            Pointer_Sampler.Show_pointer(true);
+            Clear_UI_events();
+        }
+
         // Change volume_patch
         if (DS_state == DS_waiting_state && Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
@@ -5592,7 +5642,8 @@ void loop()
                     Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
                     if (DS_state == DS_recording_state)
                     {
-                        DirectSampler.Book_stop();
+                        DirectSampler.Stop_and_wait();
+                        Require_FRAM(DirectSampler.Storage_error());
                     }
                     DS_state = DS_waiting_state;
 
@@ -5915,9 +5966,31 @@ void loop()
                     }
                     delay(exported ? 2000 : 4000);
                     DS_state = DS_waiting_state;
+                    if (exported)
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Stop_all_players();
+                        AudioInterrupts();
+
+                        // Reclaim the source only after the WAV has been written, synced and closed successfully.
+                        P_Invalidate_recording_cache(recording);
+                        Recording[recording].consistent = false;
+                        Require_VFS(VFS_Clean_up_VFS());
+                        Require_VFS(VFS_Defragment());
+                        DS_update_recordings();
+                        recording = DS_get_next_Recording(-1);
+                        if (!DS_back_to_first_DS_Recording())
+                        {
+                            return;
+                        }
+                    }
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
                     Display_Sampler.DS_page_lower(recording);
+                    DS_define_menu();
+                    Display_Sampler.DS_menu();
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
                     Clear_UI_events();
                 }
                 break;
@@ -6826,7 +6899,7 @@ void loop()
                             Players_Manager.Release_all_players_loop(track);
 
                             // Sort events by timestamp
-                            LOOP_set_time_order(LOOP_learning_track);
+                            LOOP_set_time_order(track);
 
                             // Restart procedure
                             LOOP_restart_procedure(track);
@@ -6871,8 +6944,14 @@ void loop()
 
                     case value_LOOP_pitch:
                     {
-                        if (Read_encoder(EN_PB_Track[track], LOOP_pitch_int[track], 24, -24, 1))
+                        int next_pitch = LOOP_pitch_int[track];
+                        if (Read_encoder(EN_PB_Track[track], next_pitch, 24, -24, 1))
                         {
+                            AudioNoInterrupts();
+                            Players_Manager.Multicast_stop_players_for_loop_track(track);
+                            LOOP_pitch_int[track] = next_pitch;
+                            AudioInterrupts();
+
                             LOOP_original = false;
 
                             Display_MidiLoop.Show_track_all_data(track);
@@ -7380,6 +7459,7 @@ void loop()
                 }
                 else
                 {
+                    const bool resume_controls = Trigger.Is_running();
                     if (!P_Quiesce_audio_players())
                     {
                         break;
@@ -7389,6 +7469,22 @@ void loop()
                     {
                         if (config_error)
                         {
+                            // Validation failed before changing storage, but quiescing discarded the runtime tables.
+                            if (resume_controls)
+                            {
+                                const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+                                AudioNoInterrupts();
+                                const bool ready = S_Fill_all_tables();
+                                if (ready)
+                                {
+                                    Midi_reader.Start();
+                                    Trigger.Start();
+                                }
+                                if (audio_enabled)
+                                {
+                                    AudioInterrupts();
+                                }
+                            }
                             Display_Setup.SETUP_show_SETUP_page();
                             Display_Setup.SETUP_show_frame(SET_menu);
                             break;
@@ -8756,7 +8852,7 @@ bool S_Read_all_Sounds(PatchEditSnapshot *snapshot)
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel)
 {
     // .data contains midi channel in its bits: 7 6 5 M I D I 0
-    Sound[sound_id].data = (midi_channel << 1) + (Sound[sound_id].data & 0b11100000);
+    Sound[sound_id].data = (midi_channel << 1) + (Sound[sound_id].data & 0b11100001);
 }
 
 uint8_t S_Get_midi_channel_from_Sound(int sound_id)
@@ -9559,10 +9655,12 @@ float DS_get_Recording_seconds(int value)
 int DS_find_Recording_free(void)
 {
     for (auto i = 0; i < RECORDINGS; ++i)
+    {
         if (Recording[i].packets == 0)
         {
             return i;
         }
+    }
     return -1;
 }
 
@@ -9627,6 +9725,7 @@ bool DS_check_conversion(void)
 
 void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
 {
+    DS_recording_slots_full = DS_find_Recording_free() == -1;
     // voices that can be displayed
     Menu_DS[0] = true; // CANCEL_RECORDING
     Menu_DS[1] = true; // PAUSE+REC
@@ -9691,7 +9790,7 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         Menu_DS[0] = false; // CANCEL
     }
 
-    if (VFS_Get_packets_free() < 4)
+    if (DS_recording_slots_full || VFS_Get_packets_free() < 4)
     {
         Serial.print("VFS_Get_packets_free(): ");
         Serial.println(VFS_Get_packets_free());
@@ -10081,6 +10180,7 @@ void Switch_from_PERFORMANCE_to_MIDI_LOOP(void)
     Golive_with_MIDI_LOOP(true);
 }
 
+FLASHMEM
 void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
 {
     switch (DS_state)
@@ -10138,7 +10238,8 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         }
         else // stop and exit
         {
-            DirectSampler.Book_stop();
+            DirectSampler.Stop_and_wait();
+            Require_FRAM(DirectSampler.Storage_error());
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
@@ -10268,6 +10369,7 @@ void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void)
     Golive_with_LIVE_SAMPLING();
 }
 
+FLASHMEM
 void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 {
     switch (DS_state)
@@ -10315,7 +10417,8 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         }
         else // stop and exit
         {
-            DirectSampler.Book_stop();
+            DirectSampler.Stop_and_wait();
+            Require_FRAM(DirectSampler.Storage_error());
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
@@ -10429,6 +10532,7 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
     }
 }
 
+FLASHMEM
 void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 {
     switch (DS_state)
@@ -10473,7 +10577,8 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         }
         else // stop and exit
         {
-            DirectSampler.Book_stop();
+            DirectSampler.Stop_and_wait();
+            Require_FRAM(DirectSampler.Storage_error());
 
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
@@ -14050,7 +14155,6 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
-    bool SD_has_zero_raw = false;
     File rootdir = SD.open("/LILLA_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
@@ -14079,10 +14183,6 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             {
                 SD_raw_volume += length;
                 ++SD_raw_files;
-                if (strcmp(filename, "0.raw") == 0 && length >= sizeof(int16_t) && length % sizeof(int16_t) == 0)
-                {
-                    SD_has_zero_raw = true;
-                }
             }
         }
         f.close();
@@ -14244,20 +14344,9 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         }
     }
 
-    // Create the fallback first so other imports cannot consume its space.
+    // The built-in 0.raw is read from firmware when absent; do not allocate an external copy.
     Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
     row = 2;
-    if (!SD_has_zero_raw)
-    {
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
-        if (!ZeroRaw_ensure_file())
-        {
-            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
-            delay(4000);
-            return false;
-        }
-        Serial.println(F("0.raw reconstructed from firmware: 43996 samples, 87992 bytes."));
-    }
 
     // Import audio as mono RAW files from SD to Flash chip.
     rootdir = SD.open("/LILLA_AUDIO");
@@ -14408,13 +14497,6 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
     rootdir.close();
 
-    // The required file must exist before reporting success and rebuilding the VFS.
-    if (!ZeroRaw_ensure_file())
-    {
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
-        delay(4000);
-        return false;
-    }
     delay(10);
 
     // Display RAW files list
@@ -15011,15 +15093,7 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************   FILE SCANNER   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Install the bundled middle-C sine before building file inventory and caches.
-    if (!ZeroRaw_ensure_file(true))
-    {
-        Serial.println(F("ERROR: cannot install sine 0.raw"));
-        while (true)
-        {
-            delay(1000);
-        }
-    }
+    // Inventory selects external 0.raw when present, otherwise the built-in firmware source.
     // File inventory is built after validating/loading the persistent name registry.
 
     // Note-to-pitch conversion array
@@ -15324,7 +15398,6 @@ void Reload_system_state(void)
     instrument_volume_changed = 0;
 
     // **************     MIDI CONTROL CHANGE     ****************
-    CC_lowpass_filter_value = 0;
     CC_midi_controller = 0;
 
     // **************  RESOLUTION  DOWNSAMPLING   ****************
@@ -15349,13 +15422,13 @@ void Reload_system_state(void)
         return;
     }
 
-    // *******************    START MIDI   ************************
+    // Publish the rebuilt controls together, including recovery entered with the audio IRQ disabled.
+    AudioNoInterrupts();
     Midi_reader.Begin();
     Midi_reader.Start();
-    delay(10);
-
-    // *******************  START TRIGGERS  ***********************
     Trigger.Start();
+    AudioInterrupts();
+
     delay(20);
 }
 
