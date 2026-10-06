@@ -163,6 +163,23 @@ void DelayManager::Update(void) // Apply independent transitions once per audio 
     }
 }
 
+void DelayManager::Silence_feedback(void)
+{
+    Delay_values.loop_gain = 0;
+    Start_LPF(LOOP_GAIN, 0, 0);
+    remaining[LOOP_GAIN] = 0;
+    flag[LOOP_GAIN] = false;
+    D_gain_L_feedback_ptr->Set_gain(0);
+    D_gain_R_feedback_ptr->Set_gain(0);
+}
+
+void DelayManager::Restore_feedback(void)
+{
+    Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
+    D_gain_L_feedback_ptr->Set_gain(Delay_values.loop_gain);
+    D_gain_R_feedback_ptr->Set_gain(Delay_values.loop_gain);
+}
+
 void DelayManager::Stop(void) // Complete pending manager targets without bypassing the audio objects' own ramps.
 {
     for (int item = 0; item < DELAY_LPF_ITEMS; ++item)

@@ -1191,27 +1191,59 @@ void loop()
     if (Read_pushbutton(EN_PB_LineOutVol)) // LINE OUT VOLUME
     {
         AudioNoInterrupts();
-        if (Lilla_state != DELAY_SETTINGS || Lilla_state_0 != DIRECT_SAMPLING)
+        const bool resume_midi = Midi_reader.Is_running();
+        const bool resume_controls = Trigger.Is_running();
+        Midi_reader.Stop();
+        Trigger.Stop(); // Freeze MIDI loops and parameter updates while audio objects finish their ramps.
+        Players_Manager.Reset_booked_and_restart_player();
+        Players_Manager.Reset_players_to_restart();
+        for (int player = 0; player < PLAYERS; ++player)
         {
-            Delay_data.loop_gain = 0;
-            Delay_values.loop_gain = Delay_feedback(Delay_data.loop_gain);
-            D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
-            D_gain_R_n.Set_gain(Delay_values.loop_gain);
+            Player[player].Panic_stop();
         }
-        Players_Manager.Stop_all_players();
-        if (Lilla_state == MIDI_LOOP)
+        Delay_manager.Silence_feedback();
+        for (int local_track = 0; local_track < TRACKS; ++local_track)
         {
-            for (auto local_track = 0; local_track < TRACKS; ++local_track)
-            {
-                LOOP_track_run[local_track] = false;
-            }
+            LOOP_track_run[local_track] = false;
         }
         AudioInterrupts();
 
-        if (Lilla_state == MIDI_LOOP)
+        bool silent;
+        do
         {
-            Loop_led_set.Request_all_LED_switch_off();
+            delay(1); // Keep audio interrupts running until the actual player and gain ramps finish.
+
+            AudioNoInterrupts();
+            silent = D_gain_L_feedback.Is_silent() && D_gain_R_n.Is_silent();
+            for (int player = 0; player < PLAYERS; ++player)
+            {
+                silent = silent && !Player[player].isPlaying();
+            }
+            AudioInterrupts();
+        } while (!silent);
+
+        delay(10); // Flush the last nonzero blocks through the feedback graph before clearing storage.
+        for (int offset = 0; offset < DELAY_CACHE_CHANNEL_SAMPLES; offset += AUDIO_BLOCK_SAMPLES)
+        {
+            AudioNoInterrupts();
+            memset(DELAY_fifo_L + offset, 0, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+            memset(DELAY_fifo_R + offset, 0, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+            AudioInterrupts();
         }
+
+        AudioNoInterrupts();
+        Delay_manager.Restore_feedback(); // Restore the current setting, including unsaved edits, before accepting new notes.
+        if (resume_midi)
+        {
+            Midi_reader.Start();
+        }
+        if (resume_controls)
+        {
+            Trigger.Start();
+        }
+        AudioInterrupts();
+
+        Loop_led_set.Request_all_LED_switch_off();
 
         if (Lilla_state == DELAY_SETTINGS && Lilla_state_0 != DIRECT_SAMPLING)
         {

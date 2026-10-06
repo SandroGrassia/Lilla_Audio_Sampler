@@ -68,6 +68,7 @@ public:
 
     virtual void update(void);
     void Set_gain(float value); // Smoothly reach the exact requested gain, including zero feedback.
+    bool Is_silent(void) const { return !gain_flag && multiplier == 0; } // Read with audio interrupts disabled.
     void Mute(void); // Save the current gain and ramp to exact silence.
     void Unmute(void); // Ramp back to the saved gain.
 };

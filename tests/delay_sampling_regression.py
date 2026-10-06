@@ -31,6 +31,7 @@ back = 'void Return_to_sampler()\n{\n' + main[main.index('\n', start) + 1:end] +
 prefix = r'''
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <set>
 #include <string>
 #include <vector>
@@ -43,6 +44,15 @@ enum DELAY_element_name { value_DELAY_Feedback, value_DELAY_Delay_time, value_DE
 enum Item { LOOP_GAIN, SAMPLES, SAMPLES_LR, MODULATION_SOURCE, MODULATION_FREQUENCY, MODULATION_DEPTH, MODULATION_PHASE_LR, INSTRUMENT_ROUTE };
 enum Control { EN_PB_LineOutVol, EN_PB_Select, EN_PB_Value };
 constexpr int INSTRUMENTS = 8, TRACKS = 2, PATCH_VOLUME_MAX = 100;
+constexpr int PLAYERS = 16, AUDIO_BLOCK_SAMPLES = 128, DELAY_CACHE_CHANNEL_SAMPLES = 256;
+int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES], DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES];
+void delay(int) {}
+struct ControlState
+{
+    bool Is_running() const { return true; }
+    void Stop() {}
+    void Start() {}
+} Midi_reader, Trigger;
 constexpr uint16_t ILI9341_BLACK = 0, ILI9341_WHITE = 1, ILI9341_RED = 2, TEXT_COLOR = 3;
 int PB_Sound[INSTRUMENTS] = {10,11,12,13,14,15,16,17};
 bool LOOP_track_run[TRACKS] = {true, true};
@@ -56,6 +66,8 @@ struct Manager
 {
     int route = 0;
     int Get_value(int) { return route; }
+    void Silence_feedback() { Delay_values.loop_gain = 0; gains += 2; }
+    void Restore_feedback() { Delay_values.loop_gain = Delay_data.loop_gain; gains += 2; }
 } Delay_manager;
 bool Read_pushbutton(int id) { return pressed.erase(id) != 0; }
 bool Read_encoder(int, int &value, int, int, int)
@@ -89,12 +101,19 @@ void AudioNoInterrupts() {}
 void AudioInterrupts() {}
 int Delay_feedback(int v) { return v; }
 int Patch_volume_gain(int v) { return v; }
-struct Gain { void Set_gain(int) { ++gains; } } D_gain_L_feedback, D_gain_R_n;
+struct Gain { bool Is_silent() const { return true; } } D_gain_L_feedback, D_gain_R_n;
+struct Voice
+{
+    void Panic_stop() { ++stops; }
+    bool isPlaying() const { return false; }
+} Player[PLAYERS];
 struct Players
 {
     void Update_all_Preset_volume(int, int) { ++edits; }
     void Broadcast_volume() {}
     void Stop_all_players() { ++stops; }
+    void Reset_booked_and_restart_player() {}
+    void Reset_players_to_restart() {}
 } Players_Manager;
 struct LEDs { void Request_all_LED_switch_off() {} } Loop_led_set;
 struct Pointer
@@ -169,7 +188,7 @@ int main()
     }
     pressed.insert(EN_PB_LineOutVol);
     Step_panic();
-    assert(stops == 1 && gains == 0 && Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
+    assert(stops == PLAYERS && gains == 4 && Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
     assert(feedback_draws == feedback_before);
     Return_to_sampler();
     assert(Lilla_state == DIRECT_SAMPLING && pressed.empty() && !rotate_value && !rotate_volume);
@@ -186,10 +205,10 @@ int main()
         assert(edits > previous_edits);
         pressed.insert(EN_PB_LineOutVol);
         Step_panic();
-        assert(Delay_data.loop_gain == 0);
+        assert(Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
     }
     assert(pointer_sets == 3);
-    std::cout << "PASS: persistent disabled Delay page, locked controls and routing, panic preserves parameters, Sampler return, other modes editable\n";
+    std::cout << "PASS: persistent disabled Delay page, locked controls and routing, Panic silences feedback without drawing disabled controls, Sampler return, other modes editable\n";
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

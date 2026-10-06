@@ -45,6 +45,7 @@ public:
     virtual void Update(void);
     void Begin(void); // inizializza le funzionalità midi
     void Start(void); // inizializza le tastiere virtuali
+    bool Is_running(void) const { return !midi_stop_flag; } // Read with audio interrupts disabled.
 
     /*
     Chiamando .Stop():

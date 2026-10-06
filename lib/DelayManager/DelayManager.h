@@ -46,4 +46,6 @@ public:
     bool Set_value(int item, int value); // Replace one UI target without cancelling other transitions; disable audio interrupts first.
     int Get_value(int item) const; // Read the requested value used by UI and persistence, not an intermediate filter value.
     void Stop(void); // Finish pending manager transitions at their exact targets; disable audio interrupts first.
+    void Silence_feedback(void); // Preserve the requested setting, cancel its transition and ramp both gains to zero; disable audio interrupts first.
+    void Restore_feedback(void); // Ramp back to the preserved setting after clearing buffers; disable audio interrupts first.
 };

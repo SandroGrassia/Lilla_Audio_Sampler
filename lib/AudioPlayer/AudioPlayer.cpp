@@ -2720,6 +2720,14 @@ void AudioPlayer::Fast_stop(void)
     state = IDLE_REQUEST;
 }
 
+void AudioPlayer::Panic_stop(void)
+{
+    warmup_for_play_again_flag = false;
+    restart_flag = false;
+    pending_note_released = false;
+    Fast_stop();
+}
+
 bool AudioPlayer::Fast_stop_using_tables(uint8_t banks_mask)
 {
     if (state == IDLE || state == IDLE_REQUEST || (tables_bank_mask & banks_mask) == 0)

@@ -396,6 +396,7 @@ public:
     void Release_note(void); // release note, fires ADSR "release"
     void Release_patch(int patch_id); // Cancel outgoing queued notes and bound current patch voices, including voices already fading; call with audio interrupts disabled.
     void Fast_stop(void); 
+    void Panic_stop(void); // Cancel pending replacement notes before requesting the fast release.
     bool Fast_stop_using_tables(uint8_t banks_mask); // Request a fast stop when current playback uses one of the specified banks. Call from the audio IRQ or with audio interrupts disabled.
 
     float Read_pitch(void);
