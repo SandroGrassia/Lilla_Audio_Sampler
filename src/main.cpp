@@ -6944,8 +6944,14 @@ void loop()
 
                     case value_LOOP_pitch:
                     {
-                        if (Read_encoder(EN_PB_Track[track], LOOP_pitch_int[track], 24, -24, 1))
+                        int next_pitch = LOOP_pitch_int[track];
+                        if (Read_encoder(EN_PB_Track[track], next_pitch, 24, -24, 1))
                         {
+                            AudioNoInterrupts();
+                            Players_Manager.Multicast_stop_players_for_loop_track(track);
+                            LOOP_pitch_int[track] = next_pitch;
+                            AudioInterrupts();
+
                             LOOP_original = false;
 
                             Display_MidiLoop.Show_track_all_data(track);
