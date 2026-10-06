@@ -9,6 +9,7 @@
 #include <type_traits>
 #include "Encoders.h"
 #include "SharedSampler.h"
+#include "SharedSound.h"
 
 // Dependencies still owned by main.cpp and used by extracted pages.
 class ArchivingManager;
@@ -66,6 +67,18 @@ extern FlashFileRegisterParser File_scanner;
 extern int first_octave_cache;
 extern bool confirmation;
 
+class PointerVCF;
+class PointerSound;
+class PerformanceLedSet;
+extern PointerVCF Pointer_VCF;
+extern PointerSound Pointer_Sound;
+extern PerformanceLedSet Performance_led_set;
+extern uint32_t samples_in_file;
+extern uint32_t S_trim_step;
+extern bool S_sound_original;
+extern S_field_description_struct S_pointer;
+extern int LS_sound_id;
+
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
 int Read_encoder_simple(int element);   // Consume encoder rotation and return -1, 0 or 1 for its direction.
 void Clear_UI_events(void);             // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
@@ -113,6 +126,24 @@ bool BACKUP_Restore(bool *config_error = nullptr);    // Restore an SD backup an
 bool BACKUP_Export(void);                             // Export configuration and recording audio to an SD backup.
 
 void Factory_setup_FRAM(void);  // Initialize persistent configuration with factory defaults.
+
+void S_Set_Sound_SOLO_OFF(void);                                                                                                                               // Disable Sound solo mode and restore normal instrument note routing.
+
+void S_Map_one_Instrument_for_all_notes(const int instrument_id);                                                                                              // Map the selected instrument across the note range for Sound editing.
+
+void P_Update_all_maps_Instrument_for_notes(void);                                               // Rebuild the mapping from MIDI channel and note to patch instruments.
+
+int Get_samples_in_raw_file(int value);            // Return the sample count for a RAW file or Direct Sampler channel.
+
+uint16_t S_Calc_Noclick_max(bool use_Wavetable);                      // Return the maximum click-suppression setting for the current source type.
+
+uint32_t S_Calc_trim_step(int value);                                                                                                                          // Calculate the sample increment for the selected trimming speed.
+
+bool S_Verify_is_Sound_original(int sound_id);                                                                                                                 // Compare a Sound with its reference metadata.
+
+void S_Select_menu_elements(void); // Enable Sound menu entries according to the selected Sound and editing state.
+
+void Golive_with_LIVE_SAMPLING(void);                      // Enter and redraw the Live Sampler page with its controls and waveform.
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
