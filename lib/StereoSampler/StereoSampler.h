@@ -26,6 +26,8 @@ private:
 
     volatile bool recording;
     volatile byte storage_error = 0;
+    volatile uint32_t missing_blocks_L = 0;
+    volatile uint32_t missing_blocks_R = 0;
     int recording_id = 0;          // equivalent to file_id
     LillaSerialFlashFile Packet_L; // SerialFlashFile Packet_L;
     LillaSerialFlashFile Packet_R; // SerialFlashFile Packet_R;
@@ -68,4 +70,6 @@ public:
     void Stop_and_wait(void); // Main only, with audio interrupts enabled; wait until packet writes have stopped.
     bool Is_recording(void);
     byte Storage_error(void) const { return storage_error; }
+    uint32_t Missing_blocks_left(void) const { return missing_blocks_L; } // Reset at Start; disable audio interrupts when reading both counters together.
+    uint32_t Missing_blocks_right(void) const { return missing_blocks_R; }
 };

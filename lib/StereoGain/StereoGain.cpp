@@ -17,6 +17,14 @@ void StereoGain::update(void)
     out_block_R = receiveWritable(1);
     if (!out_block_L || !out_block_R)
     {
+        if (out_block_L != nullptr)
+        {
+            release(out_block_L);
+        }
+        if (out_block_R != nullptr)
+        {
+            release(out_block_R);
+        }
         return;
     }
 
