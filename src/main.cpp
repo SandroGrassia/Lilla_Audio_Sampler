@@ -5384,6 +5384,12 @@ void loop()
                 MAIN_mixer_out_L.gain(1, 0.0);
                 MAIN_mixer_out_R.gain(1, 0.0);
 
+                if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
+                {
+                    P_Invalidate_recording_cache(recording);
+                    Require_VFS(VFS_Clean_up_VFS());
+                }
+
                 if (Recording[recording].packets == 0)
                 {
                     // Start from first recording existing
@@ -5611,13 +5617,20 @@ void loop()
                     Serial.println(F("*** Pause+Recording or Recording STOPPED! *** "));
                     if (DS_state == DS_recording_state)
                     {
-                        DirectSampler.Book_stop();
+                        DirectSampler.Stop_and_wait();
+                        Require_FRAM(DirectSampler.Storage_error());
                     }
                     DS_state = DS_waiting_state;
 
                     // switch OFF Line OUT monitor
                     MAIN_mixer_out_L.gain(1, 0.0);
                     MAIN_mixer_out_R.gain(1, 0.0);
+
+                    if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
+                    {
+                        P_Invalidate_recording_cache(recording);
+                        Require_VFS(VFS_Clean_up_VFS());
+                    }
 
                     if (Recording[recording].packets == 0)
                     {
@@ -7421,6 +7434,7 @@ void loop()
                 }
                 else
                 {
+                    const bool resume_controls = Trigger.Is_running();
                     if (!P_Quiesce_audio_players())
                     {
                         break;
@@ -7430,6 +7444,22 @@ void loop()
                     {
                         if (config_error)
                         {
+                            // Validation failed before changing storage, but quiescing discarded the runtime tables.
+                            if (resume_controls)
+                            {
+                                const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+                                AudioNoInterrupts();
+                                const bool ready = S_Fill_all_tables();
+                                if (ready)
+                                {
+                                    Midi_reader.Start();
+                                    Trigger.Start();
+                                }
+                                if (audio_enabled)
+                                {
+                                    AudioInterrupts();
+                                }
+                            }
                             Display_Setup.SETUP_show_SETUP_page();
                             Display_Setup.SETUP_show_frame(SET_menu);
                             break;
@@ -10125,6 +10155,7 @@ void Switch_from_PERFORMANCE_to_MIDI_LOOP(void)
     Golive_with_MIDI_LOOP(true);
 }
 
+FLASHMEM
 void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
 {
     switch (DS_state)
@@ -10182,10 +10213,17 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         }
         else // stop and exit
         {
-            DirectSampler.Book_stop();
+            DirectSampler.Stop_and_wait();
+            Require_FRAM(DirectSampler.Storage_error());
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
+            if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
+            {
+                P_Invalidate_recording_cache(recording);
+                Require_VFS(VFS_Clean_up_VFS());
+            }
+
             if (Recording[recording].packets == 0)
             {
                 // Recording cancelled
@@ -10312,6 +10350,7 @@ void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void)
     Golive_with_LIVE_SAMPLING();
 }
 
+FLASHMEM
 void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 {
     switch (DS_state)
@@ -10359,10 +10398,17 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         }
         else // stop and exit
         {
-            DirectSampler.Book_stop();
+            DirectSampler.Stop_and_wait();
+            Require_FRAM(DirectSampler.Storage_error());
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
+            if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
+            {
+                P_Invalidate_recording_cache(recording);
+                Require_VFS(VFS_Clean_up_VFS());
+            }
+
             if (Recording[recording].packets == 0)
             {
                 // Recording cancelled
@@ -10473,6 +10519,7 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
     }
 }
 
+FLASHMEM
 void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 {
     switch (DS_state)
@@ -10517,11 +10564,18 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         }
         else // stop and exit
         {
-            DirectSampler.Book_stop();
+            DirectSampler.Stop_and_wait();
+            Require_FRAM(DirectSampler.Storage_error());
 
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
+            if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
+            {
+                P_Invalidate_recording_cache(recording);
+                Require_VFS(VFS_Clean_up_VFS());
+            }
+
             if (Recording[recording].packets == 0)
             {
                 Serial.print(F("Recording: "));
@@ -15393,13 +15447,13 @@ void Reload_system_state(void)
         return;
     }
 
-    // *******************    START MIDI   ************************
+    // Publish the rebuilt controls together, including recovery entered with the audio IRQ disabled.
+    AudioNoInterrupts();
     Midi_reader.Begin();
     Midi_reader.Start();
-    delay(10);
-
-    // *******************  START TRIGGERS  ***********************
     Trigger.Start();
+    AudioInterrupts();
+
     delay(20);
 }
 

@@ -38,7 +38,9 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
         last_packet_R = last_packet_L + 1; // 14
     }
     else
+    {
         last_packet_L = last_packet;
+    }
 
     Recording[recording_id].first_packet = from_packet;
     Recording[recording_id].packets = 0;
@@ -60,12 +62,26 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
     samples_counter = Slope_samples;
     decay_gain_flag = false;
     countdown_flag = false;
+    book_stop_flag = false;
+    cancelled = false;
+    storage_error = 0;
     recording = true;
     return true;
 }
 void StereoSampler::Book_stop(void)
 {
     book_stop_flag = true;
+}
+void StereoSampler::Stop_and_wait(void)
+{
+    if (recording)
+    {
+        Book_stop();
+        while (recording)
+        {
+            delayMicroseconds(50);
+        }
+    }
 }
 void StereoSampler::update(void)
 {
@@ -98,9 +114,18 @@ void StereoSampler::update(void)
 
     if (book_stop_flag)
     {
-        decay_gain_flag = true;
-        samples_counter = Slope_samples;
         book_stop_flag = false;
+        if (attack_gain_flag)
+        {
+            cancelled = true;
+            stop();
+            return;
+        }
+        if (!decay_gain_flag)
+        {
+            decay_gain_flag = true;
+            samples_counter = Slope_samples;
+        }
     }
 
     audio_block_t *in_block_L = receiveReadOnly(0);
@@ -254,7 +279,7 @@ void StereoSampler::update(void)
         }
     }
 
-    if (Packet_L.position() == PACKET_DIM) // Packet_L is full (if stereo_flag also Packet_R is full)
+    if (recording && Packet_L.position() == PACKET_DIM) // Do not open another packet after the fade has completed.
     {
         if (stereo_flag)
         {
@@ -327,7 +352,10 @@ void StereoSampler::stop(void)
             Packet_R.close();
         }
 
-        recording = false;
+        book_stop_flag = false;
+        attack_gain_flag = false;
+        decay_gain_flag = false;
         AudioStopUsingSPI();
+        recording = false;
     }
 }

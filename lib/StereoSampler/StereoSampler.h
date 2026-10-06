@@ -45,7 +45,8 @@ private:
 
     bool attack_gain_flag = false;
     bool decay_gain_flag = false;
-    bool book_stop_flag = false;
+    volatile bool book_stop_flag = false;
+    volatile bool cancelled = false;
     int samples_counter = 0;
     static constexpr float Slope_blocks = 3.0;
     static constexpr float F_Slope_samples = Slope_blocks * AUDIO_BLOCK_SAMPLES;
@@ -66,6 +67,8 @@ public:
     void Begin(void);
     bool Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in);
     void Book_stop(void);
+    void Stop_and_wait(void); // Main only, with audio interrupts enabled; wait until packet writes have stopped.
     bool Is_recording(void);
+    bool Was_cancelled(void) const { return cancelled; }
     byte Storage_error(void) const { return storage_error; }
 };
