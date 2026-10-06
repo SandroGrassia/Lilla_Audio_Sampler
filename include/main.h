@@ -59,6 +59,13 @@ enum DS_state_name
 };
 extern DS_state_name DS_state; // Direct Sampler state owned by main.cpp.
 
+class LillaClock;
+class FlashFileRegisterParser;
+extern LillaClock Trigger;
+extern FlashFileRegisterParser File_scanner;
+extern int first_octave_cache;
+extern bool confirmation;
+
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
 int Read_encoder_simple(int element);   // Consume encoder rotation and return -1, 0 or 1 for its direction.
 void Clear_UI_events(void);             // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
@@ -74,7 +81,6 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void);     // Handle Direct Samp
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);       // Handle recording exit and restore the previous Performance patch.
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void);           // Stop loop tracks and return to Performance.
 void Golive_with_MIDI_LOOP(bool restart = false);          // Enter MIDI Loop; preserve running tracks unless restart is requested.
-void Golive_SETUP(void);                                   // Enter and initialize the Setup page.
 
 void Switch_from_PERFORMANCE_to_MIDI_LOOP(void);           // Enter MIDI Loop while retaining the current Performance patch.
 
@@ -87,6 +93,26 @@ void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);       // Stop loop tracks a
 void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void);         // Stop loop tracks, prepare the Live Sampler patch and enter its page.
 
 void LOOP_stop_all_midi_tracks(void);                          // Stop every MIDI Loop track; call with audio interrupts disabled.
+
+void Calc_pitch_from_note(const int &key_step); // Recalculate the note pitch multipliers for the selected keyboard scale.
+
+bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
+
+bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
+
+void VFS_Make_VFS(void);                              // Ask for the recording-area size and create the erasable Flash packet files.
+
+void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
+
+void Reload_system_state(void);          // Reload persistent settings and model data into the running system.
+
+bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
+
+bool BACKUP_Restore(bool *config_error = nullptr);    // Restore an SD backup and optionally distinguish configuration errors from other failures.
+
+bool BACKUP_Export(void);                             // Export configuration and recording audio to an SD backup.
+
+void Factory_setup_FRAM(void);  // Initialize persistent configuration with factory defaults.
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
@@ -141,3 +167,56 @@ bool Read_encoder(const int encoder, T &value, const int highest, const int lowe
     }
 }
 
+
+template <class T>
+bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
+{
+    auto R = Encoders_manager.Get_rotation(encoder);
+    if (R == 0)
+    {
+        return false;
+    }
+    if constexpr (std::is_enum_v<T>)
+    {
+        auto v = static_cast<int>(value);
+        if (R == 1)
+        {
+            if (v > lowest)
+            {
+                value = static_cast<T>(v - increment);
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (v < highest)
+            {
+                value = static_cast<T>(v + increment);
+                return true;
+            }
+            return false;
+        }
+    }
+    else
+    {
+        if (R == 1)
+        {
+            if (value > lowest)
+            {
+                value = value - increment;
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (value < highest)
+            {
+                value = value + increment;
+                return true;
+            }
+            return false;
+        }
+    }
+}

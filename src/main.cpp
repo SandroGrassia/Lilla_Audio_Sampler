@@ -95,6 +95,7 @@
 #include "DelayPage.h"
 #include "MixerPage.h"
 #include "MidiMonitorPage.h"
+#include "SetupPage.h"
 #include "CCSettingsPage.h"
 #include <util/atomic.h>
 #include <type_traits>
@@ -570,9 +571,7 @@ bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&pr
 // AudioTables publication is coordinated here, outside the audio objects.
 uint16_t S_Calc_Noclick_max(bool use_Wavetable);                      // Return the maximum click-suppression setting for the current source type.
 bool S_Fill_tables(uint8_t instrument_id);                            // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
-bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete table bank while preserving previous presets if preparation fails.
-bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
 void Print_player_read_diagnostics(void);                             // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
 void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
 void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
@@ -580,23 +579,17 @@ void P_Invalidate_recording_cache(int recording_id);                  // Retire 
 bool audio_tables_error_pending = false;                              // Defer an audio-table preparation failure notification to the UI.
 
 bool S_Fill_tables(uint8_t instrument_id); // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
-bool S_Fill_all_tables(void);              // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t);      // Publish a complete table bank while preserving previous presets if preparation fails.
 
 // >>>>>>> FILE COPY TO PSRAM
 EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMPLES]; // PSRAM backing arrays for the patch audio caches.
 
 // >>>>>>> SETTINGS
-int8_t SET_menu;                                // Current Setup menu selection.
-void Calc_pitch_from_note(const int &key_step); // Recalculate the note pitch multipliers for the selected keyboard scale.
 uint8_t Line_in_gain = 8;                       // Shared hardware input gain; displayed as 1..16.
 uint8_t Line_out_level;                         // Hardware line-output level setting.
 
 // functions
-bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
 float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
-void SET_Ask_if_IMPORT_EXPORT_setup(void);                       // Present the setup import/export choices and handle the selected operation.
-void SET_Ask_if_FACTORY_RESET(void);                             // Request confirmation before restoring factory settings.
 
 // >>>>>>> DELAY
 EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the left delay channel.
@@ -630,7 +623,6 @@ void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop rec
 bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
 void DS_convert_file_L(int file_L_RAW, int bytes);    // Convert the left recording channel and invalidate its previous RAW cache.
 void DS_convert_file_R(int file_R_RAW, int bytes);    // Convert the right recording channel and invalidate its previous RAW cache.
-void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
 void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
 byte DS_read_all_Recordings(void);                    // Load all recording metadata and stop at the first FRAM error.
 byte DS_read_Recording(int value);                    // Load one recording and derive its byte count and duration; return the FRAM status.
@@ -645,7 +637,6 @@ int DS_get_samples_in_Recording(int value);           // Return the sample count
 void P_Recording(int value);                          // Print one recording's metadata to Serial.
 
 // VFS VIRTUAL FILE SYSTEM
-void VFS_Make_VFS(void);                              // Ask for the recording-area size and create the erasable Flash packet files.
 int VFS_Get_packets(void);                            // Count the VFS packet files present in Flash.
 void VFS_Print_allocation(void);                      // Print the VFS and Direct Sampler packet allocation to Serial.
 bool VFS_Compile_FAT_table(void);                     // Build the packet ownership table from recording metadata and validate it.
@@ -660,8 +651,6 @@ bool VFS_Defragment(void);                            // Compact recording packe
 bool VFS_Shift_file(int to_packet, int recording_id); // Move a recording to the requested packet position and update its metadata.
 void Require_VFS(bool result);                        // Stop further processing and report a failed VFS operation.
 void VFS_Print_FAT(void);                             // Print the packet ownership table to Serial.
-bool BACKUP_Export(void);                             // Export configuration and recording audio to an SD backup.
-bool BACKUP_Restore(bool *config_error = nullptr);    // Restore an SD backup and optionally distinguish configuration errors from other failures.
 
 // STANDARD FILE SYSTEM
 int Get_next_raw_file_in_flash(int file);          // Find the next available RAW audio source after the supplied file ID.
@@ -758,7 +747,6 @@ int volume_MONITOR = 0;                      // Input monitoring volume setting.
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS; // Mixer channel index reserved for line-input monitoring.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  FRAM
-void Factory_setup_FRAM(void);  // Initialize persistent configuration with factory defaults.
 
 // >>>>>>>>>>>>>>>>>>>>>>> SGTL5000 Audio_shield
 int headphones_volume_int = 40; // Unused audio-shield headphone volume setting, ranging from 0 to 40.
@@ -775,7 +763,6 @@ bool P_Rebuild_patch_old(void);                            // Restore the previo
 void Golive_with_LIVE_SAMPLING(void);                      // Enter and redraw the Live Sampler page with its controls and waveform.
 void Golive_DIRECT_SAMPLING(void);                         // Enter and redraw the Direct Sampler page and its controls.
 bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording); // Prepare the selected recording before updating its playback presets and display.
-void Switch_from_MIDI_LOOP_to_SETUP(void);                 // Keep the loop running while editing setup.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  PRINT
 void Print_Patch(int patch_id);                                        // Print the selected patch's metadata to Serial.
@@ -818,64 +805,11 @@ inline void P_UpdatePatchOriginalAndMenu(void)
 bool Startup_mode(void);                 // Prepare tables for the selected startup mode before enabling MIDI callbacks.
 void Startup_hardware_and_objects(void); // Initialize hardware, audio objects, buffers and UI controllers.
 void Compile_tables(void);               // Build lookup tables required by playback and the interface.
-void Reload_system_state(void);          // Reload persistent settings and model data into the running system.
 
 // >>>>>>>>>>>>>>>>>>>>>>>   ENCODER - PUSHBUTTONS
 bool Read_pushbutton_fast(int element); // Read the current pushbutton state without consuming a change event.
 bool Read_encoder_fast(int element);    // Consume encoder rotation and report whether any movement occurred.
 
-template <class T>
-bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
-{
-    auto R = Encoders_manager.Get_rotation(encoder);
-    if (R == 0)
-    {
-        return false;
-    }
-    if constexpr (std::is_enum_v<T>)
-    {
-        auto v = static_cast<int>(value);
-        if (R == 1)
-        {
-            if (v > lowest)
-            {
-                value = static_cast<T>(v - increment);
-                return true;
-            }
-            return false;
-        }
-        else
-        {
-            if (v < highest)
-            {
-                value = static_cast<T>(v + increment);
-                return true;
-            }
-            return false;
-        }
-    }
-    else
-    {
-        if (R == 1)
-        {
-            if (value > lowest)
-            {
-                value = value - increment;
-                return true;
-            }
-            return false;
-        }
-        else
-        {
-            if (value < highest)
-            {
-                value = value + increment;
-                return true;
-            }
-            return false;
-        }
-    }
-}
 
 struct PatchEditSnapshot
 {
@@ -6272,451 +6206,7 @@ void loop()
     }
 #pragma endregion // MIDI_LOOP
 
-#pragma region[rgba(54, 135, 210, 0.2)]
-    // *************************************************************
-    // ********************      SETUP      ************************
-    // *************************************************************
-    if (Lilla_state == SETUP)
-    {
-        // Change Patch VOLUME
-        if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
-        {
-            AudioNoInterrupts();
-            Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
-            Players_Manager.Broadcast_volume();
-            AudioInterrupts();
-        }
-
-        // Set Key Step
-        if (SET_menu == 0 && Read_encoder_inverse(EN_PB_Value, key_step, 3, 0, 1))
-        {
-            Display_Setup.SETUP_show_Key_step_value();
-            Calc_pitch_from_note(key_step);
-            Require_FRAM(Archive.Save_key_step(static_cast<uint8_t>(key_step)));
-        }
-
-        // Set Prima ottava
-        if (SET_menu == 1 && Read_encoder(EN_PB_Value, first_octave, 0, -2, 1))
-        {
-            Display_Setup.SETUP_show_First_octave_value();
-        }
-
-        // Change menu item  -  uint8_t SET_menu;
-        result = Read_encoder_simple(EN_PB_Select);
-        if (result != 0)
-        {
-            SET_menu = (SET_menu + result + 7) % 7;
-            Display_Setup.SETUP_show_frame(SET_menu);
-
-            Clear_UI_events();
-        }
-
-        // Choose menu item
-        if (Read_pushbutton(EN_PB_Select))
-        {
-            switch (SET_menu)
-            {
-            case 2: // switch to CC Settings
-                Golive_CC_SETTINGS();
-                break;
-
-                // case 2: // USB access to SD card - funzionalita' MTP
-                // break;
-
-            case 3: // import RAW files from SD
-            {
-                const bool resume_controls = Trigger.Is_running();
-                if (!P_Quiesce_audio_players())
-                {
-                    break;
-                }
-
-                bool flash_changed = false;
-                if (SET_Copy_audio_files_from_SD_to_Flash(flash_changed))
-                {
-                    VFS_Make_VFS();
-                    DS_seed_all_Recordings();
-                    File_scanner.Read_all_file_data();
-
-                    // switch off Tools LED
-                    TOOLS_pushbutton = false;
-                    Shifters_manager.Switch_led(LED_Tools, false);
-
-                    Reload_system_state();
-                }
-                else
-                {
-                    // Cancellation can resume the old inventory; a failed destructive import cannot.
-                    if (!flash_changed && resume_controls)
-                    {
-                        AudioNoInterrupts();
-                        const bool ready = S_Fill_all_tables();
-                        if (ready)
-                        {
-                            Midi_reader.Start();
-                            Trigger.Start();
-                        }
-                        AudioInterrupts();
-                    }
-                    if (flash_changed)
-                    {
-                        Serial.println(F("RAW import failed; audio remains stopped. Retry the import."));
-                    }
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                }
-                break;
-            }
-
-            case 4: // Restore configuration and Recording audio from the backup root.
-                Display_Storage.Confirm_config_import_popup();
-                Display_Storage.Confirm_config_import_frame(0);
-                SET_Ask_if_IMPORT_EXPORT_setup();
-                if (result == 0)
-                {
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                    break;
-                }
-
-                // check SD presence
-                if (!SD.begin(BUILTIN_SDCARD))
-                {
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                    break;
-                }
-                if (!SD.exists("/LILLABACKUP/LILLA_CONFIG.fram"))
-                {
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                    break;
-                }
-                else
-                {
-                    const bool resume_controls = Trigger.Is_running();
-                    if (!P_Quiesce_audio_players())
-                    {
-                        break;
-                    }
-                    bool config_error = false;
-                    if (!BACKUP_Restore(&config_error))
-                    {
-                        if (config_error)
-                        {
-                            // Validation failed before changing storage, but quiescing discarded the runtime tables.
-                            if (resume_controls)
-                            {
-                                const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-                                AudioNoInterrupts();
-                                const bool ready = S_Fill_all_tables();
-                                if (ready)
-                                {
-                                    Midi_reader.Start();
-                                    Trigger.Start();
-                                }
-                                if (audio_enabled)
-                                {
-                                    AudioInterrupts();
-                                }
-                            }
-                            Display_Setup.SETUP_show_SETUP_page();
-                            Display_Setup.SETUP_show_frame(SET_menu);
-                            break;
-                        }
-                        Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /LILLABACKUP."));
-                        Display_Storage.Config_import_FILE_error_popup();
-                        delay(5000);
-                        Reload_system_state();
-                        break;
-                    }
-                    Serial.println(F("Configuration and Recording audio restored and verified."));
-
-                    // switch off Tools LED
-                    TOOLS_pushbutton = false;
-                    Shifters_manager.Switch_led(LED_Tools, false);
-
-                    Reload_system_state();
-                }
-                break;
-
-            case 5: // Create a new numbered backup with Recording audio.
-                Display_Storage.Confirm_config_export_popup();
-                Display_Storage.Confirm_config_import_frame(0);
-                SET_Ask_if_IMPORT_EXPORT_setup();
-                if (result == 0)
-                {
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                    break;
-                }
-
-                // check SD presence
-                if (SD.begin(BUILTIN_SDCARD))
-                {
-                    if (BACKUP_Export())
-                    {
-                        Display_Storage.Config_export_save_popup();
-                    }
-                    else
-                    {
-                        Display_Storage.Config_export_SD_error_popup();
-                    }
-                    delay(5000);
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                }
-
-                else
-                {
-                    Display_Storage.SD_missing(ILI9341_BLACK);
-                    delay(5000);
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                    break;
-                }
-
-                break;
-
-            case 6: // Factory reset
-                Display_Storage.Confirm_factory_reset_popup();
-                Display_Storage.Confirm_config_import_frame(0);
-
-                SET_Ask_if_FACTORY_RESET();
-                if (result == 0)
-                {
-                    Display_Setup.SETUP_show_SETUP_page();
-                    Display_Setup.SETUP_show_frame(SET_menu);
-                    break;
-                }
-                Display_Storage.Factory_reset_wait_popup();
-
-                delay(3000); // per ripensamenti last minute!
-
-                // switch off Tools LED
-                TOOLS_pushbutton = false;
-                Shifters_manager.Switch_led(LED_Tools, false);
-
-                if (!P_Quiesce_audio_players())
-                {
-                    break;
-                }
-                Factory_setup_FRAM();
-                Reload_system_state();
-                break;
-
-            default:
-                PRINT_ERROR(F("Switch MISSING! "));
-                break;
-            }
-        }
-
-        // Switch verso un TOOL
-        if (Switches_manager.Get_change(SwitchTools))
-        {
-            switch (Switches_manager.Get_value(SwitchTools))
-            {
-            case SwToolsMixer:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-                Switch_to_MIXER();
-                break;
-            }
-            break;
-
-            case SwToolsDelay:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-
-                Golive_DELAY_SETTINGS();
-                break;
-            }
-            break;
-
-            case SwToolsSetup:
-                break;
-
-            case SwToolsTest:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-
-                Golive_MIDI_MONITOR();
-                break;
-            }
-            break;
-            }
-        }
-
-        // Switch Mode
-        if (Read_pushbutton(PB_Tools))
-        {
-            TOOLS_pushbutton = false;
-            Shifters_manager.Switch_led(LED_Tools, false);
-
-            switch (Switches_manager.Get_value(SwitchModes))
-            {
-            case SwModesSampler:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_to_DIRECT_SAMPLING();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Lilla_state = DIRECT_SAMPLING;
-
-                    Display_Sampler.DS_page_upper();
-                    Display_Sampler.DS_page_lower(recording);
-
-                    // Menu
-                    DS_define_menu();
-                    Display_Sampler.DS_menu(); // display the menu and updates DS_menu_max
-
-                    // Pointer
-                    Pointer_Sampler.Set_pointer_to_first_menu_element();
-                    DS_local_pointer = Pointer_Sampler.Get_pointer();
-
-                    // Display the VU meter
-                    Display_Sampler.DS_bar(0, 0);
-                    Display_Sampler.DS_bar(1, 0);
-
-                    Clear_UI_events();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING();
-                    break;
-
-                case MIDI_LOOP:
-                    Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-                break;
-            }
-            break;
-
-            case SwModesLiveSampler:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_from_PERFORMANCE_to_LIVE_SAMPLING();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
-                    break;
-
-                case LIVE_SAMPLING:
-
-                    LS_refresh_LS_page();
-                    break;
-
-                case MIDI_LOOP:
-                    Switch_from_MIDI_LOOP_to_LIVE_SAMPLING();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-                break;
-            }
-            break;
-
-            case SwModesPerformance:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Golive_with_PERFORMANCE(Patch_id);
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_PERFORMANCE();
-                    break;
-
-                case MIDI_LOOP:
-                    Switch_from_MIDI_LOOP_to_PERFORMANCE();
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-                break;
-            }
-            break;
-
-            case SwModesMidiLoop:
-            {
-                if (first_octave != first_octave_cache)
-                {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
-                }
-                switch (Lilla_state_0)
-                {
-                case PERFORMANCE:
-                    Switch_from_PERFORMANCE_to_MIDI_LOOP();
-                    break;
-
-                case DIRECT_SAMPLING:
-                    Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
-                    break;
-
-                case LIVE_SAMPLING:
-                    Switch_from_LIVE_SAMPLING_to_MIDI_LOOP();
-                    break;
-
-                case MIDI_LOOP:
-                    Golive_with_MIDI_LOOP(false);
-                    break;
-
-                default:
-                    PRINT_ERROR(F("Switch MISSING! "));
-                    break;
-                }
-                break;
-            }
-            break;
-            }
-        }
-    }
-
-#pragma endregion // SETUP
+    Handle_Setup();
 
     Handle_CC_settings();
 }
@@ -9463,24 +8953,8 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 }
 
 
-void Switch_from_MIDI_LOOP_to_SETUP(void)
-{
-    Lilla_state_0 = MIDI_LOOP;
-    Golive_SETUP();
-}
 
 
-void Golive_SETUP(void)
-{
-    Lilla_state = SETUP;
-
-    SET_menu = 0;
-    Display_Setup.SETUP_show_SETUP_page();
-
-    Clear_UI_events();
-
-    Display_Setup.SETUP_show_frame(SET_menu);
-}
 
 // ***************************************************************************************************************
 // **********************************                MIDI_LOOP                  **********************************
@@ -12541,50 +12015,7 @@ void LS_setup_LS_Patch(bool stereo)
 // ***************************************************************************************************************
 
 
-void SET_Ask_if_IMPORT_EXPORT_setup(void)
-{
-    confirmation = false;
-    result = 0;
 
-    Clear_UI_events();
-    while (!confirmation)
-    {
-        Shifters_manager.Update();
-
-        if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
-        {
-            Display_Storage.Confirm_config_import_frame(result);
-        }
-        if (Read_pushbutton(EN_PB_Select))
-        {
-            confirmation = true;
-        }
-    }
-
-    Clear_UI_events();
-}
-
-void SET_Ask_if_FACTORY_RESET(void)
-{
-    confirmation = false;
-    result = 0;
-
-    Clear_UI_events();
-    while (!confirmation)
-    {
-        Shifters_manager.Update();
-
-        if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
-        {
-            Display_Storage.Confirm_config_import_frame(result);
-        }
-        if (Read_pushbutton(EN_PB_Select))
-        {
-            confirmation = true;
-        }
-    }
-    Clear_UI_events();
-}
 
 // ***************************************************************************************************************
 // ****************************   COPY RAW FILES FROM SD/LILLA_AUDIO TO FLASH MEMORY CHIP  **************************

@@ -5,6 +5,7 @@
 
 #include "CCSettingsPage.h"
 #include "main.h"
+#include "SetupPage.h"
 #include "UserInterface.h"
 #include "SharedElements.h"
 #include "SharedMM.h"
