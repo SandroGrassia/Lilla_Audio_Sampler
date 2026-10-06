@@ -8815,7 +8815,7 @@ bool S_Read_all_Sounds(PatchEditSnapshot *snapshot)
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel)
 {
     // .data contains midi channel in its bits: 7 6 5 M I D I 0
-    Sound[sound_id].data = (midi_channel << 1) + (Sound[sound_id].data & 0b11100000);
+    Sound[sound_id].data = (midi_channel << 1) + (Sound[sound_id].data & 0b11100001);
 }
 
 uint8_t S_Get_midi_channel_from_Sound(int sound_id)
