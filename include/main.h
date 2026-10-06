@@ -75,13 +75,18 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);       // Handle recording e
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void);           // Stop loop tracks and return to Performance.
 void Golive_with_MIDI_LOOP(bool restart = false);          // Enter MIDI Loop; preserve running tracks unless restart is requested.
 void Golive_SETUP(void);                                   // Enter and initialize the Setup page.
-void Golive_MIDI_MONITOR(void);                            // Enter the MIDI Monitor page and initialize its display.
 
 void Switch_from_PERFORMANCE_to_MIDI_LOOP(void);           // Enter MIDI Loop while retaining the current Performance patch.
 
 void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void);       // Leave Direct Sampler and restore the previous patch for MIDI Loop.
 
 void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void);         // Handle recording exit and restore the previous patch for MIDI Loop.
+
+void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);       // Stop loop tracks and enter Direct Sampler.
+
+void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void);         // Stop loop tracks, prepare the Live Sampler patch and enter its page.
+
+void LOOP_stop_all_midi_tracks(void);                          // Stop every MIDI Loop track; call with audio interrupts disabled.
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)

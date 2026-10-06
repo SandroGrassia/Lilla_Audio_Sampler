@@ -7,6 +7,7 @@
 #include "MixerPage.h"
 #include <Audio.h>
 #include "main.h"
+#include "MidiMonitorPage.h"
 #include "UserInterface.h"
 #include "Functions.h"
 #include "SharedLoop.h"
