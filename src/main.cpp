@@ -6868,7 +6868,7 @@ void loop()
                             Players_Manager.Release_all_players_loop(track);
 
                             // Sort events by timestamp
-                            LOOP_set_time_order(LOOP_learning_track);
+                            LOOP_set_time_order(track);
 
                             // Restart procedure
                             LOOP_restart_procedure(track);
