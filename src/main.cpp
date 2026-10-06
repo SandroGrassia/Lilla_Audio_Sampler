@@ -15392,7 +15392,6 @@ void Reload_system_state(void)
     instrument_volume_changed = 0;
 
     // **************     MIDI CONTROL CHANGE     ****************
-    CC_lowpass_filter_value = 0;
     CC_midi_controller = 0;
 
     // **************  RESOLUTION  DOWNSAMPLING   ****************
