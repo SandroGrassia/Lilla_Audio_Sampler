@@ -493,6 +493,10 @@ Insert a microSD card, select a recording and choose `EXPORT_WAV_TO_SD`. The exp
 
 Files are written to `/LILLAWAV_EXPORT`, with names such as `0M.wav` for mono or `0S.wav` for stereo. Wait for the success message before removing the card.
 
+After a successful WAV export, LILLA deletes the original Sampler recording and frees its recording slot and Flash packets. If the export fails, the original recording is retained. To keep the recording in LILLA as well as an external copy, use backup instead.
+
+Sampler supports up to 30 recordings. When every slot is occupied, `PAUSE+REC` is hidden and a temporary notice asks you to delete or export a recording before recording another take.
+
 WAV export is useful when you want to edit a take on a computer, share a recording, or keep an audio copy independent of LILLA's configuration. This command exports Sampler recordings; it is not a general export command for every RAW source in Flash.
 
 `CANCEL_RECORDING` deletes the selected recording. Export anything you want to retain first.

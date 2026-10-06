@@ -635,6 +635,7 @@ DS_state_name DS_state;                 // Current Direct Sampler state: waiting
 elapsedMillis DS_recording_time;        // Elapsed recording duration in milliseconds.
 elapsedMillis DS_recording_time_update; // Timer used to throttle recording-time display updates.
 int DS_recording_change;                // Working recording selection during Direct Sampler navigation.
+static bool DS_recording_slots_full = false; // Updated whenever the Sampler menu is recalculated.
 
 // PACKETS
 int DS_packets_free;     // Number of available recording packets.
@@ -718,25 +719,25 @@ static uint8_t Capture_return_patch = 0;                                    // O
 static int8_t Capture_pair[INSTRUMENTS] = {-1, -1, -1, -1, -1, -1, -1, -1}; // Stereo partner instrument for each capture slot, or -1 for an unpaired slot.
 
 // functions
-void LS_refresh_LS_page(void);                                        // Redraw Live Sampler, restore its controls and discard notices from the previous page.
-bool LS_ask_if_exit_from_LS(void);                                    // Ask whether to stop Live Sampler recording and leave the page.
-void LS_update_menu_elements(void);                                   // Enable Live Sampler menu entries for the empty, recording or playback state.
-int LS_constrain_position(int value);                                 // Wrap a sample position into the Live Sampler circular buffer.
-void LS_lock_X_sample(void);                                          // Capture the current play point from the write position and lock it.
-void LS_update_both_X_Y_samples(void);                                // Update the write position and both playback boundaries with audio interrupts disabled.
-void LS_update_Q_sample(void);                                        // Snapshot the current recording write position with audio interrupts disabled.
-void LS_Reset_buffer(void);                                           // Clear the Live Sampler storage, reconnect its views and reset recording positions.
-void LS_setup_LS_Patch(bool stereo);                                  // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
-FLASHMEM void LS_Capture_notice(const char *message, const char *second_line = "");                 // Show a centered notice for two seconds and discard pending UI events.
-FLASHMEM bool LS_Capture_confirm(void);                               // Ask whether to replace an existing capture; return true if confirmed.
-FLASHMEM bool LS_Capture_root(uint8_t &root);                         // Learn the capture root note from a key press; return false if cancelled.
-FLASHMEM bool LS_Capture_drain(void);                                 // Stop MIDI input and wait up to 100 ms for players to stop; leave MIDI stopped on success.
-FLASHMEM bool LS_Capture_referenced(int file, int except_sound = -1); // Check current Sounds and saved snapshots for file references, excluding only the specified current Sound.
-FLASHMEM void LS_Capture_collect(void);                               // Release unreferenced capture sources and caches while preserving references held by players.
-FLASHMEM void LS_Capture_sound(int selected);                         // Capture the selected live loop into PSRAM and assign it to the target instrument or stereo pair.
-FLASHMEM bool LS_Capture_write(CaptureSource &source);                // Write and verify one capture as a RAW file in Flash; return false on failure.
-FLASHMEM bool LS_Capture_materialize(void);                           // Write pending captures referenced by used Sounds to RAW files before saving the patch.
-FLASHMEM void LS_Capture_finish_save(void);                           // Clear successfully saved capture sources and release caches no longer needed after saving.
+void LS_refresh_LS_page(void);                                                      // Redraw Live Sampler, restore its controls and discard notices from the previous page.
+bool LS_ask_if_exit_from_LS(void);                                                  // Ask whether to stop Live Sampler recording and leave the page.
+void LS_update_menu_elements(void);                                                 // Enable Live Sampler menu entries for the empty, recording or playback state.
+int LS_constrain_position(int value);                                               // Wrap a sample position into the Live Sampler circular buffer.
+void LS_lock_X_sample(void);                                                        // Capture the current play point from the write position and lock it.
+void LS_update_both_X_Y_samples(void);                                              // Update the write position and both playback boundaries with audio interrupts disabled.
+void LS_update_Q_sample(void);                                                      // Snapshot the current recording write position with audio interrupts disabled.
+void LS_Reset_buffer(void);                                                         // Clear the Live Sampler storage, reconnect its views and reset recording positions.
+void LS_setup_LS_Patch(bool stereo);                                                // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
+FLASHMEM void LS_Capture_notice(const char *message, const char *second_line = ""); // Show a centered notice for two seconds and discard pending UI events.
+FLASHMEM bool LS_Capture_confirm(void);                                             // Ask whether to replace an existing capture; return true if confirmed.
+FLASHMEM bool LS_Capture_root(uint8_t &root);                                       // Learn the capture root note from a key press; return false if cancelled.
+FLASHMEM bool LS_Capture_drain(void);                                               // Stop MIDI input and wait up to 100 ms for players to stop; leave MIDI stopped on success.
+FLASHMEM bool LS_Capture_referenced(int file, int except_sound = -1);               // Check current Sounds and saved snapshots for file references, excluding only the specified current Sound.
+FLASHMEM void LS_Capture_collect(void);                                             // Release unreferenced capture sources and caches while preserving references held by players.
+FLASHMEM void LS_Capture_sound(int selected);                                       // Capture the selected live loop into PSRAM and assign it to the target instrument or stereo pair.
+FLASHMEM bool LS_Capture_write(CaptureSource &source);                              // Write and verify one capture as a RAW file in Flash; return false on failure.
+FLASHMEM bool LS_Capture_materialize(void);                                         // Write pending captures referenced by used Sounds to RAW files before saving the patch.
+FLASHMEM void LS_Capture_finish_save(void);                                         // Clear successfully saved capture sources and release caches no longer needed after saving.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  MIDI_LOOP
 // variables
@@ -1132,6 +1133,11 @@ void setup()
 
 void loop()
 {
+    static bool recording_limit_notified = false;
+    if (Lilla_state != DIRECT_SAMPLING || !DS_recording_slots_full)
+    {
+        recording_limit_notified = false;
+    }
     char audio_filename[NAME_FILE_SIZE];
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
@@ -5311,6 +5317,19 @@ void loop()
 
         */
 
+        // Show the capacity notice once per visit, after the completed recording has been published.
+        if (DS_state == DS_waiting_state && DS_recording_slots_full && !recording_limit_notified)
+        {
+            recording_limit_notified = true;
+            Show_popup_text("RECORDING LIMIT REACHED", "DELETE OR EXPORT A RECORDING", ILI9341_WHITE, ILI9341_RED);
+            delay(2000);
+            Display_Sampler.DS_page_upper();
+            Display_Sampler.DS_page_lower(recording);
+            Display_Sampler.DS_menu();
+            Pointer_Sampler.Show_pointer(true);
+            Clear_UI_events();
+        }
+
         // Change volume_patch
         if (DS_state == DS_waiting_state && Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
@@ -5915,9 +5934,31 @@ void loop()
                     }
                     delay(exported ? 2000 : 4000);
                     DS_state = DS_waiting_state;
+                    if (exported)
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Stop_all_players();
+                        AudioInterrupts();
+
+                        // Reclaim the source only after the WAV has been written, synced and closed successfully.
+                        P_Invalidate_recording_cache(recording);
+                        Recording[recording].consistent = false;
+                        Require_VFS(VFS_Clean_up_VFS());
+                        Require_VFS(VFS_Defragment());
+                        DS_update_recordings();
+                        recording = DS_get_next_Recording(-1);
+                        if (!DS_back_to_first_DS_Recording())
+                        {
+                            return;
+                        }
+                    }
                     PeakTracking_L.reset();
                     PeakTracking_R.reset();
                     Display_Sampler.DS_page_lower(recording);
+                    DS_define_menu();
+                    Display_Sampler.DS_menu();
+                    Pointer_Sampler.Set_pointer_to_first_menu_element();
+                    DS_local_pointer = Pointer_Sampler.Get_pointer();
                     Clear_UI_events();
                 }
                 break;
@@ -9559,10 +9600,12 @@ float DS_get_Recording_seconds(int value)
 int DS_find_Recording_free(void)
 {
     for (auto i = 0; i < RECORDINGS; ++i)
+    {
         if (Recording[i].packets == 0)
         {
             return i;
         }
+    }
     return -1;
 }
 
@@ -9627,6 +9670,7 @@ bool DS_check_conversion(void)
 
 void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
 {
+    DS_recording_slots_full = DS_find_Recording_free() == -1;
     // voices that can be displayed
     Menu_DS[0] = true; // CANCEL_RECORDING
     Menu_DS[1] = true; // PAUSE+REC
@@ -9691,7 +9735,7 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
         Menu_DS[0] = false; // CANCEL
     }
 
-    if (VFS_Get_packets_free() < 4)
+    if (DS_recording_slots_full || VFS_Get_packets_free() < 4)
     {
         Serial.print("VFS_Get_packets_free(): ");
         Serial.println(VFS_Get_packets_free());
