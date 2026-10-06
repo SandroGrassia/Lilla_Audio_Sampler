@@ -10,7 +10,7 @@
 #include "Encoders.h"
 #include "SharedSampler.h"
 
-// Dependencies still owned by main.cpp and used by the extracted Delay page.
+// Dependencies still owned by main.cpp and used by extracted pages.
 class ArchivingManager;
 class PlayersManager;
 class DelayManager;
@@ -19,6 +19,7 @@ class PointerSampler;
 class ShiftRegisters;
 class Switches;
 class LoopLedSet;
+class MidiReader;
 
 extern ArchivingManager Archive;
 extern PlayersManager Players_Manager;
@@ -28,6 +29,7 @@ extern PointerSampler Pointer_Sampler;
 extern ShiftRegisters Shifters_manager;
 extern Switches Switches_manager;
 extern LoopLedSet Loop_led_set;
+extern MidiReader Midi_reader;
 extern Encoders Encoders_manager;
 extern bool TOOLS_pushbutton;
 extern DS_pointer_struct DS_local_pointer;
