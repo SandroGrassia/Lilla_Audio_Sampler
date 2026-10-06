@@ -112,7 +112,7 @@ void audio_import_rejected(const AudioBytes &bytes)
     add("invalid.aiff", 0)->data = bytes;
     bool changed = false;
     assert(SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);
-    assert(SerialFlash.files.size() == 1 && SerialFlash.files.count("invalid.raw") == 0);
+    assert(SerialFlash.files.empty());
     assert(Display_Storage.invalid == 1 && Display_Storage.reported_files == 0 && Display_Storage.reported_bytes == 0);
     verify_fallback();
 }

@@ -96,7 +96,6 @@
 #include <strings.h>
 #include <spi_interrupt.h>
 #include "CaptureSources.h"
-#include "ZeroRaw.h"
 #include "Mp3Import.h"
 
 #if defined(LILLA_READ_BENCHMARK)
@@ -14150,7 +14149,6 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
-    bool SD_has_zero_raw = false;
     File rootdir = SD.open("/LILLA_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
@@ -14179,10 +14177,6 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             {
                 SD_raw_volume += length;
                 ++SD_raw_files;
-                if (strcmp(filename, "0.raw") == 0 && length >= sizeof(int16_t) && length % sizeof(int16_t) == 0)
-                {
-                    SD_has_zero_raw = true;
-                }
             }
         }
         f.close();
@@ -14344,20 +14338,9 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         }
     }
 
-    // Create the fallback first so other imports cannot consume its space.
+    // The built-in 0.raw is read from firmware when absent; do not allocate an external copy.
     Display_Storage.Copy_raw_files_SD_to_Flash_chip_popup_landscape();
     row = 2;
-    if (!SD_has_zero_raw)
-    {
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_to_copy(++row, "0.raw", sizeof(zeroraw));
-        if (!ZeroRaw_ensure_file())
-        {
-            Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
-            delay(4000);
-            return false;
-        }
-        Serial.println(F("0.raw reconstructed from firmware: 43996 samples, 87992 bytes."));
-    }
 
     // Import audio as mono RAW files from SD to Flash chip.
     rootdir = SD.open("/LILLA_AUDIO");
@@ -14508,13 +14491,6 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
     rootdir.close();
 
-    // The required file must exist before reporting success and rebuilding the VFS.
-    if (!ZeroRaw_ensure_file())
-    {
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_error();
-        delay(4000);
-        return false;
-    }
     delay(10);
 
     // Display RAW files list
@@ -15111,15 +15087,7 @@ void Startup_hardware_and_objects(void)
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************   FILE SCANNER   **********************
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Install the bundled middle-C sine before building file inventory and caches.
-    if (!ZeroRaw_ensure_file(true))
-    {
-        Serial.println(F("ERROR: cannot install sine 0.raw"));
-        while (true)
-        {
-            delay(1000);
-        }
-    }
+    // Inventory selects external 0.raw when present, otherwise the built-in firmware source.
     // File inventory is built after validating/loading the persistent name registry.
 
     // Note-to-pitch conversion array
