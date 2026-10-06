@@ -4,6 +4,7 @@
  */
 
 #include "DelayPage.h"
+#include "MixerPage.h"
 #include <Audio.h>
 #include "main.h"
 #include "UserInterface.h"
