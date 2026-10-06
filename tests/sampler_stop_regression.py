@@ -11,10 +11,10 @@ header = (root / 'lib/StereoSampler/StereoSampler.h').read_text(encoding='utf-8'
 source = (root / 'lib/StereoSampler/StereoSampler.cpp').read_text(encoding='utf-8')
 main = (root / 'src/main.cpp').read_text(encoding='utf-8')
 production = re.sub(r'^#(?:include|pragma).*$', '', header + '\n' + source, flags=re.M)
-completion = re.search(r'                if \(DirectSampler.Was_cancelled\(\).*?                DS_update_recordings\(\);', main, re.S).group(0)
+completion = re.search(r'                if \(Recording\[recording\]\.packets == 0\).*?                DS_update_recordings\(\);', main, re.S).group(0)
 assert main.count('DirectSampler.Stop_and_wait();') == 4
 assert 'DirectSampler.Book_stop();' not in main
-assert main.count('if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)') == 5
+assert 'Was_cancelled' not in main + header + source
 
 prefix = r'''
 #include <cassert>
@@ -24,7 +24,7 @@ prefix = r'''
 using byte = uint8_t;
 constexpr int AUDIO_BLOCK_SAMPLES = 128, PACKET_DIM = 65536, PACKET_BLOCKS = 256;
 struct Entry { int first_packet = 0, packets = 0; bool consistent = true; } Recording[30];
-int VFS_FAT_table[1024], recording = 0, spi_users = 0, writes = 0, erases = 0, saves = 0;
+int VFS_FAT_table[1024], recording = 0, spi_users = 0, writes = 0, saves = 0, startup_waits = 0;
 bool active = false;
 struct audio_block_t { int16_t data[AUDIO_BLOCK_SAMPLES] = {}; };
 struct AudioStream {
@@ -51,21 +51,22 @@ struct SerialStub { template<class T> void println(T) {} } Serial;
 void AudioStartUsingSPI() { ++spi_users; active = true; }
 void AudioStopUsingSPI() { --spi_users; active = false; }
 void delayMicroseconds(int);
+void delay(int);
 '''
 support = r'''
 StereoSampler DirectSampler(Archive);
 void delayMicroseconds(int) { DirectSampler.update(); }
-void Require_FRAM(byte result) { assert(result == 0); }
-void Require_VFS(bool result) { assert(result); }
-void P_Invalidate_recording_cache(int) { assert(!DirectSampler.Is_recording()); }
-bool VFS_Clean_up_VFS()
+void delay(int milliseconds)
 {
-    assert(!DirectSampler.Is_recording() && DirectSampler.Was_cancelled());
-    assert(!Recording[recording].consistent);
-    erases += Recording[recording].packets;
-    Recording[recording] = {};
-    return true;
+    assert(milliseconds == 20 && DirectSampler.Is_recording());
+    ++startup_waits;
+    // A 20 ms interval always includes at least six 128-sample audio blocks at 44.1 kHz.
+    for (int i = 0; i < 6; ++i)
+    {
+        DirectSampler.update();
+    }
 }
+void Require_FRAM(byte result) { assert(result == 0); }
 int DS_get_next_Recording(int) { return -1; }
 void DS_read_Recording(int) { assert(!DirectSampler.Is_recording()); }
 void DS_update_recordings() {}
@@ -75,39 +76,24 @@ int main()
 {
     for (bool stereo : {false, true})
     {
-        for (int blocks : {0, 1, 2})
-        {
-            recording = 0;
-            DirectSampler.Start(0, 7, recording, stereo);
-            for (int i = 0; i < blocks; ++i)
-            {
-                DirectSampler.update();
-            }
-            const int previous_writes = writes;
-            const int previous_erases = erases;
-            DirectSampler.Stop_and_wait();
-            assert(!DirectSampler.Is_recording() && DirectSampler.Was_cancelled());
-            assert(writes == previous_writes && spi_users == 0);
-            finish();
-            assert(recording == -1 && Recording[0].packets == 0);
-            assert(erases == previous_erases + (blocks > 0 ? 1 : 0));
-        }
-        for (int blocks : {3, 254, 256})
+        for (int blocks : {0, 3, 248, 250})
         {
             recording = 0;
             DirectSampler.Book_stop(); // A stale request must not affect the next take.
+            const int previous_waits = startup_waits;
+            const int initial_writes = writes;
             DirectSampler.Start(0, 7, recording, stereo);
-            assert(!DirectSampler.Was_cancelled());
+            assert(startup_waits == previous_waits + 1 && writes == initial_writes + 6 * (stereo ? 2 : 1));
             for (int i = 0; i < blocks; ++i)
             {
                 DirectSampler.update();
             }
             const int previous_writes = writes;
             DirectSampler.Stop_and_wait();
-            assert(!DirectSampler.Was_cancelled() && spi_users == 0);
+            assert(!DirectSampler.Is_recording() && spi_users == 0);
             assert(writes == previous_writes + 3 * (stereo ? 2 : 1));
             finish();
-            assert(Recording[0].consistent && Recording[0].packets == (blocks >= 254 ? 2 : 1));
+            assert(Recording[0].consistent && Recording[0].packets == (blocks >= 248 ? 2 : 1));
         }
         recording = 0;
         DirectSampler.Start(0, 7, recording, stereo);
@@ -120,16 +106,16 @@ int main()
             DirectSampler.Book_stop(); // Repeated requests must not restart the fade.
             DirectSampler.update();
         }
-        assert(!DirectSampler.Is_recording() && !DirectSampler.Was_cancelled());
+        assert(!DirectSampler.Is_recording());
         DirectSampler.Start(0, stereo ? 1 : 0, recording, stereo);
         for (int i = 0; i < 260 && DirectSampler.Is_recording(); ++i)
         {
             DirectSampler.update();
         }
-        assert(!DirectSampler.Is_recording() && !DirectSampler.Was_cancelled() && spi_users == 0);
+        assert(!DirectSampler.Is_recording() && spi_users == 0);
         finish();
     }
-    std::cout << "PASS: mono/stereo attack cancellation, cleanup, stale requests, three-block fade, packet rollover, repeated stop and automatic stop\n";
+    std::cout << "PASS: mono/stereo 20 ms startup with audio capture, immediate stop preservation, stale requests, three-block fade, packet rollover, repeated stop and automatic stop\n";
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

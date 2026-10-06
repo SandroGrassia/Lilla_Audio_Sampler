@@ -63,20 +63,18 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
     decay_gain_flag = false;
     countdown_flag = false;
     book_stop_flag = false;
-    cancelled = false;
     storage_error = 0;
     recording = true;
+    // Main only: let the audio IRQ finish the three-block attack before another UI command.
+    delay(20);
     return true;
 }
-void StereoSampler::Book_stop(void)
-{
-    book_stop_flag = true;
-}
+
 void StereoSampler::Stop_and_wait(void)
 {
     if (recording)
     {
-        Book_stop();
+        book_stop_flag = true;
         while (recording)
         {
             delayMicroseconds(50);
@@ -115,12 +113,6 @@ void StereoSampler::update(void)
     if (book_stop_flag)
     {
         book_stop_flag = false;
-        if (attack_gain_flag)
-        {
-            cancelled = true;
-            stop();
-            return;
-        }
         if (!decay_gain_flag)
         {
             decay_gain_flag = true;

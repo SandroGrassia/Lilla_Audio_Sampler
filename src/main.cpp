@@ -5384,12 +5384,6 @@ void loop()
                 MAIN_mixer_out_L.gain(1, 0.0);
                 MAIN_mixer_out_R.gain(1, 0.0);
 
-                if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
-                {
-                    P_Invalidate_recording_cache(recording);
-                    Require_VFS(VFS_Clean_up_VFS());
-                }
-
                 if (Recording[recording].packets == 0)
                 {
                     // Start from first recording existing
@@ -5625,12 +5619,6 @@ void loop()
                     // switch OFF Line OUT monitor
                     MAIN_mixer_out_L.gain(1, 0.0);
                     MAIN_mixer_out_R.gain(1, 0.0);
-
-                    if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
-                    {
-                        P_Invalidate_recording_cache(recording);
-                        Require_VFS(VFS_Clean_up_VFS());
-                    }
 
                     if (Recording[recording].packets == 0)
                     {
@@ -10218,12 +10206,6 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
-            if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
-            {
-                P_Invalidate_recording_cache(recording);
-                Require_VFS(VFS_Clean_up_VFS());
-            }
-
             if (Recording[recording].packets == 0)
             {
                 // Recording cancelled
@@ -10403,12 +10385,6 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
-            if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
-            {
-                P_Invalidate_recording_cache(recording);
-                Require_VFS(VFS_Clean_up_VFS());
-            }
-
             if (Recording[recording].packets == 0)
             {
                 // Recording cancelled
@@ -10570,12 +10546,6 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
-            if (DirectSampler.Was_cancelled() && !Recording[recording].consistent)
-            {
-                P_Invalidate_recording_cache(recording);
-                Require_VFS(VFS_Clean_up_VFS());
-            }
-
             if (Recording[recording].packets == 0)
             {
                 Serial.print(F("Recording: "));

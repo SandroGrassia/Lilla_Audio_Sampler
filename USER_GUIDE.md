@@ -452,7 +452,7 @@ Sampler records the line input into Flash and lets you audition, convert or expo
 
 Monitoring in `PAUSE+REC` lets you prepare the source and levels. `MONO_REC` or `STEREO_REC` begins the take. `STOP` ends it. Afterward, `MAKE_RAW` creates a source for a patch, while `EXPORT_WAV_TO_SD` creates a file for use outside LILLA.
 
-Stopping or leaving Sampler waits for recording to finish before saving the take. If stopped during the initial fade-in (about 9 ms), the new take is cancelled automatically: its recorded packets are erased and its recording slot is freed.
+Starting a take records audio for 20 ms before accepting the next control action, allowing the initial fade-in to finish. An immediate Stop is processed after this short pause and preserves the take. Stopping or leaving Sampler waits for recording to finish before saving it.
 
 A Flash recording and a RAW sound source are separate items. You can keep the original take while creating a playable source from it.
 
