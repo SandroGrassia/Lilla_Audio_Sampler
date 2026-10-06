@@ -16,6 +16,26 @@ void Router_16x3::update(void)
     out_block[1] = allocate();
     out_block[2] = allocate();
 
+    if (out_block[0] == nullptr || out_block[1] == nullptr || out_block[2] == nullptr)
+    {
+        for (auto out = 0; out < CH_OUT; ++out)
+        {
+            if (out_block[out] != nullptr)
+            {
+                release(out_block[out]);
+            }
+        }
+        for (auto in = 0; in < CH_IN; ++in)
+        {
+            in_block = receiveReadOnly(in);
+            if (in_block != nullptr)
+            {
+                release(in_block);
+            }
+        }
+        return;
+    }
+
     uint64_t *killer[3];
     killer[0] = (uint64_t *)(out_block[0]->data);
     killer[1] = (uint64_t *)(out_block[1]->data);
@@ -41,9 +61,9 @@ void Router_16x3::update(void)
             {
                 Add(out_block[2]->data, in_block->data);
             }
+            release(in_block);
         }
 
-        release(in_block);
         in_block = NULL;
     }
 

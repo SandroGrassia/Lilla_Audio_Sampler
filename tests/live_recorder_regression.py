@@ -105,9 +105,59 @@ int main()
         audio_block_t only_left = {};
         recorder.pending[0] = &only_left;
         recorder.update();
-        assert(only_left.references == 1 && recorder.Q_sample == 127);
+        assert(only_left.references == 1 && recorder.Q_sample == 255);
         recorder.update();
-        assert(recorder.Q_sample == 127);
+        assert(recorder.Q_sample == 383);
+        recorder.Stop();
+        for (int i = 0; i < 3; ++i)
+        {
+            recorder.update();
+        }
+        assert(!recorder.Is_writing());
+        for (int mask = 0; mask < 4; ++mask)
+        {
+            recorder.Reset();
+            recorder.Stop(); // A stale stop must not leak into the next recording.
+            recorder.Start(stereo);
+            auto missing_run = [&]()
+            {
+                audio_block_t l = {}, r = {};
+                std::fill_n(l.data, AUDIO_BLOCK_SAMPLES, 12001);
+                std::fill_n(r.data, AUDIO_BLOCK_SAMPLES, -3001);
+                recorder.pending[0] = (mask & 1) != 0 ? &l : nullptr;
+                recorder.pending[1] = (mask & 2) != 0 ? &r : nullptr;
+                recorder.update();
+                assert(l.references == ((mask & 1) != 0 ? 1 : 2));
+                assert(r.references == ((mask & 2) != 0 ? 1 : 2));
+            };
+            for (int i = 0; i < 4; ++i)
+            {
+                missing_run();
+            }
+            const int l = (mask & 1) != 0 ? 12001 : 0;
+            const int r = (mask & 2) != 0 ? -3001 : 0;
+            assert(recorder.Is_writing() && recorder.Q_sample == 511);
+            for (int i = 384; i < 512; ++i)
+            {
+                assert(stereo ? left[i] == l && right[i] == r : mono[i] == (l >> 1) + (r >> 1));
+            }
+            recorder.Q_sample = LS_buffer_dim - 1;
+            recorder.Stop();
+            for (int i = 0; i < 3; ++i)
+            {
+                missing_run();
+            }
+            assert(!recorder.Is_writing() && recorder.Q_sample == 383);
+            assert(stereo ? left[0] == l && right[0] == r : mono[0] == (l >> 1) + (r >> 1));
+            recorder.Reset();
+            recorder.Start(stereo);
+            recorder.Stop(); // Stop during attack: finish attack before starting the three-block decay.
+            for (int i = 0; i < 6; ++i)
+            {
+                missing_run();
+            }
+            assert(!recorder.Is_writing() && recorder.Q_sample == 767);
+        }
     }
     std::cout << "PASS: shared inputs unchanged/released, mono rounding, stereo separation, fades, wrap and missing inputs\n";
 }
