@@ -6,6 +6,7 @@
 #include <Audio.h>
 #include "MidiMonitorPage.h"
 #include "main.h"
+#include "MidiLoopPage.h"
 #include "LiveSamplerPage.h"
 #include "SetupPage.h"
 #include "DelayPage.h"

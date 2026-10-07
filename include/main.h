@@ -12,6 +12,7 @@
 #include "SharedSound.h"
 #include "SharedPerformance.h"
 #include "SharedLiveSampler.h"
+#include "SharedLoop.h"
 
 struct PatchEditSnapshot
 {
@@ -36,6 +37,62 @@ struct PatchEditSnapshot
     const Sound_struct *Find_sound(int sound_id) const;
     void Restore(void) const; // Restore the model and note maps after a failed preparation; published presets remain unchanged.
 };
+
+void P_Delete_one_map_Instrument_for_notes(const int instrument_id);                             // Remove one instrument from the MIDI channel and note mappings.
+
+void S_Drop_Instrument(const int instrument_id);                                                                                                               // Drop an instrument and release its cache pin while preserving playing tails.
+
+bool S_Clone_Instrument(const int instrument_id, int &new_instrument, PatchEditSnapshot &snapshot);                                                            // Insert a clone below the selected instrument; use the snapshot to preserve edit state.
+
+void S_Refresh_source_limits(bool force);                                                                                                                      // Refresh Sound pitch/polyphony limits every 20 ms; force the first redraw when entering the page.
+
+bool S_Fill_tables(uint8_t instrument_id);                            // Prepare a Sound edit from the model and publish matching presets with audio interrupts disabled.
+
+int Get_next_raw_file_in_flash(int file);          // Find the next available RAW audio source after the supplied file ID.
+
+int Get_previous_raw_file_in_flash(int file);      // Find the previous available RAW audio source before the supplied file ID.
+
+void LOOP_select_menu_elements(void);                          // Enable MIDI Loop menu entries according to the current loop state.
+
+void LOOP_restart_clock(void);                                 // Reset the physical clock used for MIDI Loop scheduling.
+
+void LOOP_restart_procedure(int track);                        // Prepare the selected track to restart playback.
+
+void LOOP_set_time_order(int track);                           // Build the event playback order for a track.
+
+bool LOOP_Print_midi_loop_complete_data(int loop_id);          // Read and print all data from a stored MIDI Loop file.
+
+bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);          // Save the current MIDI Loop to SD using the requested ID.
+
+bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id);          // Load the selected MIDI Loop from SD.
+
+bool LOOP_Delete_midi_loop_from_SD(int loop_id);               // Delete the selected MIDI Loop file from SD.
+
+int LOOP_Get_first_loop_id_free(void);                         // Find the first unused MIDI Loop file ID on SD.
+
+int LOOP_Get_next_loop_id_in_SD(int loop_id);                  // Find the next stored MIDI Loop ID after the supplied selection.
+
+int LOOP_Get_previous_loop_id_in_SD(int loop_id);              // Find the previous stored MIDI Loop ID before the supplied selection.
+
+void LOOP_stop_and_reset_runnig_loop_data(void);               // Stop running tracks and reset their playback state.
+
+class AudioPlayer;
+class PointerMidiLoop;
+class LoopMetronomo;
+class PlayersStatistics;
+extern AudioPlayer Player[PLAYERS];
+extern PointerMidiLoop Pointer_MidiLoop;
+extern LoopMetronomo LOOP_metronomo;
+extern PlayersStatistics Players_statistics;
+extern int S_menu_max;
+extern uint32_t LOOP_time_order[TRACKS][LOOP_EVENTS];
+extern elapsedMillis LOOP_clock;
+extern int LOOP_volume_int[TRACKS];
+extern bool LOOP_run_button_state;
+extern bool LOOP_track_run_memo[TRACKS];
+extern int LOOP_stretch_int;
+extern bool LOOP_original;
+FLASHMEM const char *S_Auto_tune_pitch(int sound_id);                                                                                                          // Tune the selected loop; return null on success or the reason it could not be tuned.
 
 // Dependencies still owned by main.cpp and used by extracted pages.
 class ArchivingManager;
@@ -161,7 +218,6 @@ void Golive_with_PERFORMANCE(int patch_id);                // Enter the Performa
 void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void);     // Handle Direct Sampler exit and restore the previous Performance patch.
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);       // Handle recording exit and restore the previous Performance patch.
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void);           // Stop loop tracks and return to Performance.
-void Golive_with_MIDI_LOOP(bool restart = false);          // Enter MIDI Loop; preserve running tracks unless restart is requested.
 
 void Switch_from_PERFORMANCE_to_MIDI_LOOP(void);           // Enter MIDI Loop while retaining the current Performance patch.
 

@@ -6,6 +6,7 @@
 #include <Audio.h>
 #include "VCFPage.h"
 #include "main.h"
+#include "MidiLoopPage.h"
 #include "LiveSamplerPage.h"
 #include "DelayPage.h"
 #include "MixerPage.h"
