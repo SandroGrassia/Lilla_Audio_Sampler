@@ -10,6 +10,31 @@
 #include "Encoders.h"
 #include "SharedSampler.h"
 #include "SharedSound.h"
+#include "SharedPerformance.h"
+
+struct PatchEditSnapshot
+{
+    const int patch_id = Patch_id;
+    Patch_struct patch;
+    struct SavedSound
+    {
+        int sound_id;
+        Sound_struct value;
+    };
+
+    // Teensy 4.1 allocates the heap in RAM2; only this small owner lives on the stack.
+    SavedSound *sounds = nullptr;
+    size_t count = 0;
+    size_t capacity = 0;
+    bool valid = true;
+    PatchEditSnapshot(const PatchEditSnapshot &) = delete;
+    PatchEditSnapshot &operator=(const PatchEditSnapshot &) = delete;
+    PatchEditSnapshot(void); // Capture the editable model while preserving the caller's audio IRQ state.
+    ~PatchEditSnapshot(void);
+    bool Capture_sound(int sound_id);
+    const Sound_struct *Find_sound(int sound_id) const;
+    void Restore(void) const; // Restore the model and note maps after a failed preparation; published presets remain unchanged.
+};
 
 // Dependencies still owned by main.cpp and used by extracted pages.
 class ArchivingManager;
@@ -79,6 +104,25 @@ extern bool S_sound_original;
 extern S_field_description_struct S_pointer;
 extern int LS_sound_id;
 
+class PointerPerformance;
+class AudioTables;
+extern PointerPerformance Pointer_Performance;
+extern AudioTables Audio_tables;
+extern int P_menu_max;
+extern P_field_description_struct P_pointer;
+extern Patch_struct Patch_cache_P;
+extern uint8_t Patch_id_old;
+extern bool patch_original;
+extern bool patch_original_0;
+extern uint8_t midi_channel_change;
+extern uint8_t from_key_change;
+extern uint8_t to_key_change;
+extern uint8_t patch_change;
+extern bool audio_tables_error_pending;
+extern uint8_t Capture_return_patch;
+extern bool changed;
+extern int action;
+
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
 int Read_encoder_simple(int element);   // Consume encoder rotation and return -1, 0 or 1 for its direction.
 void Clear_UI_events(void);             // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
@@ -144,6 +188,52 @@ bool S_Verify_is_Sound_original(int sound_id);                                  
 void S_Select_menu_elements(void); // Enable Sound menu entries according to the selected Sound and editing state.
 
 void Golive_with_LIVE_SAMPLING(void);                      // Enter and redraw the Live Sampler page with its controls and waveform.
+
+void P_Select_menu_elements(void); // Enable Performance menu entries according to the current patch state.
+
+void P_Read_all_Patches(void);                       // Load patch metadata from FRAM.
+
+void P_Update_Patches_number(void);                  // Recount the patch slots currently in use.
+
+uint8_t P_Get_next_Patch_id_existing(void);          // Find the next existing patch relative to the current selection.
+
+uint8_t P_Get_previous_Patch_id_existing(void);      // Find the previous existing patch relative to the current selection.
+
+int P_Ask_if_change_Patch(void);                     // Show the patch-change dialog and return the selected action.
+
+bool P_Ask_if_delete_this_Patch(void);               // Ask whether to delete the current patch; return true if confirmed.
+
+bool P_Verify_is_Patch_original(const int patch_id); // Compare a patch and its used instruments with the reference metadata.
+
+void Update_instruments_leds(void);                                                              // Refresh instrument LEDs for the current operating mode.
+
+void P_Update_line_of_all_instruments(void);                                                     // Recalculate the display row assigned to each instrument.
+
+void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, const int element); // Apply an instrument edit and publish the related playback changes.
+
+void P_Reset_map_Instrument_for_notes(const int instrument_id);                                  // Clear one instrument's note mappings before rebuilding its range.
+
+void S_Copy_all_Sound_to_Sound_cache_P(void);                                                                                                                  // Save current Sound metadata as the reference for editing and discard.
+
+bool S_Save_all_Sounds_changed(void);                                                                                                                          // Save modified Sound metadata to FRAM; report whether the operation succeeded.
+
+bool S_Pull_all_Sound_from_Sound_cache_P(PatchEditSnapshot *snapshot = nullptr);                                                                               // Restore Sound metadata from the reference, optionally using an edit snapshot.
+
+uint8_t S_Get_midi_channel_from_Sound(int sound_id);                                                                                                           // Decode the MIDI channel stored in a Sound's packed metadata.
+
+void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);                                                                                             // Update the MIDI channel bits in a Sound's packed metadata.
+
+bool P_Jump_to_Patch(uint8_t next_patch);                  // Publish the destination patch only after its presets and tables are ready.
+
+bool P_Save_current_patch_as_new(void);                    // Prepare the cloned patch before saving its sounds and metadata.
+
+void Print_Patch(int patch_id);                                        // Print the selected patch's metadata to Serial.
+
+void Print_Sound(int sound_id);                                        // Print the selected Sound's metadata to Serial.
+
+FLASHMEM void LS_Capture_collect(void);                                             // Release unreferenced capture sources and caches while preserving references held by players.
+
+FLASHMEM void LS_Capture_finish_save(void);                                         // Clear successfully saved capture sources and release caches no longer needed after saving.
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
