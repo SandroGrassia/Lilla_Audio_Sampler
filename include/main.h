@@ -137,6 +137,17 @@ extern const int LS_XY_DELTA_MIN;
 extern const int LS_REFRESH;
 extern elapsedMillis LS_wave_refresh_timer;
 
+class StereoSampler;
+class AudioPeakDetector;
+extern StereoSampler DirectSampler;
+extern AudioPeakDetector PeakTracking_L;
+extern AudioPeakDetector PeakTracking_R;
+extern int DS_export;
+extern elapsedMillis DS_recording_time;
+extern elapsedMillis DS_recording_time_update;
+extern int DS_recording_change;
+extern bool DS_recording_slots_full;
+
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
 int Read_encoder_simple(int element);   // Consume encoder rotation and return -1, 0 or 1 for its direction.
 void Clear_UI_events(void);             // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
@@ -260,6 +271,42 @@ void LS_Reset_buffer(void);                                                     
 void LS_setup_LS_Patch(bool stereo);                                                // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
 
 FLASHMEM void LS_Capture_sound(int selected);                                       // Capture the selected live loop into PSRAM and assign it to the target instrument or stereo pair.
+
+int DS_get_next_Recording(int value);                 // Find the next valid recording, retaining the supplied selection if none follows.
+
+int DS_get_previous_Recording(int value);             // Find the previous valid recording relative to the supplied selection.
+
+byte DS_read_Recording(int value);                    // Load one recording and derive its byte count and duration; return the FRAM status.
+
+void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
+
+bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
+
+int DS_find_Recording_free(void);                     // Return a recording slot with no allocated packets, or -1 if none exists.
+
+void DS_convert_file_L(int file_L_RAW, int bytes);    // Convert the left recording channel and invalidate its previous RAW cache.
+
+void DS_convert_file_R(int file_R_RAW, int bytes);    // Convert the right recording channel and invalidate its previous RAW cache.
+
+bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
+
+bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording); // Prepare the selected recording before updating its playback presets and display.
+
+void P_Recording(int value);                          // Print one recording's metadata to Serial.
+
+int VFS_Get_first_packet_free(void);                  // Find the first available recording packet.
+
+bool VFS_Clean_up_VFS(void);                          // Clean invalid recording data and reclaim unused VFS storage.
+
+bool VFS_Defragment(void);                            // Compact recording packets to consolidate free VFS storage.
+
+void VFS_Print_FAT(void);                             // Print the packet ownership table to Serial.
+
+void Require_VFS(bool result);                        // Stop further processing and report a failed VFS operation.
+
+void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
+
+void Print_flash_file_list(void);                  // Print Flash filenames, file sizes and storage totals to Serial.
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
