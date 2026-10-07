@@ -11,6 +11,7 @@
 #include "SharedSampler.h"
 #include "SharedSound.h"
 #include "SharedPerformance.h"
+#include "SharedLiveSampler.h"
 
 struct PatchEditSnapshot
 {
@@ -123,6 +124,19 @@ extern uint8_t Capture_return_patch;
 extern bool changed;
 extern int action;
 
+class PointerLiveSampler;
+class StereoLiveSampler;
+class AudioLiveCompressor;
+extern PointerLiveSampler Pointer_LiveSampler;
+extern StereoLiveSampler LiveSampler;
+extern AudioLiveCompressor LS_Compressor;
+extern LS_pointer_struct LS_local_pointer;
+extern int LS_COMB;
+extern int LS_window_step;
+extern const int LS_XY_DELTA_MIN;
+extern const int LS_REFRESH;
+extern elapsedMillis LS_wave_refresh_timer;
+
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
 int Read_encoder_simple(int element);   // Consume encoder rotation and return -1, 0 or 1 for its direction.
 void Clear_UI_events(void);             // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
@@ -132,7 +146,6 @@ void Switch_to_DIRECT_SAMPLING(void);                      // Prepare the tempor
 void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void);   // Handle Live Sampler recording exit before entering Direct Sampler.
 void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void);       // Prepare the temporary Live Sampler patch and enter its page.
 void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void);   // Handle Direct Sampler exit before preparing Live Sampler.
-void LS_refresh_LS_page(void);                                                      // Redraw Live Sampler, restore its controls and discard notices from the previous page.
 void Golive_with_PERFORMANCE(int patch_id);                // Enter the Performance page for the requested patch.
 void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void);     // Handle Direct Sampler exit and restore the previous Performance patch.
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);       // Handle recording exit and restore the previous Performance patch.
@@ -187,7 +200,6 @@ bool S_Verify_is_Sound_original(int sound_id);                                  
 
 void S_Select_menu_elements(void); // Enable Sound menu entries according to the selected Sound and editing state.
 
-void Golive_with_LIVE_SAMPLING(void);                      // Enter and redraw the Live Sampler page with its controls and waveform.
 
 void P_Select_menu_elements(void); // Enable Performance menu entries according to the current patch state.
 
@@ -234,6 +246,20 @@ void Print_Sound(int sound_id);                                        // Print 
 FLASHMEM void LS_Capture_collect(void);                                             // Release unreferenced capture sources and caches while preserving references held by players.
 
 FLASHMEM void LS_Capture_finish_save(void);                                         // Clear successfully saved capture sources and release caches no longer needed after saving.
+
+void LS_update_menu_elements(void);                                                 // Enable Live Sampler menu entries for the empty, recording or playback state.
+
+void LS_lock_X_sample(void);                                                        // Capture the current play point from the write position and lock it.
+
+void LS_update_both_X_Y_samples(void);                                              // Update the write position and both playback boundaries with audio interrupts disabled.
+
+void LS_update_Q_sample(void);                                                      // Snapshot the current recording write position with audio interrupts disabled.
+
+void LS_Reset_buffer(void);                                                         // Clear the Live Sampler storage, reconnect its views and reset recording positions.
+
+void LS_setup_LS_Patch(bool stereo);                                                // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
+
+FLASHMEM void LS_Capture_sound(int selected);                                       // Capture the selected live loop into PSRAM and assign it to the target instrument or stereo pair.
 
 template <class T>
 bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
