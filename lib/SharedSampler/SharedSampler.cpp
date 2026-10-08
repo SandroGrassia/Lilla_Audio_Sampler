@@ -6,6 +6,17 @@
 
 #include "SharedSampler.h"
 
+DS_Trim DS_get_trim(const Sound_struct *channels, bool stereo)
+{
+    DS_Trim trim = {channels[0].A, channels[0].B};
+    if (stereo)
+    {
+        trim.first = channels[1].A < trim.first ? channels[1].A : trim.first;
+        trim.last = channels[1].B > trim.last ? channels[1].B : trim.last;
+    }
+    return trim;
+}
+
 // DIRECT SAMPLING
 
 bool Menu_DS[DS_menu_elements];

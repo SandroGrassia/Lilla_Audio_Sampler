@@ -10,6 +10,9 @@ import wave
 root = Path(__file__).resolve().parents[1]
 main = (root / 'src/main.cpp').read_text(encoding='utf-8')
 production = re.search(r'^bool DS_export_wav_to_SD\(void\)\n\{.*?^\}', main, re.M | re.S).group(0)
+trim_source = (root / 'lib/SharedSampler/SharedSampler.cpp').read_text(encoding='utf-8')
+production = re.search(r'^DS_Trim DS_get_trim.*?^\}', trim_source, re.M | re.S).group(0) + '\n' + production
+production += '\n' + re.search(r'^bool DS_convert_channel_to_raw.*?^\}', main, re.M | re.S).group(0)
 prefix = r'''
 #include <cassert>
 #include <cstdint>
@@ -27,6 +30,22 @@ constexpr int O_WRONLY = 1, O_CREAT = 2, O_EXCL = 4;
 struct Entry { int first_packet, packets, bytes; bool stereo; };
 Entry Recording[1];
 int recording = 0;
+constexpr int SOUNDS_MAX = 0;
+struct Sound_struct { uint32_t A = 0, B = 0; };
+Sound_struct Sound[2];
+struct DS_Trim { uint32_t first, last; };
+constexpr int NAME_FILE_SIZE = 36;
+struct FileNameRegistry
+{
+    static bool Bind_numeric(int) { return true; }
+    static bool Save() { return true; }
+};
+const char *Get_file_name(int id, char (&name)[NAME_FILE_SIZE])
+{
+    snprintf(name, sizeof(name), "%d.raw", id);
+    return name;
+}
+void P_Invalidate_file_cache(int) {}
 const char *name_packet[512];
 #include <cstdio>
 #include <cstdint>
@@ -62,11 +81,33 @@ struct SerialFlashFile
         position += received;
         return received;
     }
+    void seek(uint32_t offset) { position = offset; }
+    uint32_t write(const byte *buffer, uint32_t count)
+    {
+        if (position + count > flash[path].size())
+        {
+            return 0;
+        }
+        const uint32_t written = ++writes == fail_write ? count - 1 : count;
+        memcpy(flash[path].data() + position, buffer, written);
+        position += written;
+        return written;
+    }
     void close() {}
 };
 struct Flash
 {
     SerialFlashFile open(const char *path) { return {path}; }
+    bool create(const char *path, uint32_t bytes)
+    {
+        if (flash.count(path))
+        {
+            return false;
+        }
+        flash[path] = std::vector<byte>(bytes, 0xff);
+        return true;
+    }
+    bool remove(const char *path) { return flash.erase(path) != 0; }
 } SerialFlash;
 struct FsFile
 {
@@ -111,6 +152,7 @@ void reset(int bytes, bool stereo)
     directory_exists = false;
     fail_open = fail_read = fail_write = -1;
     opens = reads = writes = 0;
+    Sound[0] = Sound[1] = {0, static_cast<uint32_t>(bytes / 2 - 1)};
     Recording[0] = {3, (bytes + PACKET_DIM - 1) / PACKET_DIM, bytes, stereo};
     for (int i = 0; i < 512; ++i)
     {
@@ -178,6 +220,57 @@ int main(int argc, char **argv)
             fixture.write(reinterpret_cast<const char *>(actual.data()), actual.size());
             assert(fixture.good());
         }
+        // Exact trims within and across packet boundaries; stereo exports the union.
+        for (uint32_t first : {3u, 32767u, 32769u})
+        {
+            reset(2 * PACKET_DIM, stereo);
+            Sound[0] = {first, first + 131};
+            Sound[1] = {first + 2, first + 137};
+            const uint32_t last = stereo ? first + 137 : first + 131;
+            const auto original_flash = flash;
+            assert(DS_export_wav_to_SD());
+            const auto &actual = files.at(stereo ? "/LILLAWAV_EXPORT/0S.wav" : "/LILLAWAV_EXPORT/0M.wav");
+            assert(actual.size() == 44 + (last - first + 1) * 2 * channels);
+            assert(little_endian(actual, 40, 4) == (last - first + 1) * 2 * channels);
+            for (uint32_t sample = first; sample <= last; ++sample)
+            {
+                for (int channel = 0; channel < channels; ++channel)
+                {
+                    for (uint32_t b = 0; b < 2; ++b)
+                    {
+                        const uint32_t offset = sample * 2 + b;
+                        const int packet = 3 + offset / PACKET_DIM * channels + channel;
+                        assert(actual[44 + ((sample - first) * channels + channel) * 2 + b] == flash[name_packet[packet]][offset % PACKET_DIM]);
+                    }
+                }
+            }
+            assert(flash == original_flash);
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                assert(DS_convert_channel_to_raw(100 + channel, channel));
+                const auto &raw = flash.at(std::to_string(100 + channel) + ".raw");
+                assert(raw.size() == (last - first + 1) * 2);
+                for (uint32_t sample = first; sample <= last; ++sample)
+                {
+                    for (uint32_t b = 0; b < 2; ++b)
+                    {
+                        const uint32_t offset = sample * 2 + b;
+                        const int packet = 3 + offset / PACKET_DIM * channels + channel;
+                        assert(raw[(sample - first) * 2 + b] == original_flash.at(name_packet[packet])[offset % PACKET_DIM]);
+                    }
+                }
+            }
+            for (const auto &[name, bytes] : original_flash)
+            {
+                assert(flash.at(name) == bytes);
+            }
+        }
+        reset(PACKET_DIM + 258, stereo);
+        Sound[0] = Sound[1] = {32767, 32896};
+        fail_write = 1;
+        const auto original_flash = flash;
+        assert(!DS_convert_channel_to_raw(100, 0));
+        assert(flash == original_flash);
         reset(258, stereo);
         assert(DS_export_wav_to_SD());
         const int total_reads = reads;

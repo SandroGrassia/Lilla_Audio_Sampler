@@ -374,6 +374,44 @@ void exercise_system_settings_backend() {
     LillaFram.clear_io();
     assert(archive.Save_key_step(1) == A::FRAM_ERROR_CRC && LillaFram.writes.empty());
 }
+void exercise_recording_edit_backend()
+{
+    A archive;
+    LillaFram.reset();
+    uint32_t first = 0, last = 65535;
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 0 && last == 65535);
+    assert(archive.Save_DS_edit(1, 123, 32000) == 0);
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 123 && last == 32000);
+    first = 0;
+    last = 100;
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 0 && last == 100);
+    const uint32_t address = A::FRAM_RECORDING_EDIT_ADDRESS + sizeof(A::FRAM_Recording_edit_struct);
+    LillaFram.memory[address + 8] ^= 1;
+    last = 65535;
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 0 && last == 65535);
+    assert(archive.Save_DS_edit(1, 123, 32000) == 0);
+    LillaFram.clear_io();
+    LillaFram.fail_at = 1;
+    assert(archive.Save_DS_edit(1, 0, 65535) == 2);
+    LillaFram.clear_io();
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 123 && last == 32000);
+    Recording[1].first_packet = 10;
+    Recording[1].packets = 1;
+    Recording[1].consistent = false;
+    assert(archive.Save_DS_Recording(1) == 0);
+    first = 0;
+    last = 65535;
+    // Defragmentation temporarily marks even one-packet recordings inconsistent.
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 123 && last == 32000);
+    assert(archive.Clear_DS_edit(1) == 0);
+    first = 0;
+    last = 65535;
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 0 && last == 65535);
+    assert(archive.Save_DS_edit(1, 123, 32000) == 0);
+    Recording[1].packets = 0;
+    assert(archive.Save_DS_Recording(1) == 0);
+    assert(archive.Read_DS_edit(1, first, last) == 0 && first == 0 && last == 65535);
+}
 void exercise_recording_runtime_backend() {
     A archive;
     LillaFram.reset();
@@ -567,6 +605,7 @@ int main() {
     exercise_cc_settings();
     exercise_system_settings_backend();
     exercise_recording_runtime_backend();
+    exercise_recording_edit_backend();
     for (uint8_t patch : {200, 255}) {
         invalid<A::FRAM_Patch_struct>([&](const auto &v) { return archive.FRAM_Write_patch(patch, v); }, [&](auto &v) { return archive.FRAM_Read_patch(patch, v); });
         invalid<A::FRAM_Patch_delay_struct>([&](const auto &v) { return archive.FRAM_Write_delay(patch, v); }, [&](auto &v) { return archive.FRAM_Read_delay(patch, v); });

@@ -119,6 +119,14 @@ private:
         uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..7, written after the payload.
     };
 
+    struct alignas(4) FRAM_Recording_edit_struct
+    {
+        uint32_t version;
+        uint32_t first_sample;
+        uint32_t last_sample;
+        uint32_t crc32;
+    };
+
     struct alignas(4) FRAM_CC_settings_struct // 16 byte
     {
         uint8_t sound_gain[INSTRUMENTS];
@@ -150,7 +158,8 @@ private:
     0x0FD00–0x0FDFF	256	        System
     0x0FE00–0x0FFFF  512         Reserved
     0x10000–0x14117  16.664      RAW filename registry (two CRC-protected banks)
-    0x14118–0x1FFFF  48.872      Free
+    0x14118–0x142F7  480         Recording trim indices (version and CRC protected)
+    0x142F8–0x1FFFF  48.392      Free
 
     Names are stored once per RAW identity; Sound.file remains a uint16_t.
     */
@@ -174,7 +183,8 @@ private:
     static constexpr uint32_t FRAM_SYSTEM_BYTES = sizeof(FRAM_System_struct); // 0x00100
 
     static constexpr uint32_t FRAM_LEGACY_END_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FE00
-    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FileNameRegistry::END_ADDRESS; // Includes both registry banks in backups.
+    static constexpr uint32_t FRAM_RECORDING_EDIT_ADDRESS = FileNameRegistry::END_ADDRESS;
+    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_RECORDING_EDIT_ADDRESS + RECORDINGS * sizeof(FRAM_Recording_edit_struct);
     byte Migrate_file_registry();
 
     struct alignas(4) FRAM_Backup_header_struct
@@ -185,7 +195,8 @@ private:
         uint32_t payload_bytes;
         uint32_t payload_crc32;
     };
-    static constexpr uint16_t FRAM_BACKUP_VERSION = 4;
+    static constexpr uint16_t FRAM_BACKUP_VERSION = 6;
+    static_assert(sizeof(FRAM_Recording_edit_struct) == 16);
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);
     static_assert(sizeof(FRAM_Sound_struct) == 32);
@@ -238,6 +249,9 @@ public:
     byte Read_Patch(const int patch_id);
     byte Save_DS_Recording(const int recording);
     byte Read_DS_Recording(const int recording);
+    byte Save_DS_edit(int recording, uint32_t first_sample, uint32_t last_sample);
+    byte Read_DS_edit(int recording, uint32_t &first_sample, uint32_t &last_sample); // Missing or corrupt edits leave the supplied full-length defaults intact.
+    byte Clear_DS_edit(int recording);
     bool Copy_Patch_from_RAM_to_SD(const int patch_id);
     bool Copy_Patch_from_SD_to_RAM(const int patch_id);
 

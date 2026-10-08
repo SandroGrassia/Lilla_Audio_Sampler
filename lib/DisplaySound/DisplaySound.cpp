@@ -6,6 +6,7 @@
 
 #include "DisplaySound.h"
 #include "SharedMixer.h"
+#include "SharedSampler.h"
 #include <math.h>
 
 FLASHMEM
@@ -28,7 +29,13 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 {
     tft.fillScreen(ILI9341_BLACK);
 
-    if (Lilla_state_0 == MIDI_LOOP)
+    if (Lilla_state_0 == DIRECT_SAMPLING)
+    {
+        tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
+        tft.setTextColor(TEXT_COLOR);
+        tft.print("SAMPLER");
+    }
+    else if (Lilla_state_0 == MIDI_LOOP)
     {
         Display_MidiLoop.Show_MIDI_LOOP();
     }
@@ -39,10 +46,10 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 
     tft.setCursor(display_coordinate_x(27), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("PATCH");
+    tft.print(Lilla_state_0 == DIRECT_SAMPLING ? "REC" : "PATCH");
     tft.setCursor(display_coordinate_x(S_column_row_Patch[0]), display_coordinate_y(S_column_row_Patch[1]));
     tft.setTextColor(ILI9341_WHITE);
-    tft.print(Patch_id);
+    tft.print(Lilla_state_0 == DIRECT_SAMPLING ? recording : Patch_id);
 
     tft.setCursor(display_coordinate_x(17), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
@@ -155,7 +162,7 @@ void DisplaySound::Delete_all_menu_frame(void)
 {
     int position;
 
-    for (auto element = 0; element < 3; ++element)
+    for (auto element = 0; element < S_menu_elements; ++element)
     {
         if (S_Menu[element])
         {

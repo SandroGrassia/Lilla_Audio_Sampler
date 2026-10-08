@@ -647,8 +647,8 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Samp
 bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
 void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
 bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
-void DS_convert_file_L(int file_L_RAW, int bytes);    // Convert the left recording channel and invalidate its previous RAW cache.
-void DS_convert_file_R(int file_R_RAW, int bytes);    // Convert the right recording channel and invalidate its previous RAW cache.
+bool DS_convert_file_L(int file_L_RAW);              // Export the trimmed left recording channel to RAW.
+bool DS_convert_file_R(int file_R_RAW);              // Export the trimmed right recording channel to RAW.
 void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
 void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
 byte DS_read_all_Recordings(void);                    // Load all recording metadata and stop at the first FRAM error.
@@ -1008,6 +1008,109 @@ struct PatchEditSnapshot
 // *************************************************************
 // *************************************************************
 
+static Sound_struct DS_sound_before_edit[2];
+
+FLASHMEM
+bool DS_load_recording_sounds(void)
+{
+    DS_set_DS_Sampling_Patch();
+    if (recording < 0)
+    {
+        Patch[PATCHES_MAX].instruments = 0;
+        Patch[PATCHES_MAX].Instrument[0].used = false;
+        Patch[PATCHES_MAX].Instrument[1].used = false;
+        Sound[SOUNDS_MAX].file = 0;
+        Sound[SOUNDS_MAX].B = 0;
+        Sound[SOUNDS_MAX + 1].file = 0;
+        Sound[SOUNDS_MAX + 1].B = 0;
+        return true;
+    }
+    const bool stereo = Recording[recording].stereo;
+    Patch[PATCHES_MAX].instruments = stereo ? 2 : 1;
+    Patch[PATCHES_MAX].Instrument[1].used = stereo;
+    Sound[SOUNDS_MAX].file = FIRST_RECORDING_FILE + 2 * recording;
+    Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
+    Sound[SOUNDS_MAX].pan = stereo ? -16 : 0;
+    Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (stereo ? 1 : 0);
+    Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
+    uint32_t first_sample = 0;
+    uint32_t last_sample = Sound[SOUNDS_MAX].B;
+    const byte result = Archive.Read_DS_edit(recording, first_sample, last_sample);
+    Require_FRAM(result);
+    Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = first_sample;
+    Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = last_sample;
+    return result == LillaFRAM_2x512::ERROR_0;
+}
+
+FLASHMEM
+void DS_open_sound_edit(int channel)
+{
+    if (Lilla_state == DIRECT_SAMPLING)
+    {
+        DS_sound_before_edit[0] = Sound[SOUNDS_MAX];
+        DS_sound_before_edit[1] = Sound[SOUNDS_MAX + 1];
+    }
+    S_Set_Sound_SOLO_OFF();
+    Instrument_id = channel;
+    Sound_id = SOUNDS_MAX + channel;
+    Lilla_state_0 = DIRECT_SAMPLING;
+    Lilla_state = SOUND_EDIT;
+    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+    Noclick_max = S_Calc_Noclick_max(Preset[channel].use_Wavetable);
+    S_trim_step = S_Calc_trim_step(trim_speed);
+    S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
+    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+    S_Select_menu_elements();
+    Display_Sound.Show_SOUND_menu();
+    Pointer_Sound.Set_pointer_to_first_menu_element();
+    S_pointer = Pointer_Sound.Get_pointer();
+    Performance_led_set.Restore_all_LED();
+    Display_Sound.Show_wave(Instrument_id);
+    Clear_UI_events();
+}
+
+FLASHMEM
+bool DS_close_sound_edit(bool save)
+{
+    const Sound_struct edited_left = Sound[SOUNDS_MAX];
+    const Sound_struct edited_right = Sound[SOUNDS_MAX + 1];
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
+
+    AudioNoInterrupts();
+    if (save)
+    {
+        Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = trim.first;
+        Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = trim.last;
+    }
+    else
+    {
+        Sound[SOUNDS_MAX] = DS_sound_before_edit[0];
+        Sound[SOUNDS_MAX + 1] = DS_sound_before_edit[1];
+    }
+    if (!S_Fill_all_tables())
+    {
+        Sound[SOUNDS_MAX] = edited_left;
+        Sound[SOUNDS_MAX + 1] = edited_right;
+        AudioInterrupts();
+        return false;
+    }
+    for (int channel = 0; channel < Patch[PATCHES_MAX].instruments; ++channel)
+    {
+        Players_Manager.Multicast_main_settings_editing(Patch_id, channel);
+    }
+    P_Update_all_maps_Instrument_for_notes();
+    AudioInterrupts();
+
+    if (save)
+    {
+        Require_FRAM(Archive.Save_DS_edit(recording, trim.first, trim.last));
+    }
+    S_Set_Sound_SOLO_OFF();
+    Golive_DIRECT_SAMPLING();
+    return true;
+}
+
 void setup()
 {
     AudioNoInterrupts();
@@ -1130,6 +1233,7 @@ void setup()
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
+FLASHMEM
 void loop()
 {
     static bool recording_limit_notified = false;
@@ -2166,6 +2270,20 @@ void loop()
             {
                 switch (S_element_menu[S_pointer.menu_element])
                 {
+                case value_S_Exit:
+                {
+                    DS_close_sound_edit(false);
+                    return;
+                }
+                break;
+
+                case value_S_SaveExit:
+                {
+                    DS_close_sound_edit(true);
+                    return;
+                }
+                break;
+
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
                     S_Set_Sound_SOLO_OFF();
@@ -2242,7 +2360,7 @@ void loop()
             case value_S_File:
             {
                 int result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0)
+                if (result != 0 && Lilla_state_0 != DIRECT_SAMPLING)
                 {
                     int S_file_change;
                     if (result == 1)
@@ -3135,6 +3253,14 @@ void loop()
         {
             if (Read_pushbutton(PB_Sound[Inst_id]))
             {
+                if (Lilla_state_0 == DIRECT_SAMPLING)
+                {
+                    if (Inst_id < (Recording[recording].stereo ? 2 : 1))
+                    {
+                        DS_open_sound_edit(Inst_id);
+                    }
+                    continue;
+                }
                 if (Inst_id == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
@@ -3202,6 +3328,10 @@ void loop()
         // Switch verso un TOOL
         if (Read_pushbutton(PB_Tools))
         {
+            if (Lilla_state_0 == DIRECT_SAMPLING && !DS_close_sound_edit(false))
+            {
+                return;
+            }
             TOOLS_pushbutton = true;
             Shifters_manager.Switch_led(LED_Tools, true);
 
@@ -3240,6 +3370,34 @@ void loop()
         // Switch Mode
         if (Switches_manager.Get_change(SwitchModes))
         {
+            if (Lilla_state_0 == DIRECT_SAMPLING)
+            {
+                if (!DS_close_sound_edit(false))
+                {
+                    return;
+                }
+                switch (Switches_manager.Get_value(SwitchModes))
+                {
+                case SwModesLiveSampler:
+                {
+                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
+                }
+                break;
+                case SwModesPerformance:
+                {
+                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
+                }
+                break;
+                case SwModesMidiLoop:
+                {
+                    Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
+                }
+                break;
+                default:
+                    break;
+                }
+                return;
+            }
             switch (Switches_manager.Get_value(SwitchModes))
             {
             case SwModesSampler:
@@ -5348,6 +5506,18 @@ void loop()
 
         */
 
+        if (DS_state == DS_waiting_state && recording >= 0 && Recording[recording].consistent && Recording[recording].packets > 0)
+        {
+            for (int channel = 0; channel < (Recording[recording].stereo ? 2 : 1); ++channel)
+            {
+                if (Read_pushbutton(PB_Sound[channel]))
+                {
+                    DS_open_sound_edit(channel);
+                    return;
+                }
+            }
+        }
+
         // Show the capacity notice once per visit, after the completed recording has been published.
         if (DS_state == DS_waiting_state && DS_recording_slots_full && !recording_limit_notified)
         {
@@ -5525,6 +5695,7 @@ void loop()
                     Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
 
                     recording = DS_find_Recording_free();
+                    Require_FRAM(Archive.Clear_DS_edit(recording));
                     Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
                     Serial.print(F("**** Prossimo recording: "));
                     Serial.println(recording);
@@ -5729,11 +5900,12 @@ void loop()
                     confirmation = false; // no action
                     int file_L_RAW = -1;
                     int file_R_RAW = -1;
-                    int blocks_per_file = ceil(Recording[recording].bytes / 256.0f); // quanti block compongono il file
+                    const DS_Trim export_trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
+                    const uint32_t export_bytes = (export_trim.last - export_trim.first + 1) * 2;
 
                     if (!Recording[recording].stereo)
                     {
-                        if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        if ((Get_flash_size() - Get_flash_occupation()) >= export_bytes)
                         {
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
@@ -5752,7 +5924,7 @@ void loop()
 
                     else
                     {
-                        if ((Get_flash_size() - Get_flash_occupation()) >= (2 * Recording[recording].bytes))
+                        if ((Get_flash_size() - Get_flash_occupation()) >= (2 * export_bytes))
                         {
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
@@ -5777,7 +5949,7 @@ void loop()
                                 }
                             }
                         }
-                        else if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        else if ((Get_flash_size() - Get_flash_occupation()) >= export_bytes)
                         {
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
@@ -5863,6 +6035,7 @@ void loop()
                     }
                     Clear_UI_events();
 
+                    bool converted = true;
                     switch (choice_DS_menu)
                     {
                     case 6: // Cancel (don't export)
@@ -5870,29 +6043,28 @@ void loop()
                         break;
 
                     case 7:                                                   // Convert Mono (file_L)
-                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+                        converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
                     case 8:                                                   // Convert file_L
-                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+                        converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
                     case 9:                                                   // Convert file_R
-                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+                        converted = DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
                     case 10:                                                  // Convert both file_L and file_R
-                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+                        converted = DS_convert_file_L(file_L_RAW) && DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
@@ -5904,8 +6076,14 @@ void loop()
                         break;
                     }
 
-                    // Delete recording
-                    if (choice_DS_menu > 6)
+                    if (!converted)
+                    {
+                        Show_popup_text("RAW EXPORT FAILED", ILI9341_WHITE, ILI9341_RED, 75);
+                        delay(2000);
+                    }
+
+                    // Reclaim the source only after every requested channel was exported.
+                    if (choice_DS_menu > 6 && converted)
                     {
                         P_Invalidate_recording_cache(recording);
                         Recording[recording].consistent = false;
@@ -8768,6 +8946,10 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
 
 bool S_Verify_is_Sound_original(const int sound_id)
 {
+    if (Lilla_state_0 == DIRECT_SAMPLING && sound_id >= SOUNDS_MAX)
+    {
+        return Sound[sound_id] == DS_sound_before_edit[sound_id - SOUNDS_MAX];
+    }
     return Sound[sound_id] == S_Sound_cache_P[sound_id];
 }
 
@@ -9126,31 +9308,12 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     }
     const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const int previous_recording = recording;
-    DS_set_DS_Sampling_Patch();
     Patch_id = PATCHES_MAX;
     recording = DS_get_last_Recording();
 
     PRINT_CONTROL_POINT(recording);
 
-    // Set up Sound parameters
-    if (recording >= 0)
-    {
-        Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
-        Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-
-        Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (Recording[recording].stereo ? 1 : 0);
-        Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-        P_Recording(recording);
-    }
-    else
-    {
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 100000;
-
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 100000;
-    }
-    if (!S_Fill_all_tables())
+    if (!DS_load_recording_sounds() || !S_Fill_all_tables())
     {
         Patch[PATCHES_MAX] = previous_sampler_patch;
         previous.Restore();
@@ -9162,6 +9325,7 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     return true;
 }
 
+FLASHMEM
 bool DS_export_wav_to_SD(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
@@ -9171,6 +9335,8 @@ bool DS_export_wav_to_SD(void)
     {
         return false;
     }
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], entry.stereo);
+    const uint32_t channel_bytes = (trim.last - trim.first + 1) * 2;
     if (!SD.begin(BUILTIN_SDCARD) || (!SD.exists("/LILLAWAV_EXPORT") && !SD.mkdir("/LILLAWAV_EXPORT")))
     {
         return false;
@@ -9212,7 +9378,7 @@ bool DS_export_wav_to_SD(void)
         header[offset + 2] = static_cast<byte>(value >> 16);
         header[offset + 3] = static_cast<byte>(value >> 24);
     };
-    const uint32_t data_bytes = static_cast<uint32_t>(entry.bytes) * channels;
+    const uint32_t data_bytes = channel_bytes * channels;
     memcpy(header, "RIFF", 4);
     put32(4, data_bytes + 36);
     memcpy(header + 8, "WAVEfmt ", 8);
@@ -9228,8 +9394,9 @@ bool DS_export_wav_to_SD(void)
     bool exported = destination.write(header, sizeof(header)) == sizeof(header);
     byte channel_buffer[2][256];
     byte interleaved[512];
-    uint32_t remaining = static_cast<uint32_t>(entry.bytes);
-    for (int index = 0; remaining > 0 && exported; ++index)
+    uint32_t remaining = channel_bytes;
+    uint32_t packet_offset = (trim.first * 2) % PACKET_DIM;
+    for (int index = (trim.first * 2) / PACKET_DIM; remaining > 0 && exported; ++index)
     {
         SerialFlashFile source[2];
         for (int channel = 0; channel < channels; ++channel)
@@ -9240,8 +9407,10 @@ bool DS_export_wav_to_SD(void)
                 exported = false;
                 break;
             }
+            source[channel].seek(packet_offset);
         }
-        uint32_t packet_remaining = remaining < PACKET_DIM ? remaining : PACKET_DIM;
+        uint32_t packet_remaining = remaining < PACKET_DIM - packet_offset ? remaining : PACKET_DIM - packet_offset;
+        packet_offset = 0;
         while (packet_remaining > 0 && exported)
         {
             const uint32_t count = packet_remaining < sizeof(channel_buffer[0]) ? packet_remaining : sizeof(channel_buffer[0]);
@@ -9317,34 +9486,21 @@ void DS_ask_if_EXIT_from_DS(void)
 
 bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
 {
+    const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const Sound_struct previous_left = Sound[SOUNDS_MAX];
     const Sound_struct previous_right = Sound[SOUNDS_MAX + 1];
     const int previous_recording = Preset[0].file >= FIRST_RECORDING_FILE && Preset[0].file < FIRST_LIVE_SAMPLING_FILE ? (Preset[0].file - FIRST_RECORDING_FILE) / 2 : -1;
-    if (recording >= 0)
-    {
-        Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
-        Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-
-        Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (Recording[recording].stereo ? 1 : 0);
-        Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-    }
-    else
-    {
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 100000;
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 100000;
-    }
-
     AudioNoInterrupts();
-    if (!S_Fill_all_tables())
+    if (!DS_load_recording_sounds() || !S_Fill_all_tables())
     {
+        Patch[PATCHES_MAX] = previous_sampler_patch;
         Sound[SOUNDS_MAX] = previous_left;
         Sound[SOUNDS_MAX + 1] = previous_right;
         recording = previous_recording;
         AudioInterrupts();
         return false;
     }
+    P_Update_all_maps_Instrument_for_notes();
     AudioInterrupts();
 
     Display_Sampler.DS_hide_recording();
@@ -9361,34 +9517,21 @@ bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
 
 bool DS_back_to_first_DS_Recording(void)
 {
+    const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const Sound_struct previous_left = Sound[SOUNDS_MAX];
     const Sound_struct previous_right = Sound[SOUNDS_MAX + 1];
     const int previous_recording = Preset[0].file >= FIRST_RECORDING_FILE && Preset[0].file < FIRST_LIVE_SAMPLING_FILE ? (Preset[0].file - FIRST_RECORDING_FILE) / 2 : -1;
-    if (recording >= 0)
-    {
-        Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
-        Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-
-        Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (Recording[recording].stereo ? 1 : 0);
-        Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-    }
-    else
-    {
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 100000;
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 100000;
-    }
-
     AudioNoInterrupts();
-    if (!S_Fill_all_tables())
+    if (!DS_load_recording_sounds() || !S_Fill_all_tables())
     {
+        Patch[PATCHES_MAX] = previous_sampler_patch;
         Sound[SOUNDS_MAX] = previous_left;
         Sound[SOUNDS_MAX + 1] = previous_right;
         recording = previous_recording;
         AudioInterrupts();
         return false;
     }
+    P_Update_all_maps_Instrument_for_notes();
     AudioInterrupts();
 
     Print_Sound(SOUNDS_MAX);
@@ -9413,139 +9556,67 @@ bool DS_back_to_first_DS_Recording(void)
 }
 
 FLASHMEM
-void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording channel into a RAW file.
+bool DS_convert_channel_to_raw(int file_id, int channel)
 {
-    if (!FileNameRegistry::Bind_numeric(file_L_RAW) || !FileNameRegistry::Save())
+    if (!FileNameRegistry::Bind_numeric(file_id) || !FileNameRegistry::Save())
     {
-        Show_popup_text("CANNOT SAVE FILE NAME", ILI9341_WHITE, ILI9341_RED, 75);
-        return;
+        return false;
     }
     char audio_filename[NAME_FILE_SIZE];
     char packet_filename[NAME_PACKET_SIZE];
-    P_Invalidate_file_cache(file_L_RAW);
-    Serial.println("*** Convert file_L ***");
-
-    // create the file on the Flash chip and copy data
-    Serial.print(F("Create file: "));
-    Serial.print(Get_file_name(file_L_RAW, audio_filename));
-    Serial.print(F(" dimension (bytes): "));
-    Serial.println(bytes);
-
-    char buffer[256];
-    int packet = 0;
-    int last_blocks = -1;
-
-    // creazione file vuoto
-    SerialFlash.create(Get_file_name(file_L_RAW, audio_filename), bytes);
-
-    // apertura file
-    SerialFlashFile destination_file = SerialFlash.open(Get_file_name(file_L_RAW, audio_filename));
-
-    // copia file, caso MONO
-    if (!Recording[recording].stereo)
+    const auto &entry = Recording[recording];
+    const int channels = entry.stereo ? 2 : 1;
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], entry.stereo);
+    const uint32_t bytes = (trim.last - trim.first + 1) * 2;
+    P_Invalidate_file_cache(file_id);
+    Get_file_name(file_id, audio_filename);
+    if (!SerialFlash.create(audio_filename, bytes))
     {
-        // copia dal primo al penultimo packet
-        if (Recording[recording].packets > 1)
-        {
-            for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
-            {
-                SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-                for (auto i = 0; i < 256; ++i)
-                {
-                    source_file.read(buffer, 256);
-                    destination_file.write(buffer, 256);
-                }
-            }
-        }
-        // copia l'ultimo packet
-        packet = Recording[recording].first_packet + Recording[recording].packets - 1;
-        SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-        last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-        for (auto i = 0; i < last_blocks; ++i)
-        {
-            source_file.read(buffer, 256);
-            destination_file.write(buffer, 256);
-        }
+        return false;
     }
-
-    // copia file, caso MONO
-    else
+    SerialFlashFile destination = SerialFlash.open(audio_filename);
+    bool converted = static_cast<bool>(destination);
+    byte buffer[256];
+    uint32_t remaining = bytes;
+    uint32_t packet_offset = (trim.first * 2) % PACKET_DIM;
+    for (int index = (trim.first * 2) / PACKET_DIM; remaining > 0 && converted; ++index)
     {
-        // file_L
-        // copia dal primo al penultimo packet
-        if (Recording[recording].packets > 1)
+        SerialFlashFile source = SerialFlash.open(Get_packet_name(entry.first_packet + index * channels + channel, packet_filename));
+        if (!source)
         {
-            for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
-            {
-                SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-                for (auto i = 0; i < 256; ++i)
-                {
-                    source_file.read(buffer, 256);
-                    destination_file.write(buffer, 256);
-                }
-            }
+            converted = false;
+            break;
         }
-        // copia l'ultimo packet
-        packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
-        SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-        last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-        for (auto i = 0; i < last_blocks; ++i)
+        source.seek(packet_offset);
+        uint32_t packet_remaining = remaining < PACKET_DIM - packet_offset ? remaining : PACKET_DIM - packet_offset;
+        packet_offset = 0;
+        while (packet_remaining > 0 && converted)
         {
-            source_file.read(buffer, 256);
-            destination_file.write(buffer, 256);
+            const uint32_t count = packet_remaining < sizeof(buffer) ? packet_remaining : sizeof(buffer);
+            converted = source.read(buffer, count) == count && destination.write(buffer, count) == count;
+            packet_remaining -= count;
+            remaining -= count;
         }
+        source.close();
     }
+    destination.close();
+    if (!converted)
+    {
+        SerialFlash.remove(audio_filename);
+    }
+    return converted;
 }
 
 FLASHMEM
-void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording channel into a RAW file.
+bool DS_convert_file_L(int file_L_RAW)
 {
-    if (!FileNameRegistry::Bind_numeric(file_R_RAW) || !FileNameRegistry::Save())
-    {
-        Show_popup_text("CANNOT SAVE FILE NAME", ILI9341_WHITE, ILI9341_RED, 75);
-        return;
-    }
-    char audio_filename[NAME_FILE_SIZE];
-    char packet_filename[NAME_PACKET_SIZE];
-    P_Invalidate_file_cache(file_R_RAW);
-    Serial.println("*** Convert file_R ***");
+    return DS_convert_channel_to_raw(file_L_RAW, 0);
+}
 
-    // create the file on the Flash chip and copy data
-    Serial.print(F("Create file: "));
-    Serial.print(Get_file_name(file_R_RAW, audio_filename));
-    Serial.print(F(" dimension (bytes): "));
-    Serial.println(bytes);
-
-    char buffer[256];
-    int packet = 0;
-    int last_blocks = -1;
-
-    SerialFlash.create(Get_file_name(file_R_RAW, audio_filename), bytes);
-    SerialFlashFile destination_file = SerialFlash.open(Get_file_name(file_R_RAW, audio_filename));
-
-    // copia dal primo al penultimo packet
-    if (Recording[recording].packets > 1)
-    {
-        for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
-        {
-            SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-            for (auto i = 0; i < 256; ++i)
-            {
-                source_file.read(buffer, 256);
-                destination_file.write(buffer, 256);
-            }
-        }
-    }
-
-    // copia l'ultimo packet
-    packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
-    SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-    for (auto i = 0; i < last_blocks; ++i)
-    {
-        source_file.read(buffer, 256);
-        destination_file.write(buffer, 256);
-    }
+FLASHMEM
+bool DS_convert_file_R(int file_R_RAW)
+{
+    return DS_convert_channel_to_raw(file_R_RAW, 1);
 }
 
 void DS_Print_Directory(File dir, int numSpaces)
@@ -14551,6 +14622,18 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 FLASHMEM
 void S_Select_menu_elements(void)
 {
+    if (Lilla_state_0 == DIRECT_SAMPLING)
+    {
+        S_Menu[value_S_Return] = false;
+        S_Menu[value_S_Clone] = false;
+        S_Menu[value_S_Drop] = false;
+        S_Menu[value_S_Exit] = true;
+        S_Menu[value_S_SaveExit] = true;
+        S_menu_max = 1;
+        return;
+    }
+    S_Menu[value_S_Exit] = false;
+    S_Menu[value_S_SaveExit] = false;
     // voices of instrument_edit_menu that can be displayed
     S_Menu[value_S_Return] = true; // RETURN
     S_Menu[value_S_Clone] = true;  // CLONE
