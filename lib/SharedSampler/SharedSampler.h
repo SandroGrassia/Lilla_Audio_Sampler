@@ -16,6 +16,7 @@ struct DS_Trim
 };
 
 DS_Trim DS_get_trim(const Sound_struct *channels, bool stereo);
+void DS_copy_edited_parameters(const Sound_struct &before, const Sound_struct &edited, Sound_struct &other);
 
 // DIRECT SAMPLING
 

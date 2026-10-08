@@ -1071,44 +1071,70 @@ void DS_open_sound_edit(int channel)
 }
 
 FLASHMEM
-bool DS_close_sound_edit(bool save)
+void DS_close_sound_edit(void)
 {
-    const Sound_struct edited_left = Sound[SOUNDS_MAX];
-    const Sound_struct edited_right = Sound[SOUNDS_MAX + 1];
     const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
-
-    AudioNoInterrupts();
-    if (save)
-    {
-        Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = trim.first;
-        Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = trim.last;
-    }
-    else
-    {
-        Sound[SOUNDS_MAX] = DS_sound_before_edit[0];
-        Sound[SOUNDS_MAX + 1] = DS_sound_before_edit[1];
-    }
-    if (!S_Fill_all_tables())
-    {
-        Sound[SOUNDS_MAX] = edited_left;
-        Sound[SOUNDS_MAX + 1] = edited_right;
-        AudioInterrupts();
-        return false;
-    }
-    for (int channel = 0; channel < Patch[PATCHES_MAX].instruments; ++channel)
-    {
-        Players_Manager.Multicast_main_settings_editing(Patch_id, channel);
-    }
-    P_Update_all_maps_Instrument_for_notes();
-    AudioInterrupts();
-
-    if (save)
-    {
-        Require_FRAM(Archive.Save_DS_edit(recording, trim.first, trim.last));
-    }
+    Require_FRAM(Archive.Save_DS_edit(recording, trim.first, trim.last));
     S_Set_Sound_SOLO_OFF();
     Golive_DIRECT_SAMPLING();
-    return true;
+}
+
+void DS_sync_stereo_parameters(void)
+{
+    if (Lilla_state_0 != DIRECT_SAMPLING || !Recording[recording].stereo)
+    {
+        return;
+    }
+    const int other_instrument = Instrument_id ^ 1;
+    const int other_sound = SOUNDS_MAX + other_instrument;
+    const Sound_struct before = Sound[other_sound];
+    DS_copy_edited_parameters(DS_sound_before_edit[Instrument_id], Sound[Sound_id], Sound[other_sound]);
+    const Sound_struct &after = Sound[other_sound];
+    if (after.data != before.data)
+    {
+        if ((after.data >> 1) != (before.data >> 1))
+        {
+            Players_Manager.Multicast_release_players(other_sound);
+            Players_Manager.Update_Preset_midi_channel(Patch_id, other_instrument);
+            P_Update_all_maps_Instrument_for_notes();
+            if (solo_flag)
+            {
+                S_Map_one_Instrument_for_all_notes(Instrument_id);
+            }
+        }
+        Players_Manager.Update_Preset_attack_type(Patch_id, other_instrument);
+    }
+    if (after.pitch != before.pitch)
+    {
+        Players_Manager.Update_Preset_pitch(Patch_id, other_instrument);
+        Players_Manager.Multicast_pitch_for_sound_edit(other_instrument);
+    }
+    if (after.gain != before.gain)
+    {
+        Players_Manager.Update_Preset_volume(Patch_id, other_instrument, Patch_volume_gain(volume_patch));
+        Players_Manager.Multicast_volume_for_instrument_edit(other_instrument);
+    }
+    if (after.pan != before.pan)
+    {
+        Players_Manager.Update_Preset_pan(Patch_id, other_instrument);
+        Players_Manager.Multicast_pan(other_instrument);
+    }
+    if (after.attack != before.attack)
+    {
+        Players_Manager.Update_Preset_attack(Patch_id, other_instrument);
+    }
+    if (after.decay != before.decay)
+    {
+        Players_Manager.Update_Preset_decay(Patch_id, other_instrument);
+    }
+    if (after.sustain != before.sustain)
+    {
+        Players_Manager.Update_Preset_sustain(Patch_id, other_instrument);
+    }
+    if (after.release != before.release)
+    {
+        Players_Manager.Update_Preset_release(Patch_id, other_instrument);
+    }
 }
 
 void setup()
@@ -2242,12 +2268,18 @@ void loop()
     {
         S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
         const Sound_struct sound_before_edit = Sound[Sound_id];
+        if (Lilla_state_0 == DIRECT_SAMPLING)
+        {
+            DS_sound_before_edit[0] = Sound[SOUNDS_MAX];
+            DS_sound_before_edit[1] = Sound[SOUNDS_MAX + 1];
+        }
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
+            DS_sync_stereo_parameters();
             AudioInterrupts();
         }
 
@@ -2270,22 +2302,13 @@ void loop()
             {
                 switch (S_element_menu[S_pointer.menu_element])
                 {
-                case value_S_Exit:
-                {
-                    DS_close_sound_edit(false);
-                    return;
-                }
-                break;
-
-                case value_S_SaveExit:
-                {
-                    DS_close_sound_edit(true);
-                    return;
-                }
-                break;
-
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
+                    if (Lilla_state_0 == DIRECT_SAMPLING)
+                    {
+                        DS_close_sound_edit();
+                        return;
+                    }
                     S_Set_Sound_SOLO_OFF();
 
                     if (Lilla_state_0 == MIDI_LOOP)
@@ -2321,6 +2344,7 @@ void loop()
                     {
                         previous.Restore();
                     }
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     S_Set_Sound_SOLO_OFF();
@@ -2339,6 +2363,7 @@ void loop()
                     Players_Manager.Release_all_players_for_instrument(Instrument_id);
                     P_Delete_one_map_Instrument_for_notes(Instrument_id);
                     S_Drop_Instrument(Instrument_id); // instruments is decremented by 1
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     S_Set_Sound_SOLO_OFF();
@@ -2401,6 +2426,7 @@ void loop()
                             }
                             Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
                         }
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         S_trim_step = S_Calc_trim_step(trim_speed);
@@ -2430,6 +2456,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
                         S_Map_one_Instrument_for_all_notes(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
                     }
                     else
@@ -2469,6 +2496,7 @@ void loop()
                         S_Set_midi_channel_for_Sound(Sound_id, midi_channel_change);
                         Update_map_Instrument_for_notes(Patch[Patch_id].Instrument[Instrument_id].from_note, Patch[Patch_id].Instrument[Instrument_id].to_note, Instrument_id);
                         Players_Manager.Update_Preset_midi_channel(Patch_id, Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         Display_Sound.Show_Midi_channel_value(Instrument_id);
@@ -2515,6 +2543,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         Display_Sound.Show_Pitch_value(Instrument_id);
@@ -2544,6 +2573,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                     Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Pitch_value(Instrument_id);
@@ -2569,6 +2599,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         Display_Sound.Show_Pitch_value(Instrument_id);
@@ -2612,6 +2643,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                     Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Gain_value(Patch_id, Instrument_id);
@@ -2638,6 +2670,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
                         S_Map_one_Instrument_for_all_notes(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
                     }
                     else
@@ -2656,6 +2689,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
                     Players_Manager.Multicast_pan(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Pan_value(Instrument_id);
@@ -2680,6 +2714,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
                     Players_Manager.Multicast_pan(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Pan_value(Instrument_id);
@@ -2704,6 +2739,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_attack(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Attack_value(Instrument_id);
@@ -2726,6 +2762,7 @@ void loop()
                     AudioNoInterrupts();
                     bitWrite(Sound[Sound_id].data, 0, !bitRead(Sound[Sound_id].data, 0));
                     Players_Manager.Update_Preset_attack_type(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Attack_value(Instrument_id);
@@ -2750,6 +2787,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_decay(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Decay_value(Instrument_id);
@@ -2774,6 +2812,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_sustain(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Sustain_value(Instrument_id);
@@ -2798,6 +2837,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_release(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Release_value(Instrument_id);
@@ -2852,6 +2892,7 @@ void loop()
                     {
                         player_banks_queued |= Player[player_id].Get_tables_reference_mask();
                     }
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Serial.print(F("AudioTables player refs, before: 0x"));
@@ -2952,6 +2993,7 @@ void loop()
                         {
                             Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                         }
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -3078,6 +3120,7 @@ void loop()
                 {
                     Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 }
+                DS_sync_stereo_parameters();
                 AudioInterrupts();
 
                 Display_Sound.Show_players_Pitch_max_value(Instrument_id);
@@ -3130,6 +3173,7 @@ void loop()
                 {
                     Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 }
+                DS_sync_stereo_parameters();
                 AudioInterrupts();
 
                 Display_Sound.Show_players_Pitch_max_value(Instrument_id);
@@ -3215,6 +3259,7 @@ void loop()
                 {
                     player_banks_queued |= Player[player_id].Get_tables_reference_mask();
                 }
+                DS_sync_stereo_parameters();
                 AudioInterrupts();
 
                 // Report the trim result after restoring audio interrupts.
@@ -3245,6 +3290,20 @@ void loop()
                     }
                     Display_Sound.Show_SOUND_menu();
                 }
+            }
+        }
+
+        if (Lilla_state_0 == DIRECT_SAMPLING)
+        {
+            if (Recording[recording].stereo)
+            {
+                AudioNoInterrupts();
+                DS_sync_stereo_parameters();
+                AudioInterrupts();
+            }
+            if (Sound[Sound_id].A != sound_before_edit.A || Sound[Sound_id].B != sound_before_edit.B)
+            {
+                Require_FRAM(Archive.Save_DS_edit(recording, Sound[Sound_id].A, Sound[Sound_id].B));
             }
         }
 
@@ -3283,6 +3342,7 @@ void loop()
                         solo_flag = false;
                         P_Update_all_maps_Instrument_for_notes();
                     }
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Instrument_id = Inst_id;
@@ -3328,9 +3388,9 @@ void loop()
         // Switch verso un TOOL
         if (Read_pushbutton(PB_Tools))
         {
-            if (Lilla_state_0 == DIRECT_SAMPLING && !DS_close_sound_edit(false))
+            if (Lilla_state_0 == DIRECT_SAMPLING)
             {
-                return;
+                DS_close_sound_edit();
             }
             TOOLS_pushbutton = true;
             Shifters_manager.Switch_led(LED_Tools, true);
@@ -3372,10 +3432,7 @@ void loop()
         {
             if (Lilla_state_0 == DIRECT_SAMPLING)
             {
-                if (!DS_close_sound_edit(false))
-                {
-                    return;
-                }
+                DS_close_sound_edit();
                 switch (Switches_manager.Get_value(SwitchModes))
                 {
                 case SwModesLiveSampler:
@@ -14624,16 +14681,12 @@ void S_Select_menu_elements(void)
 {
     if (Lilla_state_0 == DIRECT_SAMPLING)
     {
-        S_Menu[value_S_Return] = false;
+        S_Menu[value_S_Return] = true;
         S_Menu[value_S_Clone] = false;
         S_Menu[value_S_Drop] = false;
-        S_Menu[value_S_Exit] = true;
-        S_Menu[value_S_SaveExit] = true;
-        S_menu_max = 1;
+        S_menu_max = 0;
         return;
     }
-    S_Menu[value_S_Exit] = false;
-    S_Menu[value_S_SaveExit] = false;
     // voices of instrument_edit_menu that can be displayed
     S_Menu[value_S_Return] = true; // RETURN
     S_Menu[value_S_Clone] = true;  // CLONE
@@ -14665,6 +14718,20 @@ void S_Select_menu_elements(void)
 
 bool S_Fill_tables(uint8_t instrument_id)
 {
+    if (Lilla_state == SOUND_EDIT && Lilla_state_0 == DIRECT_SAMPLING && Recording[recording].stereo)
+    {
+        const int other_instrument = instrument_id ^ 1;
+        const int other_sound = SOUNDS_MAX + other_instrument;
+        const Sound_struct previous_other = Sound[other_sound];
+        DS_copy_edited_parameters(DS_sound_before_edit[instrument_id], Sound[SOUNDS_MAX + instrument_id], Sound[other_sound]);
+        if (!S_Rebuild_audio_tables(instrument_id))
+        {
+            Sound[other_sound] = previous_other;
+            return false;
+        }
+        Players_Manager.Multicast_main_settings_editing(Patch_id, other_instrument);
+        return true;
+    }
     return S_Rebuild_audio_tables(instrument_id);
 }
 

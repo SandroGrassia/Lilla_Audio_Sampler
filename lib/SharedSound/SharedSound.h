@@ -9,18 +9,16 @@
 #include <Arduino.h>
 
 // menu
-static constexpr int S_menu_elements = 5;
+static constexpr int S_menu_elements = 3;
 enum S_menu_elements_name
 {
     value_S_Return,
     value_S_Clone,
-    value_S_Drop,
-    value_S_Exit,
-    value_S_SaveExit
+    value_S_Drop
 };
 static constexpr int S_row_menu = 1;
-static constexpr char S_menu_char[S_menu_elements][10] = {{"RETURN"}, {"CLONE"}, {"DROP"}, {"EXIT"}, {"SAVE+EXIT"}};
-static constexpr uint8_t S_dimension_voice_menu[S_menu_elements] = {6, 5, 4, 4, 9};
+static constexpr char S_menu_char[S_menu_elements][7] = {{"RETURN"}, {"CLONE"}, {"DROP"}};
+static constexpr uint8_t S_dimension_voice_menu[S_menu_elements] = {6, 5, 4};
 extern uint8_t S_menu_choice;
 extern bool S_Menu[S_menu_elements];
 extern uint8_t S_column_menu_element[S_menu_elements];    // argument is position
