@@ -1,8 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.0.0.1**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.0.2**
 
-Guide edition: **5 October 2026**
+Guide edition: **8 October 2026**
+
+Printable edition: [User Guide PDF for firmware 7.0.2](LILLA_User_Guide_v7.0.2.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -124,7 +126,7 @@ The same controls perform different tasks depending on the active page. Follow t
 | Select, turn | Move the highlight between fields and menu items. |
 | Select, press | Execute a menu command, confirm a choice, or enter/leave a group of fields. |
 | Value, turn | Change the highlighted parameter. |
-| S1-S8 | Open the corresponding active sound for editing in Performance; capture into sound slots in Live Sampler. |
+| S1-S8 | Open active sounds in Performance; S1 opens a mono or left-channel recording and S2 the right channel in Sampler; capture into sound slots in Live Sampler. |
 | From / To | Adjust sample boundaries in Sound Edit; adjust the live playback region in Live Sampler. |
 | Step | Change editing increments; its push function depends on the page. |
 | Line Out Vol | Adjust patch playback volume on performance-related pages. |
@@ -154,7 +156,8 @@ Menus are dynamic. A command may be hidden when the current state does not allow
 | Where | Action | Result |
 | --- | --- | --- |
 | Performance | Press an active S1-S8 button | Open that sound's editor. |
-| Sound Edit | Press the same sound button again | Open its VCF page. |
+| Sound Edit from Performance | Press the same sound button again | Open its VCF page. |
+| Sound Edit from Sampler | Press S1, or S2 for stereo | Select the recording channel; the same button keeps that channel in Sound Edit. |
 | Sound Edit, `PITCH` selected | Press Value | Reset the pitch adjustment. |
 | Sound Edit, `PITCH` selected | Press Select | Run Auto Tune on the selected audio region. |
 | Sound Edit | Press From | Move the region's start to the beginning of the source. |
@@ -201,6 +204,7 @@ An on-screen label such as `SOUND 1` means the first slot of the current patch. 
 | --- | --- |
 | Edits to a patch and its sounds | Save from Performance. |
 | A completed Sampler recording | Finish recording with `STOP`; use backup or WAV export for an external copy. |
+| Sampler recording A/B boundaries | Saved automatically while editing; recalled with the recording for keyboard playback and RAW/WAV export. Other recording playback edits remain in the current session. |
 | A Sampler recording converted with `MAKE_RAW` | Keep the generated Flash source and save the patch that uses it. |
 | Audio still in the Live Sampler buffer | Capture the desired region into a sound slot and save the resulting patch. |
 | A newly captured Live Sampler sound | Save its patch so the pending audio is written to Flash. |
@@ -376,6 +380,8 @@ The `MAX PITCH` display describes the available playback ceiling for the current
 
 ### Return, clone or remove a sound
 
+The following commands apply to sounds opened from Performance. For a recording opened from Sampler, the only menu command is `RETURN`; see [Edit a recording before conversion or export](#edit-a-recording-before-conversion-or-export).
+
 - `RETURN` keeps the edits and returns to the previous performance page.
 - `CLONE` copies the instrument into a free slot in the current patch. Adjust the copy's key range, root key or source as needed.
 - `DROP` removes the instrument from the current patch.
@@ -454,7 +460,7 @@ Monitoring in `PAUSE+REC` lets you prepare the source and levels. `MONO_REC` or 
 
 Starting a take records audio for 20 ms before accepting the next control action, allowing the initial fade-in to finish. An immediate Stop is processed after this short pause and preserves the take. Stopping or leaving Sampler waits for recording to finish before saving it.
 
-A Flash recording and a RAW sound source are separate items. You can keep the original take while creating a playable source from it.
+A Flash recording can be played from the keyboard and edited before conversion. Successful RAW conversion or WAV export removes the source recording and frees its recording space. Make a backup first if you need to preserve the full original take.
 
 ### Make a recording
 
@@ -471,9 +477,26 @@ A Flash recording and a RAW sound source are separate items. You can keep the or
 
 The memory display distinguishes space available for recordings from space available for RAW files. A recording can fit even when there is insufficient room to convert it to RAW.
 
+### Edit a recording before conversion or export
+
+1. Finish recording with `STOP`, or select an existing completed recording in Sampler.
+2. Press **S1** for a mono recording. For stereo, press **S1** for the left channel or **S2** for the right channel.
+3. In Sound Edit, play the recording from your MIDI keyboard while adjusting its playback settings.
+4. Use **From** and **To** to set the first and last sample, shown as the **A/B** boundaries. Use Step to refine the region.
+5. Adjust pitch, gain, pan, MIDI channel, attack curve, ADSR, playback mode or Noclick as needed.
+6. Select `RETURN` and press Select to return to **SAMPLER**.
+
+The source remains the selected recording in Flash; its audio is not rewritten when you trim or edit it, and the source selector cannot be changed in this editor. Keyboard playback uses the selected region and remains available during editing.
+
+For a stereo recording, every edited playback parameter is automatically copied to the other channel, including A/B, tuning and Auto Tune, gain, pan, MIDI channel, attack curve, ADSR, playback mode and Noclick. Edits from either channel affect both. The original left/right pan positions remain until you edit pan; changing or centring pan applies the same value to both channels.
+
+The Sampler editor offers only `RETURN`, with no separate save or discard choice. A/B boundaries are saved automatically and retained for later playback and export, including after selecting another recording or restarting LILLA. Leaving the editor also retains the boundaries. Other playback parameters remain active in the current editing session but are not stored as persistent recording settings.
+
+RAW conversion and WAV export use the saved inclusive A/B region. Stereo exports use a common start and end for both channels, keeping their durations aligned. These operations copy the selected audio region; they do not render the editor's pitch, envelope, gain, pan or other playback effects into the exported audio. To export the full take, restore A/B to the full recording before exporting.
+
 ### Make a playable RAW file
 
-1. Select the recording.
+1. Select the recording and, if needed, use S1/S2 to edit its A/B region, then `RETURN`.
 2. Choose `MAKE_RAW` and confirm the conversion.
 3. Choose the available output: `MAKE_MONO`, `MAKE_LEFT`, `MAKE_RIGHT` or `MAKE_BOTH`.
 4. Wait for the conversion to finish.
@@ -489,9 +512,11 @@ The memory display distinguishes space available for recordings from space avail
 
 The available choices depend on the selected recording. For stereo recordings, left and right can become separate RAW sources. `CANCEL` exits the conversion choices. If LILLA reports that it cannot create a RAW file, check free RAW memory and available filenames.
 
+Conversion copies the saved A/B region. After all requested RAW files are created successfully, the original Sampler recording is deleted and its space is freed. A failed conversion retains the recording. Back up the original take before conversion if you want to keep it.
+
 ### Export a WAV file
 
-Insert a microSD card, select a recording and choose `EXPORT_WAV_TO_SD`. The exported WAV preserves the recording's mono or stereo layout and uses 16-bit PCM at 44.1 kHz.
+Insert a microSD card, select a recording and choose `EXPORT_WAV_TO_SD`. The exported WAV contains its saved A/B region, preserves the recording's mono or stereo layout and uses 16-bit PCM at 44.1 kHz.
 
 Files are written to `/LILLAWAV_EXPORT`, with names such as `0M.wav` for mono or `0S.wav` for stereo. Wait for the success message before removing the card.
 
@@ -777,6 +802,7 @@ A configuration backup is one part of preserving a session. Keep the matching au
 | Saved patches, sounds and configuration | Included. | Save current edits before backing up. |
 | File-name associations | Included. | Keep corresponding audio basenames unchanged. |
 | Sampler recording audio | Included. | WAV export is also useful for computer access. |
+| Sampler recording A/B boundaries | Included in current backups. | Older backups without trim metadata restore the full recording region. |
 | Imported RAW library | Not included. | Retain the original import library separately. |
 | RAW files generated from recordings or live captures | Not included as a complete RAW-library archive. | Keep an independent recoverable audio copy; saving to Flash alone is not an external backup. |
 | MIDI-loop directory | Not included. | Copy `/LILLALOOP` from the card. |
@@ -841,17 +867,17 @@ The firmware is the program that runs LILLA. To load a compiled firmware on Wind
 - Your LILLA instrument, which uses a Teensy 4.1.
 - A Windows 10 or 11 computer.
 - A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
-- The LILLA firmware file, for example `Lilla_v7_0_0_1.hex`.
+- The LILLA firmware file, for example `Lilla_v7_0_2.hex`.
 - Teensy Loader, downloaded from PJRC.
 
 ### Download the firmware
 
 1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_0_0_1.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_0_2.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
 3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
 4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
 
-The four numbers in `Lilla_v7_0_0_1.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+The version numbers in `Lilla_v7_0_2.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
 
 ### Download Teensy Loader
 
@@ -866,11 +892,11 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
-2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_0_0_1.hex`. Confirm the filename shown in the loader.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_0_2.hex`. Confirm the filename shown in the loader.
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The fourth revision number in the filename may not appear on the display. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.0.2. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -897,7 +923,7 @@ On macOS, use the standalone **Teensy Loader** application and the published LIL
 ### Download the firmware on Mac
 
 1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_0_0_1.hex`.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_0_2.hex`.
 3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
 4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
 
@@ -924,7 +950,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. The fourth revision number in the HEX filename may not appear on the display.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.0.2.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -979,14 +1005,14 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 1. In Sampler, use `PAUSE+REC` to set the input level.
 2. Record a clean sustained note in mono, including its attack and decay.
-3. Stop and audition the take.
-4. Use `MAKE_RAW` to create a playable source.
+3. Stop, press S1 to audition from the keyboard, trim A/B and select `RETURN`. Make a backup now if you want to retain the full original recording.
+4. Use `MAKE_RAW` to create a playable source from the selected region; successful conversion removes the recording.
 5. In Performance, clone a patch you can use as a starting point.
 6. Open an active sound and choose the new source.
 7. Trim unwanted silence, choose a playback mode and adjust the envelope.
 8. Set the root key to match the recorded note, then set the keyboard range.
 9. Play above and below the root to check the result.
-10. Save the patch and export the original recording if you want an external audio copy.
+10. Save the patch. Keep the backup made before conversion if you need the original recording; a converted take is no longer available for Sampler WAV export.
 
 **Try next:** clone the sound into another slot, choose a different region of the same source and give the two slots separate keyboard zones.
 
@@ -1029,6 +1055,8 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Keep sound edits after power-off | Return to Performance > SAVE. |
 | Import computer audio | SD `/LILLA_AUDIO` > Tools > Setup > import. |
 | Record line input | Sampler > PAUSE+REC > MONO_REC or STEREO_REC > STOP. |
+| Edit a recording while playing it from the keyboard | Sampler > completed recording > S1 (mono/left) or S2 (stereo right) > Sound Edit > RETURN. |
+| Keep recording trim points for playback and export | Adjust A/B in Sampler Sound Edit; saved automatically, with stereo channels linked. |
 | Turn a recording into a source | Sampler > MAKE_RAW. |
 | Export a recording | Sampler > EXPORT_WAV_TO_SD > SD `/LILLAWAV_EXPORT`. |
 | Record temporary live audio | Live Sampler > CAPTURE > STOP. |
@@ -1062,6 +1090,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 5 October 2026*
+*LILLA User Guide - English edition - 8 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*
