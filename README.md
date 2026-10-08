@@ -167,7 +167,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Download [Lilla_v7_0_0_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.0.0.1/Lilla_v7_0_0_1.hex) from [release v7.0.0.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.0.0.1). The release includes the compiled firmware and the source code for the same tagged commit. See the [User Guide](USER_GUIDE.md) for upload instructions.
+Download [Lilla_v7_0_2.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.0.2/Lilla_v7_0_2.hex) from [release v7.0.2](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.0.2). The release includes the compiled firmware and the source code for the same tagged commit. See the [User Guide](USER_GUIDE.md) for upload instructions.
 
 ## Build
 

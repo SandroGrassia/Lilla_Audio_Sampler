@@ -7,6 +7,16 @@
 #pragma once
 
 #include <Arduino.h>
+#include "SharedElements.h"
+
+struct DS_Trim
+{
+    uint32_t first;
+    uint32_t last; // Inclusive sample index in each original Flash channel.
+};
+
+DS_Trim DS_get_trim(const Sound_struct *channels, bool stereo);
+void DS_copy_edited_parameters(const Sound_struct &before, const Sound_struct &edited, Sound_struct &other);
 
 // DIRECT SAMPLING
 

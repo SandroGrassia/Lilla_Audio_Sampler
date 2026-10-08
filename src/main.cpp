@@ -647,8 +647,8 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Samp
 bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
 void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
 bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
-void DS_convert_file_L(int file_L_RAW, int bytes);    // Convert the left recording channel and invalidate its previous RAW cache.
-void DS_convert_file_R(int file_R_RAW, int bytes);    // Convert the right recording channel and invalidate its previous RAW cache.
+bool DS_convert_file_L(int file_L_RAW);              // Export the trimmed left recording channel to RAW.
+bool DS_convert_file_R(int file_R_RAW);              // Export the trimmed right recording channel to RAW.
 void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
 void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
 byte DS_read_all_Recordings(void);                    // Load all recording metadata and stop at the first FRAM error.
@@ -1008,6 +1008,135 @@ struct PatchEditSnapshot
 // *************************************************************
 // *************************************************************
 
+static Sound_struct DS_sound_before_edit[2];
+
+FLASHMEM
+bool DS_load_recording_sounds(void)
+{
+    DS_set_DS_Sampling_Patch();
+    if (recording < 0)
+    {
+        Patch[PATCHES_MAX].instruments = 0;
+        Patch[PATCHES_MAX].Instrument[0].used = false;
+        Patch[PATCHES_MAX].Instrument[1].used = false;
+        Sound[SOUNDS_MAX].file = 0;
+        Sound[SOUNDS_MAX].B = 0;
+        Sound[SOUNDS_MAX + 1].file = 0;
+        Sound[SOUNDS_MAX + 1].B = 0;
+        return true;
+    }
+    const bool stereo = Recording[recording].stereo;
+    Patch[PATCHES_MAX].instruments = stereo ? 2 : 1;
+    Patch[PATCHES_MAX].Instrument[1].used = stereo;
+    Sound[SOUNDS_MAX].file = FIRST_RECORDING_FILE + 2 * recording;
+    Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
+    Sound[SOUNDS_MAX].pan = stereo ? -16 : 0;
+    Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (stereo ? 1 : 0);
+    Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
+    uint32_t first_sample = 0;
+    uint32_t last_sample = Sound[SOUNDS_MAX].B;
+    const byte result = Archive.Read_DS_edit(recording, first_sample, last_sample);
+    Require_FRAM(result);
+    Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = first_sample;
+    Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = last_sample;
+    return result == LillaFRAM_2x512::ERROR_0;
+}
+
+FLASHMEM
+void DS_open_sound_edit(int channel)
+{
+    if (Lilla_state == DIRECT_SAMPLING)
+    {
+        DS_sound_before_edit[0] = Sound[SOUNDS_MAX];
+        DS_sound_before_edit[1] = Sound[SOUNDS_MAX + 1];
+    }
+    S_Set_Sound_SOLO_OFF();
+    Instrument_id = channel;
+    Sound_id = SOUNDS_MAX + channel;
+    Lilla_state_0 = DIRECT_SAMPLING;
+    Lilla_state = SOUND_EDIT;
+    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+    Noclick_max = S_Calc_Noclick_max(Preset[channel].use_Wavetable);
+    S_trim_step = S_Calc_trim_step(trim_speed);
+    S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
+    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+    S_Select_menu_elements();
+    Display_Sound.Show_SOUND_menu();
+    Pointer_Sound.Set_pointer_to_first_menu_element();
+    S_pointer = Pointer_Sound.Get_pointer();
+    Performance_led_set.Restore_all_LED();
+    Display_Sound.Show_wave(Instrument_id);
+    Clear_UI_events();
+}
+
+FLASHMEM
+void DS_close_sound_edit(void)
+{
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
+    Require_FRAM(Archive.Save_DS_edit(recording, trim.first, trim.last));
+    S_Set_Sound_SOLO_OFF();
+    Golive_DIRECT_SAMPLING();
+}
+
+void DS_sync_stereo_parameters(void)
+{
+    if (Lilla_state_0 != DIRECT_SAMPLING || !Recording[recording].stereo)
+    {
+        return;
+    }
+    const int other_instrument = Instrument_id ^ 1;
+    const int other_sound = SOUNDS_MAX + other_instrument;
+    const Sound_struct before = Sound[other_sound];
+    DS_copy_edited_parameters(DS_sound_before_edit[Instrument_id], Sound[Sound_id], Sound[other_sound]);
+    const Sound_struct &after = Sound[other_sound];
+    if (after.data != before.data)
+    {
+        if ((after.data >> 1) != (before.data >> 1))
+        {
+            Players_Manager.Multicast_release_players(other_sound);
+            Players_Manager.Update_Preset_midi_channel(Patch_id, other_instrument);
+            P_Update_all_maps_Instrument_for_notes();
+            if (solo_flag)
+            {
+                S_Map_one_Instrument_for_all_notes(Instrument_id);
+            }
+        }
+        Players_Manager.Update_Preset_attack_type(Patch_id, other_instrument);
+    }
+    if (after.pitch != before.pitch)
+    {
+        Players_Manager.Update_Preset_pitch(Patch_id, other_instrument);
+        Players_Manager.Multicast_pitch_for_sound_edit(other_instrument);
+    }
+    if (after.gain != before.gain)
+    {
+        Players_Manager.Update_Preset_volume(Patch_id, other_instrument, Patch_volume_gain(volume_patch));
+        Players_Manager.Multicast_volume_for_instrument_edit(other_instrument);
+    }
+    if (after.pan != before.pan)
+    {
+        Players_Manager.Update_Preset_pan(Patch_id, other_instrument);
+        Players_Manager.Multicast_pan(other_instrument);
+    }
+    if (after.attack != before.attack)
+    {
+        Players_Manager.Update_Preset_attack(Patch_id, other_instrument);
+    }
+    if (after.decay != before.decay)
+    {
+        Players_Manager.Update_Preset_decay(Patch_id, other_instrument);
+    }
+    if (after.sustain != before.sustain)
+    {
+        Players_Manager.Update_Preset_sustain(Patch_id, other_instrument);
+    }
+    if (after.release != before.release)
+    {
+        Players_Manager.Update_Preset_release(Patch_id, other_instrument);
+    }
+}
+
 void setup()
 {
     AudioNoInterrupts();
@@ -1130,6 +1259,7 @@ void setup()
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
+FLASHMEM
 void loop()
 {
     static bool recording_limit_notified = false;
@@ -2138,12 +2268,18 @@ void loop()
     {
         S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
         const Sound_struct sound_before_edit = Sound[Sound_id];
+        if (Lilla_state_0 == DIRECT_SAMPLING)
+        {
+            DS_sound_before_edit[0] = Sound[SOUNDS_MAX];
+            DS_sound_before_edit[1] = Sound[SOUNDS_MAX + 1];
+        }
         // Change volume_patch
         if (Read_encoder(EN_PB_LineOutVol, volume_patch, PATCH_VOLUME_MAX, 0, 1))
         {
             AudioNoInterrupts();
             Players_Manager.Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
             Players_Manager.Broadcast_volume();
+            DS_sync_stereo_parameters();
             AudioInterrupts();
         }
 
@@ -2168,6 +2304,11 @@ void loop()
                 {
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
+                    if (Lilla_state_0 == DIRECT_SAMPLING)
+                    {
+                        DS_close_sound_edit();
+                        return;
+                    }
                     S_Set_Sound_SOLO_OFF();
 
                     if (Lilla_state_0 == MIDI_LOOP)
@@ -2203,6 +2344,7 @@ void loop()
                     {
                         previous.Restore();
                     }
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     S_Set_Sound_SOLO_OFF();
@@ -2221,6 +2363,7 @@ void loop()
                     Players_Manager.Release_all_players_for_instrument(Instrument_id);
                     P_Delete_one_map_Instrument_for_notes(Instrument_id);
                     S_Drop_Instrument(Instrument_id); // instruments is decremented by 1
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     S_Set_Sound_SOLO_OFF();
@@ -2242,7 +2385,7 @@ void loop()
             case value_S_File:
             {
                 int result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0)
+                if (result != 0 && Lilla_state_0 != DIRECT_SAMPLING)
                 {
                     int S_file_change;
                     if (result == 1)
@@ -2283,6 +2426,7 @@ void loop()
                             }
                             Noclick_max = S_Calc_Noclick_max(((Sound[Sound_id].B - Sound[Sound_id].A + 1) <= BLOCK_MIN));
                         }
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         S_trim_step = S_Calc_trim_step(trim_speed);
@@ -2312,6 +2456,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
                         S_Map_one_Instrument_for_all_notes(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
                     }
                     else
@@ -2351,6 +2496,7 @@ void loop()
                         S_Set_midi_channel_for_Sound(Sound_id, midi_channel_change);
                         Update_map_Instrument_for_notes(Patch[Patch_id].Instrument[Instrument_id].from_note, Patch[Patch_id].Instrument[Instrument_id].to_note, Instrument_id);
                         Players_Manager.Update_Preset_midi_channel(Patch_id, Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         Display_Sound.Show_Midi_channel_value(Instrument_id);
@@ -2397,6 +2543,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         Display_Sound.Show_Pitch_value(Instrument_id);
@@ -2426,6 +2573,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                     Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Pitch_value(Instrument_id);
@@ -2451,6 +2599,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_pitch(Patch_id, Instrument_id);
                         Players_Manager.Multicast_pitch_for_sound_edit(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         Display_Sound.Show_Pitch_value(Instrument_id);
@@ -2494,6 +2643,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
                     Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Gain_value(Patch_id, Instrument_id);
@@ -2520,6 +2670,7 @@ void loop()
                         AudioNoInterrupts();
                         Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
                         S_Map_one_Instrument_for_all_notes(Instrument_id);
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
                     }
                     else
@@ -2538,6 +2689,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
                     Players_Manager.Multicast_pan(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Pan_value(Instrument_id);
@@ -2562,6 +2714,7 @@ void loop()
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
                     Players_Manager.Multicast_pan(Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Pan_value(Instrument_id);
@@ -2586,6 +2739,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_attack(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Attack_value(Instrument_id);
@@ -2608,6 +2762,7 @@ void loop()
                     AudioNoInterrupts();
                     bitWrite(Sound[Sound_id].data, 0, !bitRead(Sound[Sound_id].data, 0));
                     Players_Manager.Update_Preset_attack_type(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Attack_value(Instrument_id);
@@ -2632,6 +2787,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_decay(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Decay_value(Instrument_id);
@@ -2656,6 +2812,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_sustain(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Sustain_value(Instrument_id);
@@ -2680,6 +2837,7 @@ void loop()
                 {
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_release(Patch_id, Instrument_id);
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Display_Sound.Show_Release_value(Instrument_id);
@@ -2734,6 +2892,7 @@ void loop()
                     {
                         player_banks_queued |= Player[player_id].Get_tables_reference_mask();
                     }
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Serial.print(F("AudioTables player refs, before: 0x"));
@@ -2834,6 +2993,7 @@ void loop()
                         {
                             Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                         }
+                        DS_sync_stereo_parameters();
                         AudioInterrupts();
 
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2960,6 +3120,7 @@ void loop()
                 {
                     Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 }
+                DS_sync_stereo_parameters();
                 AudioInterrupts();
 
                 Display_Sound.Show_players_Pitch_max_value(Instrument_id);
@@ -3012,6 +3173,7 @@ void loop()
                 {
                     Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
                 }
+                DS_sync_stereo_parameters();
                 AudioInterrupts();
 
                 Display_Sound.Show_players_Pitch_max_value(Instrument_id);
@@ -3097,6 +3259,7 @@ void loop()
                 {
                     player_banks_queued |= Player[player_id].Get_tables_reference_mask();
                 }
+                DS_sync_stereo_parameters();
                 AudioInterrupts();
 
                 // Report the trim result after restoring audio interrupts.
@@ -3130,11 +3293,33 @@ void loop()
             }
         }
 
+        if (Lilla_state_0 == DIRECT_SAMPLING)
+        {
+            if (Recording[recording].stereo)
+            {
+                AudioNoInterrupts();
+                DS_sync_stereo_parameters();
+                AudioInterrupts();
+            }
+            if (Sound[Sound_id].A != sound_before_edit.A || Sound[Sound_id].B != sound_before_edit.B)
+            {
+                Require_FRAM(Archive.Save_DS_edit(recording, Sound[Sound_id].A, Sound[Sound_id].B));
+            }
+        }
+
         // Switch Sound or INSTRUMENT_EDIT
         for (auto Inst_id = 0; Inst_id < INSTRUMENTS; ++Inst_id)
         {
             if (Read_pushbutton(PB_Sound[Inst_id]))
             {
+                if (Lilla_state_0 == DIRECT_SAMPLING)
+                {
+                    if (Inst_id < (Recording[recording].stereo ? 2 : 1))
+                    {
+                        DS_open_sound_edit(Inst_id);
+                    }
+                    continue;
+                }
                 if (Inst_id == Instrument_id)
                 {
                     Lilla_state = INSTRUMENT_VCF;
@@ -3157,6 +3342,7 @@ void loop()
                         solo_flag = false;
                         P_Update_all_maps_Instrument_for_notes();
                     }
+                    DS_sync_stereo_parameters();
                     AudioInterrupts();
 
                     Instrument_id = Inst_id;
@@ -3202,6 +3388,10 @@ void loop()
         // Switch verso un TOOL
         if (Read_pushbutton(PB_Tools))
         {
+            if (Lilla_state_0 == DIRECT_SAMPLING)
+            {
+                DS_close_sound_edit();
+            }
             TOOLS_pushbutton = true;
             Shifters_manager.Switch_led(LED_Tools, true);
 
@@ -3240,6 +3430,31 @@ void loop()
         // Switch Mode
         if (Switches_manager.Get_change(SwitchModes))
         {
+            if (Lilla_state_0 == DIRECT_SAMPLING)
+            {
+                DS_close_sound_edit();
+                switch (Switches_manager.Get_value(SwitchModes))
+                {
+                case SwModesLiveSampler:
+                {
+                    Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING();
+                }
+                break;
+                case SwModesPerformance:
+                {
+                    Switch_from_DIRECT_SAMPLING_to_PERFORMANCE();
+                }
+                break;
+                case SwModesMidiLoop:
+                {
+                    Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP();
+                }
+                break;
+                default:
+                    break;
+                }
+                return;
+            }
             switch (Switches_manager.Get_value(SwitchModes))
             {
             case SwModesSampler:
@@ -5348,6 +5563,18 @@ void loop()
 
         */
 
+        if (DS_state == DS_waiting_state && recording >= 0 && Recording[recording].consistent && Recording[recording].packets > 0)
+        {
+            for (int channel = 0; channel < (Recording[recording].stereo ? 2 : 1); ++channel)
+            {
+                if (Read_pushbutton(PB_Sound[channel]))
+                {
+                    DS_open_sound_edit(channel);
+                    return;
+                }
+            }
+        }
+
         // Show the capacity notice once per visit, after the completed recording has been published.
         if (DS_state == DS_waiting_state && DS_recording_slots_full && !recording_limit_notified)
         {
@@ -5525,6 +5752,7 @@ void loop()
                     Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
 
                     recording = DS_find_Recording_free();
+                    Require_FRAM(Archive.Clear_DS_edit(recording));
                     Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
                     Serial.print(F("**** Prossimo recording: "));
                     Serial.println(recording);
@@ -5729,11 +5957,12 @@ void loop()
                     confirmation = false; // no action
                     int file_L_RAW = -1;
                     int file_R_RAW = -1;
-                    int blocks_per_file = ceil(Recording[recording].bytes / 256.0f); // quanti block compongono il file
+                    const DS_Trim export_trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
+                    const uint32_t export_bytes = (export_trim.last - export_trim.first + 1) * 2;
 
                     if (!Recording[recording].stereo)
                     {
-                        if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        if ((Get_flash_size() - Get_flash_occupation()) >= export_bytes)
                         {
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
@@ -5752,7 +5981,7 @@ void loop()
 
                     else
                     {
-                        if ((Get_flash_size() - Get_flash_occupation()) >= (2 * Recording[recording].bytes))
+                        if ((Get_flash_size() - Get_flash_occupation()) >= (2 * export_bytes))
                         {
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
@@ -5777,7 +6006,7 @@ void loop()
                                 }
                             }
                         }
-                        else if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
+                        else if ((Get_flash_size() - Get_flash_occupation()) >= export_bytes)
                         {
                             DS_export = -1; // no filename available;
                             for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
@@ -5863,6 +6092,7 @@ void loop()
                     }
                     Clear_UI_events();
 
+                    bool converted = true;
                     switch (choice_DS_menu)
                     {
                     case 6: // Cancel (don't export)
@@ -5870,29 +6100,28 @@ void loop()
                         break;
 
                     case 7:                                                   // Convert Mono (file_L)
-                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+                        converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
                     case 8:                                                   // Convert file_L
-                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
+                        converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
                     case 9:                                                   // Convert file_R
-                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+                        converted = DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
                     case 10:                                                  // Convert both file_L and file_R
-                        DS_convert_file_L(file_L_RAW, blocks_per_file * 256); // DS_convert_file_L(int file_L_RAW, int bytes)
-                        DS_convert_file_R(file_R_RAW, blocks_per_file * 256); // DS_convert_file_R(int file_R_RAW, int bytes)
+                        converted = DS_convert_file_L(file_L_RAW) && DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
@@ -5904,8 +6133,14 @@ void loop()
                         break;
                     }
 
-                    // Delete recording
-                    if (choice_DS_menu > 6)
+                    if (!converted)
+                    {
+                        Show_popup_text("RAW EXPORT FAILED", ILI9341_WHITE, ILI9341_RED, 75);
+                        delay(2000);
+                    }
+
+                    // Reclaim the source only after every requested channel was exported.
+                    if (choice_DS_menu > 6 && converted)
                     {
                         P_Invalidate_recording_cache(recording);
                         Recording[recording].consistent = false;
@@ -8768,6 +9003,10 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
 
 bool S_Verify_is_Sound_original(const int sound_id)
 {
+    if (Lilla_state_0 == DIRECT_SAMPLING && sound_id >= SOUNDS_MAX)
+    {
+        return Sound[sound_id] == DS_sound_before_edit[sound_id - SOUNDS_MAX];
+    }
     return Sound[sound_id] == S_Sound_cache_P[sound_id];
 }
 
@@ -9126,31 +9365,12 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     }
     const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const int previous_recording = recording;
-    DS_set_DS_Sampling_Patch();
     Patch_id = PATCHES_MAX;
     recording = DS_get_last_Recording();
 
     PRINT_CONTROL_POINT(recording);
 
-    // Set up Sound parameters
-    if (recording >= 0)
-    {
-        Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
-        Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-
-        Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (Recording[recording].stereo ? 1 : 0);
-        Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-        P_Recording(recording);
-    }
-    else
-    {
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 100000;
-
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 100000;
-    }
-    if (!S_Fill_all_tables())
+    if (!DS_load_recording_sounds() || !S_Fill_all_tables())
     {
         Patch[PATCHES_MAX] = previous_sampler_patch;
         previous.Restore();
@@ -9162,6 +9382,7 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     return true;
 }
 
+FLASHMEM
 bool DS_export_wav_to_SD(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
@@ -9171,6 +9392,8 @@ bool DS_export_wav_to_SD(void)
     {
         return false;
     }
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], entry.stereo);
+    const uint32_t channel_bytes = (trim.last - trim.first + 1) * 2;
     if (!SD.begin(BUILTIN_SDCARD) || (!SD.exists("/LILLAWAV_EXPORT") && !SD.mkdir("/LILLAWAV_EXPORT")))
     {
         return false;
@@ -9212,7 +9435,7 @@ bool DS_export_wav_to_SD(void)
         header[offset + 2] = static_cast<byte>(value >> 16);
         header[offset + 3] = static_cast<byte>(value >> 24);
     };
-    const uint32_t data_bytes = static_cast<uint32_t>(entry.bytes) * channels;
+    const uint32_t data_bytes = channel_bytes * channels;
     memcpy(header, "RIFF", 4);
     put32(4, data_bytes + 36);
     memcpy(header + 8, "WAVEfmt ", 8);
@@ -9228,8 +9451,9 @@ bool DS_export_wav_to_SD(void)
     bool exported = destination.write(header, sizeof(header)) == sizeof(header);
     byte channel_buffer[2][256];
     byte interleaved[512];
-    uint32_t remaining = static_cast<uint32_t>(entry.bytes);
-    for (int index = 0; remaining > 0 && exported; ++index)
+    uint32_t remaining = channel_bytes;
+    uint32_t packet_offset = (trim.first * 2) % PACKET_DIM;
+    for (int index = (trim.first * 2) / PACKET_DIM; remaining > 0 && exported; ++index)
     {
         SerialFlashFile source[2];
         for (int channel = 0; channel < channels; ++channel)
@@ -9240,8 +9464,10 @@ bool DS_export_wav_to_SD(void)
                 exported = false;
                 break;
             }
+            source[channel].seek(packet_offset);
         }
-        uint32_t packet_remaining = remaining < PACKET_DIM ? remaining : PACKET_DIM;
+        uint32_t packet_remaining = remaining < PACKET_DIM - packet_offset ? remaining : PACKET_DIM - packet_offset;
+        packet_offset = 0;
         while (packet_remaining > 0 && exported)
         {
             const uint32_t count = packet_remaining < sizeof(channel_buffer[0]) ? packet_remaining : sizeof(channel_buffer[0]);
@@ -9317,34 +9543,21 @@ void DS_ask_if_EXIT_from_DS(void)
 
 bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
 {
+    const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const Sound_struct previous_left = Sound[SOUNDS_MAX];
     const Sound_struct previous_right = Sound[SOUNDS_MAX + 1];
     const int previous_recording = Preset[0].file >= FIRST_RECORDING_FILE && Preset[0].file < FIRST_LIVE_SAMPLING_FILE ? (Preset[0].file - FIRST_RECORDING_FILE) / 2 : -1;
-    if (recording >= 0)
-    {
-        Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
-        Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-
-        Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (Recording[recording].stereo ? 1 : 0);
-        Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-    }
-    else
-    {
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 100000;
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 100000;
-    }
-
     AudioNoInterrupts();
-    if (!S_Fill_all_tables())
+    if (!DS_load_recording_sounds() || !S_Fill_all_tables())
     {
+        Patch[PATCHES_MAX] = previous_sampler_patch;
         Sound[SOUNDS_MAX] = previous_left;
         Sound[SOUNDS_MAX + 1] = previous_right;
         recording = previous_recording;
         AudioInterrupts();
         return false;
     }
+    P_Update_all_maps_Instrument_for_notes();
     AudioInterrupts();
 
     Display_Sampler.DS_hide_recording();
@@ -9361,34 +9574,21 @@ bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording)
 
 bool DS_back_to_first_DS_Recording(void)
 {
+    const Patch_struct previous_sampler_patch = Patch[PATCHES_MAX];
     const Sound_struct previous_left = Sound[SOUNDS_MAX];
     const Sound_struct previous_right = Sound[SOUNDS_MAX + 1];
     const int previous_recording = Preset[0].file >= FIRST_RECORDING_FILE && Preset[0].file < FIRST_LIVE_SAMPLING_FILE ? (Preset[0].file - FIRST_RECORDING_FILE) / 2 : -1;
-    if (recording >= 0)
-    {
-        Sound[SOUNDS_MAX].file = 2 * recording + FIRST_RECORDING_FILE;
-        Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-
-        Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (Recording[recording].stereo ? 1 : 0);
-        Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-    }
-    else
-    {
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 100000;
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 100000;
-    }
-
     AudioNoInterrupts();
-    if (!S_Fill_all_tables())
+    if (!DS_load_recording_sounds() || !S_Fill_all_tables())
     {
+        Patch[PATCHES_MAX] = previous_sampler_patch;
         Sound[SOUNDS_MAX] = previous_left;
         Sound[SOUNDS_MAX + 1] = previous_right;
         recording = previous_recording;
         AudioInterrupts();
         return false;
     }
+    P_Update_all_maps_Instrument_for_notes();
     AudioInterrupts();
 
     Print_Sound(SOUNDS_MAX);
@@ -9413,139 +9613,67 @@ bool DS_back_to_first_DS_Recording(void)
 }
 
 FLASHMEM
-void DS_convert_file_L(int file_L_RAW, int bytes) // Convert the left recording channel into a RAW file.
+bool DS_convert_channel_to_raw(int file_id, int channel)
 {
-    if (!FileNameRegistry::Bind_numeric(file_L_RAW) || !FileNameRegistry::Save())
+    if (!FileNameRegistry::Bind_numeric(file_id) || !FileNameRegistry::Save())
     {
-        Show_popup_text("CANNOT SAVE FILE NAME", ILI9341_WHITE, ILI9341_RED, 75);
-        return;
+        return false;
     }
     char audio_filename[NAME_FILE_SIZE];
     char packet_filename[NAME_PACKET_SIZE];
-    P_Invalidate_file_cache(file_L_RAW);
-    Serial.println("*** Convert file_L ***");
-
-    // create the file on the Flash chip and copy data
-    Serial.print(F("Create file: "));
-    Serial.print(Get_file_name(file_L_RAW, audio_filename));
-    Serial.print(F(" dimension (bytes): "));
-    Serial.println(bytes);
-
-    char buffer[256];
-    int packet = 0;
-    int last_blocks = -1;
-
-    // creazione file vuoto
-    SerialFlash.create(Get_file_name(file_L_RAW, audio_filename), bytes);
-
-    // apertura file
-    SerialFlashFile destination_file = SerialFlash.open(Get_file_name(file_L_RAW, audio_filename));
-
-    // copia file, caso MONO
-    if (!Recording[recording].stereo)
+    const auto &entry = Recording[recording];
+    const int channels = entry.stereo ? 2 : 1;
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], entry.stereo);
+    const uint32_t bytes = (trim.last - trim.first + 1) * 2;
+    P_Invalidate_file_cache(file_id);
+    Get_file_name(file_id, audio_filename);
+    if (!SerialFlash.create(audio_filename, bytes))
     {
-        // copia dal primo al penultimo packet
-        if (Recording[recording].packets > 1)
-        {
-            for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + Recording[recording].packets - 1); ++packet)
-            {
-                SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-                for (auto i = 0; i < 256; ++i)
-                {
-                    source_file.read(buffer, 256);
-                    destination_file.write(buffer, 256);
-                }
-            }
-        }
-        // copia l'ultimo packet
-        packet = Recording[recording].first_packet + Recording[recording].packets - 1;
-        SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-        last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-        for (auto i = 0; i < last_blocks; ++i)
-        {
-            source_file.read(buffer, 256);
-            destination_file.write(buffer, 256);
-        }
+        return false;
     }
-
-    // copia file, caso MONO
-    else
+    SerialFlashFile destination = SerialFlash.open(audio_filename);
+    bool converted = static_cast<bool>(destination);
+    byte buffer[256];
+    uint32_t remaining = bytes;
+    uint32_t packet_offset = (trim.first * 2) % PACKET_DIM;
+    for (int index = (trim.first * 2) / PACKET_DIM; remaining > 0 && converted; ++index)
     {
-        // file_L
-        // copia dal primo al penultimo packet
-        if (Recording[recording].packets > 1)
+        SerialFlashFile source = SerialFlash.open(Get_packet_name(entry.first_packet + index * channels + channel, packet_filename));
+        if (!source)
         {
-            for (packet = Recording[recording].first_packet; packet < (Recording[recording].first_packet + 2 * (Recording[recording].packets - 1)); packet += 2)
-            {
-                SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-                for (auto i = 0; i < 256; ++i)
-                {
-                    source_file.read(buffer, 256);
-                    destination_file.write(buffer, 256);
-                }
-            }
+            converted = false;
+            break;
         }
-        // copia l'ultimo packet
-        packet = Recording[recording].first_packet + 2 * (Recording[recording].packets - 1);
-        SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-        last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-        for (auto i = 0; i < last_blocks; ++i)
+        source.seek(packet_offset);
+        uint32_t packet_remaining = remaining < PACKET_DIM - packet_offset ? remaining : PACKET_DIM - packet_offset;
+        packet_offset = 0;
+        while (packet_remaining > 0 && converted)
         {
-            source_file.read(buffer, 256);
-            destination_file.write(buffer, 256);
+            const uint32_t count = packet_remaining < sizeof(buffer) ? packet_remaining : sizeof(buffer);
+            converted = source.read(buffer, count) == count && destination.write(buffer, count) == count;
+            packet_remaining -= count;
+            remaining -= count;
         }
+        source.close();
     }
+    destination.close();
+    if (!converted)
+    {
+        SerialFlash.remove(audio_filename);
+    }
+    return converted;
 }
 
 FLASHMEM
-void DS_convert_file_R(int file_R_RAW, int bytes) // Convert the right recording channel into a RAW file.
+bool DS_convert_file_L(int file_L_RAW)
 {
-    if (!FileNameRegistry::Bind_numeric(file_R_RAW) || !FileNameRegistry::Save())
-    {
-        Show_popup_text("CANNOT SAVE FILE NAME", ILI9341_WHITE, ILI9341_RED, 75);
-        return;
-    }
-    char audio_filename[NAME_FILE_SIZE];
-    char packet_filename[NAME_PACKET_SIZE];
-    P_Invalidate_file_cache(file_R_RAW);
-    Serial.println("*** Convert file_R ***");
+    return DS_convert_channel_to_raw(file_L_RAW, 0);
+}
 
-    // create the file on the Flash chip and copy data
-    Serial.print(F("Create file: "));
-    Serial.print(Get_file_name(file_R_RAW, audio_filename));
-    Serial.print(F(" dimension (bytes): "));
-    Serial.println(bytes);
-
-    char buffer[256];
-    int packet = 0;
-    int last_blocks = -1;
-
-    SerialFlash.create(Get_file_name(file_R_RAW, audio_filename), bytes);
-    SerialFlashFile destination_file = SerialFlash.open(Get_file_name(file_R_RAW, audio_filename));
-
-    // copia dal primo al penultimo packet
-    if (Recording[recording].packets > 1)
-    {
-        for (packet = Recording[recording].first_packet + 1; packet < (Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1)); packet += 2)
-        {
-            SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-            for (auto i = 0; i < 256; ++i)
-            {
-                source_file.read(buffer, 256);
-                destination_file.write(buffer, 256);
-            }
-        }
-    }
-
-    // copia l'ultimo packet
-    packet = Recording[recording].first_packet + 1 + 2 * (Recording[recording].packets - 1);
-    SerialFlashFile source_file = SerialFlash.open(Get_packet_name(packet, packet_filename));
-    last_blocks = (Recording[recording].bytes % PACKET_DIM) % 256;
-    for (auto i = 0; i < last_blocks; ++i)
-    {
-        source_file.read(buffer, 256);
-        destination_file.write(buffer, 256);
-    }
+FLASHMEM
+bool DS_convert_file_R(int file_R_RAW)
+{
+    return DS_convert_channel_to_raw(file_R_RAW, 1);
 }
 
 void DS_Print_Directory(File dir, int numSpaces)
@@ -14551,6 +14679,14 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 FLASHMEM
 void S_Select_menu_elements(void)
 {
+    if (Lilla_state_0 == DIRECT_SAMPLING)
+    {
+        S_Menu[value_S_Return] = true;
+        S_Menu[value_S_Clone] = false;
+        S_Menu[value_S_Drop] = false;
+        S_menu_max = 0;
+        return;
+    }
     // voices of instrument_edit_menu that can be displayed
     S_Menu[value_S_Return] = true; // RETURN
     S_Menu[value_S_Clone] = true;  // CLONE
@@ -14582,6 +14718,20 @@ void S_Select_menu_elements(void)
 
 bool S_Fill_tables(uint8_t instrument_id)
 {
+    if (Lilla_state == SOUND_EDIT && Lilla_state_0 == DIRECT_SAMPLING && Recording[recording].stereo)
+    {
+        const int other_instrument = instrument_id ^ 1;
+        const int other_sound = SOUNDS_MAX + other_instrument;
+        const Sound_struct previous_other = Sound[other_sound];
+        DS_copy_edited_parameters(DS_sound_before_edit[instrument_id], Sound[SOUNDS_MAX + instrument_id], Sound[other_sound]);
+        if (!S_Rebuild_audio_tables(instrument_id))
+        {
+            Sound[other_sound] = previous_other;
+            return false;
+        }
+        Players_Manager.Multicast_main_settings_editing(Patch_id, other_instrument);
+        return true;
+    }
     return S_Rebuild_audio_tables(instrument_id);
 }
 

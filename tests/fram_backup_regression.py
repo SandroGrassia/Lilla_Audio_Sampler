@@ -87,6 +87,7 @@ int main() {
     assert(std::equal(baseline.begin() + 256, baseline.begin() + 0xFE00, LillaFram.memory.begin() + 256));
     baseline = LillaFram.memory;
     assert(FileNameRegistry::Add("kick.raw") == 1 && FileNameRegistry::Save());
+    assert(archive.Save_DS_edit(0, 123, 4567) == 0);
     baseline = LillaFram.memory;
     File backup = SD.open("/metadata.test", FILE_WRITE);
     assert(archive.Save_FRAM_backup(backup));
@@ -118,6 +119,8 @@ int main() {
         assert(std::equal(baseline.begin() + 256, baseline.begin() + 0xFE00, LillaFram.memory.begin() + 256));
         A::FRAM_Recording_struct actual{};
         assert(archive.FRAM_Read_recording(0, actual) == 0 && actual.packets == 7);
+        uint32_t first = 0, last = 7 * PACKET_DIM / 2 - 1;
+        assert(archive.Read_DS_edit(0, first, last) == 0 && first == 123 && last == 4567);
     }
     File::fail_write = true;
     LillaFram.clear_io();
@@ -169,34 +172,38 @@ int main() {
     assert(LillaFram.memory[100] == baseline[100]);
     assert(FileNameRegistry::Find("kick.raw") == -1); // Legacy backup restores numeric identities only.
     assert(FileNameRegistry::Find("37.raw") == 37); // A referenced but absent legacy file keeps its ID.
-    for (uint16_t version : {2, 3})
+    for (uint16_t version : {2, 3, 4, 5})
     {
         old.version = version;
-        old.payload_bytes = A::FRAM_LEGACY_END_ADDRESS - 256 + (version == 3 ? sizeof(audio) : 0);
+        const uint32_t end = version <= 3 ? A::FRAM_LEGACY_END_ADDRESS : FileNameRegistry::END_ADDRESS;
+        const bool has_audio = version == 3 || version == 5;
+        old.payload_bytes = end - 256 + (has_audio ? sizeof(audio) : 0);
         bytes = std::make_shared<std::vector<uint8_t>>(sizeof(old) + old.payload_bytes);
-        memcpy(bytes->data() + sizeof(old), legacy.data() + 256, A::FRAM_LEGACY_END_ADDRESS - 256);
-        if (version == 3)
+        memcpy(bytes->data() + sizeof(old), legacy.data() + 256, end - 256);
+        if (has_audio)
         {
             audio[0].bytes[0] = 7 * PACKET_DIM;
-            memcpy(bytes->data() + sizeof(old) + A::FRAM_LEGACY_END_ADDRESS - 256, audio, sizeof(audio));
+            memcpy(bytes->data() + sizeof(old) + end - 256, audio, sizeof(audio));
         }
         old.payload_crc32 = FRAM_Calculate_crc32(bytes->data() + sizeof(old), old.payload_bytes);
         memcpy(bytes->data(), &old, sizeof(old));
         File previous{bytes};
         assert(archive.Verify_FRAM_backup(previous));
-        if (version == 3)
+        if (has_audio)
         {
             assert(archive.Read_backup_audio(previous, audio, entries));
         }
         assert(archive.Restore_FRAM_backup(previous, false));
-        assert(FileNameRegistry::Find("37.raw") == 37);
+        assert(version <= 3 ? FileNameRegistry::Find("37.raw") == 37 : FileNameRegistry::Find("kick.raw") == 1);
+        uint32_t first = 0, last = 7 * PACKET_DIM / 2 - 1;
+        assert(archive.Read_DS_edit(0, first, last) == 0 && first == 0 && last == 7 * PACKET_DIM / 2 - 1);
         assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
     }
     assert(archive.Factory_reset_FRAM(false) == 0);
     assert(archive.Check_FRAM_archive() != 0);
     assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
     assert(archive.Check_FRAM_archive() == 0);
-    std::puts("PASS: legacy migration, V4/V5 registry backup, audio manifest, deferred READY, interruption/retry and CRC rejection");
+    std::puts("PASS: V1-V5 compatibility, V6/V7 recording trims, audio manifest, deferred READY, interruption/retry and CRC rejection");
 }
 '''
 compiler = base["compiler"]

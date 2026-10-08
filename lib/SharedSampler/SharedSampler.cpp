@@ -6,6 +6,70 @@
 
 #include "SharedSampler.h"
 
+DS_Trim DS_get_trim(const Sound_struct *channels, bool stereo)
+{
+    DS_Trim trim = {channels[0].A, channels[0].B};
+    if (stereo)
+    {
+        trim.first = channels[1].A < trim.first ? channels[1].A : trim.first;
+        trim.last = channels[1].B > trim.last ? channels[1].B : trim.last;
+    }
+    return trim;
+}
+
+void DS_copy_edited_parameters(const Sound_struct &before, const Sound_struct &edited, Sound_struct &other)
+{
+    // Copy only edited parameters: retain each channel's source and untouched stereo pan.
+    if (edited.A != before.A)
+    {
+        other.A = edited.A;
+    }
+    if (edited.B != before.B)
+    {
+        other.B = edited.B;
+    }
+    if (edited.mode != before.mode)
+    {
+        other.mode = edited.mode;
+    }
+    if (edited.pitch != before.pitch)
+    {
+        other.pitch = edited.pitch;
+    }
+    if (edited.Noclick != before.Noclick)
+    {
+        other.Noclick = edited.Noclick;
+    }
+    if (edited.pan != before.pan)
+    {
+        other.pan = edited.pan;
+    }
+    if (edited.data != before.data)
+    {
+        other.data = edited.data;
+    }
+    if (edited.attack != before.attack)
+    {
+        other.attack = edited.attack;
+    }
+    if (edited.decay != before.decay)
+    {
+        other.decay = edited.decay;
+    }
+    if (edited.sustain != before.sustain)
+    {
+        other.sustain = edited.sustain;
+    }
+    if (edited.release != before.release)
+    {
+        other.release = edited.release;
+    }
+    if (edited.gain != before.gain)
+    {
+        other.gain = edited.gain;
+    }
+}
+
 // DIRECT SAMPLING
 
 bool Menu_DS[DS_menu_elements];
