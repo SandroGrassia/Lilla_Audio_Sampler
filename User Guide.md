@@ -1,10 +1,12 @@
 # LILLA User Guide
 
+[English](User%20Guide.md) | [Italiano](Manuale%20Utente.md) | [Deutsch](Benutzerhandbuch.md) | [Français](Guide%20utilisateur.md)
+
 For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.0.2**
 
 Guide edition: **8 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.0.2](LILLA_User_Guide_v7.0.2.pdf).
+Printable edition: [User Guide PDF for firmware 7.0.2](User%20Guide.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 

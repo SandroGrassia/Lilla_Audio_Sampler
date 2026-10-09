@@ -12,7 +12,7 @@ The codebase targets a Teensy 4.1 running at 600 MHz and is organized as a stand
     <img width="1000" alt="LILLA Audio Sampler in blue" src="doc/assets/images/lilla_blue_1.jpg">
 </p>
 
-Read the illustrated [User Guide](USER_GUIDE.md) for connections, controls and operating procedures.
+Read the illustrated [User Guide](User%20Guide.md) for connections, controls and operating procedures. Also available in [Italiano](Manuale%20Utente.md), [Deutsch](Benutzerhandbuch.md) and [Français](Guide%20utilisateur.md). The printable English edition is [User Guide.pdf](User%20Guide.pdf).
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
@@ -41,7 +41,7 @@ The root key establishes the reference pitch of each sound. The keyboard range d
 
 Press **S1-S8** to edit an active sound. Sound Edit provides source selection, waveform trimming, pitch, gain, pan, ADSR envelope and playback direction. One-shot modes suit hits and natural decays; forward, reverse and alternating loops extend a selected region into a sustained sound. Noclick provides boundary smoothing where supported. Auto Tune analyses the selected region and adjusts its pitch toward a chromatic note; the result can then be refined by ear.
 
-The instrument VCF adds low-pass, high-pass, band-pass or notch filtering, resonance and modulation. Save the patch to retain sound edits, or clone it and develop a variation without replacing the original. See [Performance](USER_GUIDE.md#performance) and [Editing a sound](USER_GUIDE.md#editing-a-sound) for the complete workflow.
+The instrument VCF adds low-pass, high-pass, band-pass or notch filtering, resonance and modulation. Save the patch to retain sound edits, or clone it and develop a variation without replacing the original. See [Performance](User%20Guide.md#performance) and [Editing a sound](User%20Guide.md#editing-a-sound) for the complete workflow.
 
 ### Sampler
 
@@ -49,7 +49,7 @@ Sampler records the line input as a mono or stereo take in Flash. Use **PAUSE+RE
 
 **MAKE_RAW** converts recording material into the source format used by patches. **EXPORT_WAV_TO_SD** writes a 16-bit, 44.1 kHz WAV to microSD for editing, sharing or archiving on a computer. This makes Sampler useful for recording an instrument, voice, percussion hit or complete phrase before deciding how to map it to the keyboard.
 
-Recordings occupy persistent Flash storage, while WAV exports are written to `/LILLAWAV_EXPORT`. Keep an external copy before replacing the audio library or performing destructive storage operations. See [Recording with Sampler](USER_GUIDE.md#recording-with-sampler).
+Recordings occupy persistent Flash storage, while WAV exports are written to `/LILLAWAV_EXPORT`. Keep an external copy before replacing the audio library or performing destructive storage operations. See [Recording with Sampler](User%20Guide.md#recording-with-sampler).
 
 ### Live Sampler
 
@@ -63,7 +63,7 @@ Start-point behavior determines the relationship between playback and recording.
 
 A stereo-linked recording compressor controls the combined input and feedback level; toggle **COMPRESSOR ON/OFF** with Select.
 
-To keep a region, stop recording, choose a loop mode, refine its boundaries and press **S1-S8** to select the destination slot. A MIDI key sets the captured sound's root key. Stereo captures can use adjacent slots for their left and right channels. Return to Performance to review the new patch and save it, which writes the captured audio to Flash. The live buffer itself is temporary and does not survive power-off. See [Live Sampler](USER_GUIDE.md#live-sampler).
+To keep a region, stop recording, choose a loop mode, refine its boundaries and press **S1-S8** to select the destination slot. A MIDI key sets the captured sound's root key. Stereo captures can use adjacent slots for their left and right channels. Return to Performance to review the new patch and save it, which writes the captured audio to Flash. The live buffer itself is temporary and does not survive power-off. See [Live Sampler](User%20Guide.md#live-sampler).
 
 ### MIDI Loop
 
@@ -73,7 +73,7 @@ Track 1 is the master and establishes the loop duration. Record the first phrase
 
 Tracks can be started or stopped individually. Their **LEVEL**, **SHIFT** and **TRANSP** parameters adjust playback level, timing offset and note transposition. The Tempo control changes the timing of the MIDI sequence, while the Loop control selects saved loops and controls group playback. Tempo changes affect event timing rather than time-stretching sample audio.
 
-Save an arrangement or save a new variation to microSD in `/LILLALOOP`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](USER_GUIDE.md#midi-loop).
+Save an arrangement or save a new variation to microSD in `/LILLALOOP`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
 
 ## Tools
 
@@ -85,7 +85,7 @@ Mixer controls how sound sources and the line input reach the main output and th
 
 Turn Select to choose a source column, press it to enter that source's fields, then use Select and Value to choose and adjust parameters. Press Select again to leave the fields. Separate **LINEOUT** and **MONITOR** routes are useful when auditioning material or checking a source before adding it to the main mix.
 
-If a source is silent, check its output route and mute/gain settings as well as its MIDI channel, keyboard range and patch volume. See [Mixer](USER_GUIDE.md#mixer).
+If a source is silent, check its output route and mute/gain settings as well as its MIDI channel, keyboard range and patch volume. See [Mixer](User%20Guide.md#mixer).
 
 ### Delay
 
@@ -93,13 +93,13 @@ Delay is a stereo effect with selectable sound routing, feedback, delay time and
 
 Modulation varies the delay time. Source, frequency, depth and left/right phase controls shape how the repeats move, while the difference between the two channel times creates stereo separation. Start with one routed sound and low feedback, listen to short notes with gaps between them, then increase feedback or modulation to build the effect.
 
-The Delay page controls the echo effect's feedback; the Live Sampler's Feedback control determines how much playback is mixed back into the recording. See [Delay](USER_GUIDE.md#delay).
+The Delay page controls the echo effect's feedback; the Live Sampler's Feedback control determines how much playback is mixed back into the recording. See [Delay](User%20Guide.md#delay).
 
 ### MIDI Monitor
 
 The **Test** position opens the MIDI Monitor. It displays incoming MIDI messages and their associated data, making it possible to check reception of notes, pitch bend, aftertouch and Control Change messages from a connected controller.
 
-Use it to verify that a keyboard or sequencer is transmitting and that the expected channel, note or controller data reaches LILLA. If note messages appear but no sound is heard, continue with the patch's MIDI assignments, keyboard ranges, audio sources and Mixer routes. See [Check incoming MIDI](USER_GUIDE.md#check-incoming-midi).
+Use it to verify that a keyboard or sequencer is transmitting and that the expected channel, note or controller data reaches LILLA. If note messages appear but no sound is heard, continue with the patch's MIDI assignments, keyboard ranges, audio sources and Mixer routes. See [Check incoming MIDI](User%20Guide.md#check-incoming-midi).
 
 ### Setup
 
@@ -116,7 +116,7 @@ Setup groups global playing preferences, MIDI Control Change assignments and sto
 
 For example, moving 12 MIDI keys above the root raises pitch by an octave at the normal setting, but by only six semitones with KEY STEP set to 1/2. This changes the pitch spacing of keyboard playback; FIRST OCTAVE only changes the displayed octave names. KEY STEP is stored as a global setting, so return it to one semitone when conventional chromatic mapping is required.
 
-Setup also provides audio import from `/LILLA_AUDIO`, numbered configuration and recording backups in `/LILLABACKUP`, restoration from the backup root, and factory reset. Import and restore can replace existing material: preserve the relevant audio library, patches and loop files before using those operations. See [Setup and MIDI controls](USER_GUIDE.md#setup-and-midi-controls) and [Backup and restore](USER_GUIDE.md#backup-and-restore).
+Setup also provides audio import from `/LILLA_AUDIO`, numbered configuration and recording backups in `/LILLABACKUP`, restoration from the backup root, and factory reset. Import and restore can replace existing material: preserve the relevant audio library, patches and loop files before using those operations. See [Setup and MIDI controls](User%20Guide.md#setup-and-midi-controls) and [Backup and restore](User%20Guide.md#backup-and-restore).
 
 ## Audio Files and Storage
 
@@ -124,7 +124,7 @@ Setup also provides audio import from `/LILLA_AUDIO`, numbered configuration and
 - Import from microSD: mono RAW, mono/stereo 16-bit PCM WAV and AIFF at 44.1 kHz, and MP3 with conversion to 44.1 kHz. See [MP3 import](docs/mp3-import.md) for supported rates and implementation details.
 - Import duration limit: approximately 35.7 seconds per source file; longer files are truncated.
 - Flash stores imported audio and Sampler recordings; PSRAM provides live recording and playback caches; FRAM stores patch and configuration data.
-- Configuration and recording backup/restore are available through microSD. A complete archive also requires separate copies of the imported audio library and MIDI-loop files; see [Backup and restore](USER_GUIDE.md#backup-and-restore).
+- Configuration and recording backup/restore are available through microSD. A complete archive also requires separate copies of the imported audio library and MIDI-loop files; see [Backup and restore](User%20Guide.md#backup-and-restore).
 
 ## Hardware Summary
 
@@ -161,13 +161,13 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 - [lib](lib): custom modules for audio, display, control, storage, and routing
 - [doc/assets/images](doc/assets/images): images used by the README and User Guide
 - [docs](docs): technical notes and implementation details
-- [USER_GUIDE.md](USER_GUIDE.md): illustrated operating guide
+- [User Guide.md](User%20Guide.md): illustrated operating guide
 - [FIRMWARE_ARCHITECTURE.md](FIRMWARE_ARCHITECTURE.md): technical architecture and maintenance guide
 - [platformio.ini](platformio.ini): PlatformIO build configuration
 
 ## Firmware download
 
-Download [Lilla_v7_0_2.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.0.2/Lilla_v7_0_2.hex) from [release v7.0.2](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.0.2). The release includes the compiled firmware and the source code for the same tagged commit. See the [User Guide](USER_GUIDE.md) for upload instructions.
+Download [Lilla_v7_0_2.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.0.2/Lilla_v7_0_2.hex) from [release v7.0.2](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.0.2). The release includes the compiled firmware and the source code for the same tagged commit. See the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

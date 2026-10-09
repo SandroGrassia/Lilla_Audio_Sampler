@@ -2,7 +2,7 @@
 
 This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.0.0 04/10/2026`. Constants and source links below are the reference when the implementation changes.
 
-For operating instructions, see the [User Guide](USER_GUIDE.md). For the project overview and build command, see the [README](README.md).
+For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
 ## 1. Platform and organization
 
@@ -167,7 +167,7 @@ The control path starts with the SPI-connected control expanders and the encoder
 
 `Pointer*` classes represent page selection/navigation behavior; `Display*` classes render page content. `Shared*` modules carry the associated values and state. `main.cpp` connects these pieces to audio and archive operations. When adding a field, review its navigation, drawing, parameter mapping, audio publication and persistence together.
 
-For text popups and red-button confirmation, reuse `Show_popup_text` and `Confirm_frame_on_RED` where applicable. The [User Guide](USER_GUIDE.md) documents the resulting user-visible behavior.
+For text popups and red-button confirmation, reuse `Show_popup_text` and `Confirm_frame_on_RED` where applicable. The [User Guide](User%20Guide.md) documents the resulting user-visible behavior.
 
 ## 9. Maintenance guide
 
