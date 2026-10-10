@@ -26,12 +26,13 @@
 #include "PlayerReadDiagnostics.h"
 #include "PlayerReadBudget.h"
 #include "PlayerInterpolator.h"
+#include "PlayerAntialias.h"
 
 class AudioPlayer : public AudioStream
 {
 private:
-    static constexpr int BASKET_DIM = 4500;    // la dimensione deve essere non inferiore a AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE
-    static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + 2);
+    static constexpr int BASKET_DIM = PlayerAntialias::Basket_capacity; // Includes source-domain IIR history at the maximum playback pitch.
+    static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + PlayerAntialias::History_base + PlayerAntialias::History_per_pitch * MAX_PITCH_WAVETABLE + 2);
     static_assert(MAX_PITCH_PSRAM <= MAX_PITCH_WAVETABLE && MAX_PITCH_FLASH <= MAX_PITCH_WAVETABLE);
     static int16_t samples_basket[BASKET_DIM]; // cache array unico per samples copiati dai Player
     int16_t block[AUDIO_BLOCK_SAMPLES];
@@ -294,8 +295,15 @@ private:
     PlayerReadDiagnostics read_diagnostics;
     void Record_read(PlayerReadSource source, int count, uint16_t flags = 0);
     float interpolation_mix = 0.0f; // Full sinc below 0.75x; blend continuously to linear at 1x.
-    void Harvest_sinc_samples(void); // Gather the eight-tap source window without advancing the playhead by its padding.
-    void Harvest_samples(void); // Optional diagnostics cover source assembly, including interpolation padding.
+    PlayerAntialias::Settings antialias;
+    static float resampled_basket[AUDIO_BLOCK_SAMPLES]; // Shared like samples_basket; each harvest is consumed before the next.
+    int harvested_samples = 0;
+    void Harvest_filtered_samples(int left, int right, float distance); // Source context does not advance the logical playhead or close a source early.
+    void Harvest_samples(int outputs = AUDIO_BLOCK_SAMPLES); // Diagnostics cover source assembly and source-domain anti-alias processing.
+    float Read_rendered_sample(int sample, float position) const
+    {
+        return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, interpolation_mix);
+    }
     void Update_pitch(void);
     void Update_volume_gain(void);
     void Update_pan_gain(void);
