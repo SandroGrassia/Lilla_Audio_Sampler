@@ -26,7 +26,7 @@ prefix = r"""
 #define F(value) value
 using byte = uint8_t;
 constexpr uint8_t ONCE_FWD = 0, ONCE_REV = 1, LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV = 5;
-constexpr int PLAYERS = 3, PACKET_DIM = 65536, AUDIO_BLOCK_SAMPLES = 128;
+constexpr int PLAYERS = 3, PACKET_DIM = 65536;
 int LS_buffer_dim = 8;
 constexpr uint32_t F_CPU_ACTUAL = 600000000;
 uint32_t audio_update_cycle = 1, ARM_DWT_CYCCNT = 0, ARM_DEMCR = 0, ARM_DWT_CTRL = 0;
@@ -88,17 +88,14 @@ public:
     bool Fill_loop_samples(int16_t *, int, int, int, int, int, uint8_t, const int16_t *, int);
     void Wavetable_harvest();
     float interpolation_mix = 0;
-    PlayerAntialias::Settings antialias;
-    float resampled_basket[AUDIO_BLOCK_SAMPLES] = {};
-    int harvested_samples = 0;
     bool idle = false, power_on = true, live_forward_end = false, live_forward_empty = false;
     int A_Flash_sample = 0, B_Flash_sample = 7, C_Flash_sample = 14, B_Flash_sample_shifted = 7, delta_Noclick = 0;
     int16_t *Noclick_ptr = nullptr;
     Recorder recorder;
     Recorder *LiveSampler_ptr = &recorder;
     void Fast_stop() { state = IDLE_REQUEST; }
-    void Harvest_filtered_samples(int left, int right, float distance);
-    void Harvest_samples(int outputs = AUDIO_BLOCK_SAMPLES);
+    void Harvest_sinc_samples();
+    void Harvest_samples();
     const PlayerReadDiagnostics &Get_read_diagnostics() const { return read_diagnostics; }
 };
 """
@@ -118,7 +115,7 @@ manager_stub = 'class PlayersManager\n{\npublic:\n' + budget_type + '\n' + snaps
     bool Copy_read_diagnostics(ReadDiagnosticsSnapshot &, ReadDiagnosticsSnapshot &, ReadDiagnosticsSnapshot &, ReadDiagnosticsSnapshot &) const;
 };
 """
-methods = ''.join(method(player, signature) for signature in ['void AudioPlayer::Record_read(', 'void AudioPlayer::Read_samples(', 'int AudioPlayer::Loop_period(', 'bool AudioPlayer::Fill_loop_samples(', 'void AudioPlayer::Wavetable_harvest(', 'void AudioPlayer::Harvest_samples(', 'void AudioPlayer::Harvest_filtered_samples('])
+methods = ''.join(method(player, signature) for signature in ['void AudioPlayer::Record_read(', 'void AudioPlayer::Read_samples(', 'int AudioPlayer::Loop_period(', 'bool AudioPlayer::Fill_loop_samples(', 'void AudioPlayer::Wavetable_harvest(', 'void AudioPlayer::Harvest_samples(', 'void AudioPlayer::Harvest_sinc_samples('])
 methods += ''.join(method(manager, signature) for signature in ['constexpr float Flash_read_time_us(', 'constexpr float Psram_read_time_us(', 'constexpr float Ram_read_time_us(', 'bool PlayersManager::Get_read_time_us(', 'bool PlayersManager::Get_read_usage_time_us(', 'void PlayersManager::Enable_read_diagnostics(', 'void PlayersManager::Collect_read_diagnostics(', 'bool PlayersManager::Copy_read_diagnostics('])
 tests = r"""
 void near(float a, float b) { assert(std::fabs(a - b) < 0.02f); }
@@ -225,7 +222,7 @@ int main()
     {
         assert(p.samples_basket[i] == source[i % 8]);
     }
-    p.mode_player = 0; p.pitch = 1;
+    p.mode_player = 0;
     p.read_diagnostics = {}; p.Wavetable_ptr = source; p.a_sample = 6; p.b_sample = 10; p.use_Wavetable = true;
     p.Harvest_samples();
     assert(p.samples_basket[0] == 16 && p.samples_basket[1] == 17 && p.samples_basket[2] == 0);
@@ -354,75 +351,6 @@ int main()
             assert(images[1] < images[0] * 0.3); // At least 10.4 dB reduction for these representative tones.
         }
     }
-
-    // IIR source history follows logical loop order even when longer than a complete loop.
-    AudioPlayer upward;
-    upward.source_now = {Psram, 8, source};
-    for (const float rate : {1.001f, 1.25f, 1.5f, 2.0f, 4.0f, 8.0f, 16.0f, 35.0f})
-    {
-        for (const int mode : {LOOP_FWD, LOOP_REV, LOOP_FWD_REV})
-        {
-            upward.pitch = rate;
-            upward.mode_player = mode;
-            upward.a_sample = mode == LOOP_REV ? 7.25f : 0.25f;
-            upward.b_sample = upward.a_sample + 127 * rate;
-            upward.Harvest_samples();
-            const int history = upward.antialias.history;
-            assert(upward.antialias.mix > 0 && upward.initial_index_offset == history + 0.25f);
-            const int period = mode == LOOP_FWD_REV ? 14 : 8;
-            for (int i = 0; i < upward.harvested_samples; ++i)
-            {
-                const int phase = ((i - history) % period + period) % period;
-                const int index = mode == LOOP_REV ? 7 - phase : (mode == LOOP_FWD_REV && phase >= 8 ? 14 - phase : phase);
-                assert(upward.samples_basket[i] == source[index]);
-            }
-            for (const float value : upward.resampled_basket)
-            {
-                assert(std::isfinite(value) && value > 9 && value < 18);
-            }
-            assert(upward.harvested_samples <= PlayerAntialias::Basket_capacity);
-        }
-    }
-    // IIR once/reverse history is zero before the note and never crosses A/B.
-    for (const int mode : {ONCE_FWD, ONCE_REV})
-    {
-        upward.pitch = 2;
-        upward.mode_player = mode;
-        upward.a_sample = mode == ONCE_REV ? 7 : 0;
-        upward.b_sample = upward.a_sample + 4;
-        upward.state = 1;
-        upward.Harvest_samples(3);
-        assert(upward.state == 1);
-        for (int i = 0; i < upward.antialias.history; ++i)
-        {
-            assert(upward.samples_basket[i] == 0);
-        }
-        assert(upward.a_first_sample == upward.b_sample + upward.pitch);
-    }
-
-    // Maximum-pitch contiguous windows split real transfers and RAM diagnostic proxies at 4500.
-    std::vector<int16_t> long_source(5000, 1234);
-    AudioPlayer longest;
-    longest.source_now = {Psram, 5000, long_source.data()};
-    longest.Wavetable_ptr = long_source.data();
-    longest.Wavetable_length = 5000;
-    longest.B_Flash_sample = 4999;
-    longest.pitch = 35;
-    for (const bool wavetable : {false, true})
-    {
-        longest.use_Wavetable = wavetable;
-        longest.a_sample = 500;
-        longest.b_sample = 500 + 127 * longest.pitch;
-        longest.read_diagnostics = {};
-        std::fill(std::begin(longest.resampled_basket), std::end(longest.resampled_basket), 999999.0f);
-        longest.Harvest_samples();
-        const auto &usage = longest.read_diagnostics.sources[wavetable ? 2 : 1];
-        assert(usage.operations == 2 && usage.samples == 4931 && usage.uncovered_operations == 0);
-        for (const float value : longest.resampled_basket)
-        {
-            assert(std::abs(value - 1234) < 2);
-        }
-    }
     AudioPlayer voices[PLAYERS];
     PlayersManager manager(voices);
     voices[0].read_diagnostics = p.read_diagnostics; voices[0].read_diagnostics.cycle = audio_update_cycle;
@@ -502,14 +430,14 @@ int main()
 # Verify the reset is before all early exits and all three production harvest sites use the wrapper.
 update = method(player, 'void AudioPlayer::update(')
 assert update.index('read_diagnostics = {};') < update.index('return;')
-assert update.count('Harvest_samples();') == 1 and update.count('Harvest_samples(mix_samples);') == 2
+assert update.count('Harvest_samples();') == 3
 assert update.count('PlayerReadDiagnostics::RestartExecuted') == update.count('Start_playing();') == 3
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='player_read_diag_') as folder:
     cpp = Path(folder) / 'test.cpp'
     exe = Path(folder) / 'test.exe'
     cpp.write_text(prefix + manager_stub + methods + tests, encoding='utf-8')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(root / 'lib/AudioPlayer'), str(cpp), str(root / 'lib/AudioPlayer/PlayerInterpolator.cpp'), str(root / 'lib/AudioPlayer/PlayerAntialias.cpp'), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(root / 'lib/AudioPlayer'), str(cpp), str(root / 'lib/AudioPlayer/PlayerInterpolator.cpp'), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)
