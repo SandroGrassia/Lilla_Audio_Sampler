@@ -25,6 +25,7 @@
 #include "AudioTables.h"
 #include "PlayerReadDiagnostics.h"
 #include "PlayerReadBudget.h"
+#include "PlayerInterpolator.h"
 
 class AudioPlayer : public AudioStream
 {
@@ -292,7 +293,9 @@ private:
     inline static bool read_diagnostics_enabled = false;
     PlayerReadDiagnostics read_diagnostics;
     void Record_read(PlayerReadSource source, int count, uint16_t flags = 0);
-    void Harvest_samples(void); // Optional diagnostics wrap the unchanged source harvest paths.
+    float interpolation_mix = 0.0f; // Full sinc below 0.75x; blend continuously to linear at 1x.
+    void Harvest_sinc_samples(void); // Gather the eight-tap source window without advancing the playhead by its padding.
+    void Harvest_samples(void); // Optional diagnostics cover source assembly, including interpolation padding.
     void Update_pitch(void);
     void Update_volume_gain(void);
     void Update_pan_gain(void);

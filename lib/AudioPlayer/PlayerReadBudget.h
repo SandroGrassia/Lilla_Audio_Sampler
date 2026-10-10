@@ -3,6 +3,7 @@
 #include <cmath>
 #include <stdint.h>
 #include "PlayerReadDiagnostics.h"
+#include "PlayerInterpolator.h"
 
 namespace PlayerReadBudget
 {
@@ -34,7 +35,9 @@ inline float Estimate(const Plan &plan, uint32_t output_samples) // Reserve all 
     {
         return INFINITY;
     }
-    const float extent = std::ceil((output_samples - 1u) * plan.pitch) + 2.0f; // Fractional starting positions can require both interpolation neighbours.
+    float extent = std::ceil((output_samples - 1u) * plan.pitch) + 2.0f; // Fractional starting positions can require both interpolation neighbours.
+    const float filtered_extent = std::ceil((output_samples - 1u) * std::fmin(plan.pitch, 1.0f)) + PlayerInterpolator::Taps;
+    extent = std::fmax(extent, filtered_extent); // Reserve the low-pitch halo even when later bend/vibrato can cross 1x.
     if (extent > 4500.0f)
     {
         return INFINITY;

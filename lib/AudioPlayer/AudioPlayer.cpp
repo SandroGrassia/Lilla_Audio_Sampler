@@ -950,8 +950,7 @@ void AudioPlayer::update(void)
     Enforce_cycle_deadline(); // Check before allocating buffers or harvesting audio; never reset the shared clock here.
 
     audio_block_t *block_L, *block_R;
-    int16_t I_basket_L_sample, I_basket_H_sample; // indexes of samples in sample_basket
-    float F_basket_sample, F_index_delta;
+    float F_basket_sample;
     float rest;
     uint8_t vibrato_array_element;
     float a_first_sample_real;
@@ -1007,10 +1006,7 @@ void AudioPlayer::update(void)
                 for (uint8_t i = 0; i < mix_samples; ++i)
                 {
                     F_basket_sample = (i * pitch) + initial_index_offset; // "initial_index_offset" may be modified in harvest function
-                    I_basket_L_sample = floor(F_basket_sample);           // index of the lower sample needed for calculation
-                    I_basket_H_sample = ceil(F_basket_sample);            // index of the upper sample needed for calculation
-                    F_index_delta = F_basket_sample - I_basket_L_sample;
-                    raw_first_value_cache[i] = volume_tmp * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample])));
+                    raw_first_value_cache[i] = volume_tmp * PlayerInterpolator::Read(samples_basket, F_basket_sample, interpolation_mix);
                 }
                 for (uint8_t i = mix_samples; i < AUDIO_BLOCK_SAMPLES; ++i)
                 {
@@ -1421,10 +1417,7 @@ void AudioPlayer::update(void)
                 for (auto sample = 0; sample < mix_samples; ++sample)
                 {
                     F_basket_sample = (sample * pitch) + initial_index_offset; // "initial_index_offset" may be modified in harvest function
-                    I_basket_L_sample = floor(F_basket_sample);                // index of the lower sample needed for calculation
-                    I_basket_H_sample = ceil(F_basket_sample);                 // index of the upper sample needed for calculation
-                    F_index_delta = F_basket_sample - I_basket_L_sample;
-                    raw_first_value_cache[sample] = volume_tmp * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample])));
+                    raw_first_value_cache[sample] = volume_tmp * PlayerInterpolator::Read(samples_basket, F_basket_sample, interpolation_mix);
 
                     // Serial.print(sample);
                     // PRINT("raw_first",": ", raw_first_value_cache[sample]);
@@ -1527,10 +1520,6 @@ void AudioPlayer::update(void)
             int32_t cache;
             F_basket_sample = (sample * pitch) + initial_index_offset; // "initial_index_offset" may be modified in harvest function
 
-            I_basket_L_sample = static_cast<int16_t>(F_basket_sample); // index of the lower sample needed for calculation
-            F_index_delta = F_basket_sample - I_basket_L_sample;
-            I_basket_H_sample = I_basket_L_sample + (F_index_delta > 0.0f); // index of the upper sample needed for calculation
-
             if (volume_flag)
             {
                 Update_volume_gain();
@@ -1547,19 +1536,19 @@ void AudioPlayer::update(void)
             if (!shoot_flag && mix_flag && sample < mix_samples)
             {
                 value_float = mix_samples;
-                cache = (sample / value_float) * volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample]))) + (mix_samples - 1 - sample) / (mix_samples - 1.0) * raw_first_value_cache[sample];
+                cache = (sample / value_float) * volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * PlayerInterpolator::Read(samples_basket, F_basket_sample, interpolation_mix) + (mix_samples - 1 - sample) / (mix_samples - 1.0) * raw_first_value_cache[sample];
                 block[sample] = Lilla_saturate16(cache);
             }
             else if (shoot_flag && mix_flag && sample < mix_samples)
             {
                 value_float = mix_samples;
-                cache = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample]))) + (mix_samples - 1 - sample) / (value_float - 1.0f) * raw_first_value_cache[sample];
+                cache = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * PlayerInterpolator::Read(samples_basket, F_basket_sample, interpolation_mix) + (mix_samples - 1 - sample) / (value_float - 1.0f) * raw_first_value_cache[sample];
                 block[sample] = Lilla_saturate16(cache);
             }
 
             else
             {
-                cache = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * (samples_basket[I_basket_L_sample] + (F_index_delta * (samples_basket[I_basket_H_sample] - samples_basket[I_basket_L_sample])));
+                cache = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction * PlayerInterpolator::Read(samples_basket, F_basket_sample, interpolation_mix);
                 block[sample] = Lilla_saturate16(cache);
             }
 
@@ -1722,7 +1711,15 @@ void AudioPlayer::Harvest_samples(void)
 {
     const bool diagnostics = read_diagnostics_enabled;
     const uint32_t start = diagnostics ? ARM_DWT_CYCCNT : 0;
-    (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
+    interpolation_mix = PlayerInterpolator::Mix(pitch);
+    if (interpolation_mix > 0.0f)
+    {
+        Harvest_sinc_samples();
+    }
+    else
+    {
+        (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
+    }
     if (diagnostics)
     {
         read_diagnostics.harvest_cycles += static_cast<uint32_t>(ARM_DWT_CYCCNT - start);
@@ -1731,6 +1728,167 @@ void AudioPlayer::Harvest_samples(void)
         {
             read_diagnostics.maximum_pitch = pitch;
         }
+    }
+}
+
+void AudioPlayer::Harvest_sinc_samples(void)
+{
+    const float distance = b_sample - a_sample;
+    if (use_Wavetable)
+    {
+        const float phase = a_sample - Flash_first_RAM_sample;
+        const int first = static_cast<int>(floorf(phase)) - PlayerInterpolator::Left;
+        const int count = static_cast<int>(floorf(phase + distance)) - first + 5;
+        initial_index_offset = phase - first;
+        Record_read(PlayerReadSource::Ram, count, PlayerReadDiagnostics::RamLoopProxy);
+        for (int i = 0; i < count; ++i)
+        {
+            const int index = first + i;
+            if (mode_player >= LOOP_FWD)
+            {
+                samples_basket[i] = Wavetable_ptr[(index % Wavetable_length + Wavetable_length) % Wavetable_length];
+            }
+            else
+            {
+                samples_basket[i] = index >= 0 && index < Wavetable_length ? Wavetable_ptr[index] : 0;
+            }
+        }
+        if (mode_player >= LOOP_FWD)
+        {
+            a_first_sample = fmodf(phase + distance + pitch, Wavetable_length) + Flash_first_RAM_sample;
+        }
+        else
+        {
+            a_first_sample = b_sample + pitch;
+            if (ceilf(phase + distance) > Wavetable_length - 1 && !warmup_for_play_again_flag)
+            {
+                state = IDLE_REQUEST;
+                Close_source();
+            }
+        }
+        return;
+    }
+    if (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || mode_player == LOOP_REV)
+    {
+        const int crossfade = LS_flag && mode_player == LOOP_FWD ? PlayerReadBudget::Live_noclick_samples : (mode_player == LOOP_FWD_REV ? 0 : delta_Noclick);
+        const int period = Loop_period(A_Flash_sample, B_Flash_sample, crossfade, mode_player);
+        const int base = mode_player == LOOP_REV ? B_Flash_sample_shifted : A_Flash_sample + crossfade;
+        if (period <= 0)
+        {
+            memset(samples_basket, 0, sizeof(samples_basket));
+            initial_index_offset = PlayerInterpolator::Left;
+            Fast_stop();
+            return;
+        }
+        float phase = mode_player == LOOP_FWD && a_sample < base ? 0.0f : fmodf(a_sample - base, static_cast<float>(period));
+        if (phase < 0.0f)
+        {
+            phase += period;
+        }
+        const int first = static_cast<int>(floorf(phase)) - PlayerInterpolator::Left;
+        const int count = static_cast<int>(floorf(phase + distance)) - first + 5;
+        const int wrapped = (first % period + period) % period;
+        initial_index_offset = phase - first;
+        if (!Fill_loop_samples(samples_basket, count, wrapped, A_Flash_sample, B_Flash_sample, crossfade, mode_player, Noclick_ptr, period))
+        {
+            memset(samples_basket, 0, sizeof(samples_basket));
+            Fast_stop();
+            return;
+        }
+        a_first_sample = base + fmodf(phase + distance + pitch, static_cast<float>(period));
+        return;
+    }
+
+    const int original_first = static_cast<int>(floorf(a_sample));
+    const int first = original_first - PlayerInterpolator::Left;
+    const int count = static_cast<int>(floorf(b_sample)) - first + 5;
+    initial_index_offset = a_sample - first;
+    if (LS_flag && mode_player == ONCE_FWD)
+    {
+        const int position = (original_first % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+        const bool first_pass = LiveSampler_ptr->first_write_flag && LiveSampler_ptr->Q_sample < LS_buffer_dim - 1;
+        const bool writing = LiveSampler_ptr->Is_writing();
+        if (first_pass)
+        {
+            const int available = LiveSampler_ptr->Q_sample >= position ? LiveSampler_ptr->Q_sample - position + 1 : 0;
+            live_forward_end = static_cast<int>(ceilf(b_sample)) - original_first + 1 > available;
+            live_forward_empty = available == 0;
+            const int window_first = position - PlayerInterpolator::Left;
+            const int trim_first = !writing && !live_forward_end ? A_Flash_sample - original_first + position : 0;
+            const int trim_last = !writing && !live_forward_end ? B_Flash_sample - original_first + position : LiveSampler_ptr->Q_sample;
+            const int valid_first = trim_first > 0 ? trim_first : 0;
+            const int valid_last = trim_last < LiveSampler_ptr->Q_sample ? trim_last : LiveSampler_ptr->Q_sample;
+            const int begin = window_first < valid_first ? valid_first - window_first : 0;
+            const int available_end = valid_last - window_first + 1;
+            const int end = available_end < count ? available_end : count;
+            memset(samples_basket, 0, count * sizeof(int16_t));
+            if (end > begin)
+            {
+                Read_samples(samples_basket + begin, window_first + begin, end - begin);
+                if (valid_last == LiveSampler_ptr->Q_sample && trim_last >= LiveSampler_ptr->Q_sample)
+                {
+                    for (int i = end; i < count; ++i)
+                    {
+                        samples_basket[i] = samples_basket[end - 1]; // Extend recorded audio into the FIR lookahead; never read beyond Q.
+                    }
+                }
+            }
+            if (live_forward_end || !writing)
+            {
+                a_first_sample = b_sample + pitch;
+            }
+            else
+            {
+                a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));
+            }
+            if (!live_forward_end && !writing && !warmup_for_play_again_flag && ceilf(a_first_sample) >= B_Flash_sample)
+            {
+                state = IDLE_REQUEST;
+                Close_source();
+            }
+            return;
+        }
+        if (writing)
+        {
+            Read_samples(samples_basket, first, count);
+            a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));
+            return;
+        }
+    }
+
+    const bool reverse = mode_player == ONCE_REV;
+    const int lower = reverse ? B_Flash_sample : A_Flash_sample;
+    const int upper = reverse ? C_Flash_sample : B_Flash_sample;
+    const int valid_first = first < lower ? lower : first;
+    const int last = first + count - 1;
+    const int valid_last = last > upper ? upper : last;
+    memset(samples_basket, 0, count * sizeof(int16_t));
+    if (valid_last >= valid_first)
+    {
+        const int length = valid_last - valid_first + 1;
+        int16_t *destination = samples_basket + valid_first - first;
+        Read_samples(destination, reverse ? 2 * B_Flash_sample - valid_last : valid_first, length);
+        if (reverse)
+        {
+            for (int i = 0; i < length / 2; ++i)
+            {
+                const int16_t value = destination[i];
+                destination[i] = destination[length - 1 - i];
+                destination[length - 1 - i] = value;
+            }
+        }
+    }
+    a_first_sample = b_sample + pitch;
+    const bool reaches_end = ceilf(b_sample) > upper || ceilf(a_first_sample) >= upper;
+    if (reaches_end && (!warmup_for_play_again_flag || (reverse && ceilf(b_sample) <= upper)))
+    {
+        if (!reverse && ceilf(b_sample) <= upper)
+        {
+            idle = true;
+            power_on = false;
+        }
+        state = IDLE_REQUEST;
+        Close_source();
     }
 }
 
