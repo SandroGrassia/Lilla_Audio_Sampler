@@ -1892,7 +1892,6 @@ void loop()
                     AudioNoInterrupts();
                     Patch[Patch_id].Instrument[instrument_id].lock = true;
                     Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
-                    Players_Manager.Multicast_reset_pitch_bend_effects(instrument_id);
                     AudioInterrupts();
 
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
@@ -1904,7 +1903,6 @@ void loop()
                     AudioNoInterrupts();
                     Patch[Patch_id].Instrument[instrument_id].lock = false;
                     Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
-                    Players_Manager.Broadcast_restore_pitch_bend_and_effects(instrument_id, pitch_bend_value[Get_midi_channel(Patch_id, instrument_id)]);
                     AudioInterrupts();
 
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);

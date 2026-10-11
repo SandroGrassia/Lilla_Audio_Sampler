@@ -790,6 +790,8 @@ void AudioPlayer::Start_playing(void)
     pitch_bend = pitch_bend_wait;
     pitch_bend_flag = false;
     pitch_note = pitch_note_wait;
+    tone_filter_enabled = tone_filter_enabled_wait;
+    tone_filter.Reset();
     velocity_gain = velocity_gain_wait;
     volume_flag = false;
     sliding = 0;
@@ -1603,6 +1605,8 @@ void AudioPlayer::update(void)
         {
             sliding = (sliding + AUDIO_BLOCK_SAMPLES) % downsampling;
         }
+
+        tone_filter.Process(block, AUDIO_BLOCK_SAMPLES, pitch, tone_filter_enabled, AUDIO_SAMPLE_RATE_EXACT);
 
         if (VCF_connect)
         {
@@ -3480,4 +3484,16 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
     }
     Main_settings_editing(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
     return true;
+}
+
+void AudioPlayer::Update_tone_filter(int patch, int instrument, bool enabled)
+{
+    if (local_patch == patch && instrument_id == instrument)
+    {
+        tone_filter_enabled = enabled;
+    }
+    if (Has_pending_note() && patch_id_wait == patch && instrument_id_wait == instrument)
+    {
+        tone_filter_enabled_wait = enabled;
+    }
 }
