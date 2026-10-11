@@ -358,7 +358,7 @@ int main()
 
     // IIR source history follows logical loop order even when longer than a complete loop.
     AudioPlayer upward;
-    upward.tone_filter_level = 4;
+    upward.tone_filter_level = 5;
     upward.source_now = {Psram, 8, source};
     for (const float rate : {1.001f, 1.25f, 1.5f, 2.0f, 4.0f, 8.0f, 16.0f, 35.0f})
     {
@@ -426,7 +426,7 @@ int main()
             assert(std::abs(value - 1234) < 2);
         }
     }
-    // Live LOCK toggles must bypass and restore the IIR even at an unchanged pitch.
+    // Live HIFI toggles must bypass and restore the IIR even at an unchanged pitch.
     longest.tone_filter_level = false;
     longest.a_sample = 500;
     longest.b_sample = 500 + 127 * longest.pitch;

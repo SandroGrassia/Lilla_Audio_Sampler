@@ -117,7 +117,7 @@ struct Instrument_struct
     uint8_t from_note;
     uint8_t to_note;
     bool precedence;
-    uint8_t lock; // 0: off; 1..4: pitch-dependent LPF endpoint and anti-aliasing.
+    uint8_t lock; // 0: off; 1..5: pitch-dependent LPF endpoint and anti-aliasing.
     Instrument_filter_data_struct Filter;
 };
 static constexpr uint8_t SIZE_OF_INSTRUMENT = sizeof(Instrument_struct); // 16, including alignment for sound_id
@@ -341,7 +341,7 @@ struct Preset_struct
     float sustain;
     float release;
     bool precedence;
-    uint8_t lock; // 0: off; 1..4: pitch-dependent LPF endpoint and anti-aliasing.
+    uint8_t lock; // 0: off; 1..5: pitch-dependent LPF endpoint and anti-aliasing.
     Instrument_filter_values_struct Filter;
 };
 extern Preset_struct Preset[INSTRUMENTS];

@@ -90,8 +90,8 @@ void DisplayPerformance::P_show_Instruments_header(void)
     tft.setCursor(display_coordinate_x(P_column_SOUND_title), display_coordinate_y(P_row_Instrument_title));
     tft.print("SOUND");
 
-    tft.setCursor(display_coordinate_x(P_column_LOCK_title), display_coordinate_y(P_row_Instrument_title)); // (X0i + 2 * TT_Instrument_SPACE_X + 6)
-    tft.print("LOCK");
+    tft.setCursor(display_coordinate_x(P_column_HIFI_title), display_coordinate_y(P_row_Instrument_title)); // (X0i + 2 * TT_Instrument_SPACE_X + 6)
+    tft.print("HIFI");
 
     tft.setCursor(display_coordinate_x(P_column_P_title), display_coordinate_y(P_row_Instrument_title)); // (x_pos(X0i + 5 + TT_Instrument_SPACE_X)
     tft.print("P");
@@ -122,7 +122,7 @@ void DisplayPerformance::P_show_Instrument_description(int patch_id, int instrum
 {
     // P_delete_instrument_by_position(position);
     P_show_Sound_number(instrument_id, editing);
-    P_show_Lock_value(patch_id, instrument_id, editing);
+    P_show_Hifi_value(patch_id, instrument_id, editing);
     P_show_Precedence_value(patch_id, instrument_id, editing);
     P_show_Midi_value(patch_id, instrument_id, editing);
     P_show_RootKey_value(patch_id, instrument_id, editing);
@@ -146,7 +146,7 @@ void DisplayPerformance::P_show_Sound_number(int instrument_id, bool editing)
 }
 
 FLASHMEM
-void DisplayPerformance::P_show_Lock_value(int patch_id, int instrument_id, bool editing)
+void DisplayPerformance::P_show_Hifi_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);

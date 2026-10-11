@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-// Experimental output-domain piano compensation, enabled by the instrument LOCK field.
+// Experimental output-domain piano compensation, enabled by the instrument HIFI field.
 class PlayerToneFilter
 {
 public:

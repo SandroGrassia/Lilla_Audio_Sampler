@@ -172,7 +172,7 @@ int main()
     RealVoice::AudioPlayer real;
     real.pitch_note = 2;
     const float unlocked_cost = real.Reserved_read_us();
-    real.tone_filter_level = 4;
+    real.tone_filter_level = 5;
     assert(real.Get_read_plan().antialias && real.Get_read_plan(false, true).antialias);
     assert(!real.Get_read_plan(true).antialias && real.Reserved_read_us() > unlocked_cost);
     real.tone_filter_level = false;
@@ -230,7 +230,7 @@ int main()
     PlayersManager forecast;
     Preset[0].source.storage = Psram; Preset[0].pitch = 8;
     assert(!forecast.New_read_plan(0, 8).antialias);
-    Preset[0].lock = 4;
+    Preset[0].lock = 5;
     assert(forecast.New_read_plan(0, 8).antialias);
     assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_PSRAM);
     Preset[0].use_Wavetable = true;

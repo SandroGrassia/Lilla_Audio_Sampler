@@ -1217,7 +1217,7 @@ byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &fai
             for (uint8_t id = 0; id < INSTRUMENTS; ++id)
             {
                 const auto &input = source.Instrument[id];
-                if (input.used > 1 || input.lock > 4)
+                if (input.used > 1 || input.lock > 5)
                 {
                     result = FRAM_ERROR_SOURCE;
                     break;
@@ -1699,7 +1699,7 @@ byte ArchivingManager::Read_Patch(const int patch_id)
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         const auto &input = source.Instrument[instrument_id];
-        if (input.used > 1 || input.lock > 4)
+        if (input.used > 1 || input.lock > 5)
         {
             return FRAM_ERROR_SOURCE;
         }
@@ -2073,7 +2073,7 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 
     for (const auto &instrument : temporaryPatch.Instrument)
     {
-        if (instrument.lock > 4)
+        if (instrument.lock > 5)
         {
             return false;
         }
@@ -2324,7 +2324,7 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
         const uint8_t precedence = payload[offset++];
         const uint8_t lock = payload[offset++];
 
-        if (precedence > 1 || lock > 4 || (active && instrument.sound_id >= SOUNDS_MAX))
+        if (precedence > 1 || lock > 5 || (active && instrument.sound_id >= SOUNDS_MAX))
         {
             return false;
         }

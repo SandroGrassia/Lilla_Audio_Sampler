@@ -117,8 +117,8 @@ int main()
     }
     assert(sizeof(expected) == 130);
     assert(archive.Copy_Patch_from_SD_to_RAM(198, legacy) && Patch[198] == expected);
-    // All LOCK levels survive FRAM and SD round trips; old 0/1 bytes retain their meaning.
-    for (uint8_t level = 0; level <= 4; ++level)
+    // All HIFI levels survive FRAM and SD round trips without changing stored numeric values.
+    for (uint8_t level = 0; level <= 5; ++level)
     {
         Patch[198] = expected;
         Patch[198].Instrument[0].lock = level;
@@ -134,12 +134,12 @@ int main()
     Patch[198] = expected;
     ArchivingManager::FRAM_Patch_struct invalid_level{};
     assert(archive.FRAM_Read_patch(198, invalid_level) == 0);
-    invalid_level.Instrument[0].lock = 5;
+    invalid_level.Instrument[0].lock = 6;
     assert(archive.FRAM_Write_patch(198, invalid_level) == 0);
     assert(archive.Read_Patch(198) == ArchivingManager::FRAM_ERROR_SOURCE && Patch[198] == expected);
     assert(archive.Save_Patch(198) == 0);
     auto invalid_patch = expected;
-    invalid_patch.Instrument[0].lock = 5;
+    invalid_patch.Instrument[0].lock = 6;
     File invalid_legacy{std::make_shared<std::vector<uint8_t>>()};
     const auto *invalid_raw = reinterpret_cast<const uint8_t *>(&invalid_patch);
     for (size_t offset = 0; offset < sizeof(invalid_patch); ++offset)

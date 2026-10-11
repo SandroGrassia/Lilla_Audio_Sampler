@@ -636,7 +636,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
 
     Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
 
-    Player_ptr[id_player].Set_tone_filter(Preset[instrument_id].lock); // LOCK enables timbre compensation and source-domain anti-alias filtering.
+    Player_ptr[id_player].Set_tone_filter(Preset[instrument_id].lock); // HIFI enables timbre compensation and source-domain anti-alias filtering.
     Player_ptr[id_player].Set_effects(resolution_value[resolution], downsampling);
     Player_ptr[id_player].Set_pitch_bend(pitch_bend_value[Preset[instrument_id].midi_channel]);
 
