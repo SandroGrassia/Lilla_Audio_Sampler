@@ -15,7 +15,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
     const bool wavetable = edited ? use_Wavetable_E : (pending ? use_Wavetable_wait : use_Wavetable); // RAM tables bypass the file reader.
     const AudioFileSource &source = pending ? source_wait : source_now; // Pending starts can use a different source from the outgoing voice.
     const int file = pending ? file_id_wait : file_id; // File class determines Live and packet behavior.
-    plan.antialias = pending ? tone_filter_enabled_wait : tone_filter_enabled;
+    plan.antialias = pending ? tone_filter_level_wait : tone_filter_level;
     plan.live = file >= FIRST_LIVE_SAMPLING_FILE;
     plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
     plan.packets = !wavetable && !plan.live && source.storage == Flash && file >= FIRST_RECORDING_FILE;
@@ -792,7 +792,7 @@ void AudioPlayer::Start_playing(void)
     pitch_bend = pitch_bend_wait;
     pitch_bend_flag = false;
     pitch_note = pitch_note_wait;
-    tone_filter_enabled = tone_filter_enabled_wait;
+    tone_filter_level = tone_filter_level_wait;
     tone_filter.Reset();
     velocity_gain = velocity_gain_wait;
     volume_flag = false;
@@ -1608,7 +1608,7 @@ void AudioPlayer::update(void)
             sliding = (sliding + AUDIO_BLOCK_SAMPLES) % downsampling;
         }
 
-        tone_filter.Process(block, AUDIO_BLOCK_SAMPLES, pitch, tone_filter_enabled, AUDIO_SAMPLE_RATE_EXACT);
+        tone_filter.Process(block, AUDIO_BLOCK_SAMPLES, pitch, tone_filter_level, AUDIO_SAMPLE_RATE_EXACT);
 
         if (VCF_connect)
         {
@@ -1726,7 +1726,7 @@ void AudioPlayer::Harvest_samples(int outputs)
     const bool diagnostics = read_diagnostics_enabled;
     const uint32_t start = diagnostics ? ARM_DWT_CYCCNT : 0;
     interpolation_mix = PlayerInterpolator::Mix(pitch);
-    PlayerAntialias::Configure(antialias, tone_filter_enabled ? pitch : 1.0f);
+    PlayerAntialias::Configure(antialias, tone_filter_level ? pitch : 1.0f);
     if (antialias.mix > 0.0f)
     {
         Harvest_filtered_samples(antialias.history, 1, (outputs - 1) * pitch);
@@ -3510,14 +3510,14 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
     return true;
 }
 
-void AudioPlayer::Update_tone_filter(int patch, int instrument, bool enabled)
+void AudioPlayer::Update_tone_filter(int patch, int instrument, uint8_t level)
 {
     if (local_patch == patch && instrument_id == instrument)
     {
-        tone_filter_enabled = enabled;
+        tone_filter_level = level;
     }
     if (Has_pending_note() && patch_id_wait == patch && instrument_id_wait == instrument)
     {
-        tone_filter_enabled_wait = enabled;
+        tone_filter_level_wait = level;
     }
 }

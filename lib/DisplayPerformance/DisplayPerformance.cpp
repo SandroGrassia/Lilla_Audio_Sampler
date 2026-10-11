@@ -155,14 +155,7 @@ void DisplayPerformance::P_show_Lock_value(int patch_id, int instrument_id, bool
     tft.setTextColor((editing ? ILI9341_YELLOW : ILI9341_WHITE));
 
     Cancel_text_reset_cursor(x_display, y_display, 1);
-    if (Patch[patch_id].Instrument[instrument_id].lock)
-    {
-        tft.print("Y");
-    }
-    else
-    {
-        tft.print("N");
-    }
+    tft.print(Patch[patch_id].Instrument[instrument_id].lock);
 }
 
 FLASHMEM

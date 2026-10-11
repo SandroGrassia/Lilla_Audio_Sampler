@@ -1,11 +1,12 @@
 #include "PlayerToneFilter.h"
 #include <cmath>
 
-float PlayerToneFilter::Cutoff(float pitch)
+float PlayerToneFilter::Cutoff(float pitch, uint8_t level)
 {
-    // Logarithmic cutoff sweep: 20 kHz at unity, 4.5 kHz at +11 semitones.
+    // Logarithmic sweep from 20 kHz at unity to the selected endpoint at +11 semitones.
+    static constexpr float endpoints[] = {20000.0f, 4500.0f, 4200.0f, 4000.0f, 3800.0f};
     const float position = fminf(fmaxf(12.0f * log2f(pitch) / 11.0f, 0.0f), 1.0f);
-    return 20000.0f * powf(4500.0f / 20000.0f, position);
+    return 20000.0f * powf(endpoints[level] / 20000.0f, position);
 }
 
 void PlayerToneFilter::Reset()
@@ -16,18 +17,19 @@ void PlayerToneFilter::Reset()
     wet = 0.0f;
 }
 
-void PlayerToneFilter::Process(int16_t *samples, int count, float pitch, bool enabled, float sample_rate)
+void PlayerToneFilter::Process(int16_t *samples, int count, float pitch, uint8_t level, float sample_rate)
 {
-    const float target_wet = enabled && pitch > 1.0f ? 1.0f : 0.0f;
+    const float target_wet = level != 0 && pitch > 1.0f ? 1.0f : 0.0f;
     if (target_wet == 0.0f && wet == 0.0f)
     {
         Reset();
         return;
     }
-    if (pitch != cached_pitch)
+    if (pitch != cached_pitch || level != cached_level)
     {
         cached_pitch = pitch;
-        target_cutoff = Cutoff(pitch);
+        cached_level = level;
+        target_cutoff = Cutoff(pitch, level);
     }
     const float next_cutoff = cutoff == 0.0f ? target_cutoff : cutoff + 0.25f * (target_cutoff - cutoff);
     if (next_cutoff != cutoff)

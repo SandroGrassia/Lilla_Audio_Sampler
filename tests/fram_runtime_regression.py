@@ -77,6 +77,7 @@ int main()
         auto &i = Patch[199].Instrument[index];
         i.used = true;
         i.sound_id = index == 0 ? 799 : 256;
+        i.lock = index == 0 ? 4 : 2;
         i.root_key = 60 + index;
         i.to_note = 127;
         i.Filter.frequency_time = 19;
@@ -116,6 +117,36 @@ int main()
     }
     assert(sizeof(expected) == 130);
     assert(archive.Copy_Patch_from_SD_to_RAM(198, legacy) && Patch[198] == expected);
+    // All LOCK levels survive FRAM and SD round trips; old 0/1 bytes retain their meaning.
+    for (uint8_t level = 0; level <= 4; ++level)
+    {
+        Patch[198] = expected;
+        Patch[198].Instrument[0].lock = level;
+        const auto level_patch = Patch[198];
+        assert(archive.Save_Patch(198) == 0);
+        Patch[198] = {};
+        assert(archive.Read_Patch(198) == 0 && Patch[198] == level_patch);
+        File level_wire{std::make_shared<std::vector<uint8_t>>()};
+        assert(archive.Copy_Patch_from_RAM_to_SD(198, level_wire));
+        Patch[198] = {};
+        assert(archive.Copy_Patch_from_SD_to_RAM(198, level_wire) && Patch[198] == level_patch);
+    }
+    Patch[198] = expected;
+    ArchivingManager::FRAM_Patch_struct invalid_level{};
+    assert(archive.FRAM_Read_patch(198, invalid_level) == 0);
+    invalid_level.Instrument[0].lock = 5;
+    assert(archive.FRAM_Write_patch(198, invalid_level) == 0);
+    assert(archive.Read_Patch(198) == ArchivingManager::FRAM_ERROR_SOURCE && Patch[198] == expected);
+    assert(archive.Save_Patch(198) == 0);
+    auto invalid_patch = expected;
+    invalid_patch.Instrument[0].lock = 5;
+    File invalid_legacy{std::make_shared<std::vector<uint8_t>>()};
+    const auto *invalid_raw = reinterpret_cast<const uint8_t *>(&invalid_patch);
+    for (size_t offset = 0; offset < sizeof(invalid_patch); ++offset)
+    {
+        invalid_legacy.println(invalid_raw[offset]);
+    }
+    assert(!archive.Copy_Patch_from_SD_to_RAM(198, invalid_legacy) && Patch[198] == expected);
     // Invalid numeric input is rejected without changing the destination.
     (*wire.data)[15] = 'X';
     assert(!archive.Copy_Patch_from_SD_to_RAM(198, wire) && Patch[198] == expected);

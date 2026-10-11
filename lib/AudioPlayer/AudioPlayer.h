@@ -38,8 +38,8 @@ private:
     static int16_t samples_basket[BASKET_DIM]; // cache array unico per samples copiati dai Player
     int16_t block[AUDIO_BLOCK_SAMPLES];
     PlayerToneFilter tone_filter;
-    bool tone_filter_enabled = false;
-    bool tone_filter_enabled_wait = false;
+    uint8_t tone_filter_level = 0;
+    uint8_t tone_filter_level_wait = 0;
     int16_t budget_tail_sample = 0; // Last rendered mono sample for a continuous source-free retirement ramp.
     bool budget_tail_pending = false; // Emit one fading cached block before the replacement renders.
     bool rendered_block_valid = false; // Never read an uninitialized output block when retiring a new voice.
@@ -347,8 +347,8 @@ public:
     void Set_edit_mix_samples(uint8_t value); // Override only a pending edit crossfade before its next render.
     bool Has_pending_edit(void) const { return main_settings_editing_flag; } // Expose edit transitions to the shared read-budget planner.
     static bool Take_live_unrecorded_notice(void); // Consume from the main loop with audio interrupts disabled by the caller.
-    void Set_tone_filter(bool enabled) { tone_filter_enabled_wait = enabled; }
-    void Update_tone_filter(int patch, int instrument, bool enabled);
+    void Set_tone_filter(uint8_t level) { tone_filter_level_wait = level; }
+    void Update_tone_filter(int patch, int instrument, uint8_t level);
     void begin(void);
     virtual void update(void);
     int State(void);

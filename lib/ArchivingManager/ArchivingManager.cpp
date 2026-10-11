@@ -1217,7 +1217,7 @@ byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &fai
             for (uint8_t id = 0; id < INSTRUMENTS; ++id)
             {
                 const auto &input = source.Instrument[id];
-                if (input.used > 1)
+                if (input.used > 1 || input.lock > 4)
                 {
                     result = FRAM_ERROR_SOURCE;
                     break;
@@ -1636,7 +1636,7 @@ byte ArchivingManager::Save_Patch(const int patch_id)
         output.from_note = input.from_note;
         output.to_note = input.to_note;
         output.precedence = input.precedence ? 1 : 0;
-        output.lock = input.lock ? 1 : 0;
+        output.lock = input.lock;
         output.Filter.use = input.Filter.use;
         output.Filter.type = input.Filter.type;
         output.Filter.pivot = input.Filter.pivot;
@@ -1699,7 +1699,7 @@ byte ArchivingManager::Read_Patch(const int patch_id)
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         const auto &input = source.Instrument[instrument_id];
-        if (input.used > 1)
+        if (input.used > 1 || input.lock > 4)
         {
             return FRAM_ERROR_SOURCE;
         }
@@ -1719,7 +1719,7 @@ byte ArchivingManager::Read_Patch(const int patch_id)
         output.from_note = input.from_note;
         output.to_note = input.to_note;
         output.precedence = input.precedence != 0;
-        output.lock = input.lock != 0;
+        output.lock = input.lock;
         output.Filter.use = input.Filter.use;
         output.Filter.type = input.Filter.type;
         output.Filter.pivot = input.Filter.pivot;
@@ -2071,6 +2071,14 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 
     file.close();
 
+    for (const auto &instrument : temporaryPatch.Instrument)
+    {
+        if (instrument.lock > 4)
+        {
+            return false;
+        }
+    }
+
     // Modifica la Patch attiva soltanto dopo una lettura completa.
     Patch[patch_id] = temporaryPatch;
 
@@ -2316,13 +2324,13 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
         const uint8_t precedence = payload[offset++];
         const uint8_t lock = payload[offset++];
 
-        if (precedence > 1 || lock > 1 || (active && instrument.sound_id >= SOUNDS_MAX))
+        if (precedence > 1 || lock > 4 || (active && instrument.sound_id >= SOUNDS_MAX))
         {
             return false;
         }
 
         instrument.precedence = precedence != 0;
-        instrument.lock = lock != 0;
+        instrument.lock = lock;
         instrument.Filter.use = payload[offset++];
         instrument.Filter.type = payload[offset++];
         instrument.Filter.pivot = payload[offset++];
