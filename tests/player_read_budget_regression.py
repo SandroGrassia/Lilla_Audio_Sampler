@@ -37,7 +37,7 @@ struct AudioFileSource { Storage storage = Flash; };
 float constrain(float value, float low, float high) { return value < low ? low : (value > high ? high : value); }
 struct PresetStub
 {
-    bool precedence = false, use_Wavetable = false;
+    bool precedence = false, use_Wavetable = false, lock = false;
     int file = 0, mode = 0, A = 0, B = 9999, Noclick = 0;
     float pitch = 1;
     AudioFileSource source;
@@ -50,6 +50,7 @@ struct AudioPlayer
     static constexpr int IDLE = 0;
     int state = 1, file_id = 0, file_id_wait = 0;
     bool use_Wavetable = false, use_Wavetable_wait = false, use_Wavetable_E = false;
+    bool tone_filter_enabled = false, tone_filter_enabled_wait = false;
     AudioFileSource source_now, source_wait;
     int mode_player = 0, mode_player_wait = 0, mode_player_E = 0;
     int A_Flash_sample = 0, B_Flash_sample = 9999, A_Flash_sample_wait = 0, B_Flash_sample_wait = 9999, A_Flash_sample_E = 0, B_Flash_sample_E = 9999;
@@ -169,6 +170,14 @@ int main()
     // Forecast the maximum modulation and clamp it to the actual source ceiling.
     RealVoice::AudioPlayer real;
     real.pitch_note = 2;
+    const float unlocked_cost = real.Reserved_read_us();
+    real.tone_filter_enabled = true;
+    assert(real.Get_read_plan().antialias && real.Get_read_plan(false, true).antialias);
+    assert(!real.Get_read_plan(true).antialias && real.Reserved_read_us() > unlocked_cost);
+    real.tone_filter_enabled = false;
+    real.tone_filter_enabled_wait = true;
+    assert(!real.Get_read_plan().antialias && real.Get_read_plan(true).antialias);
+    real.tone_filter_enabled_wait = false;
     assert(real.Get_read_plan().pitch == real.pitch_limit);
     real.pitch = 4; assert(real.Get_read_plan().pitch == 4); // Lowering a setting cannot hide the outgoing applied pitch.
     real.pitch = 1;
@@ -210,6 +219,7 @@ int main()
     assert(Limit_us == 1800);
     Plan high;
     high.pitch = 35; high.span = 10000;
+    high.antialias = true;
     high.source = PlayerReadSource::Psram;
     assert(std::isfinite(Estimate(high, 128)));
     high.source = PlayerReadSource::Ram;
@@ -218,6 +228,9 @@ int main()
     assert(std::isinf(Estimate(high, 128)));
     PlayersManager forecast;
     Preset[0].source.storage = Psram; Preset[0].pitch = 8;
+    assert(!forecast.New_read_plan(0, 8).antialias);
+    Preset[0].lock = true;
+    assert(forecast.New_read_plan(0, 8).antialias);
     assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_PSRAM);
     Preset[0].use_Wavetable = true;
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Ram);
