@@ -4,9 +4,9 @@
 float PlayerToneFilter::Cutoff(float pitch, uint8_t level)
 {
     // Logarithmic sweep from 20 kHz at unity to the selected endpoint at +11 semitones.
-    static constexpr float endpoints[] = {20000.0f, 5000.0f, 4500.0f, 4200.0f, 4000.0f, 3800.0f};
+    const float endpoint = level == 0 ? 20000.0f : 100.0f * level; // TONE stores 30..80 tenths of kHz.
     const float position = fminf(fmaxf(12.0f * log2f(pitch) / 11.0f, 0.0f), 1.0f);
-    return 20000.0f * powf(endpoints[level] / 20000.0f, position);
+    return 20000.0f * powf(endpoint / 20000.0f, position);
 }
 
 void PlayerToneFilter::Reset()

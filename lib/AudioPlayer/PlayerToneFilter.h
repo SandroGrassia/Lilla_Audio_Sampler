@@ -2,10 +2,11 @@
 
 #include <cstdint>
 
-// Experimental output-domain piano compensation, enabled by the instrument HIFI field.
+// Experimental output-domain piano compensation, enabled by the instrument TONE field.
 class PlayerToneFilter
 {
 public:
+    // Setting is 0 (off) or 30..80 (3.0..8.0 kHz at +11 semitones).
     static float Cutoff(float pitch, uint8_t level);
     void Reset();
     void Process(int16_t *samples, int count, float pitch, uint8_t level, float sample_rate);

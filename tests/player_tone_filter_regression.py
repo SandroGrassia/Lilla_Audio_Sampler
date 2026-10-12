@@ -41,27 +41,26 @@ double measure(PlayerToneFilter &filter, float pitch, uint8_t level, float frequ
 int main()
 {
     const float pitch = std::exp2(11.0f / 12.0f);
-    const float endpoints[] = {20000, 5000, 4500, 4200, 4000, 3800};
     PlayerToneFilter filter;
-    for (uint8_t level = 0; level <= 5; ++level)
+    for (uint8_t level = 0; level <= 80; level = level == 0 ? 30 : level + 1)
     {
         assert(std::fabs(PlayerToneFilter::Cutoff(1.0f, level) - 20000.0f) < 1.0f);
         assert(std::fabs(PlayerToneFilter::Cutoff(0.5f, level) - 20000.0f) < 1.0f);
-        assert(std::fabs(PlayerToneFilter::Cutoff(pitch, level) - endpoints[level]) < 1.0f);
-        assert(std::fabs(PlayerToneFilter::Cutoff(35.0f, level) - endpoints[level]) < 1.0f);
+        assert(std::fabs(PlayerToneFilter::Cutoff(pitch, level) - (level == 0 ? 20000.0f : level * 100.0f)) < 1.0f);
+        assert(std::fabs(PlayerToneFilter::Cutoff(35.0f, level) - (level == 0 ? 20000.0f : level * 100.0f)) < 1.0f);
         float previous = 20000;
         for (int step = 1; step <= 110; ++step)
         {
             const float current = PlayerToneFilter::Cutoff(std::exp2(step / 120.0f), level);
-            assert(current <= previous && current >= endpoints[level] - 1);
+            assert(current <= previous && current >= (level == 0 ? 20000.0f : level * 100.0f) - 1);
             previous = current;
         }
-        assert(std::fabs(PlayerToneFilter::Cutoff(std::sqrt(pitch), level) - std::sqrt(20000 * endpoints[level])) < 1);
+        assert(std::fabs(PlayerToneFilter::Cutoff(std::sqrt(pitch), level) - std::sqrt(20000 * (level == 0 ? 20000.0f : level * 100.0f))) < 1);
         // No reset between levels: a live edit at unchanged pitch must update cached coefficients.
         for (const float frequency : {1000.0f, 4200.0f, 10000.0f})
         {
             const double gain = measure(filter, pitch, level, frequency);
-            const double ratio = std::tan(3.14159265359 * frequency / 44100.0) / std::tan(3.14159265359 * endpoints[level] / 44100.0);
+            const double ratio = std::tan(3.14159265359 * frequency / 44100.0) / std::tan(3.14159265359 * (level == 0 ? 20000.0f : level * 100.0f) / 44100.0);
             const double expected = level == 0 ? 1.0 : 1.0 / std::sqrt(1.0 + std::pow(ratio, 4.0));
             assert(std::fabs(gain - expected) < 0.003);
         }
@@ -85,11 +84,11 @@ int main()
         {
             sample = 1000;
         }
-        filter.Process(block, 128, b % 2 ? 1.01f : 35.0f, b % 6, 44100.0f);
+        filter.Process(block, 128, b % 2 ? 1.01f : 35.0f, b % 3 == 0 ? 0 : 30 + b % 51, 44100.0f);
     }
     filter.Reset();
     int16_t silence[128] = {};
-    filter.Process(silence, 128, pitch, 5, 44100.0f);
+    filter.Process(silence, 128, pitch, 38, 44100.0f);
     for (auto sample : silence)
     {
         assert(sample == 0);
@@ -112,7 +111,7 @@ voice = "\nnamespace VoiceTest\n{\nstruct AudioPlayer\n{\n" + "\n".join(fields) 
 """ + update + "\n}\n"
 source = source.replace('int main()', voice + 'int main()')
 source = source.replace('    const float pitch =', r"""    VoiceTest::AudioPlayer player;
-    for (uint8_t level = 0; level <= 5; ++level)
+    for (uint8_t level = 0; level <= 80; level = level == 0 ? 30 : level + 1)
     {
         player.Set_tone_filter(level);
         assert(player.tone_filter_level_wait == level);
@@ -120,15 +119,15 @@ source = source.replace('    const float pitch =', r"""    VoiceTest::AudioPlaye
         assert(player.tone_filter_level == level && player.tone_filter_level_wait == level);
     }
     player.patch_id_wait = 3;
-    player.Update_tone_filter(1, 2, 2);
-    assert(player.tone_filter_level == 2 && player.tone_filter_level_wait == 5);
-    player.Update_tone_filter(3, 2, 3);
-    assert(player.tone_filter_level == 2 && player.tone_filter_level_wait == 3);
+    player.Update_tone_filter(1, 2, 42);
+    assert(player.tone_filter_level == 42 && player.tone_filter_level_wait == 80);
+    player.Update_tone_filter(3, 2, 38);
+    assert(player.tone_filter_level == 42 && player.tone_filter_level_wait == 38);
     player.pending = false;
     player.Update_tone_filter(3, 2, 0);
-    assert(player.tone_filter_level_wait == 3);
+    assert(player.tone_filter_level_wait == 38);
     player.Update_tone_filter(1, 7, 0);
-    assert(player.tone_filter_level == 2);
+    assert(player.tone_filter_level == 42);
     const float pitch =""")
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
 environment = os.environ.copy()
@@ -140,4 +139,4 @@ with tempfile.TemporaryDirectory() as temp:
     exe = folder / 'test.exe'
     subprocess.run([compiler, '-std=c++20', '-O2', '-I', str(root / 'lib/AudioPlayer'), str(test), str(root / 'lib/AudioPlayer/PlayerToneFilter.cpp'), '-o', str(exe)], check=True, env=environment)
     subprocess.run([str(exe)], check=True, env=environment)
-print('All HIFI levels: endpoints, curve, response, bypass, live edits and reset passed.')
+print('All TONE settings: endpoints, curve, response, bypass, live edits and reset passed.')

@@ -1883,13 +1883,14 @@ void loop()
 
             switch (Pointer_Performance.Get_pointer().element)
             {
-            case value_P_Hifi: // Pitch-dependent LPF and anti-alias level.
+            case value_P_Tone: // Cutoff in tenths of kHz, with OFF before 3.0 kHz.
             {
-                uint8_t level = Patch[Patch_id].Instrument[instrument_id].lock;
-                if (Read_encoder(EN_PB_Value, level, 5, 0, 1))
+                const uint8_t cutoff = Patch[Patch_id].Instrument[instrument_id].lock;
+                uint8_t position = cutoff == 0 ? 0 : cutoff - 29;
+                if (Read_encoder(EN_PB_Value, position, 51, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Patch[Patch_id].Instrument[instrument_id].lock = level;
+                    Patch[Patch_id].Instrument[instrument_id].lock = position == 0 ? 0 : position + 29;
                     Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
                     AudioInterrupts();
 
@@ -8633,8 +8634,8 @@ void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, con
 {
     switch (element)
     {
-    case value_P_Hifi: // HIFI
-        Display_Performance.P_show_Hifi_value(patch_id, instrument_id, true);
+    case value_P_Tone: // TONE
+        Display_Performance.P_show_Tone_value(patch_id, instrument_id, true);
         break;
 
     case value_P_Precedence: // Precedence
@@ -12952,7 +12953,7 @@ void Print_Instrument(int patch_id, int instrument_id)
     Serial.print(Patch[patch_id].Instrument[instrument_id].to_note);
     Serial.print(" precedence:");
     Serial.print(Patch[patch_id].Instrument[instrument_id].precedence);
-    Serial.print(" hifi:");
+    Serial.print(" qlpf:");
     Serial.println(Patch[patch_id].Instrument[instrument_id].lock);
 
     Serial.print("Filter  use:");

@@ -77,7 +77,7 @@ int main()
         auto &i = Patch[199].Instrument[index];
         i.used = true;
         i.sound_id = index == 0 ? 799 : 256;
-        i.lock = index == 0 ? 4 : 2;
+        i.lock = index == 0 ? 38 : 80;
         i.root_key = 60 + index;
         i.to_note = 127;
         i.Filter.frequency_time = 19;
@@ -117,8 +117,8 @@ int main()
     }
     assert(sizeof(expected) == 130);
     assert(archive.Copy_Patch_from_SD_to_RAM(198, legacy) && Patch[198] == expected);
-    // All HIFI levels survive FRAM and SD round trips without changing stored numeric values.
-    for (uint8_t level = 0; level <= 5; ++level)
+    // All TONE settings survive FRAM and SD round trips without changing stored numeric values.
+    for (uint8_t level = 0; level <= 80; level = level == 0 ? 30 : level + 1)
     {
         Patch[198] = expected;
         Patch[198].Instrument[0].lock = level;
@@ -130,6 +130,25 @@ int main()
         assert(archive.Copy_Patch_from_RAM_to_SD(198, level_wire));
         Patch[198] = {};
         assert(archive.Copy_Patch_from_SD_to_RAM(198, level_wire) && Patch[198] == level_patch);
+    }
+    // Legacy HIFI values migrate once, preserving their cutoff including 3.8 kHz.
+    const uint8_t migrated[] = {0, 50, 45, 42, 40, 38};
+    for (uint8_t old_level = 0; old_level <= 5; ++old_level)
+    {
+        Patch[198] = expected;
+        Patch[198].Instrument[0].lock = old_level;
+        assert(archive.Save_Patch(198) == 0); // Write the historical byte encoding.
+        File old_wire{std::make_shared<std::vector<uint8_t>>()};
+        assert(archive.Copy_Patch_from_RAM_to_SD(198, old_wire));
+        auto migrated_patch = expected;
+        migrated_patch.Instrument[0].lock = migrated[old_level];
+        Patch[198] = {};
+        assert(archive.Read_Patch(198) == 0 && Patch[198] == migrated_patch);
+        assert(archive.Save_Patch(198) == 0);
+        Patch[198] = {};
+        assert(archive.Read_Patch(198) == 0 && Patch[198] == migrated_patch);
+        Patch[198] = {};
+        assert(archive.Copy_Patch_from_SD_to_RAM(198, old_wire) && Patch[198] == migrated_patch);
     }
     Patch[198] = expected;
     ArchivingManager::FRAM_Patch_struct invalid_level{};

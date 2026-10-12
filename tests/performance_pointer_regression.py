@@ -55,8 +55,8 @@ int main()
     pointer.Set_pointer_to_Patch();
     pointer.Move_pointer(1, 4);
     pointer.Move_pointer_from_Instrument_to_inside();
-    assert(pointer.Get_pointer().element == value_P_Hifi);
-    for (int field = value_P_Hifi; field <= value_P_Gain; ++field)
+    assert(pointer.Get_pointer().element == value_P_Tone);
+    for (int field = value_P_Tone; field <= value_P_Gain; ++field)
     {
         while (pointer.Get_pointer().element != field)
         {
@@ -77,7 +77,7 @@ int main()
         assert(Display_Performance.shown.field_name == field_P_Instrument_inside && Display_Performance.shown.element == field);
     }
     pointer.Move_pointer(1, 4);
-    assert(pointer.Get_pointer().element == value_P_Hifi);
+    assert(pointer.Get_pointer().element == value_P_Tone);
     pointer.Move_pointer(-1, 4);
     assert(pointer.Get_pointer().element == value_P_Gain);
     pointer.Set_pointer_to_RootKey(6);

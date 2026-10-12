@@ -358,7 +358,7 @@ int main()
 
     // IIR source history follows logical loop order even when longer than a complete loop.
     AudioPlayer upward;
-    upward.tone_filter_level = 5;
+    upward.tone_filter_level = 80;
     upward.source_now = {Psram, 8, source};
     for (const float rate : {1.001f, 1.25f, 1.5f, 2.0f, 4.0f, 8.0f, 16.0f, 35.0f})
     {
@@ -405,7 +405,7 @@ int main()
     // Maximum-pitch contiguous windows split real transfers and RAM diagnostic proxies at 4500.
     std::vector<int16_t> long_source(5000, 1234);
     AudioPlayer longest;
-    longest.tone_filter_level = 3;
+    longest.tone_filter_level = 38;
     longest.source_now = {Psram, 5000, long_source.data()};
     longest.Wavetable_ptr = long_source.data();
     longest.Wavetable_length = 5000;
@@ -426,7 +426,7 @@ int main()
             assert(std::abs(value - 1234) < 2);
         }
     }
-    // Live HIFI toggles must bypass and restore the IIR even at an unchanged pitch.
+    // Live TONE toggles must bypass and restore the IIR even at an unchanged pitch.
     longest.tone_filter_level = false;
     longest.a_sample = 500;
     longest.b_sample = 500 + 127 * longest.pitch;
@@ -434,7 +434,7 @@ int main()
     longest.Harvest_samples();
     assert(longest.antialias.mix == 0 && longest.antialias.history == 0);
     assert(longest.read_diagnostics.sources[2].samples < 4500);
-    longest.tone_filter_level = 3;
+    longest.tone_filter_level = 38;
     longest.a_sample = 500;
     longest.b_sample = 500 + 127 * longest.pitch;
     longest.Harvest_samples();
