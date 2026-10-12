@@ -12,7 +12,7 @@ The codebase targets a Teensy 4.1 running at 600 MHz and is organized as a stand
     <img width="1000" alt="LILLA Audio Sampler in blue" src="doc/assets/images/lilla_blue_1.jpg">
 </p>
 
-Read the illustrated [User Guide](User%20Guide.md) for connections, controls and operating procedures. Also available in [Italiano](Manuale%20Utente.md), [Deutsch](Benutzerhandbuch.md) and [Français](Guide%20utilisateur.md). The printable English edition is [User Guide.pdf](User%20Guide.pdf).
+Read the illustrated [User Guide](User%20Guide.md) for connections, controls and operating procedures. The printable English edition is [User Guide.pdf](User%20Guide.pdf).
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
@@ -29,6 +29,12 @@ LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work w
 
 Sound shaping includes sample trimming, forward/reverse and loop playback, envelopes, instrument filters and modulation, a common low-pass filter, stereo delay, bit reduction and downsampling. Separate main and pre-listening routes support auditioning and performance.
 
+## New in firmware 7.1.0
+
+TONE combines source-domain anti-aliasing with a pitch-dependent low-pass filter for targeted timbre correction when pitch rises. Choose OFF or 3.0-8.0 kHz in 0.1 kHz steps. Anti-imaging remains available automatically when pitch falls, independently of TONE. See [release notes](docs/release-notes-7.1.0.md) and the manuals for practical setup.
+
+Inside the Performance/SESSION Instrument fields, Select now traverses every Instrument cyclically from TONE through GAIN. Press Select to return to the whole current Instrument. VCF CUTOFF changes also affect sounding notes through a short smooth transition.
+
 ## Operating Modes
 
 The **Modes** selector chooses Performance, Sampler, Live Sampler or MIDI Loop. Each mode offers a different way to use the same sound engine: play prepared patches, record a take, explore incoming audio or build a repeating MIDI arrangement.
@@ -37,7 +43,7 @@ The **Modes** selector chooses Performance, Sampler, Live Sampler or MIDI Loop. 
 
 Performance is the main page for playing and organizing patches. Each patch contains up to eight sound slots with their own source, MIDI channel, root key, keyboard range, gain and pan. Assign overlapping ranges to build layers, separate ranges to create keyboard splits, or different MIDI channels to play several parts from a controller or sequencer. Up to 16 playback voices are shared between the active sounds, including layers and release tails.
 
-The root key establishes the reference pitch of each sound. The keyboard range determines which notes trigger it, while precedence and lock settings provide additional control over voice allocation and selected performance adjustments. Patch volume, the common low-pass cutoff, resolution and downsampling are available for shaping the performance as a whole.
+The root key establishes the reference pitch of each sound. The keyboard range determines which notes trigger it, while precedence controls voice allocation and TONE provides pitch-dependent timbre correction. Patch volume, the common low-pass cutoff, resolution and downsampling are available for shaping the performance as a whole.
 
 Press **S1-S8** to edit an active sound. Sound Edit provides source selection, waveform trimming, pitch, gain, pan, ADSR envelope and playback direction. One-shot modes suit hits and natural decays; forward, reverse and alternating loops extend a selected region into a sustained sound. Noclick provides boundary smoothing where supported. Auto Tune analyses the selected region and adjusts its pitch toward a chromatic note; the result can then be refined by ear.
 
@@ -167,7 +173,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Download [Lilla_v7_0_2.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.0.2/Lilla_v7_0_2.hex) from [release v7.0.2](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.0.2). The release includes the compiled firmware and the source code for the same tagged commit. See the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.1.0 (12 October 2026)**: [Lilla_v7_1_0.hex](Lilla_v7_1_0.hex). See the [7.1.0 release notes](docs/release-notes-7.1.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions. A GitHub release is published separately.
 
 ## Build
 

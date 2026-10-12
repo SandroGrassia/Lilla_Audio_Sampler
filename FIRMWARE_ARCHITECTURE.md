@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.0.0 04/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.1.0 12/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -186,3 +186,9 @@ Follow the repository's [AGENTS.md](AGENTS.md) conventions when editing: CRLF te
 For firmware changes, build with `pio run -e teensy41` and exercise the affected workflow on hardware. Changes to audio reads or scheduling also need stress checks with layered notes, release tails, patch switching, MIDI bursts and the relevant recording/effect paths. A successful build alone does not establish real-time headroom or persistence compatibility.
 
 This document describes source-level behavior. Timing margins and hardware performance require measurement; keep this description and its source references current when those mechanisms change.
+
+## Pitch-dependent timbre processing in 7.1.0
+
+TONE enables source-domain anti-aliasing above unity and a post-resampling LPF for targeted upward-pitch timbre correction. The LPF moves from 20 kHz at pitch 1 to the selected 3.0-8.0 kHz endpoint at +11 semitones. Low-pitch anti-imaging remains independent of TONE, including OFF. See [TONE processing](docs/player-tone-filter.md) for signal order, smoothing and legacy setting migration.
+
+Manual VCF cutoff edits reach active voices over 40 quarter-block steps (about 29 ms), with and without LFO. Cutoff and LFO index ramps advance independently; AudioVCF reloads coefficients at quarter-block boundaries while preserving its sample history. Outside manual cutoff ramps, the VCF retains its established pitch reference.

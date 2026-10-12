@@ -141,6 +141,7 @@ private:
     float VCF_frequency_array[4];
     int8_t VCF_pivot_steps = 0;
     float VCF_pivot_grain;
+    float VCF_pivot_target = 5000.0f;
     void Send_LFO_to_VCF(void);
     int LFO_modulation = 0;
     float LFO_index = 1.0;

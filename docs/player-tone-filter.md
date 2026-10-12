@@ -12,4 +12,4 @@ FRAM and SD retain the one-byte field and patch layout. Runtime and new saves en
 
 The read budget reserves source history and an initial CPU allowance only when TONE is enabled. Hardware timing and listening tests remain separate from the host regressions and Teensy build. Host tests cover all endpoints, frequency response, unity/OFF bypass, live edits, reset and FRAM/SD round trips and migration.
 
-Performance remembers the last selected instrument field during the session. Leaving MIDI, selecting another instrument and entering it returns to MIDI. Initial entry selects TONE; explicit RootKey shortcuts select and remember RootKey.
+Inside Performance (SESSION), Select rotation traverses TONE through GAIN, then TONE of the next active Instrument, wrapping from last to first. Reverse rotation traverses the same sequence backwards. Pressing Select exits onto the whole current Instrument. Performance remembers the last selected instrument field during the session. Leaving MIDI, selecting another instrument and entering it returns to MIDI. Initial entry selects TONE; explicit RootKey shortcuts select and remember RootKey.

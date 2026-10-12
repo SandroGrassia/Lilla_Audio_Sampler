@@ -80,6 +80,39 @@ int main()
     assert(pointer.Get_pointer().element == value_P_Tone);
     pointer.Move_pointer(-1, 4);
     assert(pointer.Get_pointer().element == value_P_Gain);
+    // Traverse all fields across non-contiguous instrument IDs in both directions.
+    pointer.Set_pointer_to_Patch();
+    pointer.Move_pointer(1, 4);
+    pointer.Move_pointer_from_Instrument_to_inside();
+    for (int direction : {1, -1})
+    {
+        for (int step = 0; step < 48; ++step)
+        {
+            const auto old = pointer.Get_pointer();
+            const int old_index = old.instrument_line * 8 + old.element;
+            const int expected = (old_index + direction + 24) % 24;
+            pointer.Move_pointer(direction, 4);
+            const auto current = pointer.Get_pointer();
+            assert(current.field_name == field_P_Instrument_inside);
+            assert(current.element == expected % 8 && current.instrument_line == expected / 8);
+            assert(current.instrument_id == instrument_on_position[expected / 8]);
+            assert(Display_Performance.erased.instrument_id == old.instrument_id && Display_Performance.erased.element == old.element);
+            assert(Display_Performance.shown.instrument_id == current.instrument_id && Display_Performance.shown.element == current.element);
+        }
+    }
+    // Select exits onto the current Instrument and re-entry remembers its field.
+    pointer.Move_pointer_from_inside_to_Instrument();
+    assert(pointer.Get_pointer().field_name == field_P_Instrument);
+    pointer.Move_pointer_from_Instrument_to_inside();
+    // A single Instrument cycles its own fields without leaving the inside area.
+    Patch[0].instruments = 1;
+    for (int step = 0; step < 16; ++step)
+    {
+        pointer.Move_pointer(1, 4);
+        assert(pointer.Get_pointer().instrument_line == 0 && pointer.Get_pointer().instrument_id == 0);
+        assert(pointer.Get_pointer().field_name == field_P_Instrument_inside);
+    }
+    Patch[0].instruments = 3;
     pointer.Set_pointer_to_RootKey(6);
     pointer.Move_pointer_from_inside_to_Instrument();
     pointer.Move_pointer(-1, 4);

@@ -1615,7 +1615,14 @@ void AudioPlayer::update(void)
             if (VCF_modulated)
             {
                 LFO_ptr->Update();
+            }
+            if (VCF_modulated || VCF_pivot_steps > 0)
+            {
                 Send_LFO_to_VCF();
+            }
+            else
+            {
+                VCF_ptr->LFO_connect = false;
             }
             VCF_ptr->Update();
         }
@@ -2993,6 +3000,8 @@ void AudioPlayer::Connect_VCF(bool use, int type, float pivot, float resonance, 
     VCF_connect = use;
     VCF_modulated = modulated;
     VCF_frequency_pivot = pivot;
+    VCF_pivot_target = pivot;
+    VCF_pivot_steps = 0;
 
     if (false)
     {
@@ -3071,13 +3080,9 @@ void AudioPlayer::Start_VCF(void)
 
 void AudioPlayer::Update_VCF_pivot(float new_pivot)
 {
-    float delta_pivot = new_pivot - VCF_frequency_pivot;
-
-    if (abs(delta_pivot) > 5)
-    {
-        VCF_pivot_steps = 40;
-        VCF_pivot_grain = (delta_pivot) / 40.0; // 20 steps
-    }
+    VCF_pivot_target = new_pivot;
+    VCF_pivot_steps = 40;
+    VCF_pivot_grain = (new_pivot - VCF_frequency_pivot) / 40.0f;
 }
 
 void AudioPlayer::Update_LFO_index(float new_index)
@@ -3119,57 +3124,34 @@ void AudioPlayer::Send_LFO_to_VCF(void)
      * block. This prevents sudden parameter changes from reaching the filter.
      */
 
-    const uint8_t ABS_4 = AUDIO_BLOCK_SAMPLES / 4;
-    const uint8_t ABS_2 = AUDIO_BLOCK_SAMPLES / 2;
-    const uint8_t ABS_3_4 = 3 * AUDIO_BLOCK_SAMPLES / 4;
-
-    if (LFO_index_steps <= 0 && VCF_pivot_steps <= 0)
+    VCF_ptr->LFO_connect = true;
+    for (int section = 0; section < 4; ++section)
     {
-        VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_ptr->Set_filter(0, VCF_frequency_array[0]); // Set_filter(uint32_t stage, float frequency)
-
-        VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
+        if (VCF_pivot_steps > 0)
+        {
+            VCF_frequency_pivot += VCF_pivot_grain;
+            --VCF_pivot_steps;
+            if (VCF_pivot_steps == 0)
+            {
+                VCF_frequency_pivot = VCF_pivot_target;
+            }
+            VCF_central_frequency = VCF_frequency_pivot * pitch; // Preserve the established pitch reference outside manual cutoff ramps.
+        }
+        if (VCF_modulated && LFO_index_steps > 0)
+        {
+            LFO_index += LFO_index_grain;
+            --LFO_index_steps;
+        }
+        if (VCF_modulated)
+        {
+            VCF_frequency_array[section] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[section * AUDIO_BLOCK_SAMPLES / 4] / 1000.0f) * LFO_index), 50, 15000);
+        }
+        else
+        {
+            VCF_frequency_array[section] = VCF_frequency_pivot;
+        }
     }
-    else if (LFO_index_steps > 0)
-    {
-        LFO_index += LFO_index_grain;
-        VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_ptr->Set_filter(0, VCF_frequency_array[0]); // Set_filter(uint32_t stage, float frequency)
-
-        LFO_index += LFO_index_grain;
-        VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
-        LFO_index += LFO_index_grain;
-        VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
-        LFO_index += LFO_index_grain;
-        VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
-        LFO_index_steps -= 4;
-
-        // Serial.print("LFO_index_steps: ");
-        // Serial.println(LFO_index_steps);
-    }
-    else if (VCF_pivot_steps > 0)
-    {
-        VCF_frequency_pivot += VCF_pivot_grain;
-        VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[0] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[0] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_ptr->Set_filter(0, VCF_frequency_array[0]); // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
-
-        VCF_frequency_pivot += VCF_pivot_grain;
-        VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[1] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_4] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_frequency_pivot += VCF_pivot_grain;
-        VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[2] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_2] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_frequency_pivot += VCF_pivot_grain;
-        VCF_central_frequency = (VCF_frequency_pivot * pitch);
-        VCF_frequency_array[3] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[ABS_3_4] / 1000.0f) * LFO_index), 50, 15000);
-        VCF_pivot_steps -= 4;
-
-        // Serial.print("VCF_pivot_steps: ");
-        // Serial.println(VCF_pivot_steps);
-    }
+    VCF_ptr->Set_filter(0, VCF_frequency_array[0]);
 }
 
 float AudioPlayer::Mirror(float pivot, float value)

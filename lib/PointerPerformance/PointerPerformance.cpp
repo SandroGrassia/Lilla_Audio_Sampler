@@ -163,6 +163,8 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
             else
             {
                 pointer.element = 0;
+                pointer.instrument_line = (pointer.instrument_line + 1) % Patch[Patch_id].instruments;
+                pointer.instrument_id = instrument_on_position[pointer.instrument_line];
             }
         }
         else if (value == -1)
@@ -176,6 +178,8 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
             else
             {
                 pointer.element = instrument_inside_elements - 1;
+                pointer.instrument_line = (pointer.instrument_line + Patch[Patch_id].instruments - 1) % Patch[Patch_id].instruments;
+                pointer.instrument_id = instrument_on_position[pointer.instrument_line];
             }
         }
         break;
