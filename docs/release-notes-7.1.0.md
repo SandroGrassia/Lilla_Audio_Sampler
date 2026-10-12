@@ -2,6 +2,14 @@
 
 Date: 12 October 2026. Firmware: `Lilla_v7_1_0.hex` for Teensy 4.1.
 
+## Sampler workflow completed
+
+- Complete the Sampler workflow: record audio, edit and audition the recorded material from the keyboard, then turn it into playable sounds or export it as WAV. Editing preserves the original recording until conversion or export.
+- In Sampler, editing a stereo recording automatically keeps playback parameters and A/B trim boundaries synchronized between its left and right channels.
+- Sampler A/B trim points are saved for keyboard playback and RAW/WAV export, and retained through storage defragmentation and supported backups.
+
+Successful RAW conversion or WAV export removes the source Sampler recording; back up the original take first if you need to keep it.
+
 ## Pitch and timbre
 
 - TONE replaces the former LOCK/HIFI field. Each Instrument selects OFF or a cutoff endpoint from 3.0 to 8.0 kHz in 0.1 kHz steps.
@@ -19,7 +27,7 @@ Date: 12 October 2026. Firmware: `Lilla_v7_1_0.hex` for Teensy 4.1.
 
 The English manual describes TONE, its purpose, and cyclic Instrument navigation. The printable English guide is updated to 7.1.0. Translated manuals have been removed so that one maintained guide remains the reference.
 
-Hardware listening tests remain necessary to assess timbre, transitions and real-time headroom on the instrument. This file describes the local 7.1.0 build; it does not imply that a GitHub release has been published.
+Hardware listening tests remain necessary to assess timbre, transitions and real-time headroom on the instrument.
 
 ## Validation
 
