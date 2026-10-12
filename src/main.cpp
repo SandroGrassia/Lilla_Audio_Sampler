@@ -8082,6 +8082,11 @@ void loop()
             Golive_SETUP();
         }
     }
+
+    if (Display_Performance.P_update_upload_popup(Lilla_state == PERFORMANCE && PatchCache_Manager.Has_pending_copy(), P_pointer))
+    {
+        Performance_led_set.Restore_all_LED();
+    }
 }
 
 #pragma endregion // CC_SETTINGS

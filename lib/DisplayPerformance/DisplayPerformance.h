@@ -14,6 +14,8 @@ class DisplayPerformance
 {
 private:
     void Note(const int note_number);
+    bool upload_popup_visible = false;
+    uint32_t upload_popup_drawn_ms = 0;
 
     static constexpr float P_column_Instrument_frame = 3;
     static constexpr float P_chars_width_Instrument_frame = 49;
@@ -55,6 +57,7 @@ public:
 
     void Led_PERFORMANCE_instrument(int instrument_id, bool on);
     void Led_tuning_tone(int patch_id);
+    bool P_update_upload_popup(bool loading, P_field_description_struct pointer);
     void P_show_pointer_frame(P_field_description_struct value, bool show);
     void P_show_PERFORMANCE_page(bool change_patch, bool change_vol);
     void P_Patch_header(bool change_patch, bool change_vol);

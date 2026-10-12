@@ -196,6 +196,18 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
     return result;
 }
 
+bool PatchCacheManager::Has_pending_copy(void) const
+{
+    for (uint8_t i = 0; i < required_count; ++i)
+    {
+        if (!required[i].failed && Find_complete(required[i].file_id, required[i].samples) < 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool PatchCacheManager::Prepare_copy(CopyJob &job)
 {
     job = {};
