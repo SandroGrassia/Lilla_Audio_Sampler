@@ -1883,28 +1883,15 @@ void loop()
 
             switch (Pointer_Performance.Get_pointer().element)
             {
-            case value_P_Lock: // Lock
+            case value_P_Tone: // Cutoff in tenths of kHz, with OFF before 3.0 kHz.
             {
-                result = Read_encoder_simple(EN_PB_Value);
-
-                if (result == 1)
+                const uint8_t cutoff = Patch[Patch_id].Instrument[instrument_id].lock;
+                uint8_t position = cutoff == 0 ? 0 : cutoff - 29;
+                if (Read_encoder(EN_PB_Value, position, 51, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Patch[Patch_id].Instrument[instrument_id].lock = true;
+                    Patch[Patch_id].Instrument[instrument_id].lock = position == 0 ? 0 : position + 29;
                     Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
-                    Players_Manager.Multicast_reset_pitch_bend_effects(instrument_id);
-                    AudioInterrupts();
-
-                    P_Macro_Instrument_editing(Patch_id, instrument_id, element);
-                    P_UpdatePatchOriginalAndMenu();
-                }
-
-                else if (result == -1)
-                {
-                    AudioNoInterrupts();
-                    Patch[Patch_id].Instrument[instrument_id].lock = false;
-                    Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
-                    Players_Manager.Broadcast_restore_pitch_bend_and_effects(instrument_id, pitch_bend_value[Get_midi_channel(Patch_id, instrument_id)]);
                     AudioInterrupts();
 
                     P_Macro_Instrument_editing(Patch_id, instrument_id, element);
@@ -8647,8 +8634,8 @@ void P_Macro_Instrument_editing(const int patch_id, const int instrument_id, con
 {
     switch (element)
     {
-    case value_P_Lock: // Lock
-        Display_Performance.P_show_Lock_value(patch_id, instrument_id, true);
+    case value_P_Tone: // TONE
+        Display_Performance.P_show_Tone_value(patch_id, instrument_id, true);
         break;
 
     case value_P_Precedence: // Precedence
@@ -9995,7 +9982,7 @@ void DS_set_DS_Sampling_Patch(void)
     Patch[PATCHES_MAX].Instrument[0].from_note = 0;
     Patch[PATCHES_MAX].Instrument[0].to_note = 127;
     Patch[PATCHES_MAX].Instrument[0].precedence = false;
-    Patch[PATCHES_MAX].Instrument[0].lock = false;
+    Patch[PATCHES_MAX].Instrument[0].lock = 0;
     Patch[PATCHES_MAX].Instrument[0].Filter.use = false;
 
     // Right channel recording/instrument
@@ -10005,7 +9992,7 @@ void DS_set_DS_Sampling_Patch(void)
     Patch[PATCHES_MAX].Instrument[1].from_note = 0;
     Patch[PATCHES_MAX].Instrument[1].to_note = 127;
     Patch[PATCHES_MAX].Instrument[1].precedence = false;
-    Patch[PATCHES_MAX].Instrument[1].lock = false;
+    Patch[PATCHES_MAX].Instrument[1].lock = 0;
     Patch[PATCHES_MAX].Instrument[1].Filter.use = false;
 
     Patch[PATCHES_MAX].Instrument[2].used = false;
@@ -12966,7 +12953,7 @@ void Print_Instrument(int patch_id, int instrument_id)
     Serial.print(Patch[patch_id].Instrument[instrument_id].to_note);
     Serial.print(" precedence:");
     Serial.print(Patch[patch_id].Instrument[instrument_id].precedence);
-    Serial.print(" lock:");
+    Serial.print(" qlpf:");
     Serial.println(Patch[patch_id].Instrument[instrument_id].lock);
 
     Serial.print("Filter  use:");
@@ -13763,7 +13750,7 @@ void LS_setup_LS_Patch(bool stereo)
         Patch[PATCHES_MAX].Instrument[0].from_note = 0;
         Patch[PATCHES_MAX].Instrument[0].to_note = 127;
         Patch[PATCHES_MAX].Instrument[0].precedence = false;
-        Patch[PATCHES_MAX].Instrument[0].lock = false;
+        Patch[PATCHES_MAX].Instrument[0].lock = 0;
 
         Patch[PATCHES_MAX].Instrument[0].Filter.use = false;        // yes/no
         Patch[PATCHES_MAX].Instrument[0].Filter.type = 0;           // lowpass, highpass, bandpass, notch
@@ -13780,7 +13767,7 @@ void LS_setup_LS_Patch(bool stereo)
         Patch[PATCHES_MAX].Instrument[1].from_note = 0;
         Patch[PATCHES_MAX].Instrument[1].to_note = 127;
         Patch[PATCHES_MAX].Instrument[1].precedence = false;
-        Patch[PATCHES_MAX].Instrument[1].lock = false;
+        Patch[PATCHES_MAX].Instrument[1].lock = 0;
 
         Patch[PATCHES_MAX].Instrument[1].Filter.use = false;        // yes/no
         Patch[PATCHES_MAX].Instrument[1].Filter.type = 0;           // lowpass, highpass, bandpass, notch
@@ -13841,7 +13828,7 @@ void LS_setup_LS_Patch(bool stereo)
         Patch[PATCHES_MAX].Instrument[0].from_note = 0;
         Patch[PATCHES_MAX].Instrument[0].to_note = 127;
         Patch[PATCHES_MAX].Instrument[0].precedence = false;
-        Patch[PATCHES_MAX].Instrument[0].lock = false;
+        Patch[PATCHES_MAX].Instrument[0].lock = 0;
 
         Patch[PATCHES_MAX].Instrument[0].Filter.use = false;        // yes/no
         Patch[PATCHES_MAX].Instrument[0].Filter.type = 0;           // lowpass, highpass, bandpass, notch

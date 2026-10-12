@@ -418,6 +418,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
 {
     const auto &preset = Preset[instrument]; // Prepared source selected for the incoming note.
     PlayerReadBudget::Plan plan; // Match AudioPlayer's pending geometry without modifying a voice.
+    plan.antialias = preset.lock;
     plan.live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
     const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
     plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
@@ -635,16 +636,9 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
 
     Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
 
-    if (!Preset[instrument_id].lock)
-    {
-        Player_ptr[id_player].Set_effects(resolution_value[resolution], downsampling);
-        Player_ptr[id_player].Set_pitch_bend(pitch_bend_value[Preset[instrument_id].midi_channel]);
-    }
-    else
-    {
-        Player_ptr[id_player].Set_effects(16.0, 0);
-        Player_ptr[id_player].Set_pitch_bend(1.0);
-    }
+    Player_ptr[id_player].Set_tone_filter(Preset[instrument_id].lock); // TONE enables timbre compensation and source-domain anti-alias filtering.
+    Player_ptr[id_player].Set_effects(resolution_value[resolution], downsampling);
+    Player_ptr[id_player].Set_pitch_bend(pitch_bend_value[Preset[instrument_id].midi_channel]);
 
     // VCF and its LFO_0
     if (Preset[instrument_id].Filter.use == 1)
@@ -1001,7 +995,7 @@ void PlayersManager::Multicast_effects(float resolution, uint8_t downsampling)
 {
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if (Player_ptr[player].isPlaying() && !Preset[Player_ptr[player].Read_instrument()].lock)
+        if (Player_ptr[player].isPlaying())
         {
             Player_ptr[player].Set_effects(resolution, downsampling);
         }
@@ -1248,6 +1242,10 @@ void PlayersManager::Update_Preset_precedence(int patch_id, int instrument_id)
 void PlayersManager::Update_Preset_lock(int patch_id, int instrument_id)
 {
     Preset[instrument_id].lock = Patch[patch_id].Instrument[instrument_id].lock;
+    for (int player = 0; player < PLAYERS; ++player)
+    {
+        Player_ptr[player].Update_tone_filter(patch_id, instrument_id, Preset[instrument_id].lock);
+    }
 }
 
 void PlayersManager::Multicast_IF_update_filter_type(int instrument_id)
@@ -1583,7 +1581,7 @@ void PlayersManager::Broadcast_pitch_bend(int midi_channel, float value)
 {
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if (Player_ptr[player].isPlaying() && !Preset[Player_ptr[player].Assigned_instrument()].lock && Preset[Player_ptr[player].Assigned_instrument()].midi_channel == midi_channel) // if(!bitRead(Patch[patch_id].Instrument[Player_ptr[player].instrument_id].info, 1) && (Get_midi_channel(patch_id, Player_ptr[player].instrument_id) == midi_channel))
+        if (Player_ptr[player].isPlaying() && Preset[Player_ptr[player].Assigned_instrument()].midi_channel == midi_channel) // if(!bitRead(Patch[patch_id].Instrument[Player_ptr[player].instrument_id].info, 1) && (Get_midi_channel(patch_id, Player_ptr[player].instrument_id) == midi_channel))
         {
             Player_ptr[player].Set_pitch_bend(value);
         }
@@ -1594,7 +1592,7 @@ void PlayersManager::Broadcast_restore_pitch_bend_and_effects(int midi_channel, 
 {
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if (!Preset[Player_ptr[player].Read_instrument()].lock && Preset[Player_ptr[player].Read_instrument()].midi_channel == midi_channel) // if(!bitRead(Patch[patch_id].Instrument[Player_ptr[player].instrument_id].info, 1))
+        if (Preset[Player_ptr[player].Read_instrument()].midi_channel == midi_channel) // if(!bitRead(Patch[patch_id].Instrument[Player_ptr[player].instrument_id].info, 1))
         {
             Player_ptr[player].Set_pitch_bend(value);
             Player_ptr[player].Set_effects(resolution_value[resolution], downsampling);

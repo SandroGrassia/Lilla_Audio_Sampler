@@ -20,7 +20,7 @@ private:
 
     static constexpr float P_row_Instrument_title = 5;
     static constexpr float P_column_SOUND_title = 0.5;
-    static constexpr float P_column_LOCK_title = 7;
+    static constexpr float P_column_TONE_title = 7;
     static constexpr float P_column_P_title = 12.5;
     static constexpr float P_column_MIDI_title = 15;
     static constexpr float P_column_ROOT_K_title = 20.5;
@@ -33,8 +33,8 @@ private:
     static constexpr float P_column_Sound = 3;
 
     // pointer
-    static constexpr int P_chars_instrument_element[8] = {1, 1, 2, 4, 4, 4, 2, 4};                       // Lock, Precedence,....., Gain
-    static constexpr float P_column_instrument_element[8] = {8.5, 12.5, 16, 21.5, 28.5, 36.5, 43, 47.5}; // Lock, Precedence,....., Gain
+    static constexpr int P_chars_instrument_element[8] = {3, 1, 2, 4, 4, 4, 3, 4};                       // TONE, Precedence,....., Gain
+    static constexpr float P_column_instrument_element[8] = {7, 12.5, 16, 21.5, 28.5, 36.5, 43, 47.5}; // TONE, Precedence,....., Gain
 
     int P_Instrument_pixels_y(int position);
 
@@ -67,7 +67,7 @@ public:
     void P_show_all_instruments(int patch_id);
     void P_show_Instrument_description(int patch_id, int instrument_id, bool editing);
     void P_show_Sound_number(int instrument_id, bool editing);
-    void P_show_Lock_value(int patch_id, int instrument_id, bool editing);
+    void P_show_Tone_value(int patch_id, int instrument_id, bool editing);
     void P_show_Precedence_value(int patch_id, int instrument_id, bool editing);
     void P_show_Midi_value(int patch_id, int instrument_id, bool editing);
     void P_show_RootKey_value(int patch_id, int instrument_id, bool editing);

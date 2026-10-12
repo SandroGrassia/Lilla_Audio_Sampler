@@ -12,6 +12,17 @@
 
 namespace
 {
+    bool Valid_tone_setting(uint8_t value)
+    {
+        return value <= 5 || (value >= 30 && value <= 80); // Legacy HIFI or current cutoff in tenths of kHz.
+    }
+
+    uint8_t Decode_tone_setting(uint8_t value)
+    {
+        static constexpr uint8_t legacy_cutoffs[] = {0, 50, 45, 42, 40, 38};
+        return value <= 5 ? legacy_cutoffs[value] : value; // Caller already validated the stored byte.
+    }
+
     // Keep each transfer within Wire2's 136-byte buffer, including the two address bytes.
     constexpr uint32_t FRAM_TRANSFER_BYTES = 128;
 
@@ -1217,7 +1228,7 @@ byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &fai
             for (uint8_t id = 0; id < INSTRUMENTS; ++id)
             {
                 const auto &input = source.Instrument[id];
-                if (input.used > 1)
+                if (input.used > 1 || !Valid_tone_setting(input.lock))
                 {
                     result = FRAM_ERROR_SOURCE;
                     break;
@@ -1240,7 +1251,7 @@ byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &fai
                 output.from_note = input.from_note;
                 output.to_note = input.to_note;
                 output.precedence = input.precedence;
-                output.lock = input.lock;
+                output.lock = Decode_tone_setting(input.lock);
                 output.Filter.use = input.Filter.use;
                 output.Filter.type = input.Filter.type;
                 output.Filter.pivot = input.Filter.pivot;
@@ -1636,7 +1647,7 @@ byte ArchivingManager::Save_Patch(const int patch_id)
         output.from_note = input.from_note;
         output.to_note = input.to_note;
         output.precedence = input.precedence ? 1 : 0;
-        output.lock = input.lock ? 1 : 0;
+        output.lock = input.lock;
         output.Filter.use = input.Filter.use;
         output.Filter.type = input.Filter.type;
         output.Filter.pivot = input.Filter.pivot;
@@ -1699,7 +1710,7 @@ byte ArchivingManager::Read_Patch(const int patch_id)
     for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
     {
         const auto &input = source.Instrument[instrument_id];
-        if (input.used > 1)
+        if (input.used > 1 || !Valid_tone_setting(input.lock))
         {
             return FRAM_ERROR_SOURCE;
         }
@@ -1719,7 +1730,7 @@ byte ArchivingManager::Read_Patch(const int patch_id)
         output.from_note = input.from_note;
         output.to_note = input.to_note;
         output.precedence = input.precedence != 0;
-        output.lock = input.lock != 0;
+        output.lock = Decode_tone_setting(input.lock);
         output.Filter.use = input.Filter.use;
         output.Filter.type = input.Filter.type;
         output.Filter.pivot = input.Filter.pivot;
@@ -2071,6 +2082,15 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 
     file.close();
 
+    for (auto &instrument : temporaryPatch.Instrument)
+    {
+        if (!Valid_tone_setting(instrument.lock))
+        {
+            return false;
+        }
+        instrument.lock = Decode_tone_setting(instrument.lock);
+    }
+
     // Modifica la Patch attiva soltanto dopo una lettura completa.
     Patch[patch_id] = temporaryPatch;
 
@@ -2316,13 +2336,13 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
         const uint8_t precedence = payload[offset++];
         const uint8_t lock = payload[offset++];
 
-        if (precedence > 1 || lock > 1 || (active && instrument.sound_id >= SOUNDS_MAX))
+        if (precedence > 1 || !Valid_tone_setting(lock) || (active && instrument.sound_id >= SOUNDS_MAX))
         {
             return false;
         }
 
         instrument.precedence = precedence != 0;
-        instrument.lock = lock != 0;
+        instrument.lock = Decode_tone_setting(lock);
         instrument.Filter.use = payload[offset++];
         instrument.Filter.type = payload[offset++];
         instrument.Filter.pivot = payload[offset++];

@@ -37,7 +37,7 @@ enum P_field_name
 
 enum P_instrument_inside_name
 {
-    value_P_Lock,
+    value_P_Tone,
     value_P_Precedence,
     value_P_Midi,
     value_P_RootKey,

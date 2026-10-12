@@ -25,15 +25,21 @@
 #include "AudioTables.h"
 #include "PlayerReadDiagnostics.h"
 #include "PlayerReadBudget.h"
+#include "PlayerInterpolator.h"
+#include "PlayerToneFilter.h"
+#include "PlayerAntialias.h"
 
 class AudioPlayer : public AudioStream
 {
 private:
-    static constexpr int BASKET_DIM = 4500;    // la dimensione deve essere non inferiore a AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE
-    static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + 2);
+    static constexpr int BASKET_DIM = PlayerAntialias::Basket_capacity; // Includes source-domain IIR history at the maximum playback pitch.
+    static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + PlayerAntialias::History_base + PlayerAntialias::History_per_pitch * MAX_PITCH_WAVETABLE + 2);
     static_assert(MAX_PITCH_PSRAM <= MAX_PITCH_WAVETABLE && MAX_PITCH_FLASH <= MAX_PITCH_WAVETABLE);
     static int16_t samples_basket[BASKET_DIM]; // cache array unico per samples copiati dai Player
     int16_t block[AUDIO_BLOCK_SAMPLES];
+    PlayerToneFilter tone_filter;
+    uint8_t tone_filter_level = 0;
+    uint8_t tone_filter_level_wait = 0;
     int16_t budget_tail_sample = 0; // Last rendered mono sample for a continuous source-free retirement ramp.
     bool budget_tail_pending = false; // Emit one fading cached block before the replacement renders.
     bool rendered_block_valid = false; // Never read an uninitialized output block when retiring a new voice.
@@ -135,6 +141,7 @@ private:
     float VCF_frequency_array[4];
     int8_t VCF_pivot_steps = 0;
     float VCF_pivot_grain;
+    float VCF_pivot_target = 5000.0f;
     void Send_LFO_to_VCF(void);
     int LFO_modulation = 0;
     float LFO_index = 1.0;
@@ -292,7 +299,16 @@ private:
     inline static bool read_diagnostics_enabled = false;
     PlayerReadDiagnostics read_diagnostics;
     void Record_read(PlayerReadSource source, int count, uint16_t flags = 0);
-    void Harvest_samples(void); // Optional diagnostics wrap the unchanged source harvest paths.
+    float interpolation_mix = 0.0f; // Full sinc below 0.75x; blend continuously to linear at 1x.
+    PlayerAntialias::Settings antialias;
+    static float resampled_basket[AUDIO_BLOCK_SAMPLES]; // Each harvest is consumed before the next.
+    int harvested_samples = 0;
+    void Harvest_filtered_samples(int left, int right, float distance); // Source context does not advance the logical playhead.
+    void Harvest_samples(int outputs = AUDIO_BLOCK_SAMPLES); // Includes source-domain anti-alias processing in diagnostics.
+    float Read_rendered_sample(int sample, float position) const
+    {
+        return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, interpolation_mix);
+    }
     void Update_pitch(void);
     void Update_volume_gain(void);
     void Update_pan_gain(void);
@@ -332,6 +348,8 @@ public:
     void Set_edit_mix_samples(uint8_t value); // Override only a pending edit crossfade before its next render.
     bool Has_pending_edit(void) const { return main_settings_editing_flag; } // Expose edit transitions to the shared read-budget planner.
     static bool Take_live_unrecorded_notice(void); // Consume from the main loop with audio interrupts disabled by the caller.
+    void Set_tone_filter(uint8_t level) { tone_filter_level_wait = level; }
+    void Update_tone_filter(int patch, int instrument, uint8_t level);
     void begin(void);
     virtual void update(void);
     int State(void);

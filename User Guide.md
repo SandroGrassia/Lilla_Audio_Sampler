@@ -1,12 +1,10 @@
 # LILLA User Guide
 
-[English](User%20Guide.md) | [Italiano](Manuale%20Utente.md) | [Deutsch](Benutzerhandbuch.md) | [Français](Guide%20utilisateur.md)
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.1.0**
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.0.2**
+Guide edition: **12 October 2026**
 
-Guide edition: **8 October 2026**
-
-Printable edition: [User Guide PDF for firmware 7.0.2](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.1.0](User%20Guide.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -252,13 +250,25 @@ When the current patch has changes, LILLA asks what to do before switching. You 
 | Field | Purpose |
 | --- | --- |
 | `SOUND` | Sound slot in the patch, numbered 1-8. |
-| `LOCK` | Protects the sound from selected performance controls, including pitch bend, resolution and downsampling. It also affects note-release handling. |
+| `TONE` | Pitch-dependent timbre correction: OFF or 3.0-8.0 kHz, in 0.1 kHz steps. Replaces the former LOCK/HIFI field. |
 | `P` | Playback precedence: gives the sound priority in voice allocation. It does not guarantee unlimited voices. |
 | `MIDI` | Receiving MIDI channel, displayed as 1-16. |
 | `ROOT K` | Reference key used for the sound's pitch mapping. |
 | `FROM K` / `TO K` | Inclusive keyboard range that triggers this sound. |
 | `PAN` | Stereo position; press Value on this field to centre it. |
 | `GAIN` | Sound level. |
+
+In the Instrument area of Performance (the SESSION page), turn **Select** through `TONE`, `P`, `MIDI`, `ROOT K`, `FROM K`, `TO K`, `PAN`, `GAIN`. After `GAIN`, the cursor moves to `TONE` of the next active Instrument; after the last Instrument it wraps to the first. Turning backwards from `TONE` moves to `GAIN` of the previous Instrument. Rotation stays inside the Instrument fields. Press **Select** to leave the fields and select the whole current Instrument. The last field is remembered when you enter an Instrument again; the initial field is `TONE`.
+
+### TONE: consistent timbre when transposing upwards
+
+Raising sample pitch can make a sound excessively bright and introduce aliasing. TONE combines anti-alias filtering before resampling with a dedicated low-pass filter (LPF) after resampling, whose cutoff follows the pitch increase. This helps keep the upper notes closer in timbre to the original sample, especially in multisampled instruments. It is independent of the creative VCF and its LFO.
+
+Choose `OFF` to bypass both upward-pitch filters, or select a value from `3.0` to `8.0` kHz. The selected value is the LPF endpoint at +11 semitones relative to the sample playback reference (pitch = 1); it is retained above that interval. The curve starts at 20 kHz at pitch = 1 and descends progressively as pitch rises. At or below pitch = 1, this timbre LPF is bypassed. Lower TONE values darken transposed notes more; higher values preserve more brightness. Changes also affect sounding notes, with smoothing.
+
+To set TONE, play the same sample across its mapped range, compare `OFF` with an enabled value, and listen for a balanced transition into the higher notes. Keep the common LPF open while comparing, then adjust it and the VCF for your intended sound. Save the patch to keep each Instrument's TONE setting. Existing HIFI levels 1-5 are converted on loading to 5.0, 4.5, 4.2, 4.0 and 3.8 kHz.
+
+When pitch is reduced, anti-imaging remains automatically available independently of TONE, including `OFF`, to reduce resampling images and other audible artifacts. TONE does not disable this protection.
 
 For a keyboard split, put two sounds on the same MIDI channel with separate key ranges. For a layer, give them overlapping ranges. For multitimbral playback, assign different MIDI channels.
 
@@ -747,7 +757,7 @@ The common **Cutoff** control changes the low-pass filter. Press it to restore m
 
 The instrument VCF page provides filter type, cutoff, resonance and modulation settings. Adjust these while playing the selected sound so you can hear how they interact with its sample and envelope.
 
-A locked instrument is protected from selected performance changes. Check `LOCK` if pitch bend, resolution or downsampling appears to have no effect on that sound.
+CUTOFF changes also reach notes already playing, with or without LFO, through a short transition of about 29 ms. TONE is a separate pitch-dependent timbre correction; it does not lock pitch bend, resolution or downsampling.
 
 ## Setup and MIDI controls
 
@@ -869,17 +879,17 @@ The firmware is the program that runs LILLA. To load a compiled firmware on Wind
 - Your LILLA instrument, which uses a Teensy 4.1.
 - A Windows 10 or 11 computer.
 - A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
-- The LILLA firmware file, for example `Lilla_v7_0_2.hex`.
+- The LILLA firmware file, for example `Lilla_v7_1_0.hex`.
 - Teensy Loader, downloaded from PJRC.
 
 ### Download the firmware
 
 1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_0_2.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_1_0.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
 3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
 4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
 
-The version numbers in `Lilla_v7_0_2.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+The version numbers in `Lilla_v7_1_0.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
 
 ### Download Teensy Loader
 
@@ -894,11 +904,11 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
-2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_0_2.hex`. Confirm the filename shown in the loader.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_1_0.hex`. Confirm the filename shown in the loader.
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.0.2. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.1.0. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -925,7 +935,7 @@ On macOS, use the standalone **Teensy Loader** application and the published LIL
 ### Download the firmware on Mac
 
 1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_0_2.hex`.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_1_0.hex`.
 3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
 4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
 
@@ -952,7 +962,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.0.2.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.1.0.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1092,6 +1102,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 8 October 2026*
+*LILLA User Guide - English edition - 12 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

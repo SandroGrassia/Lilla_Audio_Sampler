@@ -16,6 +16,7 @@ void PointerPerformance::Set_pointer_to_RootKey(const int instrument_id)
 {
     Delete_pointer();
     pointer = {field_P_Instrument_inside, value_P_RootKey, P_line_of_instrument[instrument_id], instrument_id};
+    last_instrument_element = value_P_RootKey;
     Display_pointer();
 }
 
@@ -34,6 +35,7 @@ void PointerPerformance::Set_pointer_to_first_menu_voice(void)
 void PointerPerformance::Move_pointer_from_inside_to_Instrument(void)
 {
     P_field_description_struct full_pointer_old = pointer;
+    last_instrument_element = pointer.element;
     pointer.field_name = field_P_Instrument;
 
     Display_Performance.P_show_pointer_frame(full_pointer_old, false); // delete the old frame
@@ -44,7 +46,7 @@ void PointerPerformance::Move_pointer_from_Instrument_to_inside(void)
 {
     P_field_description_struct full_pointer_old = pointer;
     pointer.field_name = field_P_Instrument_inside;
-    pointer.element = 0;
+    pointer.element = last_instrument_element;
 
     Display_Performance.P_show_pointer_frame(full_pointer_old, false); // delete the old frame
     Display_Performance.P_show_pointer_frame(pointer, true);           // show the new frame
@@ -161,6 +163,8 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
             else
             {
                 pointer.element = 0;
+                pointer.instrument_line = (pointer.instrument_line + 1) % Patch[Patch_id].instruments;
+                pointer.instrument_id = instrument_on_position[pointer.instrument_line];
             }
         }
         else if (value == -1)
@@ -174,6 +178,8 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
             else
             {
                 pointer.element = instrument_inside_elements - 1;
+                pointer.instrument_line = (pointer.instrument_line + Patch[Patch_id].instruments - 1) % Patch[Patch_id].instruments;
+                pointer.instrument_id = instrument_on_position[pointer.instrument_line];
             }
         }
         break;
@@ -181,6 +187,10 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
 
     if (changed)
     {
+        if (pointer.field_name == field_P_Instrument_inside)
+        {
+            last_instrument_element = pointer.element;
+        }
         Display_Performance.P_show_pointer_frame(full_pointer_old, false);
         Display_Performance.P_show_pointer_frame(pointer, true);
     }

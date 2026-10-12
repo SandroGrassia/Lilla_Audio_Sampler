@@ -108,6 +108,14 @@ void AudioVCF::Update(void)
                     // Serial.print(" f3:");
                     // Serial.println(*(_frequency + 3));
                 }
+                if (data == step_1 || data == step_2 || data == step_3)
+                {
+                    b0 = definition[0];
+                    b1 = definition[1];
+                    b2 = definition[2];
+                    a1 = definition[3];
+                    a2 = definition[4];
+                }
             }
         } while (data < last);
 
