@@ -29,11 +29,13 @@ LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work w
 
 Sound shaping includes sample trimming, forward/reverse and loop playback, envelopes, instrument filters and modulation, a common low-pass filter, stereo delay, bit reduction and downsampling. Separate main and pre-listening routes support auditioning and performance.
 
-## New in firmware 7.1.0
+## New in firmware 7.1.1
 
-TONE combines source-domain anti-aliasing with a pitch-dependent low-pass filter for targeted timbre correction when pitch rises. Choose OFF or 3.0-8.0 kHz in 0.1 kHz steps. Anti-imaging remains available automatically when pitch falls, independently of TONE. See [release notes](docs/release-notes-7.1.0.md) and the manuals for practical setup.
+The Mixer now has separate MUTE and GAIN fields, and exclusive PRE_LIST routing for one of its nine sources, or none. MUTE, LINEOUT and PRE_LIST respond to both a Value click and rotation. A Sound in SOLO and the temporary Sampler patch cannot be muted.
 
-Inside the Performance/SESSION Instrument fields, Select now traverses every Instrument cyclically from TONE through GAIN. Press Select to return to the whole current Instrument. VCF CUTOFF changes also affect sounding notes through a short smooth transition.
+Sound Edit adds ONLY_PRE_LISTEN, TO_LINE_OUT and SOLO/RESET_SOLO. Cloning retains the original gain and sends the copy only to pre-listen. The Sound Edit commands stay aligned with Mixer routing, including when neither output is enabled. PAN changes and return-to-centre now affect notes already playing through a smooth transition.
+
+Performance shows a green PATCH UPLOADING notice while audio is loaded from Flash into PSRAM. Deletion commands use DELETE in Performance, Sampler and Live Sampler. See the [7.1.1 release notes](docs/release-notes-7.1.1.md) and the [User Guide](User%20Guide.md).
 
 ## Operating Modes
 
@@ -89,7 +91,7 @@ Set the **Tools** selector to the desired position and press the Tools button to
 
 Mixer controls how sound sources and the line input reach the main output and the separate monitoring output. Source gain or mute, pan and output routing let you balance the material that is heard in the performance and the material used for pre-listening.
 
-Turn Select to choose a source column, press it to enter that source's fields, then use Select and Value to choose and adjust parameters. Press Select again to leave the fields. Separate **LINEOUT** and **MONITOR** routes are useful when auditioning material or checking a source before adding it to the main mix.
+Turn Select to choose a source column, press it to enter that source's fields, then use Select and Value to choose and adjust parameters. Press Select again to leave the fields. Separate **LINEOUT** and **PRE_LIST** routes are useful when auditioning material or checking a source before adding it to the main mix.
 
 If a source is silent, check its output route and mute/gain settings as well as its MIDI channel, keyboard range and patch volume. See [Mixer](User%20Guide.md#mixer).
 
@@ -173,7 +175,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.1.0 (12 October 2026)**: download [Lilla_v7_1_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.1.0/Lilla_v7_1_0.hex) from [release v7.1.0](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.1.0). See the [7.1.0 release notes](docs/release-notes-7.1.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.1.1 (13 October 2026)**: download [Lilla_v7_1_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.1.1/Lilla_v7_1_1.hex) from [release v7.1.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.1.1). See the [7.1.1 release notes](docs/release-notes-7.1.1.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 
