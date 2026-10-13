@@ -32,7 +32,7 @@ private:
             {MX_column_Sound + 39, 5},
     };
 
-    static constexpr float MX_column_row_Mute_Gain[MX_sources][2] =
+    static constexpr float MX_column_row_Mute[MX_sources][2] =
         {
             {MX_column_Sound, 6},
             {MX_column_Sound + 5, 6},
@@ -43,6 +43,19 @@ private:
             {MX_column_Sound + 30, 6},
             {MX_column_Sound + 35, 6},
             {MX_column_Sound + 40, 6},
+    };
+
+    static constexpr float MX_column_row_Gain[MX_sources][2] =
+        {
+            {MX_column_Sound - 1, 7},
+            {MX_column_Sound + 4, 7},
+            {MX_column_Sound + 9, 7},
+            {MX_column_Sound + 14, 7},
+            {MX_column_Sound + 19, 7},
+            {MX_column_Sound + 24, 7},
+            {MX_column_Sound + 29, 7},
+            {MX_column_Sound + 34, 7},
+            {MX_column_Sound + 39, 7},
     };
 
     static constexpr float MX_column_row_Pan[MX_sources][2] =
@@ -84,11 +97,12 @@ private:
             {MX_column_Sound + 40, 10},
     };
 
-    static constexpr int MX_frame_wide_high_Source[2] = {4, 6};
-    static constexpr int MX_frame_wide_high_Mute_Gain[2] = {2, 1};
-    static constexpr int MX_frame_wide_high_Pan[2] = {4, 1};
-    static constexpr int MX_frame_wide_high_Lineout[2] = {2, 1};
-    static constexpr int MX_frame_wide_high_Monitor[2] = {2, 1};
+    static constexpr float MX_frame_wide_high_Source[2] = {4, 6};
+    static constexpr float MX_frame_wide_high_Mute[2] = {2, 0.7};
+    static constexpr float MX_frame_wide_high_Gain[2] = {4, 0.7};
+    static constexpr float MX_frame_wide_high_Pan[2] = {4, 0.7};
+    static constexpr float MX_frame_wide_high_Lineout[2] = {2, 0.7};
+    static constexpr float MX_frame_wide_high_Monitor[2] = {2, .7};
 
 public:
     DisplayMixer() {}

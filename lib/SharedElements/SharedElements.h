@@ -52,8 +52,8 @@ const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE]);
 
 // FLASH MEMORY CHIP MANAGEMENT
 extern int verified_flash_memory_MB;
-int FLASHMEM Get_flash_size(void); // Read the Flash chip capacity in bytes.
-int FLASHMEM Get_flash_occupation(void); // Sum the sizes of files stored in Flash, in bytes.
+uint32_t FLASHMEM Get_flash_size(void); // Read the Flash chip capacity in bytes.
+uint32_t FLASHMEM Get_flash_occupation(void); // Sum the sizes of files stored in Flash, in bytes.
 
 /*
     PSRAM MANAGEMENT

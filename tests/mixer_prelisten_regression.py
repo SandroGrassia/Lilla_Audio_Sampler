@@ -30,6 +30,10 @@ solo_start = main.index('                case value_S_Solo:')
 solo_end = main.index('                case value_S_OnlyPrelisten:', solo_start)
 production += '\nvoid handle_solo(int choice)\n{\n    switch (choice)\n    {\n' + main[solo_start:solo_end] + '\n    }\n}\n'
 
+mute_start = main.index('            case value_MX_Mute:')
+mute_end = main.index('            case value_MX_Gain:', mute_start)
+production += '\nvoid handle_mute()\n{\n    switch (0)\n    {\n' + main[mute_start:mute_end].replace('case value_MX_Mute:', 'case 0:') + '\n    }\n}\n'
+
 prefix = r'''
 #include <cassert>
 #include <cstdint>
@@ -53,7 +57,7 @@ public:
     float level = -1;
     void gain(int channel, float value) { assert(channel == 1); level = value; }
 };
-constexpr int DIRECT_SAMPLING = 1, MIDI_LOOP = 2;
+constexpr int DIRECT_SAMPLING = 1, MIDI_LOOP = 2, PATCHES_MAX = 200;
 int Lilla_state_0 = 0, Instrument_id = 0, Patch_id = 0, S_menu_max = 0, free_sounds = 1;
 struct PatchData { int instruments = 2; } Patch[1];
 bool S_Menu[7] = {};
@@ -118,6 +122,46 @@ int main()
             assert(MX_Mute_allowed(source, false, solo) == (source != solo));
         }
     }
+    for (int source = 0; source < MX_sources; ++source)
+    {
+        MX_local_pointer.source = source;
+        Instrument_id = source < INSTRUMENTS ? source : 0;
+        MX_mute[source] = false;
+        value_rotation = 1;
+        handle_mute();
+        assert(MX_mute[source]);
+        value_rotation = 1;
+        handle_mute();
+        assert(MX_mute[source]);
+        value_rotation = -1;
+        handle_mute();
+        assert(!MX_mute[source]);
+        value_pressed = true;
+        handle_mute();
+        assert(MX_mute[source]);
+        value_pressed = true;
+        handle_mute();
+        assert(!MX_mute[source]);
+        solo_flag = true;
+        S_solo_instrument = Instrument_id;
+        value_rotation = 1;
+        handle_mute();
+        assert(MX_mute[source] == (source == LINE_IN_source));
+        solo_flag = false;
+        MX_mute[source] = false;
+        Patch_id = PATCHES_MAX;
+        Lilla_state_0 = DIRECT_SAMPLING;
+        value_pressed = true;
+        handle_mute();
+        assert(MX_mute[source] == (source == LINE_IN_source));
+        value_rotation = 1;
+        handle_mute();
+        assert(MX_mute[source] == (source == LINE_IN_source));
+        Patch_id = 0;
+        Lilla_state_0 = 0;
+        MX_mute[source] = false;
+    }
+    Instrument_id = 0;
     PlayersManager players;
     AmpliOutMuteIn left, right, preleft, preright;
     for (int source = 0; source < MX_sources; ++source)

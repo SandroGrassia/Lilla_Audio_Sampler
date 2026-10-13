@@ -20,8 +20,12 @@ void DisplayMixer::MX_show_pointer_frame(const MX_pointer_struct pointer, const 
     {
         switch (pointer.element)
         {
-        case value_MX_Mute_Gain:
-            Frame_by_col_row(MX_column_row_Mute_Gain[pointer.source][0], MX_column_row_Mute_Gain[pointer.source][1], MX_frame_wide_high_Mute_Gain[0], MX_frame_wide_high_Mute_Gain[1], show);
+        case value_MX_Mute:
+            Frame_by_col_row(MX_column_row_Mute[pointer.source][0], MX_column_row_Mute[pointer.source][1], MX_frame_wide_high_Mute[0], MX_frame_wide_high_Mute[1], show);
+            break;
+
+        case value_MX_Gain:
+            Frame_by_col_row(MX_column_row_Gain[pointer.source][0], MX_column_row_Gain[pointer.source][1], MX_frame_wide_high_Gain[0], MX_frame_wide_high_Gain[1], show);
             break;
 
         case value_MX_Pan:

@@ -4141,7 +4141,37 @@ void loop()
 
             switch (MX_local_pointer.element)
             {
-            case value_MX_Mute_Gain:
+            case value_MX_Mute:
+            {
+                const int rotation = Read_encoder_simple(EN_PB_Value);
+                const bool pressed = Read_pushbutton(EN_PB_Value);
+                const bool requested = pressed ? !MX_mute[MX_local_pointer.source] : rotation > 0;
+                const bool mute_allowed = MX_Mute_allowed(MX_local_pointer.source, Patch_id == PATCHES_MAX && Lilla_state_0 == DIRECT_SAMPLING, solo_flag ? S_solo_instrument : -1);
+                const bool next_mute = mute_allowed && requested;
+                if ((pressed || rotation != 0) && next_mute != MX_mute[MX_local_pointer.source])
+                {
+                    MX_mute[MX_local_pointer.source] = next_mute;
+
+                    if (MX_local_pointer.source == LINE_IN_source)
+                    {
+                        AudioNoInterrupts();
+                        MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
+                        AudioInterrupts();
+                    }
+                    else
+                    {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
+                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                        AudioInterrupts();
+                    }
+
+                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
+                }
+            }
+            break;
+
+            case value_MX_Gain:
             {
                 if (MX_local_pointer.source == LINE_IN_source) // MX_source == LINE_IN_CHANNEL
                 {
@@ -4165,40 +4195,26 @@ void loop()
                     }
                 }
 
-                if (Read_pushbutton(EN_PB_Value)) // Mute source
-                {
-                    const bool mute_allowed = MX_Mute_allowed(MX_local_pointer.source, Patch_id == PATCHES_MAX && Lilla_state_0 == DIRECT_SAMPLING, solo_flag ? S_solo_instrument : -1);
-                    MX_mute[MX_local_pointer.source] = mute_allowed && !MX_mute[MX_local_pointer.source];
-
-                    if (MX_local_pointer.source == LINE_IN_source)
-                    {
-                        AudioNoInterrupts();
-                        MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
-                        AudioInterrupts();
-                    }
-                    else
-                    {
-                        AudioNoInterrupts();
-                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
-                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
-                        AudioInterrupts();
-                    }
-
-                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
-                }
             }
             break;
 
             case value_MX_Pan:
             {
-                if (MX_local_pointer.source == LINE_IN_source)
-                {
-                    // not supported
-                }
-                else
+                if (MX_local_pointer.source != LINE_IN_source)
                 {
                     if (Read_encoder(EN_PB_Value, Sound[Sound_id].pan, 16, -16, 1))
                     {
+                        AudioNoInterrupts();
+                        Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
+                        Players_Manager.Multicast_pan(Instrument_id);
+                        AudioInterrupts();
+
+                        Display_Mixer.MX_source_values_edit(Instrument_id);
+                    }
+                    else if(Read_pushbutton(EN_PB_Value))
+                    {
+                        Sound[Sound_id].pan = 0;
+
                         AudioNoInterrupts();
                         Players_Manager.Update_Preset_pan(Patch_id, Instrument_id);
                         Players_Manager.Multicast_pan(Instrument_id);

@@ -30,7 +30,7 @@ const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE])
 
 
 FLASHMEM
-int Get_flash_size(void)
+uint32_t Get_flash_size(void)
 {
     unsigned char buf[256];
     unsigned long chipsize;
@@ -40,10 +40,10 @@ int Get_flash_size(void)
 }
 
 FLASHMEM
-int Get_flash_occupation(void)
+uint32_t Get_flash_occupation(void)
 {
     uint32_t filesize;
-    int occupation = 0;
+    uint32_t occupation = 0;
     SerialFlash.opendir();
     while (1)
     {

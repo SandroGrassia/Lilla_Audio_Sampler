@@ -760,6 +760,8 @@ void AudioPlayer::Start_playing(void)
 
     volume_gain = volume_gain_wait;
     pan_int = pan_int_wait;
+    pan_flag = false;
+    pan_gain_warmup_flag = false;
     pan_gain_L = pan_gain_L_wait;
     pan_gain_R = pan_gain_R_wait;
     Noclick_ptr = Noclick_wait_ptr;
@@ -1496,6 +1498,7 @@ void AudioPlayer::update(void)
         if (pan_gain_warmup_flag)
         {
             pan_gain_warmup_flag = false;
+            pan_int = pan_int_wait; // Track the current ramp target, including edits during playback.
             K_pan_gain_L = (pan_gain_L_wait - pan_gain_L) / SAMPLES_VOLUME; // [Gain/sample]
             K_pan_gain_R = (pan_gain_R_wait - pan_gain_R) / SAMPLES_VOLUME; // [Gain/sample]
             JP0 = samples_counter + SAMPLES_VOLUME;                         // [sample]
@@ -1700,13 +1703,15 @@ void AudioPlayer::Update_volume_gain(void)
 
 void AudioPlayer::Update_pan_gain(void)
 {
-    if (samples_counter <= JP0)
+    if (samples_counter < JP0)
     {
         pan_gain_L += K_pan_gain_L;
         pan_gain_R += K_pan_gain_R;
     }
     else
     {
+        pan_gain_L = pan_gain_L_table[pan_int + 16];
+        pan_gain_R = pan_gain_R_table[pan_int + 16];
         pan_flag = false;
     }
 }

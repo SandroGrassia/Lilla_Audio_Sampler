@@ -20,10 +20,11 @@ enum MX_field_name
     field_MX_Elements
 };
 
-static constexpr int elements = 4;
+static constexpr int elements = 5;
 enum MX_Element_name
 {
-    value_MX_Mute_Gain,
+    value_MX_Mute,
+    value_MX_Gain,
     value_MX_Pan,
     value_MX_Lineout,
     value_MX_Monitor
