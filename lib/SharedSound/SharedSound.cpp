@@ -6,6 +6,8 @@
 
 #include "SharedSound.h"
 
+int S_solo_instrument = -1;
+
 // menu
 uint8_t S_menu_choice;
 uint8_t S_column_menu_element[S_menu_elements];    // argument is position

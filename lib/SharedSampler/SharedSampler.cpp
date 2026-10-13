@@ -73,8 +73,8 @@ void DS_copy_edited_parameters(const Sound_struct &before, const Sound_struct &e
 // DIRECT SAMPLING
 
 bool Menu_DS[DS_menu_elements];
-const char Menu_DS_char[DS_menu_elements][19] = {{"CANCEL_RECORDING"}, {"PAUSE+REC"}, {"MONO_REC"}, {"STEREO_REC"}, {"STOP"}, {"MAKE_RAW"}, {"CANCEL"}, {"MAKE_MONO"}, {"MAKE_LEFT"}, {"MAKE_RIGHT"}, {"MAKE_BOTH"}, {"EXPORT_WAV_TO_SD"}};
-const uint8_t dimension_voice_Menu_DS[DS_menu_elements] = {16, 9, 8, 10, 4, 8, 6, 9, 9, 10, 9, 16};
+const char Menu_DS_char[DS_menu_elements][19] = {{"DELETE"}, {"PAUSE+REC"}, {"MONO_REC"}, {"STEREO_REC"}, {"STOP"}, {"MAKE_RAW"}, {"RETURN"}, {"MAKE_MONO"}, {"MAKE_LEFT"}, {"MAKE_RIGHT"}, {"MAKE_BOTH"}, {"EXPORT_WAV_TO_SD"}};
+const uint8_t dimension_voice_Menu_DS[DS_menu_elements] = {6, 9, 8, 10, 4, 8, 6, 9, 9, 10, 9, 16};
 uint8_t X_position_Menu_DS[DS_menu_elements]; // argument is position
 uint8_t Y_position_Menu_DS[DS_menu_elements]; // argument is position
 uint8_t element_Menu_DS[DS_menu_elements];    // argument is position

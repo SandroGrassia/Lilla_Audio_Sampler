@@ -182,7 +182,7 @@ int main()
         int instrument_id = -1;
         assert(S_Clone_Instrument(0, instrument_id, snapshot));
         const int new_sound = Patch[0].Instrument[instrument_id].sound_id;
-        assert(new_sound == 0 && Sound[new_sound].used && Sound[new_sound].gain == 0);
+        assert(new_sound == 0 && Sound[new_sound].used && Sound[new_sound].gain == Sound[Patch[Patch_id].Instrument[0].sound_id].gain);
         snapshot.Restore();
         assert(!Sound[0].used && Sound[0].value == 10 && Sound[0].gain == 4);
         assert(!Patch[0].Instrument[instrument_id].used && Patch[0].instruments == 2);

@@ -45,10 +45,10 @@ int display_coordinate_x(const float col);
 // frame
 static constexpr float Frame_heigh = 15;
 void Frame_by_col_row(const float col, const float row, const int chars, const bool show);
-void Frame_by_col_row(const float col, const float row, const int chars, const int high, const bool show);
+void Frame_by_col_row(const float col, const float row, const int chars, const float high, const bool show);
 void Frame_by_pixels(const int X, const int Y, const int chars, const bool show);
 void Frame_by_pixels_on_RED(const int X, const int Y, const int chars, const bool show);
-void Frame_by_pixels(const int X, const int Y, const int chars, const int high, const bool show);
+void Frame_by_pixels(const int X, const int Y, const int chars, const float high, const bool show);
 void Confirm_frame_on_RED(int X, int Y, int chars, bool print);
 void Confirm_frame(int X, int Y, int chars, bool print);
 

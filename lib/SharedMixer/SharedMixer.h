@@ -20,10 +20,11 @@ enum MX_field_name
     field_MX_Elements
 };
 
-static constexpr int elements = 4;
+static constexpr int elements = 5;
 enum MX_Element_name
 {
-    value_MX_Mute_Gain,
+    value_MX_Mute,
+    value_MX_Gain,
     value_MX_Pan,
     value_MX_Lineout,
     value_MX_Monitor
@@ -39,3 +40,12 @@ int element;
 // audio 
 extern uint8_t MX_routing_source[MX_sources];
 extern bool MX_mute[MX_sources];
+
+class PlayersManager;
+class AmpliOutMuteIn;
+void MX_Select_prelisten(int source, bool enabled);
+void MX_Only_prelisten(int source);
+void MX_Send_to_lineout(int source);
+void MX_Apply_routing(PlayersManager &players, AmpliOutMuteIn &main_left, AmpliOutMuteIn &main_right, AmpliOutMuteIn &prelisten_left, AmpliOutMuteIn &prelisten_right);
+
+bool MX_Mute_allowed(int source, bool sampler_patch, int solo_instrument);

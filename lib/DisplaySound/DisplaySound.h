@@ -20,6 +20,7 @@
 class DisplaySound
 {
 private:
+    int menu_first_visible = 0;
     // Screen coordinates for each SOUND page value field, expressed in character columns/rows.
     static constexpr float S_column_row_Patch[2] = {33, 0};
     static constexpr float S_column_row_Sound[2] = {22.5, 0};

@@ -19,8 +19,8 @@ enum P_menu_elements_name
     value_P_SaveAsNew,
     value_P_DropPatch
 };
-static constexpr char P_menu_char[P_menu_elements][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DROP"}};
-static constexpr uint8_t P_dimension_voice_menu[P_menu_elements] = {4, 4, 5, 11, 4};
+static constexpr char P_menu_char[P_menu_elements][12] = {{"EXIT"}, {"SAVE"}, {"CLONE"}, {"SAVE_AS_NEW"}, {"DELETE"}};
+static constexpr uint8_t P_dimension_voice_menu[P_menu_elements] = {4, 4, 5, 11, 6};
 extern int P_column_menu_element[P_menu_elements]; // argument is position
 extern int P_row_menu_element[P_menu_elements];    // argument is position
 extern P_menu_elements_name P_element_menu[P_menu_elements];    // argument is position

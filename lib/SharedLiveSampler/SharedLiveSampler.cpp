@@ -9,8 +9,8 @@
 // LIVE SAMPLING
 
 bool Menu_LS[LS_menu_elements];
-const char Menu_LS_char[LS_menu_elements][12] = {{"CAPTURE"}, {"STOP"}, {"MONO/STEREO"}, {"ERASE"}};
-const uint8_t dimension_voice_Menu_LS[LS_menu_elements] = {7, 4, 11, 5};
+const char Menu_LS_char[LS_menu_elements][12] = {{"CAPTURE"}, {"STOP"}, {"MONO/STEREO"}, {"DELETE"}};
+const uint8_t dimension_voice_Menu_LS[LS_menu_elements] = {7, 4, 11, 6};
 uint8_t X_position_Menu_LS[LS_menu_elements]; // argument is position
 uint8_t element_Menu_LS[LS_menu_elements];    // argument is position
 uint8_t position_Menu_LS[LS_menu_elements];   // argument is element

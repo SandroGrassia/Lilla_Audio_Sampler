@@ -75,6 +75,7 @@ int DisplayPerformance::P_Instrument_pixels_y(int position)
 FLASHMEM
 void DisplayPerformance::P_Patch_header(bool change_patch, bool change_vol)
 {
+    upload_popup_visible = false;
     tft.fillScreen(ILI9341_BLACK);
     Display_Common.P_show_PERFORMANCE_title();
     Display_Common.P_show_Patch_number(change_patch);
@@ -446,4 +447,33 @@ FLASHMEM
 void DisplayPerformance::P_Confirm_patch_delete_popup_frame(int value)
 {
     Display_Common.Confirm_no_yes_popup_frame(value);
+}
+
+FLASHMEM
+bool DisplayPerformance::P_update_upload_popup(bool loading, P_field_description_struct pointer)
+{
+    if (Lilla_state != PERFORMANCE)
+    {
+        upload_popup_visible = false;
+        return false;
+    }
+    if (loading)
+    {
+        const uint32_t now = millis();
+        if (!upload_popup_visible || static_cast<uint32_t>(now - upload_popup_drawn_ms) >= 100u)
+        {
+            // Refresh over ordinary field edits without drawing for every Flash copy chunk.
+            Show_popup_text("PATCH UPLOADING", ILI9341_BLACK, ILI9341_GREEN);
+            upload_popup_visible = true;
+            upload_popup_drawn_ms = now;
+        }
+    }
+    else if (upload_popup_visible)
+    {
+        upload_popup_visible = false;
+        P_show_PERFORMANCE_page(false, false);
+        P_show_pointer_frame(pointer, true);
+        return true; // The caller restores the current activity LEDs after the page redraw.
+    }
+    return false;
 }

@@ -43,8 +43,9 @@ int samples_in_file, Noclick_max, S_trim_step, trim_speed = 0, S_slicing_window,
 int maps = 0, multicasts[2] = {}, audio_depth = 0, saves = 0, S_menu_max = 0;
 int pitch_updates[2] = {}, volume_updates[2] = {}, pan_updates[2] = {}, midi_releases = 0;
 bool S_sound_original, tables_ok = true, solo_flag = false;
-enum { value_S_Return, value_S_Clone, value_S_Drop };
-bool S_Menu[3];
+enum { value_S_Return, value_S_Clone, value_S_Drop, value_S_OnlyPrelisten, value_S_SendToLineOut, value_S_Solo, value_S_ResetSolo };
+bool S_Menu[7];
+uint8_t MX_routing_source[9] = {};
 struct ArchiveMock
 {
     bool saved = false;
@@ -162,7 +163,7 @@ int main()
     assert(Patch[PATCHES_MAX].instruments == 2);
     DS_open_sound_edit(0);
     assert(Lilla_state == SOUND_EDIT && Instrument_id == 0 && Sound_id == SOUNDS_MAX);
-    assert(S_Menu[value_S_Return] && !S_Menu[value_S_Clone] && !S_Menu[value_S_Drop] && S_menu_max == 0);
+    assert(S_Menu[value_S_Return] && !S_Menu[value_S_Clone] && !S_Menu[value_S_Drop] && S_menu_max == 1);
     for (int channel : {0, 1})
     {
         DS_open_sound_edit(channel);

@@ -1,18 +1,24 @@
 # Modifica della codebase
 
-In questo repository Codex può modificare la codebase con esplicita autorizzazione del tipo "procedi a modificare il codice", "ti autorizzo a modificare il codice".
-
-Assieme alla modifica del codice è anche autorizzata la compilazione.
+In questo repository Codex può modificare la codebase con esplicita autorizzazione. Assieme alla modifica del codice è anche autorizzata la compilazione.
 
 
 # Commit, Merge e operazioni verso GitHub
 
 In questo repository Codex può effettuare le operazioni GIT locali e su GitHub quando richieste.
 
+# Recap per Commit
 
-# Terminatori di riga obbligatori
+Anche senza indicazione esplicita, si devono intendere sempre in lingua Inglese.
 
-Tutti i file di testo del repository devono usare esclusivamente terminatori CRLF.
+# Aggiornamento release
+
+L'aggiornamento della release del codice deve comprendere l'aggiornamento del nome release nel file config.h, l'aggiornamento del file binario .hex col nome della release, l'aggiornamento di README.md, della User Guide.md/.pdf, infine l'aggiornamento di Releases su GitHub, con relativa descrizione delle modifiche più rilevanti per l'utilizzatore (queste generalmente le indico io)
+
+
+# Push della release del codice su origin 
+
+Il push su origin/main del codice, che rappresenta la pubblicazione dello stato dell'arte del progetto e condivisione dei file per l'utilizzatore finale tramite la pagina principale in GitHub, va effettuato conservando tutta la catena dei commit.
 
 
 # Espressioni di codice su una sola riga
@@ -33,7 +39,6 @@ return FRAM_PATCH_ADDRESS
                * sizeof(FRAM_Patch_struct);
 ```
 
-
 # Graffe obbligatorie per if ed else
 
 I blocchi `if`, `else if` ed `else` devono sempre usare le graffe, anche quando contengono una sola istruzione. Le graffe di apertura e chiusura devono essere su righe separate, allineate alla relativa condizione o a `else`; le istruzioni interne devono essere indentate di quattro spazi.
@@ -48,11 +53,6 @@ else
     ++report.cleared_sounds;
 }
 ```
-
-# Recap per Commit
-
-Anche senza indicazione esplicita, si devono intendere sempre in lingua Inglese.
-
 
 # Formattazioni speciali
 
@@ -83,4 +83,4 @@ Si deve evitare di inserire una dichiarazione in un file abcd.h e la corrisponde
 
 # Controlli di sicurezza nelle funzioni
 
-Per assicurare la massima velocità di esecuzione, le funzioni NON devono includere il controllo dei valori ammissibili se i chiamanti NON violano mai i range ammissibili.
+Per assicurare la massima velocità di esecuzione, se i chiamanti NON violano mai i range ammissibili, le funzioni NON devono includere il controllo dei valori ammissibili.

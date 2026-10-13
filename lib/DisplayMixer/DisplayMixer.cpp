@@ -20,8 +20,12 @@ void DisplayMixer::MX_show_pointer_frame(const MX_pointer_struct pointer, const 
     {
         switch (pointer.element)
         {
-        case value_MX_Mute_Gain:
-            Frame_by_col_row(MX_column_row_Mute_Gain[pointer.source][0], MX_column_row_Mute_Gain[pointer.source][1], MX_frame_wide_high_Mute_Gain[0], MX_frame_wide_high_Mute_Gain[1], show);
+        case value_MX_Mute:
+            Frame_by_col_row(MX_column_row_Mute[pointer.source][0], MX_column_row_Mute[pointer.source][1], MX_frame_wide_high_Mute[0], MX_frame_wide_high_Mute[1], show);
+            break;
+
+        case value_MX_Gain:
+            Frame_by_col_row(MX_column_row_Gain[pointer.source][0], MX_column_row_Gain[pointer.source][1], MX_frame_wide_high_Gain[0], MX_frame_wide_high_Gain[1], show);
             break;
 
         case value_MX_Pan:
@@ -79,7 +83,7 @@ void DisplayMixer::MX_page(void)
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(MX_row_Sound + 5));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("MONITOR");
+    tft.print("PRE_LIS");
 }
 
 FLASHMEM
@@ -110,7 +114,7 @@ void DisplayMixer::MX_source_values_write(const int source, const bool bright)
 
         tft.drawBitmap(display_coordinate_x(MX_column_Sound + 0.5 + source * 5), display_coordinate_y(MX_row_Sound + 1), led_pic, 8, 8, (MX_mute[source] ? ILI9341_RED : RED_OFF)); // Mute
         tft.setTextColor((bright ? ILI9341_YELLOW : 0x6300));
-        tft.setCursor(display_coordinate_x(MX_column_Sound - 1 + source * 5), display_coordinate_y(MX_row_Sound + 2)); // Gain
+        tft.setCursor(display_coordinate_x(MX_column_Sound + 0.5 + source * 5), display_coordinate_y(MX_row_Sound + 2)); // Gain
         tft.print(Line_in_gain + 1);
 
         tft.setTextColor((bright ? ILI9341_WHITE : 0x6300));
