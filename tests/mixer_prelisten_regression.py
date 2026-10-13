@@ -42,6 +42,8 @@ class PlayersManager
 public:
     int routes[8] = {};
     int solo_releases = 0;
+    void Update_Preset_volume(int, int, float) {}
+    void Multicast_volume_for_instrument_edit(int) {}
     void Release_all_players_for_instrument_solo(int) { ++solo_releases; }
     void MX_multicast_change_routing(int instrument) { routes[instrument] = MX_routing_source[instrument]; }
 };
@@ -56,6 +58,8 @@ int Lilla_state_0 = 0, Instrument_id = 0, Patch_id = 0, S_menu_max = 0, free_sou
 struct PatchData { int instruments = 2; } Patch[1];
 bool S_Menu[7] = {};
 bool solo_flag = false;
+int S_solo_instrument = -1, volume_patch = 0;
+float Patch_volume_gain(int) { return 1.0f; }
 int S_Get_sounds_free() { return free_sounds; }
 PlayersManager Players_Manager;
 AmpliOutMuteIn MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R;
@@ -105,6 +109,15 @@ void Clear_UI_events() {}
 checks = r'''
 int main()
 {
+    for (int source = 0; source < MX_sources; ++source)
+    {
+        assert(MX_Mute_allowed(source, false, -1));
+        assert(MX_Mute_allowed(source, true, -1) == (source == LINE_IN_source));
+        for (int solo = 0; solo < INSTRUMENTS; ++solo)
+        {
+            assert(MX_Mute_allowed(source, false, solo) == (source != solo));
+        }
+    }
     PlayersManager players;
     AmpliOutMuteIn left, right, preleft, preright;
     for (int source = 0; source < MX_sources; ++source)
@@ -257,7 +270,9 @@ int main()
     S_Select_menu_elements();
     Display_Sound.Show_SOUND_menu();
     S_pointer.menu_element = S_position_menu[value_S_Solo];
+    MX_mute[Instrument_id] = true;
     handle_solo(value_S_Solo);
+    assert(S_solo_instrument == Instrument_id && !MX_mute[Instrument_id]);
     assert(solo_flag && solo_maps == 1 && Players_Manager.solo_releases == 1);
     assert(S_Menu[value_S_ResetSolo] && !S_Menu[value_S_Solo]);
     assert(MX_routing_source[Instrument_id] == 0);

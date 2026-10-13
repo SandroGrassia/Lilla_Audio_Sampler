@@ -48,3 +48,8 @@ void MX_Apply_routing(PlayersManager &players, AmpliOutMuteIn &main_left, AmpliO
     prelisten_left.gain(1, prelisten_gain);
     prelisten_right.gain(1, prelisten_gain);
 }
+
+bool MX_Mute_allowed(int source, bool sampler_patch, int solo_instrument)
+{
+    return source == LINE_IN_source || (!sampler_patch && source != solo_instrument);
+}

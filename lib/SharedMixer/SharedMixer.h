@@ -46,3 +46,5 @@ void MX_Select_prelisten(int source, bool enabled);
 void MX_Only_prelisten(int source);
 void MX_Send_to_lineout(int source);
 void MX_Apply_routing(PlayersManager &players, AmpliOutMuteIn &main_left, AmpliOutMuteIn &main_right, AmpliOutMuteIn &prelisten_left, AmpliOutMuteIn &prelisten_right);
+
+bool MX_Mute_allowed(int source, bool sampler_patch, int solo_instrument);

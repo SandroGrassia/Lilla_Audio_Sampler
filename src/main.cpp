@@ -2354,6 +2354,10 @@ void loop()
                     solo_flag = S_element_menu[S_pointer.menu_element] == value_S_Solo;
                     if (solo_flag)
                     {
+                        S_solo_instrument = Instrument_id;
+                        MX_mute[Instrument_id] = false;
+                        Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
+                        Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
                         Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
                         S_Map_one_Instrument_for_all_notes(Instrument_id);
                         DS_sync_stereo_parameters();
@@ -3413,7 +3417,6 @@ void loop()
             {
             case SwToolsMixer:
             {
-                S_Set_Sound_SOLO_OFF();
                 Switch_to_MIXER();
             }
             break;
@@ -4164,7 +4167,8 @@ void loop()
 
                 if (Read_pushbutton(EN_PB_Value)) // Mute source
                 {
-                    MX_mute[MX_local_pointer.source] = !MX_mute[MX_local_pointer.source];
+                    const bool mute_allowed = MX_Mute_allowed(MX_local_pointer.source, Patch_id == PATCHES_MAX && Lilla_state_0 == DIRECT_SAMPLING, solo_flag ? S_solo_instrument : -1);
+                    MX_mute[MX_local_pointer.source] = mute_allowed && !MX_mute[MX_local_pointer.source];
 
                     if (MX_local_pointer.source == LINE_IN_source)
                     {
@@ -13834,6 +13838,21 @@ void Switch_to_MIXER()
 void Golive_MIXER(void)
 {
     Lilla_state = MIXER;
+
+    if (Patch_id == PATCHES_MAX && Lilla_state_0 == DIRECT_SAMPLING)
+    {
+        AudioNoInterrupts();
+        for (int instrument = 0; instrument < INSTRUMENTS; ++instrument)
+        {
+            if (Patch[Patch_id].Instrument[instrument].used)
+            {
+                MX_mute[instrument] = false;
+                Players_Manager.Update_Preset_volume(Patch_id, instrument, Patch_volume_gain(volume_patch));
+                Players_Manager.Multicast_volume_for_instrument_edit(instrument);
+            }
+        }
+        AudioInterrupts();
+    }
 
     Display_Mixer.MX_page();
 
