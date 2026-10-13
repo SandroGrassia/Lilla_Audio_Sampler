@@ -2319,6 +2319,9 @@ void loop()
                     {
                         if (S_Fill_tables(new_instrument))
                         {
+                            MX_Only_prelisten(new_instrument);
+                            Players_Manager.Update_Preset_volume(Patch_id, new_instrument, Patch_volume_gain(volume_patch));
+                            MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
                             P_Update_all_maps_Instrument_for_notes();
                             cloned = true;
                         }
@@ -2341,6 +2344,59 @@ void loop()
                         Pointer_Performance.Set_pointer_to_RootKey(new_instrument);
                         P_pointer = Pointer_Performance.Get_pointer();
                     }
+                }
+                break;
+
+                case value_S_Solo:
+                case value_S_ResetSolo:
+                {
+                    AudioNoInterrupts();
+                    solo_flag = S_element_menu[S_pointer.menu_element] == value_S_Solo;
+                    if (solo_flag)
+                    {
+                        Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
+                        S_Map_one_Instrument_for_all_notes(Instrument_id);
+                        DS_sync_stereo_parameters();
+                    }
+                    else
+                    {
+                        P_Update_all_maps_Instrument_for_notes();
+                    }
+                    AudioInterrupts();
+
+                    Display_Sound.Show_pointer_frame(S_pointer, false);
+                    S_Select_menu_elements();
+                    Display_Sound.Show_SOUND_menu();
+                    Pointer_Sound.Display_pointer();
+                    Display_Sound.Show_wave(Instrument_id);
+                    Clear_UI_events();
+                }
+                break;
+
+                case value_S_OnlyPrelisten:
+                case value_S_SendToLineOut:
+                {
+                    AudioNoInterrupts();
+                    if (S_element_menu[S_pointer.menu_element] == value_S_OnlyPrelisten)
+                    {
+                        MX_Only_prelisten(Instrument_id);
+                    }
+                    else
+                    {
+                        MX_Send_to_lineout(Instrument_id);
+                    }
+                    Players_Manager.Update_Preset_volume(Patch_id, Instrument_id, Patch_volume_gain(volume_patch));
+                    Players_Manager.Multicast_volume_for_instrument_edit(Instrument_id);
+                    MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
+                    AudioInterrupts();
+
+                    Display_Sound.Show_pointer_frame(S_pointer, false);
+                    S_Select_menu_elements();
+                    Display_Sound.Show_SOUND_menu();
+                    Pointer_Sound.Set_pointer_to_menu_element(S_position_menu[MX_routing_source[Instrument_id] == 1 ? value_S_SendToLineOut : value_S_OnlyPrelisten]);
+                    S_pointer = Pointer_Sound.Get_pointer();
+                    Pointer_Sound.Display_pointer();
+                    Clear_UI_events();
                 }
                 break;
 
@@ -2434,24 +2490,7 @@ void loop()
                     }
                 }
 
-                // SOLO
-                if (Read_pushbutton(EN_PB_Select))
-                {
-                    if (!solo_flag)
-                    {
-                        solo_flag = true;
-                        AudioNoInterrupts();
-                        Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
-                        S_Map_one_Instrument_for_all_notes(Instrument_id);
-                        DS_sync_stereo_parameters();
-                        AudioInterrupts();
-                    }
-                    else
-                    {
-                        S_Set_Sound_SOLO_OFF();
-                    }
-                    Display_Sound.Show_wave(Instrument_id);
-                }
+
             }
             break;
 
@@ -2648,24 +2687,7 @@ void loop()
                     }
                 }
 
-                // SOLO
-                if (Read_pushbutton(EN_PB_Select))
-                {
-                    if (!solo_flag)
-                    {
-                        solo_flag = true;
-                        AudioNoInterrupts();
-                        Players_Manager.Release_all_players_for_instrument_solo(Instrument_id);
-                        S_Map_one_Instrument_for_all_notes(Instrument_id);
-                        DS_sync_stereo_parameters();
-                        AudioInterrupts();
-                    }
-                    else
-                    {
-                        S_Set_Sound_SOLO_OFF();
-                    }
-                    Display_Sound.Show_wave(Instrument_id);
-                }
+
             }
             break;
 
@@ -3346,8 +3368,13 @@ void loop()
                     S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
                     Display_Sound.Show_SOUND_menu();
 
-                    // Restore the pointer previously selected in SOUND_EDIT
+                    // Restore the pointer within the selected Sound's current menu.
                     S_pointer = Pointer_Sound.Get_pointer();
+                    if (S_pointer.field_name == field_S_Menu && S_pointer.menu_element > S_menu_max)
+                    {
+                        Pointer_Sound.Set_pointer_to_menu_element(S_menu_max);
+                        S_pointer = Pointer_Sound.Get_pointer();
+                    }
                     Pointer_Sound.Display_pointer();
 
                     Performance_led_set.Restore_all_LED();
@@ -4141,20 +4168,9 @@ void loop()
 
                     if (MX_local_pointer.source == LINE_IN_source)
                     {
-                        if (MX_mute[MX_local_pointer.source])
-                        {
-                            MAIN_mixer_out_L.Mute(1);
-                            MAIN_mixer_out_R.Mute(1);
-                            PWM_mixer_out_L.Mute(1);
-                            PWM_mixer_out_R.Mute(1);
-                        }
-                        else
-                        {
-                            MAIN_mixer_out_L.unmute(1);
-                            MAIN_mixer_out_R.unmute(1);
-                            PWM_mixer_out_L.unmute(1);
-                            PWM_mixer_out_R.unmute(1);
-                        }
+                        AudioNoInterrupts();
+                        MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
+                        AudioInterrupts();
                     }
                     else
                     {
@@ -4192,61 +4208,18 @@ void loop()
 
             case value_MX_Lineout:
             {
-                if (Read_pushbutton(EN_PB_Value))
+                const int rotation = Read_encoder_simple(EN_PB_Value);
+                const bool pressed = Read_pushbutton(EN_PB_Value);
+                const bool enabled = (MX_routing_source[MX_local_pointer.source] & 2u) != 0;
+                const bool requested = pressed ? !enabled : (rotation > 0);
+                if ((pressed || rotation != 0) && requested != enabled)
                 {
-                    if (MX_routing_source[MX_local_pointer.source] == 0) // era tutto muto --> solo MAIN
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 2;
-                    }
-                    else if (MX_routing_source[MX_local_pointer.source] == 1) // era solo MONITOR --> MONITOR e MAIN
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 3;
-                    }
-                    else if (MX_routing_source[MX_local_pointer.source] == 2) // era solo MAIN --> tutto muto
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 0;
-                    }
-                    else // era 3 (MONITOR e MAIN) --> solo MONITOR
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 1;
-                    }
+                    AudioNoInterrupts();
+                    MX_routing_source[MX_local_pointer.source] = (MX_routing_source[MX_local_pointer.source] & 1u) | (requested ? 2u : 0u);
+                    MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
+                    AudioInterrupts();
 
-                    if (MX_local_pointer.source == LINE_IN_source)
-                    {
-                        switch (MX_routing_source[MX_local_pointer.source])
-                        {
-                        case 0:
-                            MAIN_mixer_out_L.Mute(1);
-                            MAIN_mixer_out_R.Mute(1);
-                            break;
-
-                        case 1:
-                            MAIN_mixer_out_L.Mute(1);
-                            MAIN_mixer_out_R.Mute(1);
-                            break;
-
-                        case 2:
-                            MAIN_mixer_out_L.unmute(1);
-                            MAIN_mixer_out_R.unmute(1);
-                            break;
-
-                        case 3:
-                            MAIN_mixer_out_L.unmute(1);
-                            MAIN_mixer_out_R.unmute(1);
-                            break;
-
-                        default:
-                            PRINT_ERROR(F("Switch MISSING! "));
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        AudioNoInterrupts();
-                        Players_Manager.MX_multicast_change_routing(Instrument_id);
-                        AudioInterrupts();
-                    }
-
+                    S_Select_menu_elements();
                     Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
             }
@@ -4254,63 +4227,22 @@ void loop()
 
             case value_MX_Monitor:
             {
-                if (Read_pushbutton(EN_PB_Value))
+                const int rotation = Read_encoder_simple(EN_PB_Value);
+                const bool pressed = Read_pushbutton(EN_PB_Value);
+                const bool enabled = (MX_routing_source[MX_local_pointer.source] & 1u) != 0;
+                const bool requested = pressed ? !enabled : (rotation > 0);
+                if ((pressed || rotation != 0) && requested != enabled)
                 {
-                    if (MX_routing_source[MX_local_pointer.source] == 0) // era tutto muto --> solo MONITOR
+                    AudioNoInterrupts();
+                    MX_Select_prelisten(MX_local_pointer.source, requested);
+                    MX_Apply_routing(Players_Manager, MAIN_mixer_out_L, MAIN_mixer_out_R, PWM_mixer_out_L, PWM_mixer_out_R);
+                    AudioInterrupts();
+
+                    S_Select_menu_elements();
+                    for (int source = 0; source < MX_sources; ++source)
                     {
-                        MX_routing_source[MX_local_pointer.source] = 1;
+                        Display_Mixer.MX_source_values(source, source == MX_local_pointer.source);
                     }
-                    else if (MX_routing_source[MX_local_pointer.source] == 1) // era solo MONITOR --> tutto muto
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 0;
-                    }
-                    else if (MX_routing_source[MX_local_pointer.source] == 2) // era solo MAIN --> MONITOR e MAIN
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 3;
-                    }
-                    else // era 3 (MONITOR e MAIN) --> solo MAIN
-                    {
-                        MX_routing_source[MX_local_pointer.source] = 2;
-                    }
-
-                    if (MX_local_pointer.source == LINE_IN_source)
-                    {
-                        switch (MX_routing_source[MX_local_pointer.source])
-                        {
-                        case 0:
-                            PWM_mixer_out_L.Mute(1);
-                            PWM_mixer_out_R.Mute(1);
-                            break;
-
-                        case 1:
-                            PWM_mixer_out_L.unmute(1);
-                            PWM_mixer_out_R.unmute(1);
-                            break;
-
-                        case 2:
-                            PWM_mixer_out_L.Mute(1);
-                            PWM_mixer_out_R.Mute(1);
-                            break;
-
-                        case 3:
-                            PWM_mixer_out_L.unmute(1);
-                            PWM_mixer_out_R.unmute(1);
-                            break;
-
-                        default:
-                            PRINT_ERROR(F("Switch MISSING! "));
-                            break;
-                        }
-                    }
-
-                    else
-                    {
-                        AudioNoInterrupts();
-                        Players_Manager.MX_multicast_change_routing(Instrument_id);
-                        AudioInterrupts();
-                    }
-
-                    Display_Mixer.MX_source_values_edit(MX_local_pointer.source);
                 }
             }
             break;
@@ -9184,7 +9116,6 @@ bool S_Clone_Instrument(const int instrument_id, int &new_instrument, PatchEditS
                     return false;
                 }
                 Sound[sound_id_new] = Sound[Get_sound_id(Patch_id, instrument_id)];
-                Sound[sound_id_new].gain = 0;
                 Patch[Patch_id].Instrument[new_instrument].sound_id = sound_id_new;
                 Patch[Patch_id].instruments++;
                 return true;
@@ -14671,12 +14602,16 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 FLASHMEM
 void S_Select_menu_elements(void)
 {
+    S_Menu[value_S_Solo] = !solo_flag;
+    S_Menu[value_S_ResetSolo] = solo_flag;
+    S_Menu[value_S_OnlyPrelisten] = false;
+    S_Menu[value_S_SendToLineOut] = false;
     if (Lilla_state_0 == DIRECT_SAMPLING)
     {
         S_Menu[value_S_Return] = true;
         S_Menu[value_S_Clone] = false;
         S_Menu[value_S_Drop] = false;
-        S_menu_max = 0;
+        S_menu_max = 1;
         return;
     }
     // voices of instrument_edit_menu that can be displayed
@@ -14705,7 +14640,9 @@ void S_Select_menu_elements(void)
         S_Menu[value_S_Drop] = false;
     }
 
-    S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] - 1;
+    S_Menu[value_S_OnlyPrelisten] = MX_routing_source[Instrument_id] != 1;
+    S_Menu[value_S_SendToLineOut] = (MX_routing_source[Instrument_id] & 2u) == 0;
+    S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] + S_Menu[value_S_OnlyPrelisten] + S_Menu[value_S_SendToLineOut] + S_Menu[value_S_Solo] + S_Menu[value_S_ResetSolo] - 1;
 }
 
 bool S_Fill_tables(uint8_t instrument_id)

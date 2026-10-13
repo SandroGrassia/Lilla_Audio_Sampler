@@ -114,3 +114,8 @@ void PointerSound::Print_pointer_description(void)
     Serial.print(" value_element: ");
     Serial.println(pointer.value_element);
 }
+FLASHMEM
+void PointerSound::Set_pointer_to_menu_element(int position)
+{
+    pointer = {field_S_Menu, position, value_S_File};
+}

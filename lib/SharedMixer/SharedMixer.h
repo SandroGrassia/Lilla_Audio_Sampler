@@ -39,3 +39,10 @@ int element;
 // audio 
 extern uint8_t MX_routing_source[MX_sources];
 extern bool MX_mute[MX_sources];
+
+class PlayersManager;
+class AmpliOutMuteIn;
+void MX_Select_prelisten(int source, bool enabled);
+void MX_Only_prelisten(int source);
+void MX_Send_to_lineout(int source);
+void MX_Apply_routing(PlayersManager &players, AmpliOutMuteIn &main_left, AmpliOutMuteIn &main_right, AmpliOutMuteIn &prelisten_left, AmpliOutMuteIn &prelisten_right);

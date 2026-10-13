@@ -60,35 +60,35 @@ private:
 
     static constexpr float MX_column_row_Lineout[MX_sources][2] =
         {
-            {MX_column_Sound - 1, 9},
-            {MX_column_Sound + 4, 9},
-            {MX_column_Sound + 9, 9},
-            {MX_column_Sound + 14, 9},
-            {MX_column_Sound + 19, 9},
-            {MX_column_Sound + 24, 9},
-            {MX_column_Sound + 29, 9},
-            {MX_column_Sound + 34, 9},
-            {MX_column_Sound + 39, 9},
+            {MX_column_Sound, 9},
+            {MX_column_Sound + 5, 9},
+            {MX_column_Sound + 10, 9},
+            {MX_column_Sound + 15, 9},
+            {MX_column_Sound + 20, 9},
+            {MX_column_Sound + 25, 9},
+            {MX_column_Sound + 30, 9},
+            {MX_column_Sound + 35, 9},
+            {MX_column_Sound + 40, 9},
     };
 
     static constexpr float MX_column_row_Monitor[MX_sources][2] =
         {
-            {MX_column_Sound - 1, 10},
-            {MX_column_Sound + 4, 10},
-            {MX_column_Sound + 9, 10},
-            {MX_column_Sound + 14, 10},
-            {MX_column_Sound + 19, 10},
-            {MX_column_Sound + 24, 10},
-            {MX_column_Sound + 29, 10},
-            {MX_column_Sound + 34, 10},
-            {MX_column_Sound + 39, 10},
+            {MX_column_Sound, 10},
+            {MX_column_Sound + 5, 10},
+            {MX_column_Sound + 10, 10},
+            {MX_column_Sound + 15, 10},
+            {MX_column_Sound + 20, 10},
+            {MX_column_Sound + 25, 10},
+            {MX_column_Sound + 30, 10},
+            {MX_column_Sound + 35, 10},
+            {MX_column_Sound + 40, 10},
     };
 
     static constexpr int MX_frame_wide_high_Source[2] = {4, 6};
     static constexpr int MX_frame_wide_high_Mute_Gain[2] = {4, 2};
     static constexpr int MX_frame_wide_high_Pan[2] = {4, 1};
-    static constexpr int MX_frame_wide_high_Lineout[2] = {4, 1};
-    static constexpr int MX_frame_wide_high_Monitor[2] = {4, 1};
+    static constexpr int MX_frame_wide_high_Lineout[2] = {2, 1};
+    static constexpr int MX_frame_wide_high_Monitor[2] = {2, 1};
 
 public:
     DisplayMixer() {}

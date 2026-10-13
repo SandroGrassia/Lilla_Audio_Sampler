@@ -15,6 +15,15 @@ void DisplaySound::Show_pointer_frame(S_field_description_struct description, bo
     switch (description.field_name)
     {
     case field_S_Menu:
+        if (show && S_column_menu_element[description.menu_element] == 255)
+        {
+            menu_first_visible = description.menu_element;
+            Show_SOUND_menu();
+        }
+        if (S_column_menu_element[description.menu_element] == 255)
+        {
+            break;
+        }
         Frame_by_col_row(S_column_menu_element[description.menu_element], S_row_menu, S_dimension_voice_menu[S_element_menu[description.menu_element]], show);
         break;
 
@@ -129,32 +138,38 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 FLASHMEM
 void DisplaySound::Show_SOUND_menu(void)
 {
-        auto position = 0;
-
-        Delete_text_row(S_row_menu);
-
-        for (auto element = 0; element < S_menu_elements; ++element) // menu element
+    int count = 0;
+    int total_width = 0;
+    for (int element = 0; element < S_menu_elements; ++element)
+    {
+        if (S_Menu[element])
         {
-            if (S_Menu[element])
-            {
-                if (position == 0)
-                {
-                    S_column_menu_element[position] = 0;
-                }
-
-                else
-                {
-                    S_column_menu_element[position] = S_column_menu_element[position - 1] + S_dimension_voice_menu[S_element_menu[position - 1]] + 1;
-                }
-
-                S_element_menu[position] = static_cast<S_menu_elements_name>(element);
-                S_position_menu[element] = position;
-                tft.setCursor(display_coordinate_x(S_column_menu_element[position]), display_coordinate_y(S_row_menu));
-                tft.setTextColor(MENU_COLOR);
-                tft.print(S_menu_char[element]);
-                ++position;
-            }
+            S_element_menu[count] = static_cast<S_menu_elements_name>(element);
+            S_position_menu[element] = count;
+            S_column_menu_element[count] = 255;
+            total_width += S_dimension_voice_menu[element] + 1;
+            ++count;
         }
+    }
+    if (total_width <= 53 || menu_first_visible >= count)
+    {
+        menu_first_visible = 0;
+    }
+    tft.fillRect(0, display_coordinate_y(S_row_menu) - 4, 320, 15, ILI9341_BLACK);
+    int column = 0;
+    for (int position = menu_first_visible; position < count; ++position)
+    {
+        const int element = S_element_menu[position];
+        if (column + S_dimension_voice_menu[element] > 52)
+        {
+            break;
+        }
+        S_column_menu_element[position] = column;
+        tft.setCursor(display_coordinate_x(column), display_coordinate_y(S_row_menu));
+        tft.setTextColor(MENU_COLOR);
+        tft.print(S_menu_char[element]);
+        column += S_dimension_voice_menu[element] + 1;
+    }
 }
 
 FLASHMEM
@@ -167,7 +182,10 @@ void DisplaySound::Delete_all_menu_frame(void)
         if (S_Menu[element])
         {
             position = S_position_menu[element];
-            Frame_by_col_row(S_column_menu_element[position], 1, S_dimension_voice_menu[element], false);
+            if (S_column_menu_element[position] != 255)
+            {
+                Frame_by_col_row(S_column_menu_element[position], 1, S_dimension_voice_menu[element], false);
+            }
         }
     }
 }
