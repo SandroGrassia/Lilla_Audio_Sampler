@@ -132,9 +132,9 @@ int main()
     assert(loop.Get_pointer().menu_element == value_LOOP_New);
     LOOP_menu_max = -1; loop.Set_pointer_to_first_menu_element(); loop.Move_pointer(1);
     assert(loop.Get_pointer().menu_element == value_LOOP_Menu_none);
-    SET_menu = 0; rotation = -1; Step_setup(); assert(SET_menu == 6);
+    SET_menu = 0; rotation = -1; Step_setup(); assert(SET_menu == 7);
     rotation = 1; Step_setup(); assert(SET_menu == 0);
-    for (int i = 0; i < 7; ++i) { Step_setup(); }
+    for (int i = 0; i < 8; ++i) { Step_setup(); }
     assert(SET_menu == 0);
     Switch_from_MIDI_LOOP_to_SETUP();
     assert(stop_calls == 0 && Lilla_state_0 == MIDI_LOOP && Lilla_state == SETUP && LOOP_track_run[0]);

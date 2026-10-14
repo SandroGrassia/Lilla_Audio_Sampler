@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--match', default='', help='Run only script names containing this text.')
     parser.add_argument('--list', action='store_true', help='List selected scripts without running them.')
-    parser.add_argument('--mp3', action='store_true', help='Also run the optional FFmpeg cases in zero_raw_regression.py.')
+    parser.add_argument('--mp3', action='store_true', help='Also run the optional FFmpeg Flash and SD audio conversion cases.')
     args = parser.parse_args()
     folder = Path(__file__).resolve().parent
     scripts = sorted(path for path in folder.glob('*_regression.py') if args.match in path.name)
@@ -36,7 +36,7 @@ def main():
     for index, script in enumerate(scripts, 1):
         print(f'[{index}/{len(scripts)}] {script.name}', flush=True)
         command = [sys.executable, '-B', str(script)]
-        if args.mp3 and script.name == 'zero_raw_regression.py':
+        if args.mp3 and script.name in ('zero_raw_regression.py', 'user_audio_import_regression.py'):
             command.append('--mp3')
         result = subprocess.run(command, cwd=folder.parent, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace')
         if result.returncode:

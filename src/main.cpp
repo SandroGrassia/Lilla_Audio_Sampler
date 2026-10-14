@@ -97,6 +97,7 @@
 #include <spi_interrupt.h>
 #include "CaptureSources.h"
 #include "Mp3Import.h"
+#include "UserAudioImport.h"
 
 #if defined(LILLA_READ_BENCHMARK)
 #include "ReadBenchmark.h"
@@ -588,6 +589,7 @@ uint8_t Line_in_gain = 8;                       // Shared hardware input gain; d
 uint8_t Line_out_level;                         // Hardware line-output level setting.
 
 // functions
+void SET_Prepare_user_audio(void);
 bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
 float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
 void SET_Ask_if_IMPORT_EXPORT_setup(void);                       // Present the setup import/export choices and handle the selected operation.
@@ -7526,7 +7528,7 @@ void loop()
         result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
-            SET_menu = (SET_menu + result + 7) % 7;
+            SET_menu = (SET_menu + result + 8) % 8;
             Display_Setup.SETUP_show_frame(SET_menu);
 
             Clear_UI_events();
@@ -7537,6 +7539,11 @@ void loop()
         {
             switch (SET_menu)
             {
+            case 7:
+                SET_Prepare_user_audio();
+                Display_Setup.SETUP_show_SETUP_page();
+                Display_Setup.SETUP_show_frame(SET_menu);
+                break;
             case 2: // switch to CC Settings
                 Lilla_state = CC_SETTINGS;
 
@@ -15782,4 +15789,59 @@ void Require_FRAM(byte result)
     {
         delay(10);
     }
+}
+
+FLASHMEM void SET_Prepare_user_audio(void)
+{
+    Display_Storage.Confirm_user_audio_import_popup();
+    Display_Storage.Confirm_config_import_frame(0);
+    SET_Ask_if_IMPORT_EXPORT_setup();
+    if (result == 0)
+    {
+        Serial.println("USER AUDIO: cancelled; no files changed");
+        return;
+    }
+    const bool resume_trigger = Trigger.Is_running();
+    const bool resume_midi = Midi_reader.Is_running();
+    const bool resume_audio = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+    Trigger.Stop();
+    const bool drained = LS_Capture_drain();
+    if (drained)
+    {
+        Show_popup_text("PREPARING USER AUDIO", "PLEASE WAIT - SEE TERMINAL", ILI9341_WHITE, ILI9341_RED);
+        Serial.println("USER AUDIO: audio and MIDI suspended");
+
+        AudioNoInterrupts();
+        const auto report = UserAudioImport::Run(SET_WAV_raw_data, SET_AIFF_raw_data);
+        if (resume_audio)
+        {
+            AudioInterrupts();
+        }
+
+        Show_popup_text(report.errors == 0 ? "USER AUDIO AND INDEX READY" : "USER AUDIO: ERRORS - SEE TERMINAL", ILI9341_WHITE, ILI9341_RED);
+    }
+    else
+    {
+        Serial.println("USER AUDIO: players still active; import not started");
+        Show_popup_text("AUDIO STILL ACTIVE - TRY AGAIN", ILI9341_WHITE, ILI9341_RED);
+    }
+    if (!resume_audio)
+    {
+        AudioNoInterrupts();
+    }
+    if (resume_midi)
+    {
+        Midi_reader.Start();
+    }
+    else
+    {
+        Midi_reader.Stop();
+    }
+    if (resume_trigger)
+    {
+        Trigger.Start();
+    }
+    Serial.println("USER AUDIO: previous audio/MIDI state restored");
+    delay(2000);
+    Clear_UI_events();
 }

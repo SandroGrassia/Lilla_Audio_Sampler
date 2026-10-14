@@ -87,6 +87,37 @@ void DisplayStorage::Confirm_config_import_popup(void)
 }
 
 FLASHMEM
+void DisplayStorage::Confirm_user_audio_import_popup(void)
+{
+    L_POPUP = display_coordinate_x(46);
+    H_POPUP = display_coordinate_y(5.2);
+    Y_POPUP = Centered_element_top(H_POPUP);
+    X_POPUP = Centered_element_left(L_POPUP);
+    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED);
+
+    Y_POPUP_TXT = 10; // Prima riga testo
+    Y_POPUP_OPT = Y_POPUP_TXT + 50;
+    X_POPUP_OPT = display_coordinate_x(19); // Colonna prima opzione, generalmente NO
+
+    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
+    tft.setTextColor(ILI9341_WHITE);
+
+    //       ("01234567890123456789012345678901234567891098765"); // 45 char
+    tft.print(F("          FILES WITH THE SAME NAMES"));
+    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 15);
+    tft.print(F("            WILL BE OVERWIRTTEN.")); // 43
+    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 30);
+
+    //       ("01234567890123456789012345678901234567891098765"); // 45 char
+    tft.print(F("          DO YOU WANT TO CONTINUE?"));
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.setCursor(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT);
+    tft.print("NO");
+    tft.setCursor(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT);
+    tft.print("YES");
+}
+
+FLASHMEM
 void DisplayStorage::Factory_reset_wait_popup(void)
 {
     L_POPUP = display_coordinate_x(38);

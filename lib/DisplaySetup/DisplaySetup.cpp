@@ -34,6 +34,8 @@ void DisplaySetup::SETUP_show_SETUP_page(void)
     tft.print(F("NEW NUMBERED BACKUP IN /LILLABACKUP"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
     tft.print(F("FACTORY RESET"));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
+    tft.print(F("IMPORT AUDIO FILES FROM /USER_AUDIO TO /LILLA_AUDIO"));
 
     SETUP_show_Key_step_value();
     SETUP_show_First_octave_value();
@@ -88,6 +90,8 @@ void DisplaySetup::SETUP_show_frame(int8_t value)
     Frame_by_col_row(0, 7, 46, false);  // Export configuration to SD
     Frame_by_col_row(0, 8, 13, false);  // Factory Reset
 
+    Frame_by_col_row(0, 9, 51, false);
+
     switch (value)
     {
     case 0:
@@ -110,6 +114,9 @@ void DisplaySetup::SETUP_show_frame(int8_t value)
         break;
     case 6:
         Frame_by_col_row(0, 8, 13, true); // Factory reset
+        break;
+    case 7:
+        Frame_by_col_row(0, 9, 51, true);
         break;
     default:
         break;

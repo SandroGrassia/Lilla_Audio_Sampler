@@ -16,6 +16,10 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
+## Development: prepare user audio on SD
+
+SETUP now includes `IMPORT AUDIO FILES FROM /USER_AUDIO TO /LILLA_AUDIO`: confirmed copies/conversions to mono RAW, Serial reporting and a 1,024-entry alphabetical index on SD. See [User audio preparation](docs/user-audio-preparation.md). This development feature is not part of the published 7.1.1 release.
+
 ## What This Project Does
 
 LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work with imported audio, self-recorded audio, and live input.
