@@ -207,3 +207,26 @@ bool Mp3Import::Read(int16_t *samples, uint32_t frames)
     }
     return true;
 }
+
+bool Mp3Import::Seek(uint32_t frame)
+{
+    if (decoder->filter == nullptr)
+    {
+        decoder->read_failed = false;
+        return drmp3_seek_to_pcm_frame(&decoder->mp3, 0) && drmp3_seek_to_pcm_frame(&decoder->mp3, frame);
+    }
+    const uint64_t center = static_cast<uint64_t>(frame) * decoder->mp3.sampleRate / MP3_OUTPUT_RATE;
+    const uint32_t start = center > MP3_FILTER_TAPS ? center - MP3_FILTER_TAPS : 0;
+    // Reset the gapless delay origin before seeking: dr_mp3 counts skipped encoder delay in currentPCMFrame.
+    if (!drmp3_seek_to_pcm_frame(&decoder->mp3, 0) || !drmp3_seek_to_pcm_frame(&decoder->mp3, start))
+    {
+        return false;
+    }
+    decoder->read_failed = false;
+    decoder->input_position = start;
+    decoder->output_position = frame;
+    decoder->buffered_frames = 0;
+    decoder->buffered_position = 0;
+    memset(decoder->history, 0, sizeof(decoder->history));
+    return true;
+}

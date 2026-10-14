@@ -16,6 +16,14 @@ prefix = r'''
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+bool sd_source_enabled = false;
+struct SdAudioLibrary
+{
+    static bool Assigned(int file) { return sd_source_enabled && file == 18; }
+    static unsigned Samples(int) { return 8; }
+    static bool Read(int, short *, unsigned, unsigned) { return false; }
+};
+
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -228,6 +236,20 @@ int main()
     // Readback mismatch never publishes the file and retains its PSRAM data.
     CaptureSource bad={{19,Psram,cache[0],10,0},false}; corrupt_file=19;
     assert(!LS_Capture_write(bad) && !bad.written && !SerialFlash.exists(name_file[19]));
+    for (auto &source : Capture_sources) { source = {}; }
+    for (auto &preset : Preset) { preset = {}; }
+    PatchCache_Manager.Begin();
+    sd_source_enabled = true;
+    Preset[0] = {true,18};
+    PatchCache_Manager.Set_required_files(Preset);
+    auto sd_source = PatchCache_Manager.Get_source(18);
+    assert(sd_source.storage == Psram && sd_source.psram_ptr == nullptr && sd_source.samples == 8);
+    PatchCacheManager::CopyJob job;
+    assert(PatchCache_Manager.Prepare_copy(job) && job.file_id == 18 && job.samples == 8);
+    for (int i = 0; i < 8; ++i) { job.destination[i] = i + 10; }
+    assert(PatchCache_Manager.Get_source(18).psram_ptr == nullptr);
+    assert(PatchCache_Manager.Complete_copy(job, true));
+    assert(PatchCache_Manager.Get_source(18).psram_ptr[7] == 17);
     std::cout << "PASS: normal IDs, root, cancel, circular capture, cache pinning, deferred save, retry, capacity and verification\n";
 }
 '''

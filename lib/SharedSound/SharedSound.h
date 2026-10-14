@@ -9,7 +9,7 @@
 #include <Arduino.h>
 
 // menu
-static constexpr int S_menu_elements = 7;
+static constexpr int S_menu_elements = 9;
 enum S_menu_elements_name
 {
     value_S_Return,
@@ -18,11 +18,13 @@ enum S_menu_elements_name
     value_S_OnlyPrelisten,
     value_S_SendToLineOut,
     value_S_Solo,
-    value_S_ResetSolo
+    value_S_ResetSolo,
+    value_S_BrowseFlash,
+    value_S_BrowseSD
 };
 static constexpr int S_row_menu = 1;
-static constexpr char S_menu_char[S_menu_elements][17] = {{"RETURN"}, {"CLONE"}, {"DROP"}, {"ONLY_PRE_LISTEN"}, {"TO_LINE_OUT"}, {"SOLO"}, {"RESET_SOLO"}};
-static constexpr uint8_t S_dimension_voice_menu[S_menu_elements] = {6, 5, 4, 15, 11, 4, 10};
+static constexpr char S_menu_char[S_menu_elements][17] = {{"RETURN"}, {"CLONE"}, {"DROP"}, {"ONLY_PRE_LISTEN"}, {"TO_LINE_OUT"}, {"SOLO"}, {"RESET_SOLO"}, {"BROWSE_FLASH"}, {"BROWSE_SD"}};
+static constexpr uint8_t S_dimension_voice_menu[S_menu_elements] = {6, 5, 4, 15, 11, 4, 10, 12, 9};
 extern int S_solo_instrument;
 extern uint8_t S_menu_choice;
 extern bool S_Menu[S_menu_elements];

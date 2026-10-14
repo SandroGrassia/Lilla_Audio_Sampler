@@ -287,6 +287,17 @@ byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
         }
     }
 
+    uint8_t empty_recipes[128] = {};
+    for (uint32_t address = FRAM_V6_END_ADDRESS; address < FRAM_FIRST_FREE_ADDRESS; address += sizeof(empty_recipes))
+    {
+        const uint32_t count = FRAM_FIRST_FREE_ADDRESS - address < sizeof(empty_recipes) ? FRAM_FIRST_FREE_ADDRESS - address : sizeof(empty_recipes);
+        const byte result = FRAM_Write_bytes(address, empty_recipes, count);
+        if (result != LillaFRAM_2x512::ERROR_0)
+        {
+            return result;
+        }
+    }
+
     FRAM_System_struct system{};
     system.first_octave = -2;
     const byte result = FRAM_Write_system(system);
@@ -316,7 +327,7 @@ bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio
     FRAM_Backup_header_struct header{};
     const uint8_t magic[8] = {'L', 'I', 'L', 'L', 'A', 'F', 'R', 'M'};
     memcpy(header.magic, magic, sizeof(magic));
-    header.version = audio ? 7 : FRAM_BACKUP_VERSION;
+    header.version = audio ? 9 : FRAM_BACKUP_VERSION;
     header.header_bytes = sizeof(header);
     const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
     const uint32_t audio_bytes = audio ? RECORDINGS * sizeof(Recording_backup_audio) : 0;
@@ -388,7 +399,7 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
     const uint32_t config_bytes = FRAM_FIRST_FREE_ADDRESS - FRAM_HEADER_BYTES;
     const uint32_t legacy_bytes = FRAM_LEGACY_END_ADDRESS - FRAM_HEADER_BYTES;
     const uint32_t registry_bytes = FileNameRegistry::END_ADDRESS - FRAM_HEADER_BYTES;
-    const bool supported = (header.version == 1 && header.payload_bytes == FRAM_LEGACY_END_ADDRESS) || (header.version == 2 && header.payload_bytes == legacy_bytes) || (header.version == 3 && header.payload_bytes == legacy_bytes + RECORDINGS * sizeof(Recording_backup_audio)) || (header.version == 4 && header.payload_bytes == registry_bytes) || (header.version == 5 && header.payload_bytes == registry_bytes + RECORDINGS * sizeof(Recording_backup_audio)) || (header.version == FRAM_BACKUP_VERSION && header.payload_bytes == config_bytes) || (header.version == 7 && header.payload_bytes == config_bytes + RECORDINGS * sizeof(Recording_backup_audio));
+    const bool supported = (header.version == 1 && header.payload_bytes == FRAM_LEGACY_END_ADDRESS) || (header.version == 2 && header.payload_bytes == legacy_bytes) || (header.version == 3 && header.payload_bytes == legacy_bytes + RECORDINGS * sizeof(Recording_backup_audio)) || (header.version == 4 && header.payload_bytes == registry_bytes) || (header.version == 5 && header.payload_bytes == registry_bytes + RECORDINGS * sizeof(Recording_backup_audio)) || (header.version == 6 && header.payload_bytes == FRAM_V6_END_ADDRESS - FRAM_HEADER_BYTES) || (header.version == 7 && header.payload_bytes == FRAM_V6_END_ADDRESS - FRAM_HEADER_BYTES + RECORDINGS * sizeof(Recording_backup_audio)) || (header.version == FRAM_BACKUP_VERSION && header.payload_bytes == config_bytes) || (header.version == 9 && header.payload_bytes == config_bytes + RECORDINGS * sizeof(Recording_backup_audio));
     
     if (memcmp(header.magic, magic, sizeof(magic)) != 0 || !supported || header.header_bytes != sizeof(header) || file.size() != sizeof(header) + header.payload_bytes)
     {
@@ -433,7 +444,7 @@ bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
         return false;
     }
 
-    if ((header.version == 3 || header.version == 5 || header.version == 7) && publish_ready)
+    if ((header.version == 3 || header.version == 5 || header.version == 7 || header.version == 9) && publish_ready)
     {
         return false; // Only the full restore may publish READY, after the audio and relocated metadata.
     }
@@ -444,7 +455,7 @@ bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
     }
 
     uint8_t buffer[128];
-    const uint32_t end_address = header.version <= 3 ? FRAM_LEGACY_END_ADDRESS : (header.version <= 5 ? FileNameRegistry::END_ADDRESS : FRAM_FIRST_FREE_ADDRESS);
+    const uint32_t end_address = header.version <= 3 ? FRAM_LEGACY_END_ADDRESS : (header.version <= 5 ? FileNameRegistry::END_ADDRESS : (header.version <= 7 ? FRAM_V6_END_ADDRESS : FRAM_FIRST_FREE_ADDRESS));
     for (uint32_t address = FRAM_PATCH_ADDRESS; address < end_address; address += sizeof(buffer))
     {
         const uint32_t remaining = end_address - address;
@@ -457,6 +468,18 @@ bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
         if (FRAM_Read_bytes(address, actual, count) != LillaFRAM_2x512::ERROR_0 || memcmp(buffer, actual, count) != 0)
         {
             return false;
+        }
+    }
+    if (header.version <= 7)
+    {
+        memset(buffer, 0, sizeof(buffer));
+        for (uint32_t address = FRAM_V6_END_ADDRESS; address < FRAM_FIRST_FREE_ADDRESS; address += sizeof(buffer))
+        {
+            const uint32_t count = FRAM_FIRST_FREE_ADDRESS - address < sizeof(buffer) ? FRAM_FIRST_FREE_ADDRESS - address : sizeof(buffer);
+            if (FRAM_Write_bytes(address, buffer, count) != LillaFRAM_2x512::ERROR_0)
+            {
+                return false;
+            }
         }
     }
     if (header.version <= 5)
@@ -484,12 +507,12 @@ bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *aud
     }
     FRAM_Backup_header_struct header{};
 
-    if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || (header.version != 3 && header.version != 5 && header.version != 7))
+    if (file.read(reinterpret_cast<uint8_t *>(&header), sizeof(header)) != sizeof(header) || (header.version != 3 && header.version != 5 && header.version != 7 && header.version != 9))
     {
         return false; // Metadata-only backups cannot recover audio.
     }
 
-    const uint32_t end_address = header.version == 3 ? FRAM_LEGACY_END_ADDRESS : (header.version == 5 ? FileNameRegistry::END_ADDRESS : FRAM_FIRST_FREE_ADDRESS);
+    const uint32_t end_address = header.version == 3 ? FRAM_LEGACY_END_ADDRESS : (header.version == 5 ? FileNameRegistry::END_ADDRESS : (header.version == 7 ? FRAM_V6_END_ADDRESS : FRAM_FIRST_FREE_ADDRESS));
     if (!file.seek(sizeof(header) + end_address - FRAM_HEADER_BYTES) || file.read(reinterpret_cast<uint8_t *>(audio), RECORDINGS * sizeof(*audio)) != RECORDINGS * sizeof(*audio))
     {
         return false;

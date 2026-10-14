@@ -19,6 +19,9 @@ def method(source, signature):
 prefix = r'''
 #include <cassert>
 #include <cstdint>
+int flash_files = 0, sd_files = 0;
+int Get_raw_files() { return flash_files; }
+struct SdAudioLibrary { static int Count() { return sd_files; } };
 #include <cstring>
 #include <iostream>
 using byte = uint8_t;
@@ -43,8 +46,8 @@ int samples_in_file, Noclick_max, S_trim_step, trim_speed = 0, S_slicing_window,
 int maps = 0, multicasts[2] = {}, audio_depth = 0, saves = 0, S_menu_max = 0;
 int pitch_updates[2] = {}, volume_updates[2] = {}, pan_updates[2] = {}, midi_releases = 0;
 bool S_sound_original, tables_ok = true, solo_flag = false;
-enum { value_S_Return, value_S_Clone, value_S_Drop, value_S_OnlyPrelisten, value_S_SendToLineOut, value_S_Solo, value_S_ResetSolo };
-bool S_Menu[7];
+enum { value_S_Return, value_S_Clone, value_S_Drop, value_S_OnlyPrelisten, value_S_SendToLineOut, value_S_Solo, value_S_ResetSolo, value_S_BrowseFlash, value_S_BrowseSD };
+bool S_Menu[9];
 uint8_t MX_routing_source[9] = {};
 struct ArchiveMock
 {

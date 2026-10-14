@@ -5,6 +5,7 @@
 */
 
 #include "DisplaySound.h"
+#include "SdAudioLibrary.h"
 #include "SharedMixer.h"
 #include "SharedSampler.h"
 #include <math.h>
@@ -246,6 +247,13 @@ void DisplaySound::Show_File_value(int instrument_id)
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor(ILI9341_YELLOW);
     const uint16_t file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
+    if (SdAudioLibrary::Assigned(file))
+    {
+        char label[S_chars_File + 1];
+        snprintf(label, sizeof(label), "%.*s", S_chars_File, SdAudioLibrary::Source_name(file));
+        tft.print(label);
+        return;
+    }
     Get_file_name(file, audio_filename);
     if (file < FIRST_RECORDING_FILE)
     {

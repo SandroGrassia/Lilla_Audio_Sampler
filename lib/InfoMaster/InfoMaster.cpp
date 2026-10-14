@@ -1,3 +1,4 @@
+#include "SdAudioLibrary.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -69,6 +70,10 @@ int InfoMaster::DS_recording_samples(int recording)
 
 int InfoMaster::Raw_file_samples(int file_id)
 {
+    if (SdAudioLibrary::Assigned(file_id))
+    {
+        return SdAudioLibrary::Samples(file_id);
+    }
     const auto *capture = Capture_find(file_id);
     if (capture != nullptr)
     {

@@ -10,6 +10,13 @@ from file_registry_fixture import ROOT, REGISTRY_FIXTURE
 prefix = r'''
 #include <map>
 #include <string>
+struct SdAudioLibrary
+{
+    static bool Assigned(int) { return false; }
+    static unsigned Samples(int) { return 0; }
+    static bool Read(int, short *, unsigned, unsigned) { return false; }
+};
+
 constexpr int NAME_FILE_SIZE = 36, NAME_PACKET_SIZE = 10;
 constexpr int FIRST_RECORDING_FILE = 260, FIRST_LIVE_SAMPLING_FILE = 320, RAW_FILES = 323, PACKETS = 4;
 using elapsedMicros = int;

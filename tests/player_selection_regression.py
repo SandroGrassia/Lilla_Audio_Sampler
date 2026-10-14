@@ -21,6 +21,13 @@ def method(signature):
 prefix = r'''
 #include <cassert>
 #include <cstdint>
+struct SdAudioLibrary
+{
+    static bool Assigned(int) { return false; }
+    static unsigned Samples(int) { return 0; }
+    static bool Read(int, short *, unsigned, unsigned) { return false; }
+};
+
 #include <iostream>
 #include <random>
 constexpr int PLAYERS = 16, INSTRUMENTS = 8, FIRST_LIVE_SAMPLING_FILE = 100;
@@ -49,6 +56,8 @@ struct Voice
 };
 struct PlayersManager
 {
+    struct CacheStub { struct Source { const short *psram_ptr = nullptr; }; Source Get_source(int) { return {}; } } cache;
+    CacheStub *Cache_manager_ptr = &cache;
     Voice voices[PLAYERS];
     Voice *Player_ptr = voices;
     bool Player_booked[PLAYERS] = {};

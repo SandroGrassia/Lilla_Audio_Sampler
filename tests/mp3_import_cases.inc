@@ -83,6 +83,18 @@ void test_mp3_import()
                 assert(memcmp(block, actual.data() + offset, count * 2) == 0);
                 offset += count * 2;
             }
+            for (uint32_t first : {3000u, 0u, 123u, 17u, 6000u})
+            {
+                int16_t block[37];
+                assert(importer.Seek(first) && importer.Read(block, 37));
+                if (memcmp(block, actual.data() + first * 2, sizeof(block)) != 0)
+                {
+                    int16_t expected;
+                    memcpy(&expected, actual.data() + first * 2, 2);
+                    std::fprintf(stderr, "Seek mismatch: rate=%u channels=%u first=%u actual=%d expected=%d\n", rate, channels, first, block[0], expected);
+                    assert(false);
+                }
+            }
         }
     }
     reset();

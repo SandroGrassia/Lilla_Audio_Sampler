@@ -38,6 +38,8 @@ prefix = r'''
 #include <algorithm>
 #include <iostream>
 #define FLASHMEM
+bool S_sd_browsing = false;
+struct Preview { void Stop() {} } SD_preview;
 enum State { PERFORMANCE, DIRECT_SAMPLING, LIVE_SAMPLING, MIDI_LOOP, DELAY_SETTINGS };
 State Lilla_state = PERFORMANCE, Lilla_state_0 = PERFORMANCE;
 enum DELAY_element_name { value_DELAY_Feedback, value_DELAY_Delay_time, value_DELAY_Delay_time_LR, value_DELAY_Modulation_source, value_DELAY_Modulation_frequency, value_DELAY_Modulation_depth, value_DELAY_Modulation_phase_LR, DELAY_element_names };

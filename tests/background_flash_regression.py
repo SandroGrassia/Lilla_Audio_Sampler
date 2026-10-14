@@ -12,6 +12,13 @@ method = re.search(r'^bool LillaSerialFlashFile::Read_audio_samples_background\(
 prefix = r'''
 #include <cassert>
 #include <cstdint>
+struct SdAudioLibrary
+{
+    static bool Assigned(int) { return false; }
+    static unsigned Samples(int) { return 0; }
+    static bool Read(int, short *, unsigned, unsigned) { return false; }
+};
+
 #include <algorithm>
 bool enabled = true;
 int owners = 0, calls = 0, fail_at = -1, serviced = 0;

@@ -1,3 +1,4 @@
+#include "SdAudioLibrary.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -8,6 +9,10 @@
 
 uint32_t PatchCacheManager::File_samples(int16_t file_id)
 {
+    if (SdAudioLibrary::Assigned(file_id))
+    {
+        return SdAudioLibrary::Samples(file_id);
+    }
     const auto *capture = Capture_find(file_id);
     if (capture != nullptr)
     {
@@ -180,6 +185,7 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 
     AudioFileSource result;
     result.file_id = file_id;
+    result.storage = SdAudioLibrary::Assigned(file_id) ? Psram : Flash;
     result.samples = File_samples(file_id);
 
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)

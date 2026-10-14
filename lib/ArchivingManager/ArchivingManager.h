@@ -159,7 +159,7 @@ private:
     0x0FE00–0x0FFFF  512         Reserved
     0x10000–0x14117  16.664      RAW filename registry (two CRC-protected banks)
     0x14118–0x142F7  480         Recording trim indices (version and CRC protected)
-    0x142F8–0x1FFFF  48.392      Free
+    0x142F8–0x1FFFF  20.800      SD recipes; remaining 27.592 bytes: rebuilt SD index
 
     Names are stored once per RAW identity; Sound.file remains a uint16_t.
     */
@@ -184,7 +184,11 @@ private:
 
     static constexpr uint32_t FRAM_LEGACY_END_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FE00
     static constexpr uint32_t FRAM_RECORDING_EDIT_ADDRESS = FileNameRegistry::END_ADDRESS;
-    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_RECORDING_EDIT_ADDRESS + RECORDINGS * sizeof(FRAM_Recording_edit_struct);
+    static constexpr uint32_t FRAM_V6_END_ADDRESS = FRAM_RECORDING_EDIT_ADDRESS + RECORDINGS * sizeof(FRAM_Recording_edit_struct);
+    static constexpr uint32_t FRAM_SD_RECIPE_BYTES = 80 * FileNameRegistry::FILES;
+    static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_V6_END_ADDRESS + FRAM_SD_RECIPE_BYTES;
+    static_assert(FRAM_V6_END_ADDRESS == 0x142F8);
+    static_assert(FRAM_FIRST_FREE_ADDRESS == 0x19438);
     byte Migrate_file_registry();
 
     struct alignas(4) FRAM_Backup_header_struct
@@ -195,7 +199,7 @@ private:
         uint32_t payload_bytes;
         uint32_t payload_crc32;
     };
-    static constexpr uint16_t FRAM_BACKUP_VERSION = 6;
+    static constexpr uint16_t FRAM_BACKUP_VERSION = 8;
     static_assert(sizeof(FRAM_Recording_edit_struct) == 16);
 
     static_assert(sizeof(FRAM_Patch_struct) == 192);

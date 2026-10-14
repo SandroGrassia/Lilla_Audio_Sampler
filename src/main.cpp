@@ -97,6 +97,7 @@
 #include <spi_interrupt.h>
 #include "CaptureSources.h"
 #include "Mp3Import.h"
+#include "SdAudioLibrary.h"
 
 #if defined(LILLA_READ_BENCHMARK)
 #include "ReadBenchmark.h"
@@ -246,6 +247,7 @@ public:
 
 LillaClock Trigger;
 AudioPlayer Player[PLAYERS];
+SdAudioPreview SD_preview;
 Router_16x3 Router_L;
 Router_16x3 Router_R;
 CacheCycleFinalizer CacheCycle_finalizer;
@@ -281,6 +283,9 @@ AmpliOutMuteIn PWM_mixer_out_R;
 AudioOutputNoiseShapedPWM PWM_L(3);
 AudioOutputNoiseShapedPWM PWM_R(4);
 AudioOutputI2S audio_out;
+
+AudioConnection sdPreviewLeft(SD_preview, 0, PWM_mixer_out_L, 3);
+AudioConnection sdPreviewRight(SD_preview, 0, PWM_mixer_out_R, 3);
 
 AudioConnection patchCord1(Player[0], 0, Router_L, 0);
 AudioConnection patchCord2(Player[1], 0, Router_L, 1);
@@ -523,6 +528,26 @@ void P_Delete_one_map_Instrument_for_notes(const int instrument_id);            
 // >>>>>>>>>>>>>>>>>>>>>>>  INSTRUMENT VCF
 void Macro_VCF_filter_on_none(void);  // Toggle the selected instrument's filter, updating both Live Sampler channels when needed.
 void Macro_VCF_modulation_none(void); // Disable filter modulation, updating both Live Sampler channels when needed.
+
+// SD browser keeps candidate selection separate from the assigned Sound.
+bool S_sd_browsing = false;
+bool S_sd_new_instrument = false;
+bool S_sd_flash_available = false;
+uint16_t S_sd_index = 0;
+uint32_t S_sd_from = 0;
+uint32_t S_sd_to = 0;
+uint8_t S_sd_step = 2;
+uint8_t S_sd_menu = 0;
+char S_sd_name[SdAudioLibrary::NAME_BYTES] = {};
+bool S_SD_begin(bool creating);
+bool S_SD_open(uint16_t index);
+void S_SD_draw();
+void S_SD_service();
+void S_SD_import();
+void S_SD_close();
+bool S_Assign_browser_file(int file, uint32_t samples, bool creating);
+void S_Browse_flash();
+void S_Show_editor();
 
 // >>>>>>>>>>>>>>>>>>>>>>>  SOUND_EDIT
 // Menu
@@ -1273,7 +1298,10 @@ void loop()
     // Recording stops asynchronously: catch storage errors even after leaving the Sampler page.
     Require_FRAM(DirectSampler.Storage_error());
 
-    P_Service_patch_cache();
+    if (!S_sd_browsing)
+    {
+        P_Service_patch_cache();
+    }
 
     /*
     if (Serial.available() > 0)
@@ -1319,6 +1347,11 @@ void loop()
     // Panic
     if (Read_pushbutton(EN_PB_LineOutVol)) // LINE OUT VOLUME
     {
+        if (S_sd_browsing)
+        {
+            SD_preview.Stop();
+        }
+
         AudioNoInterrupts();
         const bool resume_midi = Midi_reader.Is_running();
         const bool resume_controls = Trigger.Is_running();
@@ -2159,11 +2192,20 @@ void loop()
 
                 else
                 {
-                    char message[24];
-                    snprintf(message, sizeof(message), "SOUND %u IS NOT USED", static_cast<unsigned int>(Inst_id + 1));
-                    Show_popup_text(message, ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
-                    delay(1000);
-                    Show_popup_text(message, ILI9341_BLACK, ILI9341_BLACK, display_coordinate_y(7));
+                    Instrument_id = Inst_id;
+                    if (SdAudioLibrary::Count() > 0)
+                    {
+                        S_SD_begin(true);
+                    }
+                    else if (Get_raw_files() > 0)
+                    {
+                        S_sd_new_instrument = true;
+                        S_Browse_flash();
+                    }
+                    else
+                    {
+                        Show_popup_text("NO AUDIO FILES IN FLASH / SD", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+                    }
                 }
             }
         }
@@ -2251,6 +2293,11 @@ void loop()
     static bool sound_edit_was_active = false;
     const bool entering_sound_edit = !sound_edit_was_active && Lilla_state == SOUND_EDIT;
     sound_edit_was_active = Lilla_state == SOUND_EDIT;
+    if (Lilla_state == SOUND_EDIT && S_sd_browsing)
+    {
+        S_SD_service();
+        return;
+    }
     if (Lilla_state == SOUND_EDIT)
     {
         S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
@@ -2289,6 +2336,12 @@ void loop()
             {
                 switch (S_element_menu[S_pointer.menu_element])
                 {
+                case value_S_BrowseSD:
+                    S_SD_begin(false);
+                    return;
+                case value_S_BrowseFlash:
+                    S_Browse_flash();
+                    return;
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
                     if (Lilla_state_0 == DIRECT_SAMPLING)
@@ -12441,7 +12494,7 @@ int Get_next_raw_file_in_flash(int file)
             Serial.println(F("Get_next_raw_file_in_flash() --> reached last file!"));
             return file;
         }
-        if (Get_samples_in_raw_file(value) > 0)
+        if (!SdAudioLibrary::Assigned(value) && Get_samples_in_raw_file(value) > 0)
         {
             Serial.print(F("Get_next_raw_file_in_flash() --> next file found : "));
             Serial.println(value);
@@ -12461,7 +12514,7 @@ int Get_previous_raw_file_in_flash(int file)
             Serial.print(F("Get_previous_raw_file_in_flash() --> reached first file!"));
             return file;
         }
-        if (Get_samples_in_raw_file(value) > 0)
+        if (!SdAudioLibrary::Assigned(value) && Get_samples_in_raw_file(value) > 0)
         {
             Serial.print(F("Get_previous_raw_file_in_flash() --> previous file found: "));
             Serial.println(value);
@@ -14391,8 +14444,17 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             uint16_t channels = 1;
             if (SET_Audio_raw_data(source, format, offset, length, channels))
             {
-                registry_error = FileNameRegistry::Valid_name(filename) ? "FILE NAME TABLE FULL" : "NAME TOO LONG OR RESERVED";
-                registry_ok = FileNameRegistry::Add(filename) >= 0;
+                const int existing = FileNameRegistry::Find(filename);
+                if (SdAudioLibrary::Assigned(existing))
+                {
+                    registry_error = "NAME RESERVED BY SD SOUND";
+                    registry_ok = false;
+                }
+                else
+                {
+                    registry_error = FileNameRegistry::Valid_name(filename) ? "FILE NAME TABLE FULL" : "NAME TOO LONG OR RESERVED";
+                    registry_ok = FileNameRegistry::Add(filename) >= 0;
+                }
             }
         }
         source.close();
@@ -14637,6 +14699,8 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 FLASHMEM
 void S_Select_menu_elements(void)
 {
+    S_Menu[value_S_BrowseFlash] = Lilla_state_0 != DIRECT_SAMPLING && Get_raw_files() > 0;
+    S_Menu[value_S_BrowseSD] = Lilla_state_0 != DIRECT_SAMPLING && SdAudioLibrary::Count() > 0;
     S_Menu[value_S_Solo] = !solo_flag;
     S_Menu[value_S_ResetSolo] = solo_flag;
     S_Menu[value_S_OnlyPrelisten] = false;
@@ -14677,7 +14741,7 @@ void S_Select_menu_elements(void)
 
     S_Menu[value_S_OnlyPrelisten] = MX_routing_source[Instrument_id] != 1;
     S_Menu[value_S_SendToLineOut] = (MX_routing_source[Instrument_id] & 2u) == 0;
-    S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] + S_Menu[value_S_OnlyPrelisten] + S_Menu[value_S_SendToLineOut] + S_Menu[value_S_Solo] + S_Menu[value_S_ResetSolo] - 1;
+    S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] + S_Menu[value_S_OnlyPrelisten] + S_Menu[value_S_SendToLineOut] + S_Menu[value_S_Solo] + S_Menu[value_S_ResetSolo] + S_Menu[value_S_BrowseFlash] + S_Menu[value_S_BrowseSD] - 1;
 }
 
 bool S_Fill_tables(uint8_t instrument_id)
@@ -15154,6 +15218,9 @@ void Startup_hardware_and_objects(void)
     // Gate
     Gate_out.Reset();
 
+    PWM_mixer_out_L.gain(3, 1.0f);
+    PWM_mixer_out_R.gain(3, 1.0f);
+
     // DirectSampler and LiveSampler inputs are not used
     MAIN_mixer_out_L.gain(2, 0.0); // Direct Samp
     MAIN_mixer_out_R.gain(2, 0.0); // Live Sampler
@@ -15263,6 +15330,11 @@ void Reload_system_state(void)
     }
 
     File_scanner.Read_all_file_data();
+    if (!SdAudioLibrary::Begin())
+    {
+        Show_popup_text(SdAudioLibrary::Error(), ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        delay(2000);
+    }
 
     // ***************   DIRECT SAMPLING AND VFS   ******************
     // Flash memory dimension MB
@@ -15781,5 +15853,380 @@ void Require_FRAM(byte result)
     while (true)
     {
         delay(10);
+    }
+}
+
+FLASHMEM void S_Show_editor()
+{
+    Lilla_state = SOUND_EDIT;
+    Sound_id = Get_sound_id(Patch_id, Instrument_id);
+    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+    S_trim_step = S_Calc_trim_step(trim_speed);
+    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+    S_Select_menu_elements();
+    Display_Sound.Show_SOUND_menu();
+    Pointer_Sound.Set_pointer_to_first_menu_element();
+    S_pointer = Pointer_Sound.Get_pointer();
+    Pointer_Sound.Display_pointer();
+    Display_Sound.Show_wave(Instrument_id);
+    Clear_UI_events();
+}
+
+FLASHMEM bool S_Assign_browser_file(int file, uint32_t samples, bool creating)
+{
+    const Patch_struct previous_patch = Patch[Patch_id];
+    const int sound = creating ? S_Get_sound_free() : Get_sound_id(Patch_id, Instrument_id);
+    if (sound < 0 || samples == 0)
+    {
+        return false;
+    }
+    const Sound_struct previous_sound = Sound[sound];
+    if (creating)
+    {
+        auto &instrument = Patch[Patch_id].Instrument[Instrument_id];
+        instrument = {};
+        instrument.used = true;
+        instrument.sound_id = sound;
+        instrument.root_key = 60;
+        instrument.from_note = 0;
+        instrument.to_note = 127;
+        instrument.Filter.pivot = 20;
+        instrument.Filter.resonance = 7;
+        instrument.Filter.index = 20;
+        instrument.Filter.frequency_time = 5;
+        ++Patch[Patch_id].instruments;
+        Sound[sound] = {};
+        Sound[sound].used = true;
+        Sound[sound].decay = 50;
+        Sound[sound].sustain = 50;
+        Sound[sound].release = 10;
+        Sound[sound].gain = 20;
+    }
+    Sound[sound].file = file;
+    Sound[sound].A = 0;
+    Sound[sound].B = samples - 1;
+    Sound[sound].pitch = 0;
+    Sound[sound].Noclick = 0;
+
+    AudioNoInterrupts();
+    const bool prepared = S_Fill_all_tables();
+    if (!prepared)
+    {
+        Patch[Patch_id] = previous_patch;
+        Sound[sound] = previous_sound;
+    }
+    else
+    {
+        P_Update_all_maps_Instrument_for_notes();
+        Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+    }
+    AudioInterrupts();
+
+    return prepared;
+}
+
+FLASHMEM void S_Browse_flash()
+{
+    char name[NAME_FILE_SIZE];
+    int selected = -1;
+    for (int file = 0; file < FIRST_RECORDING_FILE; ++file)
+    {
+        if (!SdAudioLibrary::Assigned(file) && SerialFlash.exists(Get_file_name(file, name)) && FlashFileRegisterParser::length(file) >= 2)
+        {
+            selected = file;
+            break;
+        }
+    }
+    if (selected < 0)
+    {
+        return;
+    }
+    SD_preview.Stop();
+    if (!S_Assign_browser_file(selected, Get_samples_in_raw_file(selected), S_sd_new_instrument))
+    {
+        return;
+    }
+    S_sd_browsing = false;
+    if (S_sd_new_instrument)
+    {
+        Lilla_state_0 = PERFORMANCE;
+    }
+    S_sd_new_instrument = false;
+    S_Show_editor();
+}
+
+FLASHMEM bool S_SD_open(uint16_t index)
+{
+    char name[SdAudioLibrary::NAME_BYTES];
+    if (!SdAudioLibrary::Name(index, name))
+    {
+        Show_popup_text("SD INDEX: FRAM READ FAILED", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        return false;
+    }
+    S_sd_index = index;
+    strcpy(S_sd_name, name);
+    S_sd_from = 0;
+    S_sd_to = 0;
+    if (!SD_preview.Open(name) || SD_preview.Samples() < MIN_SNIPPET)
+    {
+        SD_preview.Stop();
+        Show_popup_text("SD FILE INVALID OR TOO SHORT", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        return false;
+    }
+    S_sd_to = SD_preview.Samples() - 1;
+    return true;
+}
+
+FLASHMEM bool S_SD_begin(bool creating)
+{
+    if (SdAudioLibrary::Count() == 0 || (creating && S_Get_sound_free() < 0))
+    {
+        return false;
+    }
+    S_sd_new_instrument = creating;
+    S_sd_flash_available = Get_raw_files() > 0;
+    S_sd_menu = 0;
+    bool opened = false;
+    for (uint16_t index = 0; index < SdAudioLibrary::Count() && !opened; ++index)
+    {
+        opened = S_SD_open(index);
+    }
+    if (!opened)
+    {
+        S_sd_new_instrument = false;
+        return false;
+    }
+    S_sd_browsing = true;
+    if (creating)
+    {
+        Lilla_state_0 = PERFORMANCE;
+    }
+    Lilla_state = SOUND_EDIT;
+    S_SD_draw();
+    Clear_UI_events();
+    return true;
+}
+
+FLASHMEM void S_SD_draw()
+{
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.setCursor(0, display_coordinate_y(0));
+    tft.print("SOUND ");
+    tft.print(Instrument_id + 1);
+    tft.print("  SD PRELISTEN");
+    const char *items[4] = {"RETURN", "IMPORT", "BROWSE_SD", "BROWSE_FLASH"};
+    const int count = S_sd_flash_available ? 4 : 3;
+    if (S_sd_menu >= count)
+    {
+        S_sd_menu = 0;
+    }
+    int column = 0;
+    for (int item = 0; item < count; ++item)
+    {
+        tft.setCursor(display_coordinate_x(column), display_coordinate_y(1));
+        tft.setTextColor(S_sd_menu == item ? ILI9341_WHITE : MENU_COLOR);
+        tft.print(items[item]);
+        Frame_by_col_row(column, 1, strlen(items[item]), S_sd_menu == item);
+        column += strlen(items[item]) + 2;
+    }
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.setCursor(0, display_coordinate_y(3));
+    tft.print(S_sd_name);
+    tft.setCursor(0, display_coordinate_y(5));
+    tft.print(S_sd_index + 1);
+    tft.print(" / ");
+    tft.print(SdAudioLibrary::Count());
+    tft.print("   VALUE: FILE");
+    tft.setCursor(0, display_coordinate_y(8));
+    tft.print("FROM ");
+    tft.print(S_sd_from);
+    tft.setCursor(0, display_coordinate_y(10));
+    tft.print("TO   ");
+    tft.print(S_sd_to);
+    static constexpr uint32_t steps[] = {1, 10, 100, 1000, 10000, 44100};
+    tft.setCursor(0, display_coordinate_y(12));
+    tft.print("STEP ");
+    tft.print(steps[S_sd_step]);
+    tft.setCursor(0, display_coordinate_y(14));
+    tft.print(static_cast<float>(S_sd_to - S_sd_from + 1) / 44100.0f, 3);
+    tft.print(" SEC  /  ");
+    tft.print(static_cast<float>(PATCH_CACHE_ARRAY_SAMPLES) / 44100.0f, 2);
+    tft.print(" MAX");
+}
+
+FLASHMEM void S_SD_close()
+{
+    SD_preview.Stop();
+    S_sd_browsing = false;
+    if (S_sd_new_instrument)
+    {
+        S_sd_new_instrument = false;
+        Golive_with_PERFORMANCE(Patch_id);
+    }
+    else
+    {
+        S_Show_editor();
+    }
+}
+
+FLASHMEM void S_SD_import()
+{
+    const uint32_t samples = S_sd_to - S_sd_from + 1;
+    if (samples < MIN_SNIPPET || samples > PATCH_CACHE_ARRAY_SAMPLES)
+    {
+        Show_popup_text("TRIM OUTSIDE 100 SAMPLES / MAX", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        return;
+    }
+    int file_id = -1;
+    char name[NAME_FILE_SIZE];
+    for (int file = 1; file < FIRST_RECORDING_FILE; ++file)
+    {
+        if (FileNameRegistry::Numeric_available(file) && Capture_find(file) == nullptr && !SdAudioLibrary::Assigned(file) && !SerialFlash.exists(Get_file_name(file, name)))
+        {
+            file_id = file;
+            break;
+        }
+    }
+    if (file_id < 0)
+    {
+        Show_popup_text("NO FREE AUDIO FILE ID", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        return;
+    }
+    SD_preview.Stop();
+    if (!LS_Capture_drain())
+    {
+        Show_popup_text("IMPORT: PLAYERS STILL ACTIVE", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        return;
+    }
+    Show_popup_text("IMPORTING SD TO PSRAM", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+    SdAudioReader reader;
+    bool success = reader.Open(S_sd_name) && reader.Seek(S_sd_from);
+    int16_t *destination = nullptr;
+    if (success)
+    {
+        AudioNoInterrupts();
+        destination = PatchCache_Manager.Reserve_capture(PATCH_CACHE_ARRAY_COUNT - 1, file_id, samples);
+        AudioInterrupts();
+
+        success = destination != nullptr && reader.Read(destination, samples);
+    }
+    reader.Close();
+    success = success && SdAudioLibrary::Save(file_id, S_sd_name, S_sd_from, samples) && FileNameRegistry::Bind_numeric(file_id) && FileNameRegistry::Save();
+    if (success)
+    {
+        success = S_Assign_browser_file(file_id, samples, S_sd_new_instrument);
+    }
+    if (!success)
+    {
+        AudioNoInterrupts();
+        PatchCache_Manager.Begin();
+        S_Fill_all_tables();
+        AudioInterrupts();
+
+        Midi_reader.Start();
+        Show_popup_text("SD IMPORT FAILED", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+        return;
+    }
+    Midi_reader.Start();
+    S_sd_new_instrument = false;
+    S_sd_browsing = false;
+    S_Show_editor();
+}
+
+FLASHMEM void S_SD_service()
+{
+    if (!SD_preview.Service())
+    {
+        Show_popup_text("SD READ FAILED", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+    }
+    bool changed = false;
+    const int rotation = Read_encoder_simple(EN_PB_Select);
+    const int count = S_sd_flash_available ? 4 : 3;
+    if (rotation != 0)
+    {
+        S_sd_menu = (S_sd_menu + count + rotation) % count;
+        changed = true;
+    }
+    if (Read_pushbutton(EN_PB_Select))
+    {
+        if (S_sd_menu == 0)
+        {
+            S_SD_close();
+            return;
+        }
+        else if (S_sd_menu == 1)
+        {
+            S_SD_import();
+            return;
+        }
+        else if (S_sd_menu == 2)
+        {
+            changed = S_SD_open(0);
+        }
+        else
+        {
+            S_Browse_flash();
+            return;
+        }
+    }
+    if (Read_pushbutton(EN_PB_Value))
+    {
+        if (!SD_preview.Open(S_sd_name) || SD_preview.Samples() < MIN_SNIPPET)
+        {
+            SD_preview.Stop();
+            Show_popup_text("SD FILE UNREADABLE", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+            return;
+        }
+        if (S_sd_to < S_sd_from + MIN_SNIPPET - 1 || S_sd_to >= SD_preview.Samples())
+        {
+            S_sd_from = 0;
+            S_sd_to = SD_preview.Samples() - 1;
+            changed = true;
+        }
+        if (!SD_preview.Trim(S_sd_from, S_sd_to))
+        {
+            Show_popup_text("SD READ FAILED", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+            return;
+        }
+    }
+    const int file_rotation = Read_encoder_simple(EN_PB_Value);
+    if (file_rotation != 0)
+    {
+        const int index = constrain(static_cast<int>(S_sd_index) + file_rotation, 0, static_cast<int>(SdAudioLibrary::Count()) - 1);
+        if (index != S_sd_index)
+        {
+            changed = S_SD_open(index) || changed;
+        }
+    }
+    if (Read_encoder(EN_PB_Step, S_sd_step, 5, 0, 1))
+    {
+        changed = true;
+    }
+    static constexpr uint32_t steps[] = {1, 10, 100, 1000, 10000, 44100};
+    const int from = Read_encoder_simple(EN_PB_From);
+    const int to = Read_encoder_simple(EN_PB_To);
+    if (from != 0 || to != 0)
+    {
+        if (SD_preview.Samples() < MIN_SNIPPET)
+        {
+            Show_popup_text("SD PREVIEW STOPPED: PRESS VALUE", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+            return;
+        }
+        S_sd_from = constrain(static_cast<int64_t>(S_sd_from) + static_cast<int64_t>(from) * steps[S_sd_step], static_cast<int64_t>(0), static_cast<int64_t>(S_sd_to - MIN_SNIPPET + 1));
+        S_sd_to = constrain(static_cast<int64_t>(S_sd_to) + static_cast<int64_t>(to) * steps[S_sd_step], static_cast<int64_t>(S_sd_from + MIN_SNIPPET - 1), static_cast<int64_t>(SD_preview.Samples() - 1));
+        changed = true;
+        S_SD_draw();
+        if (!SD_preview.Trim(S_sd_from, S_sd_to))
+        {
+            Show_popup_text("SD PREVIEW STOPPED: PRESS VALUE", ILI9341_WHITE, ILI9341_RED, display_coordinate_y(7));
+            return;
+        }
+    }
+    if (changed)
+    {
+        S_SD_draw();
     }
 }

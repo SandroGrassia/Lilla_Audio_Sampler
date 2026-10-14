@@ -1,3 +1,4 @@
+#include "SdAudioLibrary.h"
 #include "PlayersManager.h"
 #include <algorithm>
 
@@ -215,6 +216,10 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     // Se e' una nota appartenente ad un track: track >= -1
     // Altrimenti: track = NO_TRACK
 
+    if (SdAudioLibrary::Assigned(Preset[instrument_id].file) && Cache_manager_ptr->Get_source(Preset[instrument_id].file).psram_ptr == nullptr)
+    {
+        return -1;
+    }
     int8_t id_player = -1;
     bool finished = false;
     const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;

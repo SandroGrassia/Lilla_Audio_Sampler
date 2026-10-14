@@ -37,6 +37,9 @@ production += '\nvoid handle_mute()\n{\n    switch (0)\n    {\n' + main[mute_sta
 prefix = r'''
 #include <cassert>
 #include <cstdint>
+int flash_files = 0, sd_files = 0;
+int Get_raw_files() { return flash_files; }
+struct SdAudioLibrary { static int Count() { return sd_files; } };
 #include <iostream>
 #include <cstring>
 constexpr int MX_sources = 9, LINE_IN_source = 8, INSTRUMENTS = 8;
@@ -60,7 +63,7 @@ public:
 constexpr int DIRECT_SAMPLING = 1, MIDI_LOOP = 2, PATCHES_MAX = 200;
 int Lilla_state_0 = 0, Instrument_id = 0, Patch_id = 0, S_menu_max = 0, free_sounds = 1;
 struct PatchData { int instruments = 2; } Patch[1];
-bool S_Menu[7] = {};
+bool S_Menu[9] = {};
 bool solo_flag = false;
 int S_solo_instrument = -1, volume_patch = 0;
 float Patch_volume_gain(int) { return 1.0f; }
@@ -331,6 +334,18 @@ int main()
     Lilla_state_0 = DIRECT_SAMPLING;
     S_Select_menu_elements();
     assert(S_menu_max == 1 && S_Menu[value_S_Return] && !S_Menu[value_S_OnlyPrelisten] && !S_Menu[value_S_SendToLineOut]);
+    assert(!S_Menu[value_S_BrowseFlash] && !S_Menu[value_S_BrowseSD]);
+    Lilla_state_0 = 0;
+    for (flash_files = 0; flash_files < 2; ++flash_files)
+    {
+        for (sd_files = 0; sd_files < 2; ++sd_files)
+        {
+            S_Select_menu_elements();
+            assert(S_Menu[value_S_BrowseFlash] == (flash_files != 0));
+            assert(S_Menu[value_S_BrowseSD] == (sd_files != 0));
+        }
+    }
+
     std::cout << "PASS: exclusive prelisten on all nine sources, live routing, line input mute and Sound menus\n";
 }
 '''

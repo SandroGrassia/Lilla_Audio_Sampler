@@ -172,11 +172,11 @@ int main() {
     assert(LillaFram.memory[100] == baseline[100]);
     assert(FileNameRegistry::Find("kick.raw") == -1); // Legacy backup restores numeric identities only.
     assert(FileNameRegistry::Find("37.raw") == 37); // A referenced but absent legacy file keeps its ID.
-    for (uint16_t version : {2, 3, 4, 5})
+    for (uint16_t version : {2, 3, 4, 5, 6, 7})
     {
         old.version = version;
-        const uint32_t end = version <= 3 ? A::FRAM_LEGACY_END_ADDRESS : FileNameRegistry::END_ADDRESS;
-        const bool has_audio = version == 3 || version == 5;
+        const uint32_t end = version <= 3 ? A::FRAM_LEGACY_END_ADDRESS : version <= 5 ? FileNameRegistry::END_ADDRESS : A::FRAM_V6_END_ADDRESS;
+        const bool has_audio = version == 3 || version == 5 || version == 7;
         old.payload_bytes = end - 256 + (has_audio ? sizeof(audio) : 0);
         bytes = std::make_shared<std::vector<uint8_t>>(sizeof(old) + old.payload_bytes);
         memcpy(bytes->data() + sizeof(old), legacy.data() + 256, end - 256);
@@ -196,14 +196,16 @@ int main() {
         assert(archive.Restore_FRAM_backup(previous, false));
         assert(version <= 3 ? FileNameRegistry::Find("37.raw") == 37 : FileNameRegistry::Find("kick.raw") == 1);
         uint32_t first = 0, last = 7 * PACKET_DIM / 2 - 1;
-        assert(archive.Read_DS_edit(0, first, last) == 0 && first == 0 && last == 7 * PACKET_DIM / 2 - 1);
+        assert(archive.Read_DS_edit(0, first, last) == 0);
+        assert(version <= 5 ? first == 0 && last == 7 * PACKET_DIM / 2 - 1 : first == 123 && last == 4567);
+        assert(std::all_of(LillaFram.memory.begin() + A::FRAM_V6_END_ADDRESS, LillaFram.memory.begin() + A::FRAM_FIRST_FREE_ADDRESS, [](uint8_t byte) { return byte == 0; }));
         assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
     }
     assert(archive.Factory_reset_FRAM(false) == 0);
     assert(archive.Check_FRAM_archive() != 0);
     assert(archive.Set_FRAM_archive_state(A::ARCHIVE_READY) == 0);
     assert(archive.Check_FRAM_archive() == 0);
-    std::puts("PASS: V1-V5 compatibility, V6/V7 recording trims, audio manifest, deferred READY, interruption/retry and CRC rejection");
+    std::puts("PASS: V1-V7 compatibility, V8/V9 SD-reference layout, audio manifest, deferred READY, interruption/retry and CRC rejection");
 }
 '''
 compiler = base["compiler"]

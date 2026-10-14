@@ -57,6 +57,7 @@ fixture += '\nconstexpr int ILI9341_WHITE = 1, ILI9341_RED = 2;\nvoid Show_popup
 tests = tests.replace('void reset()\n{', 'void reset()\n{\n    reset_registry();')
 tests = tests.replace('SD.fail_open_at = 2;', 'SD.fail_open_at = 3;')
 fixture += r"""
+struct SdAudioLibrary { static bool Assigned(int) { return false; } };
 struct CaptureAudio { const void *psram_ptr = nullptr; };
 struct CaptureStub { CaptureAudio audio; } Capture_sources[1];
 void LS_Capture_collect() {}

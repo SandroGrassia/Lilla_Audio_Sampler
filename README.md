@@ -29,6 +29,10 @@ LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work w
 
 Sound shaping includes sample trimming, forward/reverse and loop playback, envelopes, instrument filters and modulation, a common low-pass filter, stereo delay, bit reduction and downsampling. Separate main and pre-listening routes support auditioning and performance.
 
+## Development: SD Sound browser
+
+The working firmware adds conditional `BROWSE_FLASH` and `BROWSE_SD` commands, SD pre-listening and trimmed SD-to-PSRAM import. See [SD Sound browser](docs/sd-sound-browser.md) for controls, persistence, supported files and hardware validation. This feature is not part of the published 7.1.1 release.
+
 ## New in firmware 7.1.1
 
 The Mixer now has separate MUTE and GAIN fields, and exclusive PRE_LIST routing for one of its nine sources, or none. MUTE, LINEOUT and PRE_LIST respond to both a Value click and rotation. A Sound in SOLO and the temporary Sampler patch cannot be muted.

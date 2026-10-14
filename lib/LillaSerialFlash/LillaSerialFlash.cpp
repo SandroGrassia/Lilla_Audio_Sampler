@@ -1,3 +1,4 @@
+#include "SdAudioLibrary.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -12,6 +13,10 @@
 
 bool LillaSerialFlashFile::Read_audio_samples_background(int file_id, int16_t *destination, int first_sample, int samples_count)
 {
+    if (SdAudioLibrary::Assigned(file_id))
+    {
+        return SdAudioLibrary::Read(file_id, destination, first_sample, samples_count);
+    }
     const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
     AudioStartUsingSPI(); // Keep the reservation alive even when the last Flash voice stops between chunks.
@@ -83,6 +88,10 @@ uint32_t LillaSerialFlashFile::read(void *buffer, uint32_t bytes)
 
 bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count)
 {
+    if (SdAudioLibrary::Assigned(file_id))
+    {
+        return SdAudioLibrary::Read(file_id, destination, first_sample, samples_count);
+    }
     if (Capture_find(file_id) != nullptr)
     {
         return Capture_read(file_id, destination, first_sample, samples_count);

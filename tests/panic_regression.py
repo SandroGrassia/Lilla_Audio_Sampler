@@ -20,6 +20,8 @@ fixture = r'''
 constexpr int PLAYERS = 16, TRACKS = 4, AUDIO_BLOCK_SAMPLES = 128, DELAY_CACHE_CHANNEL_SAMPLES = 512;
 constexpr int IDLE = 0, IDLE_REQUEST = 1, PLAYING = 2, EN_PB_LineOutVol = 0, MIDI_LOOP = 3, DELAY_SETTINGS = 4, DIRECT_SAMPLING = 5;
 bool irq = true, LOOP_track_run[TRACKS];
+bool S_sd_browsing = true;
+struct Preview { int stops = 0; void Stop() { ++stops; } } SD_preview;
 bool feedback_restored = false;
 int elapsed = 0, player_duration = 0, gain_duration = 0, Lilla_state = 0, Lilla_state_0 = 0;
 int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES], DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES];
