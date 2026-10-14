@@ -216,6 +216,21 @@ int main()
         limit_test.Update_pitch();
         assert(limit_test.pitch == ceiling);
     }
+    RealVoice::AudioPlayer preview_limit;
+    preview_limit.file_id = SdSoundSource::PREVIEW;
+    preview_limit.pitch_limit = MAX_PITCH_PSRAM;
+    preview_limit.pitch_note = 100.0f;
+    preview_limit.pitch_tune = 2.0f;
+    preview_limit.pitch_bend = 1.5f;
+    preview_limit.pitch_vibrato = 1.01f;
+    preview_limit.Update_pitch();
+    assert(preview_limit.pitch == 8.0f);
+    preview_limit.source_now.storage = Psram;
+    const auto preview_plan = preview_limit.Get_read_plan();
+    assert(!preview_plan.live && preview_plan.pitch == 8.0f && preview_plan.source == PlayerReadSource::Psram);
+    preview_limit.file_id = SdSoundSource::FIRST;
+    preview_limit.Update_pitch();
+    assert(preview_limit.pitch == MAX_PITCH_PSRAM);
     assert(MAX_PITCH_FLASH == 5 && MAX_PITCH_PSRAM == 35 && MAX_PITCH_WAVETABLE == 35);
     assert(Limit_us == 1800);
     Plan high;
@@ -348,7 +363,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-read-budget-') as directory:
     cpp = Path(directory) / 'budget.cpp'
     exe = Path(directory) / ('budget.exe' if os.name == 'nt' else 'budget')
     cpp.write_text(prefix + production + tests, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I' + str(ROOT / 'lib/AudioPlayer'), '-I' + str(ROOT / 'lib/config'), str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I' + str(ROOT / 'lib/AudioPlayer'), '-I' + str(ROOT / 'lib/config'), str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

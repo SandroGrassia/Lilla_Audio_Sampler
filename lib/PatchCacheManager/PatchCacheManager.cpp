@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -8,6 +9,10 @@
 
 uint32_t PatchCacheManager::File_samples(int16_t file_id)
 {
+    if (SdSoundSource::Is_sd(file_id))
+    {
+        return SdSoundSource::Samples(file_id);
+    }
     const auto *capture = Capture_find(file_id);
     if (capture != nullptr)
     {
@@ -27,6 +32,7 @@ uint32_t PatchCacheManager::File_samples(int16_t file_id)
 
 void PatchCacheManager::Begin(void)
 {
+    SdSoundSource::Unbind_all();
     for (auto &item : cache)
     {
         item = {};
@@ -65,6 +71,59 @@ int16_t *PatchCacheManager::Reserve_capture(uint8_t slot, int16_t file_id, uint3
 void PatchCacheManager::Set_cache_pointer(uint8_t cache_id, int16_t *pointer)
 {
         cache_pointer[cache_id] = pointer;
+}
+
+bool PatchCacheManager::Sd_sources_ready(int patch_id) const
+{
+    for (const auto &instrument : Patch[patch_id].Instrument)
+    {
+        if (instrument.used && SdSoundSource::Is_sd(Sound[instrument.sound_id].file) && Get_source(Sound[instrument.sound_id].file).samples == 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+FLASHMEM void PatchCacheManager::Load_sd_sources(int patch_id)
+{
+    for (const auto &instrument : Patch[patch_id].Instrument)
+    {
+        if (!instrument.used)
+        {
+            continue;
+        }
+        const int file = Sound[instrument.sound_id].file;
+        if (!SdSoundSource::Is_sd(file) || Get_source(file).samples != 0)
+        {
+            continue;
+        }
+        if (!SdSoundSource::Prepare(file) || SdSoundSource::Samples(file) > PATCH_CACHE_ARRAY_SAMPLES)
+        {
+            Serial.printf("SD SOUND: reference %d unavailable\n", file);
+            continue;
+        }
+        bool ready = false;
+        for (uint8_t slot = 0; slot < PATCH_CACHE_ARRAY_COUNT; ++slot)
+        {
+            if (cache[slot].state != Free)
+            {
+                continue;
+            }
+            int16_t *destination = Reserve_capture(slot, file, SdSoundSource::Samples(file));
+            if (destination != nullptr && SdSoundSource::Load(file, destination))
+            {
+                SdSoundSource::Bind(file, destination);
+                ready = true;
+            }
+            else
+            {
+                cache[slot] = {};
+            }
+            break;
+        }
+        Serial.printf("SD SOUND: %s: %s\n", SdSoundSource::Name(file), ready ? "PSRAM READY" : "AUDIO FILE UNAVAILABLE");
+    }
 }
 
 int PatchCacheManager::Find_required(int16_t file_id) const
@@ -114,7 +173,7 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
 
     for (const auto &preset : presets)
     {
-        if (!preset.active || preset.file >= FIRST_LIVE_SAMPLING_FILE || Find_required(preset.file) >= 0)
+        if (!preset.active || (preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file)) || Find_required(preset.file) >= 0)
         {
             continue;
         }
@@ -180,7 +239,7 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 
     AudioFileSource result;
     result.file_id = file_id;
-    result.samples = File_samples(file_id);
+    result.samples = SdSoundSource::Is_sd(file_id) ? 0 : File_samples(file_id);
 
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {

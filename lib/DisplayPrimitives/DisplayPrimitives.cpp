@@ -74,12 +74,12 @@ void Show_popup_text(const char *first_line, const char *second_line, uint16_t t
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, filler_color);
     tft.setTextColor(text_color);
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + 5);
+    tft.setCursor(X_POPUP + (L_POPUP - 6 * static_cast<int>(first_length)) / 2, Y_POPUP + 5);
     tft.print(first_line);
 
     if (two_lines)
     {
-        tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + 20);
+        tft.setCursor(X_POPUP + (L_POPUP - 6 * static_cast<int>(second_length)) / 2, Y_POPUP + 20);
         tft.print(second_line);
     }
 }
@@ -99,12 +99,12 @@ void Show_popup_text_tight(const char *first_line, const char *second_line, uint
 
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, filler_color);
     tft.setTextColor(text_color);
-    tft.setCursor(X_POPUP + 2, Y_POPUP + 2);
+    tft.setCursor(X_POPUP + (L_POPUP - 6 * static_cast<int>(first_length)) / 2, Y_POPUP + 2);
     tft.print(first_line);
 
     if (two_lines)
     {
-        tft.setCursor(X_POPUP + 2, Y_POPUP + 17);
+        tft.setCursor(X_POPUP + (L_POPUP - 6 * static_cast<int>(second_length)) / 2, Y_POPUP + 17);
         tft.print(second_line);
     }
 }

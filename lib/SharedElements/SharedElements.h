@@ -427,3 +427,5 @@ semitones	pitch	    delta pitch
 -11	        0,529731547	-0,470268453
 -12     	0,5	        -0,5
 */
+
+int Compare_audio_file_names(uint16_t left, uint16_t right);

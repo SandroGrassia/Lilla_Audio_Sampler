@@ -38,5 +38,6 @@ private:
     enum class Format { Raw, Wav, Aiff, Mp3, Unknown };
     static Format Get_format(const char *name);
     static bool Copy(File &source, const char *destination, Format format, PcmParser wav, PcmParser aiff);
+    static bool Merge_index(const char *source, const char *destination, uint32_t entries, uint32_t width);
     static bool Build_index(uint32_t &entries);
 };

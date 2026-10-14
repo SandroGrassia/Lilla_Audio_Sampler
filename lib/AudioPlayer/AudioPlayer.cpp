@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -16,7 +17,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
     const AudioFileSource &source = pending ? source_wait : source_now; // Pending starts can use a different source from the outgoing voice.
     const int file = pending ? file_id_wait : file_id; // File class determines Live and packet behavior.
     plan.antialias = pending ? tone_filter_level_wait : tone_filter_level;
-    plan.live = file >= FIRST_LIVE_SAMPLING_FILE;
+    plan.live = (file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file));
     plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
     plan.packets = !wavetable && !plan.live && source.storage == Flash && file >= FIRST_RECORDING_FILE;
     const int mode = edited ? mode_player_E : (pending ? mode_player_wait : mode_player); // Source geometry for the chosen stage.
@@ -30,7 +31,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
     }
     const float tune = pending ? pitch_tune_wait : (pitch_tune_flag && !Has_pending_note() ? fmaxf(pitch_tune, pitch_tune_wait) : pitch_tune); // A staged replacement tune must not be applied to the old voice.
     const float note_pitch = pending ? pitch_note_wait : pitch_note; // Pitch before bend and vibrato.
-    const float ceiling = edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit); // Actual reader ceiling, including pending edits.
+    const float ceiling = file == SdSoundSource::PREVIEW ? 8.0f : (edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit)); // Actual reader ceiling, including pending edits.
     plan.pitch = constrain(note_pitch * tune * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
     if (!pending && !edited)
     {
@@ -264,7 +265,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
     use_Wavetable_wait = use_Wavetable_in;
 
     // LIVE_SAMPLING - Read samples from  PSRAM
-    if (file_id_wait >= FIRST_LIVE_SAMPLING_FILE)
+    if ((file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id_wait)))
     {
         mode_player_wait = mode_in;
         use_Wavetable_wait = false;
@@ -491,7 +492,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     tables_bank_mask_E = tables_bank_mask_in;
 
     // Read samples from PSRAM chip
-    if (file_id >= FIRST_LIVE_SAMPLING_FILE)
+    if ((file_id >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id)))
     {
         mode_player_E = mode_in;
         pitch_limit_E = MAX_PITCH_PSRAM;
@@ -882,7 +883,7 @@ void AudioPlayer::Release_patch(int patch_id) // Apply one non-renewable deadlin
 
 void AudioPlayer::Update_pitch(void)
 {
-    pitch = constrain(pitch_note * pitch_bend * pitch_tune * pitch_vibrato, MIN_PITCH, pitch_limit);
+    pitch = constrain(pitch_note * pitch_bend * pitch_tune * pitch_vibrato, MIN_PITCH, file_id == SdSoundSource::PREVIEW ? fminf(pitch_limit, 8.0f) : pitch_limit);
 
     // **** Softness Filter ****
     pitch_based_gain_correction = (pitch <= 1.0 ? 1.0 : 24.0f / (pitch - 1.0f + 24.0f));
@@ -2801,17 +2802,17 @@ void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
         // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
         source_now = source;
-        pitch_limit = Playback_pitch_limit(use_Wavetable, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
+        pitch_limit = Playback_pitch_limit(use_Wavetable, true, (file_id >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id)));
         if (main_settings_editing_flag)
         {
-            pitch_limit_E = Playback_pitch_limit(use_Wavetable_E, true, file_id >= FIRST_LIVE_SAMPLING_FILE);
+            pitch_limit_E = Playback_pitch_limit(use_Wavetable_E, true, (file_id >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id)));
         }
         Update_pitch();
     }
     if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id)
     {
         source_wait = source;
-        pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, file_id_wait >= FIRST_LIVE_SAMPLING_FILE);
+        pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, (file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id_wait)));
     }
 }
 
@@ -2821,9 +2822,9 @@ bool AudioPlayer::Uses_sample_voice(void) const
     {
         return false;
     }
-    const bool current = !use_Wavetable && file_id >= 0 && file_id < FIRST_LIVE_SAMPLING_FILE;
-    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && file_id_wait >= 0 && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
-    const bool editing = main_settings_editing_flag && !use_Wavetable_E && file_id >= 0 && file_id < FIRST_LIVE_SAMPLING_FILE;
+    const bool current = !use_Wavetable && file_id >= 0 && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id));
+    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && file_id_wait >= 0 && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id_wait));
+    const bool editing = main_settings_editing_flag && !use_Wavetable_E && file_id >= 0 && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id));
     return current || starting || editing;
 }
 
@@ -2833,9 +2834,9 @@ bool AudioPlayer::Uses_flash(void) const
     {
         return false;
     }
-    const bool current = !use_Wavetable && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
-    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && source_wait.storage == Flash && file_id_wait < FIRST_LIVE_SAMPLING_FILE;
-    const bool editing = main_settings_editing_flag && !use_Wavetable_E && source_now.storage == Flash && file_id < FIRST_LIVE_SAMPLING_FILE;
+    const bool current = !use_Wavetable && source_now.storage == Flash && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id));
+    const bool starting = (warmup_for_play_again_flag || restart_flag) && !use_Wavetable_wait && source_wait.storage == Flash && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id_wait));
+    const bool editing = main_settings_editing_flag && !use_Wavetable_E && source_now.storage == Flash && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id));
     return current || starting || editing;
 }
 

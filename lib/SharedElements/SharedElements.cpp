@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -12,7 +13,11 @@
 
 const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE])
 {
-    if (file_id < FIRST_RECORDING_FILE)
+    if (SdSoundSource::Is_sd(file_id))
+    {
+        snprintf(name, sizeof(name), "%s", SdSoundSource::Name(file_id));
+    }
+    else if (file_id < FIRST_RECORDING_FILE)
     {
         FileNameRegistry::Filename(file_id, name);
     }
@@ -193,4 +198,14 @@ void PRINT(String who, String what, float value)
     Serial.print(what);
     Serial.print(": ");
     Serial.println(value);
+}
+
+FLASHMEM int Compare_audio_file_names(uint16_t left, uint16_t right)
+{
+    char a[NAME_FILE_SIZE];
+    char b[NAME_FILE_SIZE];
+    Get_file_name(left, a);
+    Get_file_name(right, b);
+    const int order = strcasecmp(a, b);
+    return order == 0 ? static_cast<int>(left) - static_cast<int>(right) : order;
 }

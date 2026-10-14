@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -69,6 +70,10 @@ int InfoMaster::DS_recording_samples(int recording)
 
 int InfoMaster::Raw_file_samples(int file_id)
 {
+    if (SdSoundSource::Is_sd(file_id))
+    {
+        return SdSoundSource::Samples(file_id);
+    }
     const auto *capture = Capture_find(file_id);
     if (capture != nullptr)
     {
@@ -422,6 +427,11 @@ int16_t *InfoMaster::LS_620_samples_array(int file_id, int A_window_sample, int 
 
 void InfoMaster::Read_samples(int file_id, int16_t *destination, int seek_in, int samples_in) // samples_in <= BASKET_INFO
 {
+    if (SdSoundSource::Is_sd(file_id))
+    {
+        SdSoundSource::Read(file_id, destination, seek_in, samples_in);
+        return;
+    }
     if (file_id < FIRST_LIVE_SAMPLING_FILE)
     {
         LillaSerialFlashFile::Read_audio_samples_background(file_id, destination, seek_in, samples_in);

@@ -2,8 +2,6 @@
 #include "Mp3Import.h"
 #include <cstring>
 #include <strings.h>
-#include <cstdlib>
-#include <new>
 
 static_assert(sizeof(UserAudioImport::Entry) == 264);
 static_assert(sizeof(UserAudioImport::Header) == 24);
@@ -36,12 +34,6 @@ FLASHMEM UserAudioImport::Format UserAudioImport::Get_format(const char *name)
 
 FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Format format, PcmParser wav, PcmParser aiff)
 {
-    const char *previous = "/LILLA_AUDIO/.user-import.previous";
-    if (SD.exists(previous))
-    {
-        Serial.println("  ERROR: previous interrupted replacement needs recovery: .user-import.previous");
-        return false;
-    }
     if (source.size() > UINT32_MAX)
     {
         return false;
@@ -108,24 +100,9 @@ FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Forma
     output.flush();
     success = success && output.size() == bytes;
     output.close();
-    bool backed_up = false;
-    if (success && SD.exists(destination))
-    {
-        Serial.println("  overwriting existing destination");
-        success = SD.rename(destination, previous);
-        backed_up = success;
-    }
     if (success)
     {
         success = SD.rename(temporary, destination);
-        if (!success && backed_up && !SD.rename(previous, destination))
-        {
-            Serial.printf("  RECOVERY REQUIRED: rename %s to %s\n", previous, destination);
-        }
-    }
-    if (success && backed_up)
-    {
-        success = SD.remove(previous);
     }
     if (!success)
     {
@@ -137,17 +114,81 @@ FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Forma
     return true;
 }
 
+FLASHMEM bool UserAudioImport::Merge_index(const char *source, const char *destination, uint32_t entries, uint32_t width)
+{
+    if (SD.exists(destination) && !SD.remove(destination))
+    {
+        return false;
+    }
+    File left = SD.open(source);
+    File right = SD.open(source);
+    File output = SD.open(destination, FILE_WRITE);
+    bool valid = left && right && output;
+    Entry a;
+    Entry b;
+    for (uint32_t start = 0; valid && start < entries; start += 2 * width)
+    {
+        uint32_t left_count = entries - start < width ? entries - start : width;
+        const uint32_t middle = start + left_count;
+        uint32_t right_count = entries - middle < width ? entries - middle : width;
+        valid = left.seek(start * sizeof(Entry)) && left.read(&a, sizeof(a)) == sizeof(a);
+        if (valid && right_count != 0)
+        {
+            valid = right.seek(middle * sizeof(Entry)) && right.read(&b, sizeof(b)) == sizeof(b);
+        }
+        while (valid && (left_count != 0 || right_count != 0))
+        {
+            int order = 0;
+            if (left_count != 0 && right_count != 0)
+            {
+                order = strcasecmp(a.name, b.name);
+                if (order == 0)
+                {
+                    order = strcmp(a.name, b.name);
+                }
+            }
+            const bool take_left = right_count == 0 || (left_count != 0 && order <= 0);
+            const Entry &entry = take_left ? a : b;
+            valid = output.write(reinterpret_cast<const uint8_t *>(&entry), sizeof(entry)) == sizeof(entry);
+            if (take_left)
+            {
+                --left_count;
+                if (valid && left_count != 0)
+                {
+                    valid = left.read(&a, sizeof(a)) == sizeof(a);
+                }
+            }
+            else
+            {
+                --right_count;
+                if (valid && right_count != 0)
+                {
+                    valid = right.read(&b, sizeof(b)) == sizeof(b);
+                }
+            }
+        }
+    }
+    output.flush();
+    valid = valid && output.size() == entries * sizeof(Entry) && SD.mediaPresent();
+    output.close();
+    left.close();
+    right.close();
+    return valid;
+}
+
 FLASHMEM bool UserAudioImport::Build_index(uint32_t &entries)
 {
     entries = 0;
-    Entry *list = new (std::nothrow) Entry[CAPACITY]{};
-    if (list == nullptr)
+    const char *source = "/LILLA_AUDIO/.lilla-index.tmp";
+    const char *destination = "/LILLA_AUDIO/.lilla-index.sort";
+    bool valid = (!SD.exists(INDEX_PATH) || SD.remove(INDEX_PATH)) && (!SD.exists(source) || SD.remove(source)) && (!SD.exists(destination) || SD.remove(destination));
+    File records;
+    if (valid)
     {
-        Serial.println("INDEX ERROR: not enough RAM");
-        return false;
+        records = SD.open(source, FILE_WRITE);
     }
     File directory = SD.open("/LILLA_AUDIO");
-    bool valid = directory && directory.isDirectory();
+    valid = valid && records && directory && directory.isDirectory();
     while (valid)
     {
         File file = directory.openNextFile();
@@ -164,45 +205,65 @@ FLASHMEM bool UserAudioImport::Build_index(uint32_t &entries)
             }
             else
             {
-                auto &entry = list[entries++];
+                Entry entry{};
                 strcpy(entry.name, file.name());
                 entry.bytes = file.size();
                 entry.samples = entry.bytes / 2;
+                valid = records.write(reinterpret_cast<const uint8_t *>(&entry), sizeof(entry)) == sizeof(entry);
+                if (valid)
+                {
+                    ++entries;
+                }
             }
         }
         file.close();
     }
     directory.close();
-    valid = valid && SD.mediaPresent();
-    const char *temporary = "/LILLA_AUDIO/.lilla-index.tmp";
+    records.flush();
+    valid = valid && records.size() == entries * sizeof(Entry) && SD.mediaPresent();
+    records.close();
     if (valid)
     {
-        qsort(list, entries, sizeof(Entry), [](const void *left, const void *right) -> int
-        {
-            const char *a = static_cast<const Entry *>(left)->name;
-            const char *b = static_cast<const Entry *>(right)->name;
-            const int order = strcasecmp(a, b);
-            return order != 0 ? order : strcmp(a, b);
-        });
-        valid = !SD.exists(temporary) || SD.remove(temporary);
+        Serial.printf("INDEX: sorting %lu RAW files using SD temporary files\n", static_cast<unsigned long>(entries));
+    }
+    // Merge runs on SD; only the two current records need to reside in RAM.
+    for (uint32_t width = 1; valid && width < entries; width *= 2)
+    {
+        valid = Merge_index(source, destination, entries, width);
+        const char *previous = source;
+        source = destination;
+        destination = previous;
+    }
+    if (valid)
+    {
+        valid = !SD.exists(destination) || SD.remove(destination);
         File index;
+        File sorted;
         if (valid)
         {
-            index = SD.open(temporary, FILE_WRITE);
+            sorted = SD.open(source);
+            index = SD.open(destination, FILE_WRITE);
         }
         Header header;
         header.entries = entries;
         const uint32_t size = entries * sizeof(Entry);
-        valid = index && index.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header)) == sizeof(header) && index.write(reinterpret_cast<const uint8_t *>(list), size) == size;
+        valid = sorted && index && index.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header)) == sizeof(header);
+        for (uint32_t i = 0; valid && i < entries; ++i)
+        {
+            Entry entry;
+            valid = sorted.read(&entry, sizeof(entry)) == sizeof(entry) && index.write(reinterpret_cast<const uint8_t *>(&entry), sizeof(entry)) == sizeof(entry);
+        }
         index.flush();
         valid = valid && index.size() == sizeof(header) + size;
         index.close();
-        valid = valid && SD.rename(temporary, INDEX_PATH);
+        sorted.close();
+        valid = valid && SD.mediaPresent() && SD.rename(destination, INDEX_PATH);
     }
-    delete[] list;
+    SD.remove(source);
+    SD.remove(destination);
     if (!valid)
     {
-        SD.remove(temporary);
+        entries = 0;
         Serial.println("INDEX ERROR: index not published");
     }
     else
@@ -222,16 +283,31 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
         ++report.errors;
         return report;
     }
+    if (!SD.exists("/LILLA_AUDIO") && !SD.mkdir("/LILLA_AUDIO"))
+    {
+        Serial.println("ERROR: cannot prepare /LILLA_AUDIO");
+        ++report.errors;
+        return report;
+    }
+    if (!SD.exists(INDEX_PATH))
+    {
+        Serial.println("INDEX: creating initial catalog of /LILLA_AUDIO");
+        report.index_ready = Build_index(report.indexed);
+        if (!report.index_ready)
+        {
+            Serial.println("USER AUDIO: initial index failed; import not started");
+            ++report.errors;
+            return report;
+        }
+    }
+    else
+    {
+        Serial.println("INDEX: existing catalog retained until final update");
+    }
     File directory = SD.open("/USER_AUDIO");
     if (!directory || !directory.isDirectory())
     {
         Serial.println("ERROR: /USER_AUDIO directory unavailable");
-        ++report.errors;
-        return report;
-    }
-    if ((!SD.exists("/LILLA_AUDIO") && !SD.mkdir("/LILLA_AUDIO")) || (SD.exists(INDEX_PATH) && !SD.remove(INDEX_PATH)))
-    {
-        Serial.println("ERROR: cannot prepare /LILLA_AUDIO or invalidate old index");
         ++report.errors;
         return report;
     }
@@ -260,6 +336,13 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
             continue;
         }
         snprintf(destination, sizeof(destination), "/LILLA_AUDIO/%.*s.raw", static_cast<int>(stem), source.name());
+        if (SD.exists(destination))
+        {
+            Serial.printf("SKIP: /USER_AUDIO/%s -> %s already exists; unchanged\n", source.name(), destination);
+            ++report.skipped;
+            source.close();
+            continue;
+        }
         Serial.printf("%s: /USER_AUDIO/%s -> %s\n", format == Format::Raw ? "COPY" : "CONVERT", source.name(), destination);
         if (Copy(source, destination, format, wav, aiff))
         {
@@ -272,6 +355,7 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
         source.close();
     }
     directory.close();
+    Serial.println("INDEX: updating final catalog of /LILLA_AUDIO");
     report.index_ready = Build_index(report.indexed);
     if (!report.index_ready)
     {

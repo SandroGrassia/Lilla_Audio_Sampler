@@ -67,7 +67,9 @@ Si devono mantenere in evidenza i blocchi contenuti all'interno di AudioNoInterr
 
 # Popup
 
-Per i popup si devono possibilmente utilizzare le funzioni Show_popup_text (per la scrittura del testo) e Confirm_frame_on_RED (per effettuare una selezione)
+Per i popup si devono possibilmente utilizzare le funzioni Show_popup_text (per la scrittura del testo) e Confirm_frame_on_RED (per effettuare una selezione) o simili per altri colori dello sfondo.
+
+I Popup saranno preferibilmente scritti su una riga; la larghezza e altezza del del popup sempre limitata all'effettiva necessità (vedi Show_popup_text) e il testo di ogni riga deve essere sempre centrato rispetto alla finestra del popup.
 
 
 # Merge

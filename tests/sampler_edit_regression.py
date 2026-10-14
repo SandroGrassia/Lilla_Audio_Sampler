@@ -43,8 +43,10 @@ int samples_in_file, Noclick_max, S_trim_step, trim_speed = 0, S_slicing_window,
 int maps = 0, multicasts[2] = {}, audio_depth = 0, saves = 0, S_menu_max = 0;
 int pitch_updates[2] = {}, volume_updates[2] = {}, pan_updates[2] = {}, midi_releases = 0;
 bool S_sound_original, tables_ok = true, solo_flag = false;
-enum { value_S_Return, value_S_Clone, value_S_Drop, value_S_OnlyPrelisten, value_S_SendToLineOut, value_S_Solo, value_S_ResetSolo };
-bool S_Menu[7];
+enum { value_S_Return, value_S_Clone, value_S_Drop, value_S_OnlyPrelisten, value_S_SendToLineOut, value_S_Solo, value_S_ResetSolo, value_S_BrowseFlash, value_S_BrowseSd, value_S_SaveSd };
+bool S_Menu[10];
+int S_flash_first = -1;
+uint32_t S_sd_files = 0;
 uint8_t MX_routing_source[9] = {};
 struct ArchiveMock
 {
@@ -257,7 +259,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-sampler-edit-') as directory:
     source = Path(directory) / 'edit.cpp'
     executable = Path(directory) / 'edit.exe'
     source.write_text(prefix + production + checks, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(source), '-o', str(executable)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(source), '-o', str(executable)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(executable)], env=environment, check=True)

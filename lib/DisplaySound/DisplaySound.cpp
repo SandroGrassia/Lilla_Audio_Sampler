@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
@@ -194,7 +195,7 @@ FLASHMEM
 void DisplaySound::Show_Attack_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Attack][0]), display_coordinate_y(S_column_row_value_element[value_S_Attack][1]), S_chars_Attack);
-    tft.setTextColor(ILI9341_YELLOW);
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
 
     switch (Preset[instrument_id].attack_type)
     {
@@ -216,7 +217,7 @@ FLASHMEM
 void DisplaySound::Show_Decay_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Decay][0]), display_coordinate_y(S_column_row_value_element[value_S_Decay][1]), S_chars_Decay);
-    tft.setTextColor(ILI9341_YELLOW);
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
     tft.print(Preset[instrument_id].decay, 2);
     Show_measure_unit("sec", 3);
 }
@@ -225,16 +226,16 @@ FLASHMEM
 void DisplaySound::Show_Sustain_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Sustain][0]), display_coordinate_y(S_column_row_value_element[value_S_Sustain][1]), S_chars_Sustain);
-    tft.setTextColor(ILI9341_YELLOW);
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
     tft.print(Preset[instrument_id].sustain * 100, 0);
-    tft.print("%");
+    Show_measure_unit("%", 1);
 }
 
 FLASHMEM
 void DisplaySound::Show_Release_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Release][0]), display_coordinate_y(S_column_row_value_element[value_S_Release][1]), S_chars_Release);
-    tft.setTextColor(ILI9341_YELLOW);
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
     tft.print(Preset[instrument_id].release, 1);
     Show_measure_unit("sec", 3);
 }
@@ -285,7 +286,7 @@ FLASHMEM
 void DisplaySound::Show_Pan_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Pan][0]), display_coordinate_y(S_column_row_value_element[value_S_Pan][1]), S_chars_Pan);
-    tft.setTextColor(ILI9341_YELLOW);
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
 
     if (Preset[instrument_id].pan < 0)
     {
@@ -303,7 +304,7 @@ FLASHMEM
 void DisplaySound::Show_Play_mode_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_PlayMode][0]), display_coordinate_y(S_column_row_value_element[value_S_PlayMode][1]), S_chars_PlayMode);
-    tft.setTextColor(ILI9341_YELLOW);
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
     tft.print(loop_mode[Preset[instrument_id].mode]);
     tft.setCursor(display_coordinate_x(14), display_coordinate_y(6.9));
     tft.print(name_mode[Preset[instrument_id].mode]);
@@ -313,7 +314,7 @@ FLASHMEM
 void DisplaySound::Show_Noclick_value(int instrument_id, bool value)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Noclick][0]), display_coordinate_y(S_column_row_value_element[value_S_Noclick][1]), S_chars_NoClick);
-    tft.setTextColor((value ? ILI9341_YELLOW : ILI9341_WHITE));
+    tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : (value ? ILI9341_YELLOW : ILI9341_WHITE));
     tft.print(Preset[instrument_id].Noclick);
     Show_measure_unit("S", 1);
 }
@@ -356,8 +357,8 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
     tft.setTextColor(ILI9341_WHITE);
 
     const auto &preset = Preset[instrument_id];
-    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
-    const float max_pitch = Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file);
+    const float max_pitch = preset.file == SdSoundSource::PREVIEW ? 8.0f : Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
     const int max_pitch_semitones = static_cast<int>(floorf(12.0f * log2f(max_pitch)));
     if (max_pitch_semitones >= 0)
     {
@@ -369,13 +370,31 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
 
 void DisplaySound::Show_wave(int instrument_id)
 {
+    const int selected_file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
+    const bool no_repository = Lilla_state_0 != DIRECT_SAMPLING && S_flash_first < 0 && S_sd_files == 0 && !SdSoundSource::Is_sd(selected_file);
+    if (no_repository || !Preset[instrument_id].active)
+    {
+        canvas.fillRect(0, 0, WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT, WAVE_BOARD_COLOR);
+        tft.writeRect(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.width(), canvas.height(), canvas.getBuffer());
+        if (no_repository)
+        {
+            Show_popup_text("OPEN SETUP: IMPORT AUDIO FILES", "FROM /USER_AUDIO TO /LILLA_AUDIO", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+        }
+        else
+        {
+            Show_popup_text("AUDIO FILE UNAVAILABLE", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+        }
+        return;
+    }
+    const bool preview = selected_file == SdSoundSource::PREVIEW;
+
     auto sound_id_local = Get_sound_id(Patch_id, instrument_id);                                                // Active sound routed to the selected instrument.
     int yp, yn, y0;                                                                                                          // Upper sample, lower sample, and previous Y position on the canvas.
     int NC_A;                                                                                                                // Width of the no-click curtain drawn at both waveform edges.
     int16_t *X = Info.Sound_620_samples_array(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B); // Two 620-sample envelopes used for waveform rendering.
     float volume_float = Volume_float[Sound[sound_id_local].gain];                                                           // Gain scaling applied to the displayed waveform amplitude.
 
-    NC_A = ((WAVEBOARD_WIDTH * (Preset[instrument_id].Noclick < Noclick_max ? Preset[instrument_id].Noclick : Noclick_max)) / (Preset[instrument_id].B - Preset[instrument_id].A));
+    NC_A = ((WAVEBOARD_WIDTH * (Preset[instrument_id].Noclick < Noclick_max ? Preset[instrument_id].Noclick : Noclick_max)) / (Preset[instrument_id].B > Preset[instrument_id].A ? Preset[instrument_id].B - Preset[instrument_id].A : 1));
 
     if (NC_A == 0 && (Preset[instrument_id].Noclick > 0))
     {
@@ -457,6 +476,14 @@ void DisplaySound::Show_wave(int instrument_id)
         }
     }
 
+    if (SdSoundSource::Is_sd(selected_file))
+    {
+        char name[51];
+        snprintf(name, sizeof(name), "%s", SdSoundSource::Name(selected_file));
+        canvas.setCursor(0, 0);
+        canvas.setTextColor(ILI9341_YELLOW);
+        canvas.print(name);
+    }
     if (solo_flag)
     {
         canvas.setCursor(display_coordinate_x(21) + 5, display_coordinate_y(0));
@@ -466,9 +493,9 @@ void DisplaySound::Show_wave(int instrument_id)
 
     canvas.setTextColor(TEXT_COLOR);
     canvas.setCursor(display_coordinate_x(0), Y_FOOTER_TEXT);
-    canvas.print("FROM");
+    canvas.print(preview ? "SAVE FROM" : "FROM");
     canvas.setTextColor((slicing_mode ? ILI9341_WHITE : ILI9341_YELLOW));
-    canvas.setCursor(display_coordinate_x(4.5), Y_FOOTER_TEXT);
+    canvas.setCursor(display_coordinate_x(preview ? 9.5 : 4.5), Y_FOOTER_TEXT);
     canvas.setTextColor(ILI9341_YELLOW);
     canvas.print(Preset[instrument_id].A);
     canvas.setTextColor(ILI9341_ORANGE);

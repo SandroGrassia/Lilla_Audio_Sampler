@@ -39,7 +39,6 @@ public:
     void VFS_Make_not_enough_memory_for_sampler(void);
     void Import_raw_files_frame(uint8_t value);
     void Confirm_config_import_popup(void);
-    void Confirm_user_audio_import_popup(void);
     void SD_missing(uint16_t color);
     void Config_import_FILE_error_popup(void);
     void FRAM_recovery_popup(void);

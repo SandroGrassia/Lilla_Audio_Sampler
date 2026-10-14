@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -1503,7 +1504,7 @@ byte ArchivingManager::Save_Sound(const int sound_id)
     }
 
     const auto &runtime = Sound[sound_id];
-    if (runtime.used && Capture_pending(runtime.file))
+    if (runtime.used && (Capture_pending(runtime.file) || runtime.file == SdSoundSource::PREVIEW))
     {
         return FRAM_ERROR_SOURCE; // Never persist metadata before its audio exists.
     }
@@ -1534,6 +1535,10 @@ bool ArchivingManager::Validate_Sound_AB_file_raw(uint32_t sound_id)
         return false;
     }
 
+    if (SdSoundSource::Is_sd(Sound[sound_id].file))
+    {
+        return true; // Keep the SD reference even when its card is absent.
+    }
     int sample_count = 0;
 
     if (Sound[sound_id].file < FIRST_RECORDING_FILE)

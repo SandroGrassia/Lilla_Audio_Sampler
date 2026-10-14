@@ -60,7 +60,10 @@ public:
 constexpr int DIRECT_SAMPLING = 1, MIDI_LOOP = 2, PATCHES_MAX = 200;
 int Lilla_state_0 = 0, Instrument_id = 0, Patch_id = 0, S_menu_max = 0, free_sounds = 1;
 struct PatchData { int instruments = 2; } Patch[1];
-bool S_Menu[7] = {};
+bool S_Menu[10] = {};
+int S_flash_first = -1, Sound_id = 0;
+uint32_t S_sd_files = 0;
+struct SoundData { int file = 0; } Sound[1];
 bool solo_flag = false;
 int S_solo_instrument = -1, volume_patch = 0;
 float Patch_volume_gain(int) { return 1.0f; }
@@ -341,5 +344,5 @@ with tempfile.TemporaryDirectory(prefix='mixer-prelisten-') as folder:
     cpp = Path(folder) / 'test.cpp'
     exe = Path(folder) / 'test.exe'
     cpp.write_text(prefix + menu + production + checks, encoding='utf-8')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=environment)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=environment)
     subprocess.run([str(exe)], check=True, env=environment)

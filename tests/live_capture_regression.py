@@ -88,7 +88,7 @@ void LS_refresh_LS_page() {} void P_Update_Patches_number() {}
 bool P_Verify_is_Patch_original(const int patch_id);
 bool S_Verify_is_Sound_original(int id) { return Sound[id] == S_Sound_cache_P[id]; }
 int Get_sound_id(int patch, int instrument) { return Patch[patch].Instrument[instrument].sound_id; }
-struct SerialStub { void print(const char *) {} void println(bool) {} } Serial;
+struct SerialStub { template<class... T> void printf(const char *, T...) {} void print(const char *) {} void println(bool) {} } Serial;
 int S_Get_Patch_id_free() { for(int i=0;i<PATCHES_MAX;++i) {
     if (!Patch[i].used)
     {
@@ -228,6 +228,21 @@ int main()
     // Readback mismatch never publishes the file and retains its PSRAM data.
     CaptureSource bad={{19,Psram,cache[0],10,0},false}; corrupt_file=19;
     assert(!LS_Capture_write(bad) && !bad.written && !SerialFlash.exists(name_file[19]));
+    // SD sources use the same cache and preserve missing Sound references.
+    for (auto &source : Capture_sources) { source = {}; }
+    Patch[1] = {};
+    Patch[1].Instrument[0].used = true;
+    Patch[1].Instrument[0].sound_id = 0;
+    Sound[0].file = SdSoundSource::FIRST;
+    PatchCache_Manager.Begin();
+    assert(!PatchCache_Manager.Sd_sources_ready(1));
+    PatchCache_Manager.Load_sd_sources(1);
+    assert(PatchCache_Manager.Get_source(SdSoundSource::FIRST).samples==0 && Sound[0].file==SdSoundSource::FIRST);
+    SdSoundSource::available=true;
+    PatchCache_Manager.Load_sd_sources(1);
+    const auto sd_source=PatchCache_Manager.Get_source(SdSoundSource::FIRST);
+    assert(PatchCache_Manager.Sd_sources_ready(1) && sd_source.storage==Psram && sd_source.samples==4);
+    assert(sd_source.psram_ptr[0]==100 && sd_source.psram_ptr[3]==103 && SdSoundSource::bound==sd_source.psram_ptr);
     std::cout << "PASS: normal IDs, root, cancel, circular capture, cache pinning, deferred save, retry, capacity and verification\n";
 }
 '''
@@ -248,7 +263,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-live-capture-') as directory:
     exe = Path(directory) / 'capture.exe'
     cpp.write_text(program, encoding='utf-8')
     compiler = shutil.which('g++')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

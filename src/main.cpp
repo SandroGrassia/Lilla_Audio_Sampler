@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
@@ -2136,6 +2137,9 @@ void loop()
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
+                    S_flash_first = Get_next_raw_file_in_flash(-1);
+                    S_sd_files = SdSoundSource::Catalog_count();
+
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                     S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -2255,7 +2259,130 @@ void loop()
     sound_edit_was_active = Lilla_state == SOUND_EDIT;
     if (Lilla_state == SOUND_EDIT)
     {
+        static Sound_struct before_sd_preview;
+        static int preview_sound = -1;
+        auto redraw_browser = [&]() FLASHMEM
+        {
+            samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+            S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
+            Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+            S_trim_step = S_Calc_trim_step(trim_speed);
+            S_sound_original = S_Verify_is_Sound_original(Sound_id);
+            S_Select_menu_elements();
+            Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+            Display_Sound.Show_SOUND_menu();
+            Pointer_Sound.Set_pointer_to_file(S_menu_max);
+            S_pointer = Pointer_Sound.Get_pointer();
+            Display_Sound.Show_wave(Instrument_id);
+            Clear_UI_events();
+        };
+        auto browse_sd = [&](uint32_t index) FLASHMEM
+        {
+            if (!SdSoundSource::Select(index, PATCH_CACHE_ARRAY_SAMPLES))
+            {
+                if (!SD.mediaPresent())
+                {
+                    Show_popup_text("INSERT SD", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+                    delay(2000);
+                    redraw_browser();
+                }
+                else
+                {
+                    Show_popup_text("AUDIO FILE UNAVAILABLE", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+                }
+                return;
+            }
+            if (Sound[Sound_id].file != SdSoundSource::PREVIEW)
+            {
+                before_sd_preview = Sound[Sound_id];
+                preview_sound = Sound_id;
+            }
+            S_sd_index = index;
+            Sound[Sound_id].file = SdSoundSource::PREVIEW;
+            Sound[Sound_id].A = 0;
+            Sound[Sound_id].B = SdSoundSource::Samples(SdSoundSource::PREVIEW) - 1;
+            Sound[Sound_id].pitch = 0;
+            Sound[Sound_id].pan = 0;
+            Sound[Sound_id].data |= 1;
+            Sound[Sound_id].attack = 0;
+            Sound[Sound_id].decay = 25;
+            Sound[Sound_id].sustain = 50;
+            Sound[Sound_id].release = 4;
+            Sound[Sound_id].mode = ONCE_FWD;
+            Sound[Sound_id].Noclick = 0;
+            slicing_mode = true;
+
+            AudioNoInterrupts();
+            PatchCache_Manager.Invalidate_file(SdSoundSource::PREVIEW);
+            if (!S_Fill_tables(Instrument_id))
+            {
+                Sound[Sound_id] = before_sd_preview;
+                preview_sound = -1;
+                S_Fill_tables(Instrument_id);
+            }
+            AudioInterrupts();
+
+            redraw_browser();
+        };
+        auto browse_flash = [&]() FLASHMEM
+        {
+            if (S_flash_first < 0)
+            {
+                return;
+            }
+            const Sound_struct previous = Sound[Sound_id];
+            Sound[Sound_id].file = S_flash_first;
+            Sound[Sound_id].A = 0;
+            Sound[Sound_id].B = Get_samples_in_raw_file(S_flash_first) - 1;
+            Sound[Sound_id].pitch = 0;
+            Sound[Sound_id].Noclick = 0;
+
+            AudioNoInterrupts();
+            if (!S_Fill_tables(Instrument_id))
+            {
+                Sound[Sound_id] = previous;
+                S_Fill_tables(Instrument_id);
+            }
+            else
+            {
+                preview_sound = -1;
+            }
+            AudioInterrupts();
+
+            redraw_browser();
+        };
+        if (entering_sound_edit && Lilla_state_0 != DIRECT_SAMPLING)
+        {
+            S_sd_index = 0;
+            if (SdSoundSource::Is_sd(Sound[Sound_id].file))
+            {
+                SdSoundSource::Find_catalog(SdSoundSource::Name(Sound[Sound_id].file), S_sd_files, S_sd_index);
+            }
+            if (Sound[Sound_id].file == 0 && FlashFileRegisterParser::Zero_from_firmware())
+            {
+                if (S_flash_first >= 0)
+                {
+                    browse_flash();
+                }
+                else if (S_sd_files > 0)
+                {
+                    browse_sd(0);
+                }
+            }
+            S_Select_menu_elements();
+            Display_Sound.Show_SOUND_menu();
+            Display_Sound.Show_wave(Instrument_id);
+        }
+        const bool no_browser_audio = Lilla_state_0 != DIRECT_SAMPLING && S_flash_first < 0 && S_sd_files == 0 && !SdSoundSource::Is_sd(Sound[Sound_id].file);
+        if (entering_sound_edit && no_browser_audio)
+        {
+            AudioNoInterrupts();
+            Players_Manager.Release_all_players_for_instrument(Instrument_id);
+            Preset[Instrument_id].active = false;
+            AudioInterrupts();
+        }
         S_Refresh_source_limits(entering_sound_edit); // Check only while this page is active and redraw immediately after re-entry.
+        const int minimum_snippet = Sound[Sound_id].file == SdSoundSource::PREVIEW ? min(static_cast<int>(samples_in_file), MIN_SNIPPET) : MIN_SNIPPET;
         const Sound_struct sound_before_edit = Sound[Sound_id];
         if (Lilla_state_0 == DIRECT_SAMPLING)
         {
@@ -2291,8 +2418,66 @@ void loop()
             {
                 switch (S_element_menu[S_pointer.menu_element])
                 {
+                case value_S_BrowseSd:
+                    browse_sd(0);
+                    break;
+                case value_S_BrowseFlash:
+                    browse_flash();
+                    break;
+                case value_S_SaveSd:
+                {
+                    const Sound_struct previous = Sound[Sound_id];
+                    const auto identity_used = [](int file) -> bool
+                    {
+                        for (int id = 0; id < SOUNDS_MAX; ++id)
+                        {
+                            if ((Sound[id].used && Sound[id].file == file) || (S_Sound_cache_P[id].used && S_Sound_cache_P[id].file == file))
+                            {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    const int saved = SdSoundSource::Save(previous.A, previous.B, identity_used);
+                    if (saved < 0)
+                    {
+                        Show_popup_text("CANNOT SAVE SD REFERENCE", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+                        break;
+                    }
+                    Sound[Sound_id].file = saved;
+                    Sound[Sound_id].A = 0;
+                    Sound[Sound_id].B = previous.B - previous.A;
+
+                    AudioNoInterrupts();
+                    const bool ready = S_Fill_tables(Instrument_id) && Preset[Instrument_id].active;
+                    if (!ready)
+                    {
+                        Sound[Sound_id] = previous;
+                        S_Fill_tables(Instrument_id);
+                    }
+                    AudioInterrupts();
+
+                    if (ready)
+                    {
+                        preview_sound = -1;
+                    }
+                    redraw_browser();
+                    if (!ready)
+                    {
+                        Show_popup_text("AUDIO FILE UNAVAILABLE", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+                    }
+                }
+                break;
+
                 case value_S_Return: // keep changes and exit from SOUND EDIT
                 {
+                    if (Sound[Sound_id].file == SdSoundSource::PREVIEW && preview_sound == Sound_id)
+                    {
+                        Sound[Sound_id] = before_sd_preview;
+                        preview_sound = -1;
+                        S_Fill_tables(Instrument_id);
+                    }
+
                     if (Lilla_state_0 == DIRECT_SAMPLING)
                     {
                         DS_close_sound_edit();
@@ -2429,6 +2614,16 @@ void loop()
 
         case field_S_Value:
         {
+            if (no_browser_audio)
+            {
+                break;
+            }
+            if (Sound[Sound_id].file == SdSoundSource::PREVIEW && S_pointer.value_element != value_S_File && S_pointer.value_element != value_S_Gain && S_pointer.value_element != value_S_Pitch && S_pointer.value_element != value_S_Midi)
+            {
+                Read_encoder_simple(EN_PB_Value);
+                Read_pushbutton(EN_PB_Value);
+                break;
+            }
             switch (S_pointer.value_element)
             {
             case value_S_File:
@@ -2436,6 +2631,15 @@ void loop()
                 int result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0 && Lilla_state_0 != DIRECT_SAMPLING)
                 {
+                    if (SdSoundSource::Is_sd(Sound[Sound_id].file))
+                    {
+                        const int next = static_cast<int>(S_sd_index) + result;
+                        if (next >= 0 && static_cast<uint32_t>(next) < S_sd_files)
+                        {
+                            browse_sd(next);
+                        }
+                        break;
+                    }
                     int S_file_change;
                     if (result == 1)
                     {
@@ -3035,6 +3239,12 @@ void loop()
         break;
         }
 
+        if (no_browser_audio)
+        {
+            Clear_UI_events();
+            return;
+        }
+
         // Change trim speed
         if (Read_encoder(EN_PB_Step, trim_speed, 5, 0, 1))
         {
@@ -3043,7 +3253,7 @@ void loop()
         }
 
         // Toggle TO/SLICE mode with the TO encoder button.
-        if (Read_pushbutton(EN_PB_To))
+        if (Read_pushbutton(EN_PB_To) && Sound[Sound_id].file != SdSoundSource::PREVIEW)
         {
             slicing_mode = !slicing_mode;
             if (!slicing_mode)
@@ -3070,13 +3280,13 @@ void loop()
             {
                 if (slicing_mode)
                 {
-                    if ((Sound[Sound_id].B - Sound[Sound_id].A + 1) >= (S_trim_step + MIN_SNIPPET))
+                    if ((Sound[Sound_id].B - Sound[Sound_id].A + 1) >= (S_trim_step + minimum_snippet))
                     {
                         So_A_change = Sound[Sound_id].A + S_trim_step;
                     }
                     else
                     {
-                        So_A_change = Sound[Sound_id].B - MIN_SNIPPET + 1;
+                        So_A_change = Sound[Sound_id].B - minimum_snippet + 1;
                     }
                 }
 
@@ -3225,13 +3435,13 @@ void loop()
             }
             else
             {
-                if ((Sound[Sound_id].B - Sound[Sound_id].A + 1) >= (MIN_SNIPPET + S_trim_step))
+                if ((Sound[Sound_id].B - Sound[Sound_id].A + 1) >= (minimum_snippet + S_trim_step))
                 {
                     So_B_change = Sound[Sound_id].B - S_trim_step;
                 }
                 else
                 {
-                    So_B_change = Sound[Sound_id].A + MIN_SNIPPET - 1;
+                    So_B_change = Sound[Sound_id].A + minimum_snippet - 1;
                 }
             }
 
@@ -3824,6 +4034,9 @@ void loop()
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                         S_trim_step = S_Calc_trim_step(trim_speed);
 
+                        S_flash_first = Get_next_raw_file_in_flash(-1);
+                        S_sd_files = SdSoundSource::Catalog_count();
+
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                         S_sound_original = S_Verify_is_Sound_original(Sound_id);
@@ -3949,6 +4162,9 @@ void loop()
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                         S_trim_step = S_Calc_trim_step(trim_speed);
+
+                        S_flash_first = Get_next_raw_file_in_flash(-1);
+                        S_sd_files = SdSoundSource::Catalog_count();
 
                         Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
@@ -7467,6 +7683,9 @@ void loop()
                     Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
                     S_trim_step = S_Calc_trim_step(trim_speed);
 
+                    S_flash_first = Get_next_raw_file_in_flash(-1);
+                    S_sd_files = SdSoundSource::Catalog_count();
+
                     Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
 
                     // Menu
@@ -8939,8 +9158,8 @@ void S_Refresh_source_limits(bool force) // Keep the Sound display aligned with 
     }
     last_ms = now_ms;
     const auto &preset = Preset[Instrument_id];
-    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
-    const float limit = Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
+    const bool live = preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file);
+    const float limit = preset.file == SdSoundSource::PREVIEW ? 8.0f : Playback_pitch_limit(preset.use_Wavetable, preset.source.storage == Psram, live);
     const int voices = PLAYERS;
     if (force || displayed_instrument != Instrument_id || displayed_file != preset.file || displayed_pitch_limit != limit || displayed_voices != voices)
     {
@@ -12437,48 +12656,46 @@ bool BACKUP_Restore(bool *config_error)
 
 // End complete SD backups.
 
-int Get_next_raw_file_in_flash(int file)
+FLASHMEM int Get_next_raw_file_in_flash(int file)
 {
-    int value = file;
-    do
+    int selected = -1;
+    for (int candidate = 0; candidate < FIRST_LIVE_SAMPLING_FILE; ++candidate)
     {
-        ++value;
-        if (value == FIRST_LIVE_SAMPLING_FILE)
+        if ((candidate == 0 && FlashFileRegisterParser::Zero_from_firmware()) || Get_samples_in_raw_file(candidate) == 0)
         {
-            Serial.println(F("Get_next_raw_file_in_flash() --> reached last file!"));
-            return file;
+            continue;
         }
-        if (Get_samples_in_raw_file(value) > 0)
+        if ((file < 0 || SdSoundSource::Is_sd(file) || Compare_audio_file_names(candidate, file) > 0) && (selected < 0 || Compare_audio_file_names(candidate, selected) < 0))
         {
-            Serial.print(F("Get_next_raw_file_in_flash() --> next file found : "));
-            Serial.println(value);
-            return value;
+            selected = candidate;
         }
-    } while (1);
+    }
+    return selected < 0 ? file : selected;
 }
 
-int Get_previous_raw_file_in_flash(int file)
+FLASHMEM int Get_previous_raw_file_in_flash(int file)
 {
-    int value = file;
-    do
+    int selected = -1;
+    for (int candidate = 0; candidate < FIRST_LIVE_SAMPLING_FILE; ++candidate)
     {
-        --value;
-        if (value == -1)
+        if ((candidate == 0 && FlashFileRegisterParser::Zero_from_firmware()) || Get_samples_in_raw_file(candidate) == 0)
         {
-            Serial.print(F("Get_previous_raw_file_in_flash() --> reached first file!"));
-            return file;
+            continue;
         }
-        if (Get_samples_in_raw_file(value) > 0)
+        if (Compare_audio_file_names(candidate, file) < 0 && (selected < 0 || Compare_audio_file_names(candidate, selected) > 0))
         {
-            Serial.print(F("Get_previous_raw_file_in_flash() --> previous file found: "));
-            Serial.println(value);
-            return value;
+            selected = candidate;
         }
-    } while (1);
+    }
+    return selected < 0 ? file : selected;
 }
 
 int Get_samples_in_raw_file(int file_id) // value is a file_id
 {
+    if (SdSoundSource::Is_sd(file_id))
+    {
+        return SdSoundSource::Samples(file_id);
+    }
     if (file_id < FIRST_RECORDING_FILE)
         return Info.Raw_file_samples(file_id);
 
@@ -14644,6 +14861,10 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 FLASHMEM
 void S_Select_menu_elements(void)
 {
+    const bool preview = Sound[Sound_id].file == SdSoundSource::PREVIEW;
+    S_Menu[value_S_BrowseFlash] = Lilla_state_0 != DIRECT_SAMPLING && S_flash_first >= 0 && SdSoundSource::Is_sd(Sound[Sound_id].file);
+    S_Menu[value_S_BrowseSd] = Lilla_state_0 != DIRECT_SAMPLING && S_sd_files > 0 && !SdSoundSource::Is_sd(Sound[Sound_id].file);
+    S_Menu[value_S_SaveSd] = Lilla_state_0 != DIRECT_SAMPLING && preview;
     S_Menu[value_S_Solo] = !solo_flag;
     S_Menu[value_S_ResetSolo] = solo_flag;
     S_Menu[value_S_OnlyPrelisten] = false;
@@ -14684,7 +14905,16 @@ void S_Select_menu_elements(void)
 
     S_Menu[value_S_OnlyPrelisten] = MX_routing_source[Instrument_id] != 1;
     S_Menu[value_S_SendToLineOut] = (MX_routing_source[Instrument_id] & 2u) == 0;
-    S_menu_max = S_Menu[value_S_Return] + S_Menu[value_S_Clone] + S_Menu[value_S_Drop] + S_Menu[value_S_OnlyPrelisten] + S_Menu[value_S_SendToLineOut] + S_Menu[value_S_Solo] + S_Menu[value_S_ResetSolo] - 1;
+    if (preview)
+    {
+        S_Menu[value_S_Clone] = false;
+        S_Menu[value_S_Drop] = false;
+    }
+    S_menu_max = -1;
+    for (bool enabled : S_Menu)
+    {
+        S_menu_max += enabled;
+    }
 }
 
 bool S_Fill_tables(uint8_t instrument_id)
@@ -14831,8 +15061,42 @@ void Clear_UI_events(void)
 // *************************************            BOOTSTRAP             ***************************************
 // **************************************************************************************************************
 
-bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade)
+FLASHMEM bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade)
 {
+    if (!PatchCache_Manager.Sd_sources_ready(patch_id))
+    {
+        const bool midi_running = Midi_reader.Is_running();
+        const bool control_running = Trigger.Is_running();
+        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+        if (!P_Quiesce_audio_players())
+        {
+            if (midi_running)
+            {
+                Midi_reader.Start();
+            }
+            if (control_running)
+            {
+                Trigger.Start();
+            }
+            return false;
+        }
+        AudioInterrupts();
+        PatchCache_Manager.Load_sd_sources(patch_id);
+        AudioNoInterrupts();
+        if (midi_running)
+        {
+            Midi_reader.Start();
+        }
+        if (control_running)
+        {
+            Trigger.Start();
+        }
+        if (enabled)
+        {
+            AudioInterrupts();
+        }
+    }
+
     const bool audio_interrupts_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
     const bool trigger_running = Trigger.Is_running();
@@ -14967,7 +15231,7 @@ bool Startup_mode(void)
     {
         for (uint8_t instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
         {
-            if (Patch[Patch_id].Instrument[instrument_id].used && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+            if (Patch[Patch_id].Instrument[instrument_id].used && (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(Preset[instrument_id].file)))
             {
                 tables_mask |= static_cast<uint16_t>(1u << instrument_id);
             }
@@ -15793,14 +16057,6 @@ void Require_FRAM(byte result)
 
 FLASHMEM void SET_Prepare_user_audio(void)
 {
-    Display_Storage.Confirm_user_audio_import_popup();
-    Display_Storage.Confirm_config_import_frame(0);
-    SET_Ask_if_IMPORT_EXPORT_setup();
-    if (result == 0)
-    {
-        Serial.println("USER AUDIO: cancelled; no files changed");
-        return;
-    }
     const bool resume_trigger = Trigger.Is_running();
     const bool resume_midi = Midi_reader.Is_running();
     const bool resume_audio = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
@@ -15808,22 +16064,20 @@ FLASHMEM void SET_Prepare_user_audio(void)
     const bool drained = LS_Capture_drain();
     if (drained)
     {
-        Show_popup_text("PREPARING USER AUDIO", "PLEASE WAIT - SEE TERMINAL", ILI9341_WHITE, ILI9341_RED);
+        Show_popup_text("FILE IMPORT IN PROGRESS", "PLEASE DON'T POWER OFF LILLA", ILI9341_BLACK, ILI9341_GREEN);
         Serial.println("USER AUDIO: audio and MIDI suspended");
 
         AudioNoInterrupts();
-        const auto report = UserAudioImport::Run(SET_WAV_raw_data, SET_AIFF_raw_data);
+        UserAudioImport::Run(SET_WAV_raw_data, SET_AIFF_raw_data);
         if (resume_audio)
         {
             AudioInterrupts();
         }
 
-        Show_popup_text(report.errors == 0 ? "USER AUDIO AND INDEX READY" : "USER AUDIO: ERRORS - SEE TERMINAL", ILI9341_WHITE, ILI9341_RED);
     }
     else
     {
         Serial.println("USER AUDIO: players still active; import not started");
-        Show_popup_text("AUDIO STILL ACTIVE - TRY AGAIN", ILI9341_WHITE, ILI9341_RED);
     }
     if (!resume_audio)
     {
@@ -15842,6 +16096,5 @@ FLASHMEM void SET_Prepare_user_audio(void)
         Trigger.Start();
     }
     Serial.println("USER AUDIO: previous audio/MIDI state restored");
-    delay(2000);
     Clear_UI_events();
 }
