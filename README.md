@@ -31,7 +31,7 @@ Sound shaping includes sample trimming, forward/reverse and loop playback, envel
 
 ## Development: SD Sound browser
 
-The working firmware adds conditional `BROWSE_FLASH` and `BROWSE_SD` commands, SD pre-listening and trimmed SD-to-PSRAM import. See [SD Sound browser](docs/sd-sound-browser.md) for controls, persistence, supported files and hardware validation. This feature is not part of the published 7.1.1 release.
+The working firmware adds conditional `BROWSE_FLASH` and `BROWSE_SD` commands, a 1,000-file index on SD, polyphonic MIDI audition from SD (pitch up to 4x), persistent missing-audio warnings, and trimmed SD-to-PSRAM import. See [SD Sound browser](docs/sd-sound-browser.md) for controls, persistence, supported files and hardware validation. This feature is not part of the published 7.1.1 release.
 
 ## New in firmware 7.1.1
 

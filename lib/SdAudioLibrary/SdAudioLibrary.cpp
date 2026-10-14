@@ -4,6 +4,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <new>
+#include <cmath>
+#include "SharedElements.h"
 
 FLASHMEM
 bool SdAudioReader::Wav_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
@@ -234,6 +236,7 @@ bool SdAudioReader::Open(const char *name)
         valid = mp3 != nullptr && mp3->Open(file, bytes, channels, 0x7FFFFFFEu);
     }
     samples = bytes / 2;
+    position = UINT32_MAX;
     if (!valid || samples == 0 || !Seek(0))
     {
         Close();
@@ -245,6 +248,10 @@ bool SdAudioReader::Open(const char *name)
 FLASHMEM
 bool SdAudioReader::Seek(uint32_t sample)
 {
+    if (sample == position)
+    {
+        return true;
+    }
     if (sample > samples || !(mp3 != nullptr ? mp3->Seek(sample) : file.seek(offset + sample * 2u * channels)))
     {
         return false;
@@ -285,6 +292,11 @@ bool SdAudioReader::Read(int16_t *destination, uint32_t count)
     return true;
 }
 
+SdAudioReader SdAudioLibrary::cache_reader;
+int SdAudioLibrary::read_file = -1;
+uint32_t SdAudioLibrary::read_next = 0;
+uint32_t SdAudioLibrary::read_generation = 0;
+
 DMAMEM SdAudioLibrary::Recipe SdAudioLibrary::recipes[FileNameRegistry::FILES] = {};
 bool SdAudioLibrary::available[FileNameRegistry::FILES] = {};
 uint32_t SdAudioLibrary::generation = 0;
@@ -310,6 +322,7 @@ uint32_t SdAudioLibrary::Crc(const Recipe &recipe)
 FLASHMEM
 bool SdAudioLibrary::Begin()
 {
+    Suspend_read();
     count = 0;
     ++generation;
     memset(available, 0, sizeof(available));
@@ -382,13 +395,20 @@ bool SdAudioLibrary::Begin()
             const int order = strcasecmp(static_cast<const char *>(a), static_cast<const char *>(b));
             return order == 0 ? strcmp(static_cast<const char *>(a), static_cast<const char *>(b)) : order;
         });
-        for (uint16_t i = 0; i < count; ++i)
+        const char *temporary = "/LILLA_AUDIO/.lilla-index.tmp";
+        SD.remove(temporary);
+        File index = SD.open(temporary, FILE_WRITE);
+        const size_t bytes = static_cast<size_t>(count) * NAME_BYTES;
+        if (!index || index.write(reinterpret_cast<const uint8_t *>(names), bytes) != bytes)
         {
-            if (LillaFram.writeArray(INDEX_ADDRESS + i * NAME_BYTES, NAME_BYTES, reinterpret_cast<uint8_t *>(names[i])) != LillaFRAM_2x512::ERROR_0)
-            {
-                error = "SD INDEX: FRAM WRITE ERROR";
-                break;
-            }
+            error = "SD INDEX: WRITE ERROR";
+        }
+        index.flush();
+        const bool complete = index && index.size() == bytes;
+        index.close();
+        if (error == nullptr && (!complete || (SD.exists(INDEX_PATH) && !SD.remove(INDEX_PATH)) || !SD.rename(temporary, INDEX_PATH)))
+        {
+            error = "SD INDEX: PUBLISH ERROR";
         }
     }
     delete[] names;
@@ -408,25 +428,39 @@ uint16_t SdAudioLibrary::Count()
 FLASHMEM
 bool SdAudioLibrary::Name(uint16_t index, char (&name)[NAME_BYTES])
 {
-    return LillaFram.readArray(INDEX_ADDRESS + index * NAME_BYTES, NAME_BYTES, reinterpret_cast<uint8_t *>(name)) == LillaFRAM_2x512::ERROR_0;
+    File source = SD.open(INDEX_PATH);
+    const bool success = source && source.seek(static_cast<uint32_t>(index) * NAME_BYTES) && source.read(name, NAME_BYTES) == NAME_BYTES && memchr(name, 0, NAME_BYTES) != nullptr;
+    source.close();
+    return success;
 }
 
 FLASHMEM
 bool SdAudioLibrary::Assigned(int file)
 {
-    return file > 0 && file < FileNameRegistry::FILES && recipes[file].samples != 0;
+    return SdPlayerCache::Assigned(file) || (file > 0 && file < FileNameRegistry::FILES && recipes[file].samples != 0);
 }
 
 FLASHMEM
 const char *SdAudioLibrary::Source_name(int file)
 {
-    return recipes[file].name;
+    return SdPlayerCache::Assigned(file) ? SdPlayerCache::Name() : recipes[file].name;
 }
 
 FLASHMEM
 uint32_t SdAudioLibrary::Samples(int file)
 {
-    return Assigned(file) && available[file] ? recipes[file].samples : 0;
+    return SdPlayerCache::Assigned(file) ? SdPlayerCache::Samples() : (Assigned(file) && available[file] ? recipes[file].samples : 0);
+}
+
+FLASHMEM
+bool SdAudioLibrary::Check(int file)
+{
+    char path[sizeof("/LILLA_AUDIO/") + NAME_BYTES];
+    snprintf(path, sizeof(path), "/LILLA_AUDIO/%s", recipes[file].name);
+    File source = SD.mediaPresent() ? SD.open(path) : File();
+    available[file] = source && !source.isDirectory() && source.size() == recipes[file].file_bytes;
+    source.close();
+    return available[file];
 }
 
 FLASHMEM
@@ -469,148 +503,253 @@ bool SdAudioLibrary::Save(int file, const char *name, uint32_t first, uint32_t s
 }
 
 FLASHMEM
+void SdAudioLibrary::Suspend_read()
+{
+    cache_reader.Close();
+    read_file = -1;
+}
+
+FLASHMEM
 bool SdAudioLibrary::Read(int file, int16_t *destination, uint32_t first, uint32_t samples)
 {
-    static SdAudioReader reader;
-    static int opened = -1;
-    static uint32_t next = 0;
-    static uint32_t opened_generation = 0;
+    if (SdPlayerCache::Assigned(file))
+    {
+        return SdPlayerCache::Read_foreground(destination, first, samples);
+    }
     const Recipe &recipe = recipes[file];
     if (first > recipe.samples || samples > recipe.samples - first)
     {
         return false;
     }
-    if (opened != file || opened_generation != generation)
+    if (read_file != file || read_generation != generation)
     {
-        opened = -1;
-        if (!reader.Open(recipe.name) || recipe.first > reader.Samples() || recipe.samples > reader.Samples() - recipe.first)
+        read_file = -1;
+        if (!cache_reader.Open(recipe.name) || recipe.first > cache_reader.Samples() || recipe.samples > cache_reader.Samples() - recipe.first)
         {
             return false;
         }
-        opened = file;
-        opened_generation = generation;
-        next = 0;
-        if (!reader.Seek(recipe.first))
+        read_file = file;
+        read_generation = generation;
+        read_next = 0;
+        if (!cache_reader.Seek(recipe.first))
         {
-            opened = -1;
+            read_file = -1;
             return false;
         }
     }
-    if ((next != first && !reader.Seek(recipe.first + first)) || !reader.Read(destination, samples))
+    if ((read_next != first && !cache_reader.Seek(recipe.first + first)) || !cache_reader.Read(destination, samples))
     {
-        opened = -1;
+        read_file = -1;
         return false;
     }
-    next = first + samples;
-    if (next == recipe.samples)
+    read_next = first + samples;
+    if (read_next == recipe.samples)
     {
-        reader.Close();
-        opened = -1;
+        cache_reader.Close();
+        read_file = -1;
     }
     return true;
 }
 
-DMAMEM int16_t SdAudioPreview::buffer[BUFFER_SAMPLES];
+SdPlayerCache::Page SdPlayerCache::pages[PAGES];
+int16_t *SdPlayerCache::data = nullptr;
+SdAudioReader SdPlayerCache::reader;
+int SdPlayerCache::file_id = -1;
+char SdPlayerCache::name[SdAudioLibrary::NAME_BYTES] = {};
+volatile bool SdPlayerCache::failed = false;
 
-SdAudioPreview::SdAudioPreview() : AudioStream(0, nullptr) {}
-
-FLASHMEM
-void SdAudioPreview::Stop()
+FLASHMEM bool SdPlayerCache::Open(int file, const char *filename)
 {
-    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-    NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
-    running = false;
-    written = 0;
-    consumed = 0;
-    if (audio_enabled)
+    Close();
+    data = new (std::nothrow) int16_t[PAGES * PAGE_SAMPLES];
+    if (data == nullptr || !reader.Open(filename))
     {
-        NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
+        Close();
+        failed = true;
+        return false;
     }
+    strcpy(name, filename);
+    file_id = file;
+    return true;
+}
 
+FLASHMEM void SdPlayerCache::Close()
+{
+    file_id = -1;
     reader.Close();
+    delete[] data;
+    data = nullptr;
+    failed = false;
+    for (auto &page : pages)
+    {
+        page.index = -1;
+        page.ready = false;
+        page.loading = false;
+        page.cycle = 0;
+    }
 }
 
-FLASHMEM
-bool SdAudioPreview::Open(const char *name)
+bool SdPlayerCache::Assigned(int file) { return file >= 0 && file == file_id; }
+int SdPlayerCache::File_id() { return file_id; }
+uint32_t SdPlayerCache::Samples() { return reader.Samples(); }
+const char *SdPlayerCache::Name() { return name; }
+bool SdPlayerCache::Failed() { return failed; }
+
+FLASHMEM bool SdPlayerCache::Read_foreground(int16_t *destination, uint32_t first, uint32_t count)
 {
-    Stop();
-    return reader.Open(name) && Trim(0, reader.Samples() - 1);
+    return reader.Seek(first) && reader.Read(destination, count);
 }
 
-FLASHMEM
-bool SdAudioPreview::Trim(uint32_t start, uint32_t end)
+int SdPlayerCache::Find(int index)
 {
-    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-    NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
-    running = false;
-    written = 0;
-    consumed = 0;
-    if (audio_enabled)
+    for (uint8_t id = 0; id < PAGES; ++id)
     {
-        NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
-    }
-
-    first = start;
-    last = end;
-    position = start;
-    if (!reader.Seek(first))
-    {
-        return false;
-    }
-    running = true;
-    return Service();
-}
-
-FLASHMEM
-bool SdAudioPreview::Service()
-{
-    if (!running)
-    {
-        return true;
-    }
-    for (uint32_t reads = 0; reads < 32 && written - consumed <= BUFFER_SAMPLES - 256; ++reads)
-    {
-        if (position > last)
+        if (pages[id].index == index)
         {
-            if (!reader.Seek(first))
-            {
-                Stop();
-                return false;
-            }
-            position = first;
+            return id;
         }
-        const uint32_t remaining = last - position + 1;
-        const uint32_t contiguous = BUFFER_SAMPLES - written % BUFFER_SAMPLES;
-        const uint32_t chunk = min(256u, min(remaining, contiguous));
-        if (!reader.Read(buffer + written % BUFFER_SAMPLES, chunk))
+    }
+    return -1;
+}
+
+bool SdPlayerCache::Require(int first, int count, uint32_t cycle)
+{
+    bool ready = !failed;
+    const int end = first + count;
+    for (int index = first / PAGE_SAMPLES; index <= (end - 1) / static_cast<int>(PAGE_SAMPLES) && count > 0; ++index)
+    {
+        int id = Find(index);
+        if (id < 0)
         {
-            Stop();
+            uint32_t oldest = 0;
+            for (uint8_t candidate = 0; candidate < PAGES; ++candidate)
+            {
+                const auto &page = pages[candidate];
+                const uint32_t age = cycle - page.cycle;
+                if (!page.loading && (page.index < 0 || (age > 2 && age > oldest)))
+                {
+                    id = candidate;
+                    oldest = age;
+                    if (page.index < 0)
+                    {
+                        break;
+                    }
+                }
+            }
+            if (id < 0)
+            {
+                ready = false;
+                continue;
+            }
+            pages[id].ready = false;
+            pages[id].index = index;
+        }
+        pages[id].cycle = cycle;
+        ready &= pages[id].ready;
+    }
+    return ready;
+}
+
+// Cover every interpolation/IIR read at pitch <= 4, including outgoing crossfades.
+bool SdPlayerCache::Require_geometry(int first, int last, int crossfade, uint8_t mode, float position, uint32_t cycle)
+{
+    constexpr int history = 128;
+    constexpr int ahead = 640;
+    const int current = static_cast<int>(floorf(position));
+    if (mode == ONCE_FWD || mode == ONCE_REV)
+    {
+        const int center = mode == ONCE_REV ? 2 * last - current : current;
+        const int low = center - (mode == ONCE_REV ? ahead : history);
+        const int high = center + (mode == ONCE_REV ? history : ahead);
+        const int begin = low < first ? first : low;
+        const int end = high > last ? last : high;
+        return end < begin || Require(begin, end - begin + 1, cycle);
+    }
+    const bool pingpong = mode == LOOP_FWD_REV || mode == LOOP_REV_FWD;
+    const int span = last - first + 1;
+    const int fade = pingpong ? 0 : crossfade;
+    const int period = pingpong ? 2 * (span - 1) : span - fade;
+    const int base = mode == LOOP_REV ? last - fade : first + fade;
+    const int position_phase = mode == LOOP_FWD && current < base ? 0 : current - base;
+    int phase = ((position_phase - history) % period + period) % period;
+    int remaining = history + ahead + 1;
+    bool ready = true;
+    while (remaining > 0)
+    {
+        const int raw = span - 2 * fade;
+        const bool reverse = pingpong ? phase >= span : mode == LOOP_REV;
+        const bool from_fade = !pingpong && phase >= raw;
+        const int boundary = pingpong ? (reverse ? period : span) : (from_fade ? period : raw);
+        const int count = remaining < boundary - phase ? remaining : boundary - phase;
+        if (!from_fade)
+        {
+            const int source = pingpong ? (reverse ? first + period - phase : first + phase) : (reverse ? last - fade - phase : first + fade + phase);
+            ready &= Require(reverse ? source - count + 1 : source, count, cycle);
+        }
+        remaining -= count;
+        phase = (phase + count) % period;
+    }
+    return ready;
+}
+
+FLASHMEM bool SdPlayerCache::Service()
+{
+    int16_t temporary[PAGE_SAMPLES];
+    for (uint8_t id = 0, loads = 0; id < PAGES && loads < 8; ++id)
+    {
+        auto &page = pages[id];
+        const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+        NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
+        const int index = page.index;
+        const bool load = index >= 0 && !page.ready && !page.loading;
+        if (load)
+        {
+            page.loading = true;
+        }
+        if (enabled)
+        {
+            NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
+        }
+        if (!load)
+        {
+            continue;
+        }
+        ++loads;
+        const uint32_t first = index * PAGE_SAMPLES;
+        const uint32_t count = min(PAGE_SAMPLES, Samples() - first);
+        if (!Read_foreground(temporary, first, count))
+        {
+            failed = true;
+            page.loading = false;
             return false;
         }
+        memcpy(data + id * PAGE_SAMPLES, temporary, count * sizeof(int16_t));
         __asm__ volatile("dmb" ::: "memory");
-        written = written + chunk;
-        position += chunk;
+        page.ready = true;
+        page.loading = false;
     }
-    return true;
+    return !failed;
 }
 
-void SdAudioPreview::update()
+void SdPlayerCache::Read_cached(int16_t *destination, int first, int count)
 {
-    if (!running || written - consumed < AUDIO_BLOCK_SAMPLES)
+    while (count > 0)
     {
-        return;
+        const int index = first / PAGE_SAMPLES;
+        const int offset = first % PAGE_SAMPLES;
+        const int amount = min(count, static_cast<int>(PAGE_SAMPLES) - offset);
+        const int id = Find(index);
+        if (id < 0 || !pages[id].ready)
+        {
+            memset(destination, 0, amount * sizeof(int16_t));
+            failed = true; // A missing preflight range is a reader fault, never an IRQ SD read.
+        }
+        else
+        {
+            memcpy(destination, data + id * PAGE_SAMPLES + offset, amount * sizeof(int16_t));
+        }
+        first += amount;
+        destination += amount;
+        count -= amount;
     }
-    audio_block_t *block = allocate();
-    if (block == nullptr)
-    {
-        return;
-    }
-    for (uint32_t i = 0; i < AUDIO_BLOCK_SAMPLES; ++i)
-    {
-        block->data[i] = buffer[(consumed + i) % BUFFER_SAMPLES];
-    }
-    __asm__ volatile("dmb" ::: "memory");
-    consumed = consumed + AUDIO_BLOCK_SAMPLES;
-    transmit(block);
-    release(block);
 }

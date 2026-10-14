@@ -216,7 +216,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     // Se e' una nota appartenente ad un track: track >= -1
     // Altrimenti: track = NO_TRACK
 
-    if (SdAudioLibrary::Assigned(Preset[instrument_id].file) && Cache_manager_ptr->Get_source(Preset[instrument_id].file).psram_ptr == nullptr)
+    if (Preset[instrument_id].source.storage != Sd && SdAudioLibrary::Assigned(Preset[instrument_id].file) && Cache_manager_ptr->Get_source(Preset[instrument_id].file).psram_ptr == nullptr)
     {
         return -1;
     }
@@ -426,7 +426,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     plan.antialias = preset.lock;
     plan.live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
     const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
-    plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
+    plan.source = wavetable || preset.source.storage == Sd ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
     plan.packets = !wavetable && !plan.live && preset.source.storage == Flash && preset.file >= FIRST_RECORDING_FILE;
     plan.loop = preset.mode >= LOOP_FWD;
     plan.pingpong = preset.mode == LOOP_FWD_REV || preset.mode == LOOP_REV_FWD;
@@ -436,7 +436,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     {
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
     }
-    const float ceiling = Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
+    const float ceiling = preset.source.storage == Sd ? SdPlayerCache::MAX_PITCH : Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
     plan.pitch = constrain(note_pitch * preset.pitch * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
     return plan;
 }

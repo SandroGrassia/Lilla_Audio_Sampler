@@ -83,6 +83,16 @@ void test_mp3_import()
                 assert(memcmp(block, actual.data() + offset, count * 2) == 0);
                 offset += count * 2;
             }
+            {
+                File concurrent_source(entries.front());
+                Mp3Import concurrent;
+                assert(concurrent.Open(concurrent_source, bytes, output_channels, SET_AUDIO_MAX_RAW_BYTES));
+                assert(mp3_filters != nullptr && mp3_filters->references == 2 && mp3_filters->next == nullptr);
+                int16_t block[37];
+                assert(concurrent.Seek(2000) && concurrent.Read(block, 37));
+                assert(memcmp(block, actual.data() + 4000, sizeof(block)) == 0);
+            }
+            assert(mp3_filters != nullptr && mp3_filters->references == 1);
             for (uint32_t first : {3000u, 0u, 123u, 17u, 6000u})
             {
                 int16_t block[37];
@@ -101,6 +111,7 @@ void test_mp3_import()
     add("7.mp3", 0)->data = mp3_fixture("long48000");
     assert(SET_Copy_audio_files_from_SD_to_Flash(changed));
     assert(SerialFlash.files.at("7.raw").size() == SET_AUDIO_MAX_RAW_BYTES);
+    static_assert(2 * (sizeof(Mp3ImportDecoder) + DRMP3_DATA_CHUNK_SIZE) + 441 * MP3_FILTER_TAPS * sizeof(float) < 260000);
     // Measure the filter response independently of the MP3 encoder's own low-pass filter.
     Mp3ImportDecoder filter_state{};
     filter_state.mp3.sampleRate = 48000;
@@ -121,7 +132,8 @@ void test_mp3_import()
             assert(frequency == 1000 ? power > 0.99 && power < 1.01 : power < 0.0001);
         }
     }
-    delete[] filter_state.filter;
+    Mp3_release_filter(filter_state.filter);
+    assert(mp3_filters == nullptr);
     for (size_t length : {0u, 1u, 1000u})
     {
         reset();

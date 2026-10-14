@@ -201,7 +201,8 @@ inline bool operator==(const Sound_struct &lhs, const Sound_struct &rhs)
 enum AudioFileStorage : uint8_t
 {
     Flash,
-    Psram
+    Psram,
+    Sd
 };
 
 struct AudioFileSource

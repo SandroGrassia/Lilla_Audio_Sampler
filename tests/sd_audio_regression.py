@@ -16,7 +16,7 @@ fixture += r'''
 #include <iostream>
 #include <cstdlib>
 using std::min;
-constexpr int BUILTIN_SDCARD = 0, AUDIO_BLOCK_SAMPLES = 128;
+constexpr int BUILTIN_SDCARD = 0, AUDIO_BLOCK_SAMPLES = 128, FILE_WRITE = 1;
 struct File
 {
     std::shared_ptr<std::vector<uint8_t>> data;
@@ -40,6 +40,15 @@ struct File
         cursor += count;
         return count;
     }
+    size_t write(const uint8_t *input, size_t bytes)
+    {
+        if (!data) { return 0; }
+        data->resize(cursor + bytes);
+        memcpy(data->data() + cursor, input, bytes);
+        cursor += bytes;
+        return bytes;
+    }
+    void flush() {}
     void close() { data.reset(); directory = false; }
     File openNextFile();
 };
@@ -49,7 +58,16 @@ struct SDMock
     std::vector<std::string> order;
     std::map<std::string, std::shared_ptr<std::vector<uint8_t>>> files;
     bool begin(int) { return present; }
-    File open(const char *path)
+    bool mediaPresent() { return present; }
+    bool exists(const char *path) { return present && files.count(strrchr(path, '/') + 1); }
+    bool remove(const char *path) { return files.erase(strrchr(path, '/') + 1) != 0; }
+    bool rename(const char *from, const char *to)
+    {
+        if (!exists(from)) { return false; }
+        files[strrchr(to, '/') + 1] = files[strrchr(from, '/') + 1];
+        return remove(from);
+    }
+    File open(const char *path, int mode = 0)
     {
         if (!present)
         {
@@ -62,6 +80,7 @@ struct SDMock
             return file;
         }
         const std::string name = strrchr(path, '/') + 1;
+        if (mode == FILE_WRITE && !files.count(name)) { files[name] = std::make_shared<std::vector<uint8_t>>(); }
         const auto found = files.find(name);
         return found == files.end() ? File{} : File{found->second, name};
     }
@@ -119,7 +138,8 @@ int main()
     assert(SdAudioLibrary::Name(0, name) && strcmp(name, "alpha.raw") == 0);
     assert(SdAudioLibrary::Name(1, name) && strcmp(name, "Beta.RAW") == 0);
     assert(SdAudioLibrary::Name(2, name) && strcmp(name, "z.raw") == 0);
-    assert(std::equal(archive.begin(), archive.begin() + SdAudioLibrary::ADDRESS, LillaFram.memory.begin()));
+    assert(archive == LillaFram.memory);
+    assert(SD.exists(SdAudioLibrary::INDEX_PATH));
     SdAudioReader reader;
     int16_t samples[4] = {};
     assert(reader.Open("alpha.raw") && reader.Samples() == 4);
@@ -155,6 +175,70 @@ int main()
     preview.Stop();
     preview.update();
     assert(preview.transmitted == 1);
+    std::vector<uint8_t> ramp(8192);
+    for (int i = 0; i < 4096; ++i)
+    {
+        const int16_t value = i + 1;
+        memcpy(ramp.data() + i * 2, &value, 2);
+    }
+    SD.add("ramp.raw", ramp);
+    assert(preview.Open("ramp.raw"));
+    preview.Note_on(60, 127, 1.0f);
+    preview.Note_on(64, 127, 2.0f);
+    assert(preview.Service());
+    preview.update();
+    for (int i = 0; i < 128; ++i)
+    {
+        assert(preview.output.data[i] == 2 + 3 * i);
+    }
+    preview.Note_off(60);
+    preview.update();
+    for (int i = 0; i < 128; ++i)
+    {
+        assert(preview.output.data[i] == 257 + 2 * i);
+    }
+    preview.Silence();
+    preview.Note_on(72, 127, 8.0f);
+    assert(preview.Service());
+    preview.update();
+    for (int i = 0; i < 128; ++i)
+    {
+        assert(preview.output.data[i] == 1 + 4 * i);
+    }
+    preview.Silence();
+    for (int key = 60; key < 77; ++key)
+    {
+        preview.Note_on(key, 127, 1.0f);
+    }
+    assert(preview.Service());
+    preview.update();
+    for (int i = 0; i < 128; ++i)
+    {
+        assert(preview.output.data[i] == 16 * (i + 1));
+    }
+    preview.Silence();
+    const int sent = preview.transmitted;
+    preview.update();
+    assert(preview.transmitted == sent);
+    preview.Stop();
+    SD.present = false;
+    assert(!SdAudioLibrary::Check(1));
+    SD.present = true;
+    assert(SdAudioLibrary::Check(1));
+    SD.order.clear();
+    SD.files.clear();
+    for (int i = 999; i >= 0; --i)
+    {
+        char filename[20];
+        snprintf(filename, sizeof(filename), "%04d.raw", i);
+        SD.add(filename, {0, 0});
+    }
+    assert(SdAudioLibrary::Begin() && SdAudioLibrary::Count() == 1000);
+    assert(SdAudioLibrary::Name(999, name) && strcmp(name, "0999.raw") == 0);
+    SD.add("overflow.raw", {0, 0});
+    assert(!SdAudioLibrary::Begin() && SdAudioLibrary::Count() == 0);
+    SD.order.clear();
+    SD.files.clear();
     SD.add(std::string(64, 'a') + ".raw", {0, 0});
     assert(!SdAudioLibrary::Begin() && SdAudioLibrary::Count() == 0 && SdAudioLibrary::Error() != nullptr);
     std::cout << "SD library regression passed\n";

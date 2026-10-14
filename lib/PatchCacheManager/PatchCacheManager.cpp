@@ -119,7 +119,7 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
 
     for (const auto &preset : presets)
     {
-        if (!preset.active || preset.file >= FIRST_LIVE_SAMPLING_FILE || Find_required(preset.file) >= 0)
+        if (!preset.active || preset.source.storage == Sd || preset.file >= FIRST_LIVE_SAMPLING_FILE || Find_required(preset.file) >= 0)
         {
             continue;
         }
@@ -185,7 +185,7 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 
     AudioFileSource result;
     result.file_id = file_id;
-    result.storage = SdAudioLibrary::Assigned(file_id) ? Psram : Flash;
+    result.storage = SdPlayerCache::Assigned(file_id) ? Sd : (SdAudioLibrary::Assigned(file_id) ? Psram : Flash);
     result.samples = File_samples(file_id);
 
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)

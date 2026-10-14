@@ -5,6 +5,7 @@
  */
 
 #include "AudioPlayer.h"
+#include "SdAudioLibrary.h"
 
 int16_t AudioPlayer::samples_basket[BASKET_DIM];
 float AudioPlayer::resampled_basket[AUDIO_BLOCK_SAMPLES];
@@ -17,7 +18,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
     const int file = pending ? file_id_wait : file_id; // File class determines Live and packet behavior.
     plan.antialias = pending ? tone_filter_level_wait : tone_filter_level;
     plan.live = file >= FIRST_LIVE_SAMPLING_FILE;
-    plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
+    plan.source = wavetable || source.storage == Sd ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
     plan.packets = !wavetable && !plan.live && source.storage == Flash && file >= FIRST_RECORDING_FILE;
     const int mode = edited ? mode_player_E : (pending ? mode_player_wait : mode_player); // Source geometry for the chosen stage.
     plan.loop = mode >= LOOP_FWD;
@@ -477,6 +478,11 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
             }
         }
     }
+    if (source_wait.storage == Sd)
+    {
+        pitch_limit_wait = SdPlayerCache::MAX_PITCH;
+    }
+
 }
 
 void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in)
@@ -642,6 +648,11 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     }
 
     main_settings_editing_flag = true;
+    if (source_now.storage == Sd)
+    {
+        pitch_limit_E = SdPlayerCache::MAX_PITCH;
+    }
+
 }
 
 void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in)
@@ -687,7 +698,7 @@ void AudioPlayer::Start_playing(void)
     LS_flag = false;
 
     // A complete cache already contains the logical samples of either a RAW or a REC file.
-    if (source_now.storage == Psram)
+    if (source_now.storage == Psram || source_now.storage == Sd)
     {
         // No Flash handle is needed; edits continue to use this immutable source.
     }
@@ -954,6 +965,27 @@ void AudioPlayer::update(void)
         }
     }
     Enforce_cycle_deadline(); // Check before allocating buffers or harvesting audio; never reset the shared clock here.
+    bool sd_ready = true;
+    if (state != IDLE && source_now.storage == Sd && !use_Wavetable)
+    {
+        sd_ready &= SdPlayerCache::Require_geometry(A_Flash_sample, B_Flash_sample, delta_Noclick, mode_player, a_first_sample, audio_update_cycle);
+    }
+    if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Sd && !use_Wavetable_wait)
+    {
+        sd_ready &= SdPlayerCache::Require_geometry(A_Flash_sample_wait, B_Flash_sample_wait, delta_Noclick_wait, mode_player_wait, a_first_sample_wait, audio_update_cycle);
+    }
+    if (!sd_ready)
+    {
+        if (!power_on || state == IDLE_REQUEST)
+        {
+            Close_source();
+            state = IDLE;
+            idle = true;
+            My_LED(false);
+        }
+        return; // Wait for foreground refill without advancing the playhead or envelope.
+    }
+
 
     audio_block_t *block_L, *block_R;
     float F_basket_sample;
@@ -3200,6 +3232,12 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
     char packet_filename[NAME_PACKET_SIZE];
     if (total_samples <= 0)
     {
+        return;
+    }
+    if (source_now.storage == Sd)
+    {
+        Record_read(PlayerReadSource::Ram, total_samples, 0);
+        SdPlayerCache::Read_cached(destination, first_sample, total_samples);
         return;
     }
     if (source_now.storage == Psram)

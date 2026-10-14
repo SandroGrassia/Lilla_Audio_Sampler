@@ -11,6 +11,24 @@
 #include <math.h>
 
 FLASHMEM
+void DisplaySound::Mark_audio_unavailable(int sound)
+{
+    audio_unavailable[sound] = true;
+}
+
+FLASHMEM
+void DisplaySound::Clear_audio_unavailable(int sound)
+{
+    audio_unavailable[sound] = false;
+}
+
+FLASHMEM
+void DisplaySound::Show_audio_unavailable()
+{
+    Show_popup_text("AUDIO FILE UNAVAILABLE", ILI9341_WHITE, ILI9341_RED, WAVE_MAX + WAVEBOARD_HEIGHT / 2 - 120);
+}
+
+FLASHMEM
 void DisplaySound::Show_pointer_frame(S_field_description_struct description, bool show)
 {
     switch (description.field_name)
@@ -378,6 +396,17 @@ void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch 
 void DisplaySound::Show_wave(int instrument_id)
 {
     auto sound_id_local = Get_sound_id(Patch_id, instrument_id);                                                // Active sound routed to the selected instrument.
+    const int file = Sound[sound_id_local].file;
+    if (file < FIRST_LIVE_SAMPLING_FILE && Info.Raw_file_samples(file) == 0)
+    {
+        audio_unavailable[sound_id_local] = true;
+    }
+    if (audio_unavailable[sound_id_local])
+    {
+        tft.fillRect(X_WAVEBOARD_LEFT, WAVE_MAX, WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT, WAVE_BOARD_COLOR);
+        Show_audio_unavailable();
+        return;
+    }
     int yp, yn, y0;                                                                                                          // Upper sample, lower sample, and previous Y position on the canvas.
     int NC_A;                                                                                                                // Width of the no-click curtain drawn at both waveform edges.
     int16_t *X = Info.Sound_620_samples_array(Preset[instrument_id].file, Preset[instrument_id].A, Preset[instrument_id].B); // Two 620-sample envelopes used for waveform rendering.

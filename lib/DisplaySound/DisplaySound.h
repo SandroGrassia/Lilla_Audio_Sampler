@@ -21,6 +21,7 @@ class DisplaySound
 {
 private:
     int menu_first_visible = 0;
+    bool audio_unavailable[SOUNDS_MAX + 2] = {};
     // Screen coordinates for each SOUND page value field, expressed in character columns/rows.
     static constexpr float S_column_row_Patch[2] = {33, 0};
     static constexpr float S_column_row_Sound[2] = {22.5, 0};
@@ -80,6 +81,9 @@ private:
     void Delete_all_menu_frame(void); // Clears every SOUND menu highlight frame.
 
 public:
+    void Mark_audio_unavailable(int sound);
+    void Clear_audio_unavailable(int sound);
+    void Show_audio_unavailable();
     void Led_SOUND_EDIT_instrument(int instrument_id, bool on);
     DisplaySound() {}
 

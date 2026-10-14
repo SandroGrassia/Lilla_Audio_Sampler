@@ -3,6 +3,8 @@
 #pragma GCC optimize ("Os")
 #define DR_MP3_NO_STDIO
 #define DR_MP3_NO_SIMD
+// SD voices need bounded compressed-input buffers (the decoder default is 64 KiB each).
+#define DRMP3_DATA_CHUNK_SIZE 16384
 #define DR_MP3_IMPLEMENTATION
 #include <dr_mp3.h>
 #include <new>
@@ -10,6 +12,16 @@
 
 static constexpr uint32_t MP3_OUTPUT_RATE = 44100;
 static constexpr uint32_t MP3_FILTER_TAPS = 64;
+
+// Foreground decoders of the same sample rate share immutable resampling coefficients.
+struct Mp3SharedFilter
+{
+    uint32_t rate;
+    uint32_t references;
+    float *values;
+    Mp3SharedFilter *next;
+};
+static Mp3SharedFilter *mp3_filters = nullptr;
 
 struct Mp3ImportDecoder
 {
@@ -39,11 +51,28 @@ static bool Mp3_prepare_filter(Mp3ImportDecoder &state)
     }
     state.phase_divisor = divisor;
     const uint32_t phases = MP3_OUTPUT_RATE / divisor;
+    for (auto *filter = mp3_filters; filter != nullptr; filter = filter->next)
+    {
+        if (filter->rate == state.mp3.sampleRate)
+        {
+            ++filter->references;
+            state.filter = filter->values;
+            return true;
+        }
+    }
     state.filter = new (std::nothrow) float[phases * MP3_FILTER_TAPS];
     if (state.filter == nullptr)
     {
         return false;
     }
+    auto *shared = new (std::nothrow) Mp3SharedFilter{state.mp3.sampleRate, 1, state.filter, mp3_filters};
+    if (shared == nullptr)
+    {
+        delete[] state.filter;
+        state.filter = nullptr;
+        return false;
+    }
+    mp3_filters = shared;
     // Blackman-windowed sinc: leave a transition band below the lower Nyquist frequency.
     const float cutoff = 0.94f * (state.mp3.sampleRate > MP3_OUTPUT_RATE ? static_cast<float>(MP3_OUTPUT_RATE) / state.mp3.sampleRate : 1.0f);
     constexpr float pi = 3.14159265358979323846f;
@@ -120,12 +149,30 @@ static drmp3_bool32 Mp3_tell(void *context, drmp3_int64 *position)
     return DRMP3_TRUE;
 }
 
+static void Mp3_release_filter(float *values)
+{
+    for (auto **link = &mp3_filters; *link != nullptr; link = &(*link)->next)
+    {
+        auto *filter = *link;
+        if (filter->values == values)
+        {
+            if (--filter->references == 0)
+            {
+                *link = filter->next;
+                delete[] filter->values;
+                delete filter;
+            }
+            break;
+        }
+    }
+}
+
 Mp3Import::~Mp3Import()
 {
     if (decoder != nullptr)
     {
         drmp3_uninit(&decoder->mp3);
-        delete[] decoder->filter;
+        Mp3_release_filter(decoder->filter);
         delete decoder;
     }
 }
