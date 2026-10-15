@@ -54,7 +54,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
         Display_Common.P_show_PERFORMANCE_title();
     }
 
-    tft.setCursor(display_coordinate_x(27), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(26), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print(Lilla_state_0 == DIRECT_SAMPLING ? "REC" : "PATCH");
     tft.setCursor(display_coordinate_x(S_column_row_Patch[0]), display_coordinate_y(S_column_row_Patch[1]));
@@ -68,7 +68,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.setTextColor(ILI9341_WHITE);
     tft.print(instrument_id + 1);
 
-    tft.setCursor(display_coordinate_x(37), display_coordinate_y(0));
+    tft.setCursor(display_coordinate_x(36), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
     tft.print("FILE");
     Show_File_value(instrument_id);
@@ -247,15 +247,23 @@ void DisplaySound::Show_File_value(int instrument_id)
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
     tft.setTextColor(ILI9341_YELLOW);
     const uint16_t file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
-    Get_file_name(file, audio_filename);
-    if (file < FIRST_RECORDING_FILE)
+    const bool sd_source = SdSoundSource::Is_sd(file);
+    const char *name = sd_source ? SdSoundSource::Name(file) : Get_file_name(file, audio_filename);
+    size_t name_length = strlen(name);
+    if (file < FIRST_RECORDING_FILE || sd_source)
     {
-        audio_filename[strlen(audio_filename) - 4] = 0; // Always omit .raw in the compact header.
+        const char *extension = strrchr(name, '.');
+        if (extension != nullptr)
+        {
+            name_length = extension - name;
+        }
     }
-    if (strlen(audio_filename) > S_chars_File)
+    if (name_length > S_chars_File)
     {
-        audio_filename[S_chars_File] = 0;
+        name_length = S_chars_File;
     }
+    memmove(audio_filename, name, name_length);
+    audio_filename[name_length] = 0;
     tft.print(audio_filename);
 }
 
