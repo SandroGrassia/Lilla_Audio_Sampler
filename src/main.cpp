@@ -2628,26 +2628,30 @@ void loop()
             {
             case value_S_File:
             {
+                // Select acts as a held modifier here; consume its click so it cannot activate a later menu item.
+                Read_pushbutton(EN_PB_Select);
                 int result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0 && Lilla_state_0 != DIRECT_SAMPLING)
                 {
+                    const int file_step = Read_pushbutton_fast(EN_PB_Select) ? 10 : 1;
                     if (SdSoundSource::Is_sd(Sound[Sound_id].file))
                     {
-                        const int next = static_cast<int>(S_sd_index) + result;
-                        if (next >= 0 && static_cast<uint32_t>(next) < S_sd_files)
+                        const int next = constrain(static_cast<int>(S_sd_index) + result * file_step, 0, static_cast<int>(S_sd_files) - 1);
+                        if (next >= 0 && static_cast<uint32_t>(next) < S_sd_files && static_cast<uint32_t>(next) != S_sd_index)
                         {
                             browse_sd(next);
                         }
                         break;
                     }
-                    int S_file_change;
-                    if (result == 1)
+                    int S_file_change = Sound[Sound_id].file;
+                    for (int step = 0; step < file_step; ++step)
                     {
-                        S_file_change = Get_next_raw_file_in_flash(Sound[Sound_id].file);
-                    }
-                    else
-                    {
-                        S_file_change = Get_previous_raw_file_in_flash(Sound[Sound_id].file);
+                        const int next = result > 0 ? Get_next_raw_file_in_flash(S_file_change) : Get_previous_raw_file_in_flash(S_file_change);
+                        if (next == S_file_change)
+                        {
+                            break;
+                        }
+                        S_file_change = next;
                     }
                     if (S_file_change != Sound[Sound_id].file)
                     {
