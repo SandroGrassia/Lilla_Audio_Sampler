@@ -18,7 +18,11 @@ See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, 
 
 ## New in firmware 7.2.0: SD audio library
 
-SETUP now includes `CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO`: immediate copies/conversions of missing files to mono RAW, preservation of existing files, Serial reporting and a 1,024-entry alphabetical index created if absent and updated after import. SOUND_EDIT also supports alphabetical Flash/SD browsing, SD audition through the 16 existing Players using PSRAM, and SAVE of the selected portion with a persistent SD reference. See [User audio preparation](docs/user-audio-preparation.md). This feature is included in firmware 7.2.0. Direct Flash import now reads `/FLASH_AUDIO`; SD library preparation reads `/EXTERNAL_AUDIO` and writes `/LILLA_AUDIO`. See the [7.2.0 release notes](docs/release-notes-7.2.0.md).
+Earlier firmware versions let you build patches from the samples you had imported into LILLA's 64 MB Flash memory. Firmware 7.2.0 opens up a much larger library: browse and audition your prepared audio collection on an SD card, choose the sounds or portions you want, and use them in your patches without having to import them into Flash.
+
+You can still keep your favourite samples in the internal Flash library, within its 64 MB capacity, and choose from both libraries when creating patches.
+
+See the [User Guide](User%20Guide.md#importing-audio) to get started, or read the [7.2.0 release notes](docs/release-notes-7.2.0.md) for details.
 
 ## What This Project Does
 
