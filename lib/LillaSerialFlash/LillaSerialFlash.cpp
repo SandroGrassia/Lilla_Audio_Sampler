@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
  * Author: Sandro Grassia, info@lillasampler.it
@@ -83,6 +84,10 @@ uint32_t LillaSerialFlashFile::read(void *buffer, uint32_t bytes)
 
 bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination, int first_sample, int samples_count)
 {
+    if (SdSoundSource::Is_sd(file_id))
+    {
+        return SdSoundSource::Read(file_id, destination, first_sample, samples_count);
+    }
     if (Capture_find(file_id) != nullptr)
     {
         return Capture_read(file_id, destination, first_sample, samples_count);

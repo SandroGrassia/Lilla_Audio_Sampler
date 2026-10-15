@@ -16,6 +16,13 @@ for path, function in [('lib/SharedElements/SharedElements.cpp', 'Get_file_name'
     source = (ROOT / path).read_text(encoding='utf-8')
     methods.append(re.search(r'^const char \*' + function + r'\([^\n]+\)\n\{.*?^\}', source, re.M | re.S).group(0))
 
+source = (ROOT / 'lib/SharedElements/SharedElements.cpp').read_text(encoding='utf-8')
+methods.append(re.search(r'^FLASHMEM int Compare_audio_file_names[^\n]+\n\{.*?^\}', source, re.M | re.S).group(0))
+methods.append('struct FlashFileRegisterParser { static bool Zero_from_firmware() { return true; } }; int Get_samples_in_raw_file(int id) { return id>=1 && id<=3 ? 100 : 0; }')
+source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
+for function in ['Get_next_raw_file_in_flash', 'Get_previous_raw_file_in_flash']:
+    methods.append(re.search(r'^FLASHMEM int ' + function + r'[^\n]+\n\{.*?^\}', source, re.M | re.S).group(0))
+
 checks = r'''
 int main()
 {
@@ -63,6 +70,17 @@ int main()
     assert(FileNameRegistry::Add("long_audio_filename.raw") == 1);
     assert(strcmp(Get_file_name(1, file.name), "long_audio_filename.raw") == 0);
     assert(file.before == 'A' && file.after == 'Z');
+    reset_registry();
+    assert(FileNameRegistry::Add("Zebra.raw")==1);
+    assert(FileNameRegistry::Add("alpha.raw")==2);
+    assert(FileNameRegistry::Add("Middle.raw")==3);
+    assert(Get_next_raw_file_in_flash(-1)==2);
+    assert(Get_next_raw_file_in_flash(2)==3);
+    assert(Get_next_raw_file_in_flash(3)==1);
+    assert(Get_next_raw_file_in_flash(1)==1);
+    assert(Get_previous_raw_file_in_flash(1)==3);
+    assert(Get_previous_raw_file_in_flash(3)==2);
+    assert(Get_previous_raw_file_in_flash(2)==2);
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
@@ -70,7 +88,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-file-names-') as directory:
     cpp = Path(directory) / 'names.cpp'
     exe = Path(directory) / ('names.exe' if os.name == 'nt' else 'names')
     cpp.write_text('#include <cassert>\n#include <cstdint>\n#include <cstdio>\n#include <cstring>\n' + constants + '\n' + '\n'.join(methods) + checks, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     result = subprocess.run([str(exe)], check=True, env=environment, capture_output=True, text=True)

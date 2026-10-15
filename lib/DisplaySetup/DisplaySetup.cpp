@@ -24,15 +24,15 @@ void DisplaySetup::SETUP_show_SETUP_page(void)
     tft.print("FIRST OCTAVE");
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
     tft.print(F("CONTROL CHANGE ASSIGNMENT"));
-    // tft.setCursor(x_pos(0), display_coordinate_y(5));
-    // tft.print("*FUTURE DEVELOPMENTS*");
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
-    tft.print(F("IMPORT AUDIO FILES FROM /LILLA_AUDIO"));
+    tft.print(F("CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
-    tft.print(F("RESTORE CONFIG + AUDIO FROM /LILLABACKUP ROOT"));
+    tft.print(F("IMPORT AUDIO FILES FROM SD /FLASH_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
-    tft.print(F("NEW NUMBERED BACKUP IN /LILLABACKUP"));
+    tft.print(F("RESTORE CONFIG + AUDIO FROM /LILLABACKUP ROOT"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
+    tft.print(F("NEW NUMBERED BACKUP IN /LILLABACKUP"));
+    tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
     tft.print(F("FACTORY RESET"));
 
     SETUP_show_Key_step_value();
@@ -80,36 +80,40 @@ void DisplaySetup::SETUP_show_First_octave_value(void)
 FLASHMEM
 void DisplaySetup::SETUP_show_frame(int8_t value)
 {
-    Frame_by_col_row(9, 2, 5, false);   // First octave
-    Frame_by_col_row(13, 3, 2, false);  // First octave
-    Frame_by_col_row(0, 4, 25, false);  // Control Change Assignment
-    Frame_by_col_row(0, 5, 36, false);  // Import audio files
-    Frame_by_col_row(0, 6, 45, false);  // Import configuration from
-    Frame_by_col_row(0, 7, 46, false);  // Export configuration to SD
-    Frame_by_col_row(0, 8, 13, false);  // Factory Reset
+    Frame_by_col_row(9, 2, 5, false);
+    Frame_by_col_row(13, 3, 2, false);
+    Frame_by_col_row(0, 4, 25, false);
+    Frame_by_col_row(0, 5, 48, false);
+    Frame_by_col_row(0, 6, 39, false);
+    Frame_by_col_row(0, 7, 45, false);
+    Frame_by_col_row(0, 8, 35, false);
+    Frame_by_col_row(0, 9, 13, false);
 
     switch (value)
     {
     case 0:
-        Frame_by_col_row(9, 2, 5, true); // First octave
+        Frame_by_col_row(9, 2, 5, true);
         break;
     case 1:
-        Frame_by_col_row(13, 3, 2, true); // First octave
+        Frame_by_col_row(13, 3, 2, true);
         break;
     case 2:
-        Frame_by_col_row(0, 4, 25, true); // Control Change
+        Frame_by_col_row(0, 4, 25, true);
         break;
     case 3:
-        Frame_by_col_row(0, 5, 36, true); // Import audio files
+        Frame_by_col_row(0, 5, 48, true);
         break;
     case 4:
-        Frame_by_col_row(0, 6, 45, true); // Import configuration to SD
+        Frame_by_col_row(0, 6, 39, true);
         break;
     case 5:
-        Frame_by_col_row(0, 7, 46, true); // Export configuration to SD
+        Frame_by_col_row(0, 7, 45, true);
         break;
     case 6:
-        Frame_by_col_row(0, 8, 13, true); // Factory reset
+        Frame_by_col_row(0, 8, 35, true);
+        break;
+    case 7:
+        Frame_by_col_row(0, 9, 13, true);
         break;
     default:
         break;

@@ -6,6 +6,12 @@ import shutil
 import subprocess
 import tempfile
 root = Path(__file__).resolve().parents[1]
+
+# The synchronous SD load must display the same managed popup before blocking.
+main_source = (root / 'src/main.cpp').read_text(encoding='utf-8')
+prepare = main_source[main_source.index('FLASHMEM bool P_Prepare_audio_tables('):]
+sd_branch = prepare[:prepare.index('const bool audio_interrupts_enabled')]
+assert sd_branch.index('if (!PatchCache_Manager.Sd_sources_ready(patch_id))') < sd_branch.index('Display_Performance.P_update_upload_popup(true, P_pointer);') < sd_branch.index('PatchCache_Manager.Load_sd_sources(patch_id);')
 def method(name, signature):
     return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', (root / name).read_text(encoding='utf-8'), re.M | re.S).group(0)
 code = r"""

@@ -7,7 +7,7 @@ import tempfile
 
 root = Path(__file__).resolve().parents[1]
 source = (root / 'src/main.cpp').read_text(encoding='utf-8')
-menu = source.split('            case 4: // Restore configuration', 1)[1].split('            case 5:', 1)[0]
+menu = source.split('            case 5: // Restore configuration', 1)[1].split('            case 6:', 1)[0]
 menu = 'case 4: //' + menu
 reload = source.split('void Reload_system_state(void)\n{', 1)[1].split('\n}\n', 1)[0]
 tail = reload[reload.index('    // ****************    DEFINE STARTUP MODE'):]

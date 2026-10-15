@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.1.1**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.0**
 
-Guide edition: **13 October 2026**
+Guide edition: **15 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.1.1](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.0](User%20Guide.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -174,7 +174,7 @@ Use the last shortcut when you need to stop sounding notes quickly. In MIDI Loop
 
 | Term | Meaning |
 | --- | --- |
-| Audio file | The source sample used for playback. Imported audio is converted to mono RAW audio in Flash. |
+| Audio file | The source sample used for playback. Imported audio is converted to mono RAW audio in Flash or in the SD library. |
 | Recording | Audio recorded by the Sampler into its Flash recording area; it can be mono or stereo. |
 | Sound | A source file plus playback settings such as trimming, pitch, envelope, pan and gain. |
 | Instrument / sound slot | One of up to eight positions in a patch, with MIDI mapping, root key, keyboard range and filter settings. |
@@ -184,7 +184,7 @@ Use the last shortcut when you need to stop sounding notes quickly. In MIDI Loop
 
 The firmware provides storage for up to 200 patches and 800 sound records. These are storage capacities; the instrument has up to 16 simultaneous playback voices. Available polyphony also depends on playback workload.
 
-Flash holds the imported audio library and Sampler recordings. PSRAM holds live audio. The microSD card is used for import, WAV export, backups and MIDI-loop files.
+Flash holds the imported audio library and Sampler recordings. PSRAM holds live audio. The microSD card also holds indexed audio sources in `/LILLA_AUDIO`, and is used for import, WAV export, backups and MIDI-loop files. SD source portions are loaded into PSRAM before playback.
 
 ### Follow the sound from source to keyboard
 
@@ -318,7 +318,7 @@ Use `CLONE` when you want a second patch to develop from an existing one. Use `S
 
 **Before moving into a sampling workflow, save the patch you were editing.** Live Sampler can keep the previous Performance patch in memory, but creating a new captured patch requires that previous patch to have no pending edits.
 
-A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash into PSRAM. Wait for the load to finish before playing the new patch.
+A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. Wait for the load to finish before playing the new patch.
 
 ## Editing a sound
 
@@ -327,6 +327,16 @@ A green `PATCH UPLOADING` popup indicates that patch audio is being transferred 
 *The waveform belongs to the selected source. `FROM`, `TO` and `TOT` describe the playable region; `TRIM STEP` controls the editing increment.*
 
 From Performance, press **S1-S8** for an active sound to open Sound Edit. An unused slot displays `SOUND ... IS NOT USED`; pressing it does not create a new sound.
+
+### Browse Flash or SD audio
+
+Choose `BROWSE_FLASH` or `BROWSE_SD` in Sound Edit to browse the corresponding library alphabetically; commands appear when that library contains audio. SD browsing uses the index created by the Setup conversion command described under **Importing audio**.
+
+Selecting an SD file loads a window limited by the available per-source PSRAM cache for MIDI audition, without continuous SD reads during notes. Adjust From, To and Step to choose the portion; the display uses `SAVE FROM` during preview. Gain, pitch, MIDI channel, resolution, downsampling and LPF remain editable. Pan, envelope, playback mode and Noclick are fixed during preview and become editable after SAVE.
+
+Choose `SAVE` to retain the selected portion and its persistent SD source reference, then save the patch in Performance. No audio is written to Flash by this operation. Keep the RAW files and hidden `/LILLA_AUDIO/.lilla-sources` directory together: both are needed to reload saved Sounds after startup. `RETURN` without SAVE restores the previous Sound.
+
+`AUDIO FILE UNAVAILABLE` indicates a missing source; audio already cached in PSRAM can continue playing after card removal. If selection fails after removing the card, `INSERT SD` appears and the previous selection is preserved.
 
 ### Choose and trim the source
 
@@ -421,6 +431,22 @@ Turn Select to reach all enabled menu commands. If a long menu does not fit on o
 
 ## Importing audio
 
+### Prepare an SD audio library
+
+This workflow keeps audio on SD and preserves the existing Flash library and recordings.
+
+1. Put source RAW, WAV, AIFF/AIF or MP3 files directly in `/EXTERNAL_AUDIO` at the card root. Use distinct basenames.
+2. Insert the card and open **Tools > Setup**.
+3. Select `CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO`. Processing starts immediately, without a confirmation prompt.
+4. Wait while `FILE IMPORT IN PROGRESS` is displayed. Audio and MIDI pause during conversion; do not power off or remove the card.
+5. Open Sound Edit and choose `BROWSE_SD` to audition and save a portion, then save the patch in Performance.
+
+Converted mono RAW files are stored in `/LILLA_AUDIO` at 44.1 kHz, signed 16-bit little-endian PCM. The input format requirements are listed below. Original files are retained and existing destination files are skipped. Files sharing a basename target the same RAW file; use unique names to retain every source. Subdirectories are not processed.
+
+SD conversion processes complete files without the Flash import limit of 3 MiB. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 1,024 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_AUDIO` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
+
+### Replace the Flash audio library
+
 > **Import replaces the audio library.** Confirming import erases the previous Flash audio files and Sampler recordings. Create a backup and keep your source audio on your computer before proceeding.
 
 <img src="doc/assets/images/12.jpg" alt="Audio import page showing source files, Flash capacity and the erase warning" width="37%">
@@ -429,7 +455,7 @@ Turn Select to reach all enabled menu commands. If a long menu does not fit on o
 
 ### Prepare the microSD card
 
-Create `/LILLA_AUDIO` at the card's root and put your audio files directly inside it.
+Create `/FLASH_AUDIO` at the card's root and put your audio files directly inside it.
 
 | Format | Import requirements |
 | --- | --- |
@@ -446,7 +472,7 @@ A simple card layout is:
 
 ```text
 microSD root/
-  LILLA_AUDIO/
+  FLASH_AUDIO/
     BassDry.wav
     Bell.aiff
     DrumLoop.mp3
@@ -463,7 +489,7 @@ Each imported file is limited to 3 MiB of decoded mono PCM, approximately 35.7 s
 
 1. Insert the prepared microSD card.
 2. Open **Tools > Setup**.
-3. Select `IMPORT AUDIO FILES FROM /LILLA_AUDIO` and press Select.
+3. Select `IMPORT AUDIO FILES FROM SD /FLASH_AUDIO` and press Select.
 4. Review the import report and final erase warning.
 5. Confirm only when you are ready to replace the current library and recordings.
 6. Wait for copying, memory configuration and restart to complete.
@@ -732,7 +758,7 @@ Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving
 
 <img src="doc/assets/images/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="37%">
 
-*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.1.1 calls this route PRE_LIST.*
+*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.0 calls this route PRE_LIST.*
 
 Open **Tools > Mixer** to adjust the eight Sound sources and `L_IN`. Turn Select to choose a source column, then press it to enter the fields. Turn Select through `MUTE`, `GAIN`, `PAN`, `LINEOUT` and `PRE_LIST`; press Select to return to source selection. MUTE and GAIN have separate selection frames.
 
@@ -847,6 +873,7 @@ A configuration backup is one part of preserving a session. Keep the matching au
 | Sampler recording audio | Included. | WAV export is also useful for computer access. |
 | Sampler recording A/B boundaries | Included in current backups. | Older backups without trim metadata restore the full recording region. |
 | Imported RAW library | Not included. | Retain the original import library separately. |
+| SD source library | Not included in the normal backup. | Copy the complete `/LILLA_AUDIO` directory, including hidden files, to your computer. |
 | RAW files generated from recordings or live captures | Not included as a complete RAW-library archive. | Keep an independent recoverable audio copy; saving to Flash alone is not an external backup. |
 | MIDI-loop directory | Not included. | Copy `/LILLALOOP` from the card. |
 | Temporary live buffer | Not included. | Capture and save useful material before power-off. |
@@ -939,7 +966,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.1.1. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.0. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -993,7 +1020,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.1.1.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.0.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1027,7 +1054,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Audio clips or distorts | Reduce recording input gain or playback gain. Check Mixer levels, resolution and downsampling. |
 | Clicks at a loop boundary | Refine From/To and adjust Noclick where available. |
 | Fewer notes play than expected | LILLA has up to 16 voices; layers consume multiple voices and heavier playback can reduce availability. Review precedence and arrangement density. |
-| SD import cannot find files | Check the card and the exact `/LILLA_AUDIO` folder at its root. |
+| SD import cannot find files | Check the card and the exact `/FLASH_AUDIO` folder at its root. |
 | Import rejects a WAV or AIFF | Use uncompressed 16-bit PCM at 44.1 kHz with one or two channels. |
 | Import reports duplicate files | Give each source a distinct basename, including files in different formats. |
 | An imported sample ends early | Check the approximately 35.7-second import limit. |
@@ -1096,7 +1123,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Edit a sound | Performance > S1-S8 for an active slot. |
 | Add another instrument using an existing sound | Sound Edit > CLONE, then edit the new slot. |
 | Keep sound edits after power-off | Return to Performance > SAVE. |
-| Import computer audio | SD `/LILLA_AUDIO` > Tools > Setup > import. |
+| Import computer audio | SD `/FLASH_AUDIO` > Tools > Setup > import. |
 | Record line input | Sampler > PAUSE+REC > MONO_REC or STEREO_REC > STOP. |
 | Edit a recording while playing it from the keyboard | Sampler > completed recording > S1 (mono/left) or S2 (stereo right) > Sound Edit > RETURN. |
 | Keep recording trim points for playback and export | Adjust A/B in Sampler Sound Edit; saved automatically, with stereo channels linked. |
@@ -1133,6 +1160,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 13 October 2026*
+*LILLA User Guide - English edition - 15 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

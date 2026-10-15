@@ -1,3 +1,4 @@
+#include "SdSoundSource.h"
 #include "PlayersManager.h"
 #include <algorithm>
 
@@ -217,7 +218,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
 
     int8_t id_player = -1;
     bool finished = false;
-    const bool needs_sample = !Preset[instrument_id].use_Wavetable && Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE;
+    const bool needs_sample = !Preset[instrument_id].use_Wavetable && (Preset[instrument_id].file < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(Preset[instrument_id].file));
     const int voice_limit = PLAYERS;
 
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
@@ -419,7 +420,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     const auto &preset = Preset[instrument]; // Prepared source selected for the incoming note.
     PlayerReadBudget::Plan plan; // Match AudioPlayer's pending geometry without modifying a voice.
     plan.antialias = preset.lock;
-    plan.live = preset.file >= FIRST_LIVE_SAMPLING_FILE;
+    plan.live = (preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file));
     const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
     plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
     plan.packets = !wavetable && !plan.live && preset.source.storage == Flash && preset.file >= FIRST_RECORDING_FILE;
@@ -431,7 +432,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     {
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
     }
-    const float ceiling = Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
+    const float ceiling = preset.file == SdSoundSource::PREVIEW ? 8.0f : Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
     plan.pitch = constrain(note_pitch * preset.pitch * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
     return plan;
 }
@@ -1116,7 +1117,7 @@ bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Pr
         }
 
         const int file_id = Sound[Get_sound_id(patch_id, instrument_id)].file;
-        if (file_id < FIRST_LIVE_SAMPLING_FILE && Cache_manager_ptr->Get_source(file_id).samples == 0)
+        if ((file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id)) && Cache_manager_ptr->Get_source(file_id).samples == 0)
         {
             continue; // Keep Sound metadata and patch links; an inactive preset cannot play or require tables.
         }
@@ -1124,7 +1125,7 @@ bool PlayersManager::Build_presets_snapshot(int patch_id, float volume_patch, Pr
         presets[instrument_id] = Build_Preset(patch_id, instrument_id, volume_patch);
 
         // Live Sampler instruments do not require AudioTables storage.
-        if (presets[instrument_id].file < FIRST_LIVE_SAMPLING_FILE)
+        if ((presets[instrument_id].file < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(presets[instrument_id].file)))
         {
             tables_mask |= static_cast<uint16_t>(1u << instrument_id);
         }

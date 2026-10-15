@@ -38,6 +38,9 @@ static constexpr int Centered_element_top(const int height)
     return (240 - height) / 2;
 }
 
+// Align popup centers with the waveform canvas instead of the whole display.
+static constexpr int WAVE_POPUP_Y_OFFSET = WAVE_MAX - Centered_element_top(WAVEBOARD_HEIGHT);
+
 // conversion
 int display_coordinate_y(const float row);
 int display_coordinate_x(const float col);
