@@ -409,11 +409,11 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void)
 }
 
 FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing(void)
+void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(F("NO FILES TO IMPORT: MISSING /LILLA_AUDIO DIRECTORY!"));
+    tft.print(F("NO FILES TO IMPORT: MISSING /FLASH_AUDIO DIRECTORY!"));
 }
 
 FLASHMEM
@@ -421,7 +421,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(TEXT_COLOR);
-    tft.print(F("SOURCE: SD CARD /LILLA_AUDIO"));
+    tft.print(F("SOURCE: SD CARD /FLASH_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
     tft.print(F("- AUDIO FILES"));
     tft.setCursor(display_coordinate_x(14), display_coordinate_y(4));
@@ -498,7 +498,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(void)
     //        "012345678901234567890 234 X 432 98765432109876543210"; // max 52 char
     tft.print(F("PLEASE WAIT: FLASH MEMORY ERASE IS RUNNING."));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/LILLA_AUDIO"));
+    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/FLASH_AUDIO"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print("TO LILLA FLASH MEMORY");
 }

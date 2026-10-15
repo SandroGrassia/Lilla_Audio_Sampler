@@ -111,7 +111,7 @@ fixture+=r'''
 void reset()
 {
     SD.nodes.clear(); SD.fail_rename_to.clear(); SD.present=true; write_budget=-1; read_budget=-1; array_allocation_limit=SIZE_MAX; Serial.log.clear();
-    SD.mkdir("/USER_AUDIO");
+    SD.mkdir("/EXTERNAL_AUDIO");
 }
 UserAudioImport::Report run() {return UserAudioImport::Run(SET_WAV_raw_data,SET_AIFF_raw_data);}
 std::vector<UserAudioImport::Entry> index_entries()
@@ -130,16 +130,16 @@ void test_sd_import()
     reset();
     SD.mkdir("/LILLA_AUDIO");
     SD.add("/LILLA_AUDIO/Existing.raw",{8,9});
-    SD.add("/USER_AUDIO/z.RAW",{1,2,3,4});
-    SD.add("/USER_AUDIO/alpha.wav",audio_file(false,1200,2,true));
-    SD.add("/USER_AUDIO/Beta.AIFF",audio_file(true,1500,2,true,true));
-    SD.add("/USER_AUDIO/readme.txt",{1});
-    const auto original=SD.bytes("/USER_AUDIO/alpha.wav");
+    SD.add("/EXTERNAL_AUDIO/z.RAW",{1,2,3,4});
+    SD.add("/EXTERNAL_AUDIO/alpha.wav",audio_file(false,1200,2,true));
+    SD.add("/EXTERNAL_AUDIO/Beta.AIFF",audio_file(true,1500,2,true,true));
+    SD.add("/EXTERNAL_AUDIO/readme.txt",{1});
+    const auto original=SD.bytes("/EXTERNAL_AUDIO/alpha.wav");
     auto report=run();
     assert(report.copied==3 && report.skipped==1 && report.errors==0 && report.indexed==4 && report.index_ready);
     assert(SD.bytes("/LILLA_AUDIO/alpha.raw")==audio_samples(1200,2,false,true));
     assert(SD.bytes("/LILLA_AUDIO/Beta.raw")==audio_samples(1500,2,false,true));
-    assert(SD.bytes("/USER_AUDIO/alpha.wav")==original);
+    assert(SD.bytes("/EXTERNAL_AUDIO/alpha.wav")==original);
     auto entries=index_entries();
     assert(std::string(entries[0].name)=="alpha.raw" && std::string(entries[1].name)=="Beta.raw" && std::string(entries[2].name)=="Existing.raw" && std::string(entries[3].name)=="z.raw");
     assert(entries[0].bytes==2400 && entries[0].samples==1200);
@@ -147,26 +147,26 @@ void test_sd_import()
     assert(Serial.log.find("INDEX OK: 1 ")<Serial.log.find("COPY:"));
     assert(Serial.log.find("INDEX: updating final")>Serial.log.find("CONVERT:"));
     Serial.log.clear();
-    SD.add("/USER_AUDIO/z.RAW",{9,8});
+    SD.add("/EXTERNAL_AUDIO/z.RAW",{9,8});
     report=run();
     assert(report.errors==0 && report.copied==0 && report.skipped==4 && SD.bytes("/LILLA_AUDIO/z.raw")==std::vector<uint8_t>({1,2,3,4}));
     assert(Serial.log.find("already exists; unchanged")!=std::string::npos);
     assert(Serial.log.find("creating initial")==std::string::npos);
     assert(Serial.log.find("COPY:")==std::string::npos && Serial.log.find("CONVERT:")==std::string::npos);
-    SD.add("/USER_AUDIO/New.wav",audio_file(false,1200,1));
-    SD.add("/USER_AUDIO/Existing.mp3",{0,0}); // Existing RAW skips even invalid input without decoding.
+    SD.add("/EXTERNAL_AUDIO/New.wav",audio_file(false,1200,1));
+    SD.add("/EXTERNAL_AUDIO/Existing.mp3",{0,0}); // Existing RAW skips even invalid input without decoding.
     report=run();
     assert(report.copied==1 && report.skipped==5 && report.errors==0 && report.indexed==5);
     assert(SD.bytes("/LILLA_AUDIO/Existing.raw")==std::vector<uint8_t>({8,9}));
     reset();
     const std::vector<uint8_t> large(4*1024*1024,0x52);
-    SD.add("/USER_AUDIO/long.raw",large);
+    SD.add("/EXTERNAL_AUDIO/long.raw",large);
     assert(run().errors==0 && SD.bytes("/LILLA_AUDIO/long.raw")==large); // No Flash-only 3 MiB truncation.
     reset();
     SD.mkdir("/LILLA_AUDIO");
     array_allocation_limit=4096;
     SD.add("/LILLA_AUDIO/old.raw",{1,2});
-    SD.add("/USER_AUDIO/old.wav",audio_file(false,1000,1));
+    SD.add("/EXTERNAL_AUDIO/old.wav",audio_file(false,1000,1));
     write_budget=10;
     report=run();
     assert(report.errors>0 && SD.bytes("/LILLA_AUDIO/old.raw")==std::vector<uint8_t>({1,2}));
@@ -174,7 +174,7 @@ void test_sd_import()
     write_budget=-1;
     report=run();
     assert(report.errors==0 && report.index_ready);
-    SD.add("/USER_AUDIO/old.wav",audio_file(false,1200,1));
+    SD.add("/EXTERNAL_AUDIO/old.wav",audio_file(false,1200,1));
     const auto saved=SD.bytes("/LILLA_AUDIO/old.raw");
     SD.fail_rename_to=key("/LILLA_AUDIO/old.raw");
     report=run();
@@ -182,9 +182,9 @@ void test_sd_import()
     assert(!SD.fail_rename_to.empty());
     assert(!SD.exists("/LILLA_AUDIO/.user-import.previous"));
     reset();
-    SD.add("/USER_AUDIO/broken.wav",{1,2,3,4});
-    SD.add("/USER_AUDIO/odd.raw",{1,2,3});
-    SD.add("/USER_AUDIO/valid.raw",{1,2});
+    SD.add("/EXTERNAL_AUDIO/broken.wav",{1,2,3,4});
+    SD.add("/EXTERNAL_AUDIO/odd.raw",{1,2,3});
+    SD.add("/EXTERNAL_AUDIO/valid.raw",{1,2});
     report=run();
     assert(report.errors==2 && report.copied==1 && report.index_ready && report.indexed==1);
     reset();
@@ -259,7 +259,7 @@ void test_sd_import()
     assert(run().index_ready);
     reset();
     assert(run().index_ready);
-    SD.add("/USER_AUDIO/new.raw",{1,2});
+    SD.add("/EXTERNAL_AUDIO/new.raw",{1,2});
     SD.fail_rename_to=key("/LILLA_AUDIO/new.raw");
     report=run();
     assert(report.copied==0 && report.errors==1 && report.index_ready && report.indexed==0);
@@ -272,10 +272,10 @@ void test_sd_import()
     report=run();
     assert(report.copied==0 && report.skipped==1 && report.index_ready && report.indexed==1);
     reset(); SD.present=false; assert(run().errors==1);
-    reset(); SD.remove("/USER_AUDIO"); assert(run().errors==1);
+    reset(); SD.remove("/EXTERNAL_AUDIO"); assert(run().errors==1);
     reset();
-    SD.add("/USER_AUDIO/z.raw",{1,2,3,4,5,6,7,8});
-    SD.add("/USER_AUDIO/a.raw",{9,10});
+    SD.add("/EXTERNAL_AUDIO/z.raw",{1,2,3,4,5,6,7,8});
+    SD.add("/EXTERNAL_AUDIO/a.raw",{9,10});
     assert(run().index_ready && SdSoundSource::Catalog_count()==2);
     uint32_t found=99;
     assert(SdSoundSource::Find_catalog("Z.RAW",2,found) && found==1);
@@ -298,7 +298,7 @@ void test_sd_import()
     int16_t readback[2]={};
     assert(SdSoundSource::Read(saved_id,readback,0,2) && readback[0]==0x0403);
     assert(!SdSoundSource::Read(saved_id,readback,1,2));
-    SD.add("/USER_AUDIO/0.raw",{1,2});
+    SD.add("/EXTERNAL_AUDIO/0.raw",{1,2});
     assert(run().index_ready && SdSoundSource::Catalog_count()==3);
     assert(SdSoundSource::Load(saved_id,saved_audio) && saved_audio[0]==0x0403);
     SD.present=false;
@@ -390,8 +390,8 @@ int main()
         std::ifstream input(std::string(folder)+"/"+std::to_string(rate)+".mp3",std::ios::binary);
         assert(input);
         std::vector<uint8_t> encoded{std::istreambuf_iterator<char>(input),std::istreambuf_iterator<char>()};
-        SD.add("/USER_AUDIO/source.mp3",encoded);
-        File file=SD.open("/USER_AUDIO/source.mp3");
+        SD.add("/EXTERNAL_AUDIO/source.mp3",encoded);
+        File file=SD.open("/EXTERNAL_AUDIO/source.mp3");
         Mp3Import decoder;
         uint32_t bytes=0; uint16_t channels=0;
         assert(decoder.Open(file,bytes,channels,0xFFFFFFFEu));
@@ -403,7 +403,7 @@ int main()
         assert(report.errors==0 && report.copied==1 && report.indexed==1);
         const auto &actual=SD.bytes("/LILLA_AUDIO/source.raw");
         assert(actual.size()==bytes && memcmp(actual.data(),expected.data(),bytes)==0);
-        assert(SD.bytes("/USER_AUDIO/source.mp3")==encoded);
+        assert(SD.bytes("/EXTERNAL_AUDIO/source.mp3")==encoded);
     }
     std::cout<<"MP3 SD conversion: exact mono PCM at 44.1/48/22.05 kHz passed\n";
 }

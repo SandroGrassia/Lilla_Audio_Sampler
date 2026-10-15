@@ -18,7 +18,7 @@ See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, 
 
 ## Development: prepare user audio on SD
 
-SETUP now includes `IMPORT AUDIO FILES FROM /USER_AUDIO TO /LILLA_AUDIO`: immediate copies/conversions of missing files to mono RAW, preservation of existing files, Serial reporting and a 1,024-entry alphabetical index created if absent and updated after import. SOUND_EDIT also supports alphabetical Flash/SD browsing, SD audition through the 16 existing Players using PSRAM, and SAVE of the selected portion with a persistent SD reference. See [User audio preparation](docs/user-audio-preparation.md). This development feature is not part of the published 7.1.1 release.
+SETUP now includes `CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO`: immediate copies/conversions of missing files to mono RAW, preservation of existing files, Serial reporting and a 1,024-entry alphabetical index created if absent and updated after import. SOUND_EDIT also supports alphabetical Flash/SD browsing, SD audition through the 16 existing Players using PSRAM, and SAVE of the selected portion with a persistent SD reference. See [User audio preparation](docs/user-audio-preparation.md). This development feature is not part of the published 7.1.1 release.
 
 ## What This Project Does
 

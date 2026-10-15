@@ -276,7 +276,7 @@ FLASHMEM bool UserAudioImport::Build_index(uint32_t &entries)
 FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser aiff)
 {
     Report report;
-    Serial.println("USER AUDIO: /USER_AUDIO -> /LILLA_AUDIO");
+    Serial.println("USER AUDIO: /EXTERNAL_AUDIO -> /LILLA_AUDIO");
     if (!SD.begin(BUILTIN_SDCARD))
     {
         Serial.println("ERROR: SD card unavailable");
@@ -304,10 +304,10 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
     {
         Serial.println("INDEX: existing catalog retained until final update");
     }
-    File directory = SD.open("/USER_AUDIO");
+    File directory = SD.open("/EXTERNAL_AUDIO");
     if (!directory || !directory.isDirectory())
     {
-        Serial.println("ERROR: /USER_AUDIO directory unavailable");
+        Serial.println("ERROR: /EXTERNAL_AUDIO directory unavailable");
         ++report.errors;
         return report;
     }
@@ -338,12 +338,12 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
         snprintf(destination, sizeof(destination), "/LILLA_AUDIO/%.*s.raw", static_cast<int>(stem), source.name());
         if (SD.exists(destination))
         {
-            Serial.printf("SKIP: /USER_AUDIO/%s -> %s already exists; unchanged\n", source.name(), destination);
+            Serial.printf("SKIP: /EXTERNAL_AUDIO/%s -> %s already exists; unchanged\n", source.name(), destination);
             ++report.skipped;
             source.close();
             continue;
         }
-        Serial.printf("%s: /USER_AUDIO/%s -> %s\n", format == Format::Raw ? "COPY" : "CONVERT", source.name(), destination);
+        Serial.printf("%s: /EXTERNAL_AUDIO/%s -> %s\n", format == Format::Raw ? "COPY" : "CONVERT", source.name(), destination);
         if (Copy(source, destination, format, wav, aiff))
         {
             ++report.copied;

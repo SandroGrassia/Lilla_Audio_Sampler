@@ -7758,7 +7758,7 @@ void loop()
         {
             switch (SET_menu)
             {
-            case 7:
+            case 3:
                 SET_Prepare_user_audio();
                 Display_Setup.SETUP_show_SETUP_page();
                 Display_Setup.SETUP_show_frame(SET_menu);
@@ -7788,7 +7788,7 @@ void loop()
                 // case 2: // USB access to SD card - funzionalita' MTP
                 // break;
 
-            case 3: // import RAW files from SD
+            case 4: // import RAW files from SD
             {
                 const bool resume_controls = Trigger.Is_running();
                 if (!P_Quiesce_audio_players())
@@ -7833,7 +7833,7 @@ void loop()
                 break;
             }
 
-            case 4: // Restore configuration and Recording audio from the backup root.
+            case 5: // Restore configuration and Recording audio from the backup root.
                 Display_Storage.Confirm_config_import_popup();
                 Display_Storage.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7905,7 +7905,7 @@ void loop()
                 }
                 break;
 
-            case 5: // Create a new numbered backup with Recording audio.
+            case 6: // Create a new numbered backup with Recording audio.
                 Display_Storage.Confirm_config_export_popup();
                 Display_Storage.Confirm_config_import_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
@@ -7943,7 +7943,7 @@ void loop()
 
                 break;
 
-            case 6: // Factory reset
+            case 7: // Factory reset
                 Display_Storage.Confirm_factory_reset_popup();
                 Display_Storage.Confirm_config_import_frame(0);
 
@@ -14179,7 +14179,7 @@ byte CC_Read_all_Sound_gain()
 }
 
 // ***************************************************************************************************************
-// ****************************   COPY RAW FILES FROM SD/LILLA_AUDIO TO FLASH MEMORY CHIP  **************************
+// ****************************   COPY RAW FILES FROM SD/FLASH_AUDIO TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
 static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES = 3U * 1024U * 1024U;
@@ -14417,9 +14417,9 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     Delete_text_row(3);
 
     // Check if LILLA_AUDIO directory exists
-    if (!SD.exists("/LILLA_AUDIO"))
+    if (!SD.exists("/FLASH_AUDIO"))
     {
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_audio_missing();
         delay(4000);
         return false;
     }
@@ -14465,11 +14465,11 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
-    File rootdir = SD.open("/LILLA_AUDIO");
+    File rootdir = SD.open("/FLASH_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_audio_missing();
         delay(4000);
         return false;
     }
@@ -14596,7 +14596,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
 
     // Stage and commit every accepted name before erasing audio. Missing names retain their IDs.
-    rootdir = SD.open("/LILLA_AUDIO");
+    rootdir = SD.open("/FLASH_AUDIO");
     bool registry_ok = rootdir && rootdir.isDirectory();
     const char *registry_error = "CANNOT READ AUDIO DIRECTORY";
     while (registry_ok)
@@ -14659,11 +14659,11 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     row = 2;
 
     // Import audio as mono RAW files from SD to Flash chip.
-    rootdir = SD.open("/LILLA_AUDIO");
+    rootdir = SD.open("/FLASH_AUDIO");
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
-        Display_Storage.Copy_raw_files_SD_to_Flash_chip_lilla_audio_missing();
+        Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_audio_missing();
         delay(4000);
         return false;
     }

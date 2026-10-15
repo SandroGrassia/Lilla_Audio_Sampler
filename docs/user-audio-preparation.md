@@ -1,6 +1,6 @@
 # User audio preparation on SD (development)
 
-This feature adds **IMPORT AUDIO FILES FROM /USER_AUDIO TO /LILLA_AUDIO** to SETUP. Put source files directly in `/USER_AUDIO`, insert the SD, select the command. Preparation starts immediately without confirmation. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
+This feature adds **CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO** to SETUP. Put source files directly in `/EXTERNAL_AUDIO`, insert the SD, select the command. Preparation starts immediately without confirmation. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
 
 MIDI and Trigger are stopped, active Players are drained, and audio processing is suspended until preparation ends. The previous audio/MIDI state is restored afterwards. The Serial terminal lists each source and destination, successful copies/conversions, skipped files, errors, and the index result.
 
@@ -12,11 +12,11 @@ MIDI and Trigger are stopped, active Players are drained, and audio processing i
 - MP3: decoded with the existing importer and resampled to 44.1 kHz when needed.
 - Stereo is averaged to mono with the existing conversion rules. All outputs are signed 16-bit little-endian mono RAW at 44.1 kHz.
 
-The destination keeps the source stem and uses `.raw`: `Piano.wav` becomes `/LILLA_AUDIO/Piano.raw`. Originals in `/USER_AUDIO` are retained. Subdirectories and unsupported extensions are skipped and reported. Existing destination files are never overwritten. If `Piano.raw` exists, `Piano.wav`, `Piano.aiff`, `Piano.mp3` and `Piano.raw` are skipped before conversion; matching follows the SD filesystem's case-insensitive filenames.
+The destination keeps the source stem and uses `.raw`: `Piano.wav` becomes `/LILLA_AUDIO/Piano.raw`. Originals in `/EXTERNAL_AUDIO` are retained. Subdirectories and unsupported extensions are skipped and reported. Existing destination files are never overwritten. If `Piano.raw` exists, `Piano.wav`, `Piano.aiff`, `Piano.mp3` and `Piano.raw` are skipped before conversion; matching follows the SD filesystem's case-insensitive filenames.
 
 Files with the same stem map to the same RAW name. When multiple inputs have that stem, the first successfully processed one is retained; later inputs are skipped. Processing follows SD directory order and every skip is reported. Use unique stems when all source files must be retained as separate RAWs.
 
-The SD operation copies/converts complete files rather than applying the existing Flash import's 3 MiB limit. Empty or odd-length RAWs and unsupported/corrupt audio are reported as errors. Conversion writes a temporary file first, then renames it to the new destination only after the write is complete. Failed writes or renames do not publish a partial audio file. Original source files remain available in `/USER_AUDIO`.
+The SD operation copies/converts complete files rather than applying the existing Flash import's 3 MiB limit. Empty or odd-length RAWs and unsupported/corrupt audio are reported as errors. Conversion writes a temporary file first, then renames it to the new destination only after the write is complete. Failed writes or renames do not publish a partial audio file. Original source files remain available in `/EXTERNAL_AUDIO`.
 
 ## Alphabetical index
 
@@ -49,3 +49,5 @@ SAVE retains the selected portion in PSRAM and creates a persistent source-and-t
 Missing audio follows the Flash behavior: the Sound retains its reference and parameters, and remains inactive if no valid cached audio is available. SOUND_EDIT shows an empty waveform and the red message `AUDIO FILE UNAVAILABLE`. Audio already loaded in PSRAM can continue playing even after SD removal. When neither repository has audio, the editor displays the SETUP import instruction instead.
 
 If the SD is removed while browsing, attempting to select another file displays `INSERT SD` for two seconds, then redraws the previous selection. The failed selection leaves its source reference, trim and cached audio unchanged.
+
+For direct import into Flash, use SETUP ? `IMPORT AUDIO FILES FROM SD /FLASH_AUDIO` and place source files in `/FLASH_AUDIO`. SD library preparation instead reads `/EXTERNAL_AUDIO` and writes converted RAW files plus the index to `/LILLA_AUDIO`.
