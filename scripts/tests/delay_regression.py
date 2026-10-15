@@ -64,12 +64,55 @@ int16_t Lilla_saturate16(int value) { return constrain(value,-32768,32767); }
 '''
 size_definitions = '\n'.join(line for line in (ROOT / 'lib/SharedElements/SharedElements.h').read_text(encoding='utf-8').splitlines() if line.startswith('static constexpr int DELAY_CACHE_SECONDS =') or line.startswith('static constexpr int DELAY_CACHE_CHANNEL_SAMPLES ='))
 prefix = prefix.replace('constexpr int DELAY_CACHE_CHANNEL_SAMPLES=4096;', size_definitions)
+elements = (ROOT / 'lib/SharedElements/SharedElements.h').read_text(encoding='utf-8')
+prefix += re.search(r'static constexpr int LPF_MAX = \d+;', elements).group(0) + '\n'
+prefix += re.search(r'constexpr int lowpass_value\[.*?};', elements, re.S).group(0) + '\n'
+prefix += '''
+class AudioFilterBiquad {
+public:
+    float frequency = 20000;
+    double q = 0;
+    int writes = 0;
+    void setLowpass(int stage, float value, double resonance)
+    {
+        assert(stage == 0);
+        frequency = value;
+        q = resonance;
+        ++writes;
+    }
+};
+'''
 shared = source('lib/SharedDelay/SharedDelay.h') + source('lib/SharedDelay/SharedDelay.cpp')
 gain_header = source('lib/AudioGain/AudioGain.h').replace('private:', 'public:')
 gain_cpp = source('lib/AudioGain/AudioGain.cpp')
 gain = gain_header + '\nvoid AudioGain::update() {}\n' + '\n'.join(method(gain_cpp, 'void AudioGain::' + name) for name in ['Set_gain(', 'Mute(', 'Unmute(', 'Get_mults('])
 stereo = source('lib/StereoDelay/StereoDelay.h').replace('private:', 'public:') + source('lib/StereoDelay/StereoDelay.cpp')
 manager = source('lib/DelayManager/DelayManager.h').replace('private:', 'public:') + source('lib/DelayManager/DelayManager.cpp')
+main_source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
+controls = r'''
+#include <type_traits>
+constexpr int EN_PB_Value = 0;
+struct EncoderStub
+{
+    int rotation = 0;
+    int Get_rotation(int)
+    {
+        const int result = rotation;
+        rotation = 0;
+        return result;
+    }
+} Encoders_manager;
+DelayManager Delay_manager;
+void D_Set_value(int item, int value)
+{
+    Delay_manager.Set_value(item, value);
+}
+'''
+controls += 'template <class T>\n' + method(main_source, 'bool Read_encoder(') + '\n'
+controls += 'template <class T>\n' + method(main_source, 'bool Read_encoder_inverse(') + '\n'
+controls += method(main_source[main_source.index('bool D_Read_value(int item) // Edit'):], 'bool D_Read_value(int item)') + '\n'
+manager += controls
+
 tests = r'''
 void DrainGain(AudioGain &gain) { int count=0; while(gain.gain_flag) { gain.Get_mults(); assert(++count<10000); } } // Finish the real gain ramp.
 int main() {
@@ -79,7 +122,9 @@ int main() {
  WaveLFO lfoL,lfoR; left.LFO_ptr=&lfoL; right.LFO_ptr=&lfoR;
  AudioGain gainL,gainR;
  PlayersManager players;
- DelayManager m;
+ DelayManager &m = Delay_manager;
+ AudioFilterBiquad filterL, filterR;
+ m.D_lpf_L_ptr = &filterL; m.D_lpf_R_ptr = &filterR;
  m.Delay_L_ptr=&left; m.Delay_R_ptr=&right; m.LFO_D_ptr[0]=&lfoL; m.LFO_D_ptr[1]=&lfoR; m.D_gain_L_feedback_ptr=&gainL; m.D_gain_R_feedback_ptr=&gainR; m.Players_Manager_ptr=&players;
  assert(m.Set_value(INSTRUMENT_ROUTE,0xA4)); m.Update(); assert(players.routes.size()==8); for(int i=0;i<8;++i) assert(players.routes[i]==i);
  m.Set_value(SAMPLES,50);
@@ -166,7 +211,7 @@ int main() {
     assert(Calc_delay_samples_LR(limit) <= Calc_delay_samples(time));
     if (limit < 10)
     {
-        assert(Calc_delay_samples_LR(limit + 1) > Calc_delay_samples(time));
+        assert(Calc_delay_samples_LR(limit + 1) > Calc_delay_samples(time) || Calc_delay_samples_LR(limit + 1) > DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES - Calc_delay_samples(time));
     }
     for (int sign : {-1, 1})
     {
@@ -179,6 +224,7 @@ int main() {
         assert(std::abs(Delay_values.samples_LR) <= Delay_values.samples);
         assert(left.delay_central_value_target <= DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES);
         assert(right.delay_central_value_target <= DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES);
+        assert(right.delay_central_value_target - left.delay_central_value_target == -sign * Calc_delay_samples_LR(limit));
         Calc_Delay_values(loaded);
         assert(loaded.samples_LR == sign * limit);
     }
@@ -243,6 +289,105 @@ int main() {
         assert(gainL.gain_runtime == Delay_feedback(target) && gainR.gain_runtime == Delay_feedback(target));
     }
  }
+
+ // Exercise the real UI reader and real delay processors, not only their targets.
+ std::vector<int16_t> fifoR(DELAY_CACHE_CHANNEL_SAMPLES, 0);
+ right.DELAY_fifo = fifoR.data();
+ m.Set_value(MODULATION_SOURCE, 0);
+ m.Set_value(SAMPLES, 24); // 35 ms.
+ m.Set_value(SAMPLES_LR, 0);
+ m.Stop();
+ left.Setup_delay(Calc_delay_samples(24));
+ right.Setup_delay(Calc_delay_samples(24));
+ for (int requested : {-5, 0, 5, 0})
+ {
+    while (Delay_data.samples_LR != requested)
+    {
+        Encoders_manager.rotation = Delay_data.samples_LR > requested ? 1 : -1;
+        assert(D_Read_value(SAMPLES_LR));
+        m.Update();
+    }
+    int settling = 0;
+    do
+    {
+        left.update();
+        right.update();
+        assert(++settling < 2000);
+    } while (left.delay_value != left.delay_central_value_target || right.delay_value != right.delay_central_value_target);
+    const int base = Calc_delay_samples(24);
+    const int offset = Calc_delay_samples_LR(requested);
+    assert(left.delay_value == base + std::max(offset, 0));
+    assert(right.delay_value == base - std::min(offset, 0));
+    std::fill(fifo.begin(), fifo.end(), 0);
+    std::fill(fifoR.begin(), fifoR.end(), 0);
+    int firstL = -1;
+    int firstR = -1;
+    for (int block = 0; block < 20; ++block)
+    {
+        std::fill(std::begin(left.input[0].data), std::end(left.input[0].data), 0);
+        std::fill(std::begin(right.input[0].data), std::end(right.input[0].data), 0);
+        if (block == 0)
+        {
+            left.input[0].data[0] = 10000;
+            right.input[0].data[0] = 10000;
+        }
+        left.queued[0] = &left.input[0];
+        right.queued[0] = &right.input[0];
+        left.update();
+        right.update();
+        for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+        {
+            if (left.output.data[sample] != 0 && firstL < 0)
+            {
+                firstL = block * AUDIO_BLOCK_SAMPLES + sample;
+            }
+            if (right.output.data[sample] != 0 && firstR < 0)
+            {
+                firstR = block * AUDIO_BLOCK_SAMPLES + sample;
+            }
+        }
+    }
+    assert(firstL == base + std::max(offset, 0));
+    assert(firstR == base - std::min(offset, 0));
+ }
+ // Clockwise must stop at Right +10 ms and leave other parameters' direction unchanged.
+ m.Set_value(SAMPLES_LR, -10);
+ Encoders_manager.rotation = 1;
+ assert(!D_Read_value(SAMPLES_LR));
+ m.Set_value(SAMPLES_LR, 10);
+ Encoders_manager.rotation = -1;
+ assert(!D_Read_value(SAMPLES_LR));
+ m.Set_value(SAMPLES, DELAY_TIME_MAX_INDEX);
+ m.Update();
+ assert(Delay_data.samples_LR == 0);
+ Encoders_manager.rotation = 1;
+ assert(!D_Read_value(SAMPLES_LR));
+ m.Set_value(LOOP_GAIN, 50);
+ Encoders_manager.rotation = 1;
+ assert(D_Read_value(LOOP_GAIN) && Delay_data.loop_gain == 51);
+ // Independent, bounded feedback filter transitions reach the same cutoff on both channels.
+ for (int target : {0, LPF_MAX, 20})
+ {
+    const float start = Delay_values.lpf_cutoff_hz;
+    m.Set_value(FEEDBACK_CUTOFF, target);
+    for (int block = 0; block < 30; ++block)
+    {
+        m.Update();
+        assert(filterL.frequency == filterR.frequency);
+        assert(filterL.frequency >= std::min(start, static_cast<float>(lowpass_value[target])));
+        assert(filterL.frequency <= std::max(start, static_cast<float>(lowpass_value[target])));
+        assert(filterL.q == 0.7071 && filterR.q == 0.7071);
+    }
+    assert(!m.flag[FEEDBACK_CUTOFF] && filterL.frequency == lowpass_value[target]);
+ }
+ m.Set_value(FEEDBACK_CUTOFF, 0);
+ m.Update();
+ const float intermediate = Delay_values.lpf_cutoff_hz;
+ m.Set_value(FEEDBACK_CUTOFF, LPF_MAX);
+ assert(m.y_1[FEEDBACK_CUTOFF] == intermediate);
+ m.Stop();
+ assert(filterL.frequency == 20000 && filterR.frequency == 20000);
+ Serial.println(F("PASS: actual stereo impulse timing, clockwise Right offset, both bounds and zero, independent feedback cutoff ramps"));
  Serial.println(F("PASS: routing, time ramps, allocation failure, feedback bounds, Panic silences and restores the requested feedback"));
 }
 '''

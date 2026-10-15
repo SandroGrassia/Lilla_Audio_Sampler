@@ -16,9 +16,9 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.1
+## New in firmware 7.2.2
 
-Sound Edit now shows up to 10 filename characters without the extension, with a wider selection frame. Hold Select while turning Value in the FILE field to browse Flash or SD audio 10 files at a time.
+The SD audio library now supports up to **4,096 indexed files**, up from 1,024.
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -187,7 +187,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.1 (15 October 2026)**: download [Lilla_v7_2_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.1/Lilla_v7_2_1.hex) from [release v7.2.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.1). See the [7.2.1 release notes](docs/release-notes-7.2.1.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.2 (15 October 2026)**: download [Lilla_v7_2_2.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.2/Lilla_v7_2_2.hex) from [release v7.2.2](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.2). See the [7.2.2 release notes](docs/release-notes-7.2.2.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

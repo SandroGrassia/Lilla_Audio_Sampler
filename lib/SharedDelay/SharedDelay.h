@@ -30,12 +30,13 @@ enum Delay_parameters
         MODULATION_FREQUENCY,
         MODULATION_PHASE_LR,
         LOOP_GAIN,
+        FEEDBACK_CUTOFF,
         INSTRUMENT_ROUTE,
         MODULATION_SOURCE
     };
 
-static constexpr int DELAY_ITEMS = 8; // all Delay parameters
-static constexpr int DELAY_LPF_ITEMS = 6; // parameters from SAMPLES to LOOP_GAIN are filtered with LPFs 
+static constexpr int DELAY_ITEMS = 9; // all Delay parameters
+static constexpr int DELAY_LPF_ITEMS = 7; // Parameters through FEEDBACK_CUTOFF have independent smoothing.
 
 struct Delay_data_struct // DELAY_DATA_DIM byte
 { 
@@ -47,6 +48,7 @@ struct Delay_data_struct // DELAY_DATA_DIM byte
     uint8_t modulation_frequency;
     uint16_t modulation_phase_LR;
     uint16_t loop_gain;
+    uint16_t lpf_cutoff = LPF_MAX; // Index in the common cutoff table; old patches default to 20 kHz.
 };
 static constexpr int DELAY_DATA_DIM = sizeof(Delay_data_struct);
 
@@ -56,12 +58,14 @@ static constexpr int Delay_data_limits[DELAY_LPF_ITEMS][2] = {
     {0, 39}, // MODULATION_DEPTH
     {0, 90}, // MODULATION_FREQUENCY
     {0, 359}, // MODULATION_PHASE_LR
-    {0, 98} // LOOP_GAIN, integer percent
+    {0, 98}, // LOOP_GAIN, integer percent
+    {0, LPF_MAX} // FEEDBACK_CUTOFF
 };
 
 struct Delay_values_struct
 {
     float loop_gain;
+    float lpf_cutoff_hz = 20000.0f;
     float samples;
     float samples_LR;
     bool instrument_route[INSTRUMENTS];
@@ -82,19 +86,20 @@ int Calc_delay_samples(int value);
 int Calc_delay_time_tenths(int value); // Nominal delay time in tenths of a millisecond.
 void Convert_legacy_delay(Delay_data_struct &data);
 int Calc_delay_samples_LR(int value);
-int Calc_delay_samples_LR_limit(int time); // Largest allowed whole-millisecond offset for this delay-time index.
+int Calc_delay_samples_LR_limit(int time); // Largest whole-millisecond offset within the base time and remaining per-channel buffer capacity.
 float Calc_delay_depth (int value);
 float Calc_delay_frequency(int value);
 void Print_Delay_data(const Delay_data_struct &data);
 void Print_Delay_values(Delay_values_struct Delay_values);
 
 // Pointer
-static constexpr int DELAY_element_names = 7;
+static constexpr int DELAY_element_names = 8;
 enum DELAY_element_name
 {
     value_DELAY_Feedback,
     value_DELAY_Delay_time,
     value_DELAY_Delay_time_LR,
+    value_DELAY_Lpf_cutoff,
     value_DELAY_Modulation_source,
     value_DELAY_Modulation_frequency,
     value_DELAY_Modulation_depth,

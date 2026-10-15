@@ -143,27 +143,10 @@ void DisplayCommon::Lowpass_filter(void)
     float Y_EFF = (Lilla_state == MIDI_LOOP ? 1.5 : 2.5);
     Cancel_text_reset_cursor(display_coordinate_x(11), display_coordinate_y(Y_EFF + 1), 7);
 
-    float F = lowpass_value[lowpass_target];
     tft.setTextColor(ILI9341_YELLOW);
-
-    if (F > 9999)
-    {
-        tft.print(F / 1000, 0);
-        tft.setTextColor(ILI9341_ORANGE);
-        tft.print("kHz");
-    }
-    else if (F > 999)
-    {
-        tft.print(F / 1000.0f, 2);
-        tft.setTextColor(ILI9341_ORANGE);
-        tft.print("kHz");
-    }
-    else
-    {
-        tft.print(F, 0);
-        tft.setTextColor(ILI9341_ORANGE);
-        tft.print("Hz");
-    }
+    tft.print(lowpass_value[lowpass_target]);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("Hz");
 }
 
 FLASHMEM

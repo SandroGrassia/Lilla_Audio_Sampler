@@ -189,17 +189,27 @@ void test_sd_import()
     assert(report.errors==2 && report.copied==1 && report.index_ready && report.indexed==1);
     reset();
     SD.mkdir("/LILLA_AUDIO");
-    for(int i=1023;i>=0;--i) {char name[64]; snprintf(name,sizeof(name),"/LILLA_AUDIO/%04d.raw",i); SD.add(name,{1,2});}
+    for(int i=4095;i>=0;--i) {char name[64]; snprintf(name,sizeof(name),"/LILLA_AUDIO/%04d.raw",i); SD.add(name,{1,2});}
     report=run();
-    assert(report.errors==0 && report.indexed==1024);
+    assert(report.errors==0 && report.indexed==4096);
     entries=index_entries();
-    assert(std::string(entries[0].name)=="0000.raw" && std::string(entries[1023].name)=="1023.raw");
+    assert(std::string(entries[0].name)=="0000.raw" && std::string(entries[4095].name)=="4095.raw");
     for(size_t i=1;i<entries.size();++i)
     {
         assert(strcasecmp(entries[i-1].name,entries[i].name)<0);
         assert(entries[i].bytes==2 && entries[i].samples==1);
     }
     assert(!SD.exists("/LILLA_AUDIO/.lilla-index.tmp") && !SD.exists("/LILLA_AUDIO/.lilla-index.sort"));
+    assert(SdSoundSource::Catalog_count()==4096);
+    UserAudioImport::Entry last_entry;
+    assert(SdSoundSource::Catalog_entry(4095,last_entry) && std::string(last_entry.name)=="4095.raw");
+    assert(!SdSoundSource::Catalog_entry(4096,last_entry));
+    uint32_t last_position=0;
+    assert(SdSoundSource::Find_catalog("4095.RAW",4096,last_position) && last_position==4095);
+    assert(SdSoundSource::Select(4095,1));
+    int16_t last_sample=0;
+    assert(SdSoundSource::Load(SdSoundSource::PREVIEW,&last_sample) && last_sample==0x0201);
+    SdSoundSource::Unbind_all();
     SD.add("/LILLA_AUDIO/overflow.raw",{1,2});
     report=run();
     assert(report.errors>0 && !report.index_ready && !SD.exists(UserAudioImport::INDEX_PATH));
@@ -325,7 +335,7 @@ void test_sd_import()
     assert(!SdSoundSource::Prepare(skipped_id));
     assert(!SdSoundSource::Prepare(skipped_id+1));
     assert(!SdSoundSource::Select(999,3));
-    std::cout<<"SD preparation: RAW/PCM, full copies, duplicate skipping, failure preservation, index 1024 and overflow passed\n";
+    std::cout<<"SD preparation: RAW/PCM, full copies, duplicate skipping, failure preservation, index 4096 and overflow passed\n";
 }
 '''
 wrapper = re.search(r'FLASHMEM void SET_Prepare_user_audio\(void\)\n\{.*?^\}', main, re.M | re.S).group(0)

@@ -1437,6 +1437,11 @@ byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_dat
     candidate.modulation_frequency = source.modulation_frequency;
     candidate.modulation_phase_LR = source.modulation_phase_LR;
     candidate.loop_gain = source.loop_gain;
+    if (source.reserved[1] > LPF_MAX + 1)
+    {
+        return FRAM_ERROR_SOURCE;
+    }
+    candidate.lpf_cutoff = source.reserved[1] == 0 ? LPF_MAX : source.reserved[1] - 1;
     if (source.reserved[0] == 0)
     {
         Convert_legacy_delay(candidate);
@@ -1466,6 +1471,7 @@ byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &del
     destination.modulation_phase_LR = delay_data.modulation_phase_LR;
     destination.loop_gain = delay_data.loop_gain;
     destination.reserved[0] = 1; // Delay encoding: stepped time and integer feedback percent.
+    destination.reserved[1] = delay_data.lpf_cutoff + 1; // Zero denotes a legacy patch without a feedback cutoff.
     return FRAM_Write_delay(patch_id, destination);
 }
 

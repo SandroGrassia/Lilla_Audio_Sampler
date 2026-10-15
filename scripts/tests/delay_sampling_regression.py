@@ -30,6 +30,7 @@ back = 'void Return_to_sampler()\n{\n' + main[main.index('\n', start) + 1:end] +
 
 prefix = r'''
 #include <cassert>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <set>
@@ -40,8 +41,8 @@ prefix = r'''
 #define FLASHMEM
 enum State { PERFORMANCE, DIRECT_SAMPLING, LIVE_SAMPLING, MIDI_LOOP, DELAY_SETTINGS };
 State Lilla_state = PERFORMANCE, Lilla_state_0 = PERFORMANCE;
-enum DELAY_element_name { value_DELAY_Feedback, value_DELAY_Delay_time, value_DELAY_Delay_time_LR, value_DELAY_Modulation_source, value_DELAY_Modulation_frequency, value_DELAY_Modulation_depth, value_DELAY_Modulation_phase_LR, DELAY_element_names };
-enum Item { LOOP_GAIN, SAMPLES, SAMPLES_LR, MODULATION_SOURCE, MODULATION_FREQUENCY, MODULATION_DEPTH, MODULATION_PHASE_LR, INSTRUMENT_ROUTE };
+enum DELAY_element_name { value_DELAY_Feedback, value_DELAY_Delay_time, value_DELAY_Delay_time_LR, value_DELAY_Lpf_cutoff, value_DELAY_Modulation_source, value_DELAY_Modulation_frequency, value_DELAY_Modulation_depth, value_DELAY_Modulation_phase_LR, DELAY_element_names };
+enum Item { FEEDBACK_CUTOFF, LOOP_GAIN, SAMPLES, SAMPLES_LR, MODULATION_SOURCE, MODULATION_FREQUENCY, MODULATION_DEPTH, MODULATION_PHASE_LR, INSTRUMENT_ROUTE };
 enum Control { EN_PB_LineOutVol, EN_PB_Select, EN_PB_Value };
 constexpr int INSTRUMENTS = 8, TRACKS = 2, PATCH_VOLUME_MAX = 100;
 constexpr int PLAYERS = 16, AUDIO_BLOCK_SAMPLES = 128, DELAY_CACHE_CHANNEL_SAMPLES = 256;
@@ -53,7 +54,7 @@ struct ControlState
     void Stop() {}
     void Start() {}
 } Midi_reader, Trigger;
-constexpr uint16_t ILI9341_BLACK = 0, ILI9341_WHITE = 1, ILI9341_RED = 2, TEXT_COLOR = 3;
+constexpr uint16_t ILI9341_BLACK = 0, ILI9341_WHITE = 1, ILI9341_RED = 2, TEXT_COLOR = 3, ILI9341_YELLOW = 4, ILI9341_ORANGE = 5;
 int PB_Sound[INSTRUMENTS] = {10,11,12,13,14,15,16,17};
 bool LOOP_track_run[TRACKS] = {true, true};
 int volume_patch = 10, Patch_id = 0, result = 0, recording = 0, DS_local_pointer = 0;
@@ -61,7 +62,7 @@ DELAY_element_name DELAY_local_pointer = value_DELAY_Feedback;
 int edits = 0, pointer_moves = 0, pointer_sets = 0, clears = 0, feedback_draws = 0, stops = 0, gains = 0;
 bool rotate_value = false, rotate_volume = false;
 std::set<int> pressed;
-struct DelayData { int loop_gain = 7; } Delay_data, Delay_values;
+struct DelayData { int loop_gain = 7; int lpf_cutoff = 39; } Delay_data, Delay_values;
 struct Manager
 {
     int route = 0;
@@ -131,7 +132,21 @@ struct TFT
     void setCursor(int, int) {}
     void setTextColor(int) {}
     void print(const char *text) { labels.emplace_back(text); }
+    void print(int value) { labels.emplace_back(std::to_string(value)); }
+    void print(float value, int decimals)
+    {
+        char text[32];
+        snprintf(text, sizeof(text), "%.*f", decimals, value);
+        labels.emplace_back(text);
+    }
 } tft;
+int clear_col = -1, clear_row = -1, clear_chars = -1;
+void Cancel_text_reset_cursor(int col, int row, int chars)
+{
+    clear_col = col;
+    clear_row = row;
+    clear_chars = chars;
+}
 int display_coordinate_x(float v) { return v; }
 int display_coordinate_y(float v) { return v; }
 void Backgorund_red(int, int, int) {}
@@ -155,6 +170,10 @@ struct SamplerPointer
 } Pointer_Sampler;
 void DS_define_menu() {}
 '''
+elements = (root / 'lib/SharedElements/SharedElements.h').read_text(encoding='utf-8')
+prefix += re.search(r'static constexpr int LPF_MAX = \d+;', elements).group(0) + '\n'
+prefix += re.search(r'constexpr int lowpass_value\[.*?};', elements, re.S).group(0) + '\n'
+
 stubs = r'''
 DisplayDelay Display_Delay;
 void DisplayDelay::D_sounds() {}
@@ -166,7 +185,7 @@ void DisplayDelay::D_modulation_frequency() {}
 void DisplayDelay::D_modulation_depth() {}
 void DisplayDelay::D_modulation_phase_LR() {}
 '''
-production = method(display, 'void DisplayDelay::D_show_page()') + method(display, 'void DisplayDelay::D_disabled(void)') + method(main, 'void Golive_DELAY_SETTINGS(void)') + entry + controls + panic + back
+production = method(display, 'void DisplayDelay::D_lpf_cutoff(void)') + method(display, 'void DisplayDelay::D_show_page()') + method(display, 'void DisplayDelay::D_disabled(void)') + method(main, 'void Golive_DELAY_SETTINGS(void)') + entry + controls + panic + back
 checks = r'''
 int main()
 {
@@ -208,6 +227,17 @@ int main()
         assert(Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
     }
     assert(pointer_sets == 3);
+    assert(std::find(labels.begin(), labels.end(), "ECHO LPF CUTOFF") != labels.end());
+    for (int cutoff = 0; cutoff <= LPF_MAX; ++cutoff)
+    {
+        Delay_data.lpf_cutoff = cutoff;
+        labels.clear();
+        Display_Delay.D_lpf_cutoff();
+        assert(clear_col == 16 && clear_row == 11 && clear_chars == 7);
+        assert(labels.size() == 2 && labels[0].size() + labels[1].size() <= 7);
+        assert(labels[0] == std::to_string(lowpass_value[cutoff]));
+        assert(labels[1] == "Hz");
+    }
     std::cout << "PASS: persistent disabled Delay page, locked controls and routing, Panic silences feedback without drawing disabled controls, Sampler return, other modes editable\n";
 }
 '''

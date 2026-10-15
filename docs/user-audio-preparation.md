@@ -20,9 +20,9 @@ The SD operation copies/converts complete files rather than applying the existin
 
 ## Alphabetical index
 
-Before importing, the command creates `/LILLA_AUDIO/.lilla-index` if it is absent, describing the existing RAW files. If this initial creation fails, no audio is imported. An existing index is retained until the final update. After processing, the index is rebuilt and describes all valid RAW files currently in the destination, including previously existing files. Capacity is **1,024 entries**. Ordering is case-insensitive by filename, with the original spelling retained. Filenames can use up to 255 bytes including `.raw`.
+Before importing, the command creates `/LILLA_AUDIO/.lilla-index` if it is absent, describing the existing RAW files. If this initial creation fails, no audio is imported. An existing index is retained until the final update. After processing, the index is rebuilt and describes all valid RAW files currently in the destination, including previously existing files. Capacity is **4,096 entries**. Ordering is case-insensitive by filename, with the original spelling retained. Filenames can use up to 255 bytes including `.raw`.
 
-The index contains one entry per file actually present, not 1,024 preallocated entries. It is a binary file, not a text listing; file browsers that hide dot-prefixed names may hide it. `INDEX ERROR` followed by `index=UNAVAILABLE` means no valid index was published, even if the RAW conversions succeeded.
+The index contains one entry per file actually present, not 4,096 preallocated entries. It is a binary file, not a text listing; file browsers that hide dot-prefixed names may hide it. `INDEX ERROR` followed by `index=UNAVAILABLE` means no valid index was published, even if the RAW conversions succeeded.
 
 The binary index uses little-endian fields. Its 24-byte header contains `magic=0x4C524157`, version 1, entry count, entry size 264, sample rate 44100, channel count 1 and bit depth 16. Each 264-byte entry contains a zero-terminated, zero-padded filename in 256 bytes, a 32-bit byte count and a 32-bit sample count. Entry N starts at byte `24 + N * 264`.
 
@@ -34,7 +34,7 @@ Sorting uses two temporary files on SD and merges progressively longer sorted ru
 
 ## Verification
 
-Host tests cover mono/stereo WAV and AIFF, actual MP3 conversion at 44.1/48/22.05 kHz, complete RAW copies larger than 3 MiB, duplicate skipping, read/write/rename failures, preservation of originals, alphabetic metadata, 1,024 entries and overflow. Index tests enumerate files in reverse order, reject large nothrow array allocations, cover empty/single/odd-sized catalogs and verify recovery after failed sorting or publication. They also exercise immediate startup without confirmation, initial/final indexing, suspension during preparation, failed Player draining and restoration of the original audio/MIDI state. Physical SD timing, display appearance and removal during operation still need hardware verification.
+Host tests cover mono/stereo WAV and AIFF, actual MP3 conversion at 44.1/48/22.05 kHz, complete RAW copies larger than 3 MiB, duplicate skipping, read/write/rename failures, preservation of originals, alphabetic metadata, 4,096 entries and overflow. Index tests enumerate files in reverse order, reject large nothrow array allocations, cover empty/single/odd-sized catalogs and verify recovery after failed sorting or publication. They also exercise immediate startup without confirmation, initial/final indexing, suspension during preparation, failed Player draining and restoration of the original audio/MIDI state. Physical SD timing, display appearance and removal during operation still need hardware verification.
 
 ## Browsing and playing SD sounds
 
