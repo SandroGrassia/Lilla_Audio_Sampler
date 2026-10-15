@@ -39,6 +39,8 @@ mock = backup["mock"].replace("    void close()", r"""
     size_t println(uint8_t value) { return println(std::to_string(value).c_str()); }
     void close()""")
 delay_header = (base["ROOT"] / "lib/SharedDelay/SharedDelay.h").read_text(encoding="utf-8")
+elements = (base["ROOT"] / "lib/SharedElements/SharedElements.h").read_text(encoding="utf-8")
+mock += re.search(r"static constexpr int LPF_MAX = \d+;", elements).group(0) + "\n"
 mock += delay_header[delay_header.index("struct Delay_data_struct"):delay_header.index("static constexpr int DELAY_DATA_DIM")]
 mock += '\n#include <cmath>\n#define constrain(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))\nconstexpr float AUDIO_SAMPLE_RATE = 44100.0f;\nconstexpr int AUDIO_BLOCK_SAMPLES = 128;\nconstexpr int DELAY_CACHE_CHANNEL_SAMPLES = 882128;\n'
 mock += delay_header[delay_header.index("static constexpr int DELAY_CACHE_ACTIVE_SECONDS"):delay_header.index("static constexpr float depth_array")]
@@ -83,6 +85,7 @@ int main()
         i.Filter.frequency_time = 19;
     }
     Delay_data_struct delay{99, -10, 0xA5, 2, 39, 90, 359, 5};
+    delay.lpf_cutoff = 20;
     assert(archive.Save_Delay(199, delay) == 0);
     assert(archive.Save_Patch(199) == 0);
     const auto expected = Patch[199];
@@ -94,12 +97,31 @@ int main()
     old_delay.samples = 20;
     old_delay.loop_gain = 5;
     assert(archive.FRAM_Write_delay(197, old_delay) == 0);
-    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX);
     ArchivingManager::FRAM_Patch_delay_struct stored{};
     assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 20 && stored.reserved[0] == 0);
     assert(archive.Save_Delay(197, actual) == 0);
     assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 24 && stored.reserved[0] == 1);
-    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX);
+
+    // Version-1 patches with an unused cutoff byte keep the default; all new cutoff indices round-trip.
+    stored.reserved[0] = 1;
+    stored.reserved[1] = 0;
+    assert(archive.FRAM_Write_delay(197, stored) == 0);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.lpf_cutoff == LPF_MAX);
+    for (int cutoff = 0; cutoff <= LPF_MAX; ++cutoff)
+    {
+        actual.lpf_cutoff = cutoff;
+        assert(archive.Save_Delay(197, actual) == 0);
+        assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.reserved[1] == cutoff + 1);
+        Delay_data_struct loaded{};
+        assert(archive.Read_Delay(197, loaded) == 0 && loaded.lpf_cutoff == cutoff);
+    }
+    const auto before_invalid = actual;
+    stored.reserved[1] = LPF_MAX + 2;
+    assert(archive.FRAM_Write_delay(197, stored) == 0);
+    assert(archive.Read_Delay(197, actual) != 0);
+    assert(memcmp(&actual, &before_invalid, sizeof(actual)) == 0);
     assert(archive.Save_Sound(800) == 11 && archive.Save_Patch(200) == 11);
     File wire{std::make_shared<std::vector<uint8_t>>()};
     assert(archive.Copy_Patch_from_RAM_to_SD(199, wire));

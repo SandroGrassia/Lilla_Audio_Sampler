@@ -21,6 +21,8 @@ int DelayManager::Get_value(int item) const // Keep requested values separate fr
         return Delay_data.modulation_phase_LR;
     case LOOP_GAIN:
         return Delay_data.loop_gain;
+    case FEEDBACK_CUTOFF:
+        return Delay_data.lpf_cutoff;
     case INSTRUMENT_ROUTE:
         return Delay_data.instrument_route;
     case MODULATION_SOURCE:
@@ -78,6 +80,10 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
         Delay_data.loop_gain = value;
         Start_LPF(item, Delay_values.loop_gain, Delay_feedback(value)); // Retarget feedback from the last value delivered to AudioGain.
         break;
+    case FEEDBACK_CUTOFF:
+        Delay_data.lpf_cutoff = value;
+        Start_LPF(item, Delay_values.lpf_cutoff_hz, lowpass_value[value]);
+        break;
     case INSTRUMENT_ROUTE:
         Delay_data.instrument_route = value;
         break;
@@ -99,6 +105,7 @@ bool DelayManager::New_values(const Delay_data_struct *data) // Publish a stable
     pending |= Set_value(MODULATION_FREQUENCY, target.modulation_frequency);
     pending |= Set_value(MODULATION_PHASE_LR, target.modulation_phase_LR);
     pending |= Set_value(LOOP_GAIN, target.loop_gain);
+    pending |= Set_value(FEEDBACK_CUTOFF, target.lpf_cutoff);
     pending |= Set_value(INSTRUMENT_ROUTE, target.instrument_route);
     pending |= Set_value(MODULATION_SOURCE, target.modulation_source);
     return pending;
@@ -154,6 +161,12 @@ void DelayManager::Update(void) // Apply independent transitions once per audio 
     {
         Delay_values.modulation_phase_LR = lround(New_value(MODULATION_PHASE_LR));
         LFO_D_ptr[0]->Set_phase(Delay_values.modulation_phase_LR);
+    }
+    if (flag[FEEDBACK_CUTOFF])
+    {
+        Delay_values.lpf_cutoff_hz = New_value(FEEDBACK_CUTOFF);
+        D_lpf_L_ptr->setLowpass(0, Delay_values.lpf_cutoff_hz, 0.7071);
+        D_lpf_R_ptr->setLowpass(0, Delay_values.lpf_cutoff_hz, 0.7071);
     }
     if (flag[LOOP_GAIN])
     {

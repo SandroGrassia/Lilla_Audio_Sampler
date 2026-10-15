@@ -56,7 +56,7 @@ private:
     static constexpr int S_chars_Midi = 2;
     static constexpr int S_chars_Pitch = 5;
     static constexpr int S_chars_Gain = 4;
-    static constexpr int S_chars_Pan = 2;
+    static constexpr int S_chars_Pan = 3;
     static constexpr int S_chars_Attack = 12;
     static constexpr int S_chars_Decay = 8;
     static constexpr int S_chars_Sustain = 4;

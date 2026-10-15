@@ -7,7 +7,7 @@ class UserAudioImport
 {
 public:
     using PcmParser = bool (*)(File &, uint32_t &, uint32_t &, uint16_t &);
-    static constexpr uint32_t CAPACITY = 1024;
+    static constexpr uint32_t CAPACITY = 4096;
     static constexpr const char *INDEX_PATH = "/LILLA_AUDIO/.lilla-index";
     struct Entry
     {

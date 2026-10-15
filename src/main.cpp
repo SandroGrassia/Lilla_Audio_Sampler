@@ -263,10 +263,12 @@ AudioAnalyzeFFT1024 AutoTune_fft;
 ArchivingManager Archive;
 StereoSampler DirectSampler(Archive);
 
+AudioFilterBiquad D_lpf_L; // Run before the feedback gain/mixer, preserving the existing loop block latency.
 AudioGain D_gain_L_feedback;
 Mixer_2x1 D_mixer_L_feedback;
 StereoDelay Delay_L;
 
+AudioFilterBiquad D_lpf_R;
 AudioGain D_gain_R_n;
 Mixer_2x1 D_mixer_R_in;
 StereoDelay Delay_R;
@@ -321,14 +323,16 @@ AudioConnection patchCord32(Player[15], 1, Router_R, 15);
 AudioConnection patchCord33(Router_L, 0, D_mixer_L_feedback, 0);
 AudioConnection patchCord34(D_mixer_L_feedback, 0, Delay_L, 0);
 AudioConnection patchCord35(D_mixer_L_feedback, 0, mixer_L, 0);
-AudioConnection patchCord36(Delay_L, 0, D_gain_L_feedback, 0);
+AudioConnection patchCord36(Delay_L, 0, D_lpf_L, 0);
+AudioConnection delayLpfCordL(D_lpf_L, 0, D_gain_L_feedback, 0);
 AudioConnection patchCord37(D_gain_L_feedback, 0, D_mixer_L_feedback, 1);
 AudioConnection patchCord38(Router_L, 0, Delay_L, 1);
 
 AudioConnection patchCord39(Router_R, 0, D_mixer_R_in, 0);
 AudioConnection patchCord40(D_mixer_R_in, 0, Delay_R, 0);
 AudioConnection patchCord41(D_mixer_R_in, 0, mixer_R, 0);
-AudioConnection patchCord42(Delay_R, 0, D_gain_R_n, 0);
+AudioConnection patchCord42(Delay_R, 0, D_lpf_R, 0);
+AudioConnection delayLpfCordR(D_lpf_R, 0, D_gain_R_n, 0);
 AudioConnection patchCord43(D_gain_R_n, 0, D_mixer_R_in, 1);
 AudioConnection patchCord44(Router_R, 0, Delay_R, 1);
 
@@ -4695,6 +4699,12 @@ void loop()
             if (D_Read_value(SAMPLES_LR))
             {
                 Display_Delay.D_delay_time_LR();
+            }
+            break;
+        case value_DELAY_Lpf_cutoff:
+            if (D_Read_value(FEEDBACK_CUTOFF))
+            {
+                Display_Delay.D_lpf_cutoff();
             }
             break;
         case value_DELAY_Modulation_source:
@@ -10996,7 +11006,9 @@ bool D_Read_value(int item) // Edit a requested value locally so the encoder nev
     const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
     const int lowest = item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
     const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
-    if (!Read_encoder(EN_PB_Value, value, highest, lowest, 1))
+    // Clockwise increases the Right delay: negative offsets delay the right channel.
+    const bool changed = item == SAMPLES_LR ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
+    if (!changed)
     {
         return false;
     }
@@ -13084,6 +13096,7 @@ void Factory_setup_FRAM(void)
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 65;
+    Delay_data.lpf_cutoff = LPF_MAX;
     Require_FRAM(Archive.Save_Delay(0, Delay_data));
 
     // cancella il contenute dei packet sulla Flash aggiuntiva
@@ -15422,6 +15435,8 @@ void Startup_hardware_and_objects(void)
     Delay_manager.Delay_R_ptr = &Delay_R;
     Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
     Delay_manager.LFO_D_ptr[1] = &LFO_D[1];
+    Delay_manager.D_lpf_L_ptr = &D_lpf_L;
+    Delay_manager.D_lpf_R_ptr = &D_lpf_R;
     Delay_manager.D_gain_L_feedback_ptr = &D_gain_L_feedback;
     Delay_manager.D_gain_R_feedback_ptr = &D_gain_R_n;
     Delay_manager.Players_Manager_ptr = &Players_Manager;
@@ -15737,6 +15752,7 @@ void Reload_system_state(void)
         Delay_data.modulation_frequency = 12;
         Delay_data.modulation_phase_LR = 0;
         Delay_data.loop_gain = 65;
+        Delay_data.lpf_cutoff = LPF_MAX;
 
         if (Patch_id < PATCHES_MAX)
         {
@@ -15755,6 +15771,8 @@ void Reload_system_state(void)
     Delay_R.Set_delay_modulation_source(Delay_values.modulation_source);                                     // 0:none 1:LFO  2:input_1
     Delay_L.Set_delay_modulation_gain(Delay_values.modulation_depth);
     Delay_R.Set_delay_modulation_gain(Delay_values.modulation_depth);
+    D_lpf_L.setLowpass(0, Delay_values.lpf_cutoff_hz, 0.7071);
+    D_lpf_R.setLowpass(0, Delay_values.lpf_cutoff_hz, 0.7071);
     D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
     D_gain_R_n.Set_gain(Delay_values.loop_gain);
 

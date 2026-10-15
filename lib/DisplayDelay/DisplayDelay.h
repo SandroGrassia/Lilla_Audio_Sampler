@@ -21,6 +21,7 @@ enum DELAY_element_name
     value_DELAY_Feedback,
     value_DELAY_Delay_time,
     value_DELAY_Delay_time_LR,
+    value_DELAY_Lpf_cutoff,
     value_DELAY_Modulation_source,
     value_DELAY_Modulation_frequency,
     value_DELAY_Modulation_depth,
@@ -39,6 +40,7 @@ private:
     static constexpr float DELAY_column_row_FEEDBACK[2] = {0, DEL_ROW_SOUND + 2};
     static constexpr float DELAY_column_row_DELAY_TIME[2] = {0, DEL_ROW_SOUND + 3};
     static constexpr float DELAY_column_row_DELAY_TIME_LR[2] = {0, DEL_ROW_SOUND + 4};
+    static constexpr float DELAY_column_row_LPF_CUTOFF[2] = {0, DEL_ROW_SOUND + 5};
     static constexpr float DELAY_column_row_MODULATION_SOURCE[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 2};
     static constexpr float DELAY_column_row_MODULATION_FREQUENCY[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 3};
     static constexpr float DELAY_column_row_MODULATION_DEPTH[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 4};
@@ -50,6 +52,7 @@ private:
     static constexpr float DELAY_column_row_feedback[2] = {9, DEL_ROW_SOUND + 2};
     static constexpr float DELAY_column_row_delay_time[2] = {11, DEL_ROW_SOUND + 3};
     static constexpr float DELAY_column_row_delay_time_LR[2] = {15, DEL_ROW_SOUND + 4};
+    static constexpr float DELAY_column_row_lpf_cutoff[2] = {16, DEL_ROW_SOUND + 5};
     static constexpr float DELAY_column_row_modulation_source[2] = {DEL_COL_MOD_SOURCE + 11, DEL_ROW_SOUND + 2};
     static constexpr float DELAY_column_row_modulation_frequency[2] = {DEL_COL_MOD_SOURCE + 14, DEL_ROW_SOUND + 3};
     static constexpr float DELAY_column_row_modulation_depth[2] = {DEL_COL_MOD_SOURCE + 10, DEL_ROW_SOUND + 4};
@@ -58,6 +61,7 @@ private:
     static constexpr int DELAY_chars_feedback = 6;
     static constexpr int DELAY_chars_delay_time = 8;
     static constexpr int DELAY_chars_delay_time_LR = 10;
+    static constexpr int DELAY_chars_lpf_cutoff = 7;
     static constexpr int DELAY_chars_modulation_source = 6;
     static constexpr int DELAY_chars_modulation_frequency = 7;
     static constexpr int DELAY_chars_modulation_depth = 6;
@@ -68,6 +72,7 @@ private:
         {DELAY_column_row_feedback[0], DELAY_column_row_feedback[1]},
         {DELAY_column_row_delay_time[0], DELAY_column_row_delay_time[1]},
         {DELAY_column_row_delay_time_LR[0], DELAY_column_row_delay_time_LR[1]},
+        {DELAY_column_row_lpf_cutoff[0], DELAY_column_row_lpf_cutoff[1]},
         {DELAY_column_row_modulation_source[0], DELAY_column_row_modulation_source[1]},
         {DELAY_column_row_modulation_frequency[0], DELAY_column_row_modulation_frequency[1]},
         {DELAY_column_row_modulation_depth[0], DELAY_column_row_modulation_depth[1]},
@@ -77,6 +82,7 @@ private:
         DELAY_chars_feedback,
         DELAY_chars_delay_time,
         DELAY_chars_delay_time_LR,
+        DELAY_chars_lpf_cutoff,
         DELAY_chars_modulation_source,
         DELAY_chars_modulation_frequency,
         DELAY_chars_modulation_depth,
@@ -92,6 +98,7 @@ public:
     void D_feedback(void);             // feedback
     void D_delay_time(void);           // Display the requested setting, independently of intermediate DSP values.
     void D_delay_time_LR(void);        // Display the requested setting, independently of intermediate DSP values.
+    void D_lpf_cutoff(void); // Feedback cutoff in integer Hz within seven characters.
     void D_modulation_source(void);    // Display the requested setting, independently of intermediate DSP values.
     void D_modulation_frequency(void); // Display the requested setting, independently of intermediate DSP values.
     void D_modulation_depth(void);     // Display the requested setting, independently of intermediate DSP values.

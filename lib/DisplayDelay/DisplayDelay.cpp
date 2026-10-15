@@ -91,6 +91,11 @@ void DisplayDelay::D_show_page()
     tft.print("DELAY TIME L/R");
     D_delay_time_LR();
 
+    tft.setCursor(display_coordinate_x(DELAY_column_row_LPF_CUTOFF[0]), display_coordinate_y(DELAY_column_row_LPF_CUTOFF[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("ECHO LPF CUTOFF");
+    D_lpf_cutoff();
+
     tft.setCursor(display_coordinate_x(DELAY_column_row_MODULATION_SOURCE[0]), display_coordinate_y(DELAY_column_row_MODULATION_SOURCE[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD SOURCE");
@@ -210,6 +215,17 @@ void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while 
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("ms R");
     }
+}
+
+FLASHMEM
+void DisplayDelay::D_lpf_cutoff(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_lpf_cutoff[0]), display_coordinate_y(DELAY_column_row_lpf_cutoff[1]), DELAY_chars_lpf_cutoff);
+    tft.setTextColor(ILI9341_YELLOW);
+    const int frequency = lowpass_value[Delay_data.lpf_cutoff];
+    tft.print(frequency);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("Hz");
 }
 
 FLASHMEM

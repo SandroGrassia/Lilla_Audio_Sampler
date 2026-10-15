@@ -10,6 +10,7 @@
 #include "StereoDelay.h"
 #include "WaveLFO.h"
 #include "AudioGain.h"
+#include <filter_biquad.h>
 #include "PlayersManager.h"
 #include "config.h"
 
@@ -40,6 +41,8 @@ public:
     WaveLFO *LFO_D_ptr[2] = {};
     AudioGain *D_gain_L_feedback_ptr = nullptr;
     AudioGain *D_gain_R_feedback_ptr = nullptr;
+    AudioFilterBiquad *D_lpf_L_ptr = nullptr;
+    AudioFilterBiquad *D_lpf_R_ptr = nullptr;
     PlayersManager *Players_Manager_ptr = nullptr;
     void Update(void); // Apply pending parameters from the audio callback without serial output.
     bool New_values(const Delay_data_struct *data); // Submit a complete patch target with audio interrupts disabled.

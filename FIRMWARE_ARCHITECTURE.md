@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.1.0 12/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.2 15/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -53,7 +53,7 @@ Keep protected sections short. Display operations, serial reporting and bulk sto
 
 ## 3. Audio signal flow
 
-The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its mixers and feedback gain stages.
+The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its mixers, independent left/right feedback low-pass filters and feedback gain stages.
 
 ```mermaid
 flowchart TD
@@ -82,6 +82,14 @@ Each player produces left and right output. The paired routers provide three des
 The input gain stage also feeds peak detection, direct sampling and live sampling. The Live Sampler feedback signal comes from the common filtered playback path. Its feedback control is separate from the delay effect's feedback controls.
 
 Per-voice processing is implemented by [AudioPlayer](lib/AudioPlayer/AudioPlayer.h) together with ADSR, VCF, modulation and table helpers. The graph-level common filter and delay are separate from these per-voice operations.
+
+### Delay feedback filtering
+
+Each feedback path has its own `AudioFilterBiquad` (`D_lpf_L` and `D_lpf_R`), connected between the delay output and feedback gain. Both use the same cutoff and Q of 0.7071, with independent filter history. `DelayManager` smooths cutoff changes over 30 audio blocks. The common output LPF and echo LPF share the 40-entry `lowpass_value` table (40-20000 Hz), displayed as integer Hz; the pitch-dependent Player TONE filter uses its separate endpoint mapping.
+
+`DELAY TIME L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, so it becomes zero at the maximum 2-second base delay.
+
+The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. Invalid encoded indices are rejected when loading.
 
 ## 4. Patch, sound and voice model
 
@@ -113,9 +121,9 @@ The read-budget machinery accounts for the cost of source access, and players en
 | 32 MiB external PSRAM | Patch audio caches, delay buffers and Live Sampler ring storage, allocated with `EXTMEM`. | No |
 | 64 MB external SPI Flash | Imported samples and direct recordings through the custom storage layer. | Yes |
 | 128 KiB external FRAM | Patch/sound metadata and persistent configuration managed through the archive layer. | Yes |
-| microSD | Audio import/export, MIDI loops and backup/restore files. | Yes |
+| microSD | Indexed audio library, persistent SD source references, audio import/export, MIDI loops and backup/restore files. | Yes |
 
-The PSRAM allocation formulas are centralized in [SharedElements.h](lib/SharedElements/SharedElements.h). They reserve two delay channels of approximately 20 seconds each, a Live Sampler area supporting approximately 20 seconds stereo or 40 seconds mono, and nine patch-cache arrays (`INSTRUMENTS + 1`) from the remaining space, with a small explicit reserve. Buffer sizes include the alignment or extra-block terms specified in those formulas.
+The PSRAM allocation formulas are centralized in [SharedElements.h](lib/SharedElements/SharedElements.h). They reserve two delay allocations of approximately 20 seconds each (the active delay span is limited to 2 seconds per channel), a Live Sampler area supporting approximately 20 seconds stereo or 40 seconds mono, and nine patch-cache arrays (`INSTRUMENTS + 1`) from the remaining space, with a small explicit reserve. Buffer sizes include the alignment or extra-block terms specified in those formulas.
 
 Do not allocate new PSRAM buffers on the assumption that the full chip capacity is free. Update the shared layout and review all users of its derived sizes.
 
@@ -132,6 +140,14 @@ A patch change does not make the previous buffers immediately reusable. Outgoing
 [ArchivingManager](lib/ArchivingManager/ArchivingManager.h) defines dedicated persistent structures, including aligned records and CRC fields. Runtime structures and stored representations must not be treated as interchangeable. Changes to metadata require reviewing serialization, validation, restore behavior and compatibility together.
 
 [LillaSerialFlash](lib/LillaSerialFlash/LillaSerialFlash.h) and [SharedVFS](lib/SharedVFS/SharedVFS.h) provide the sample-storage abstraction. [FileNameRegistry](lib/FileNameRegistry/FileNameRegistry.h) manages imported names; see [file-name registry](docs/file-name-registry.md). Audio IDs, readable file names and backing storage are distinct concerns.
+
+### SD audio library and source references
+
+[UserAudioImport](lib/UserAudioImport/UserAudioImport.h) prepares complete mono RAW files from `/EXTERNAL_AUDIO` into `/LILLA_AUDIO`. Direct Flash import uses `/FLASH_AUDIO`. Preparation suspends audio and MIDI; existing destination files are preserved. The alphabetical catalog `/LILLA_AUDIO/.lilla-index` supports up to 4096 entries. The version-1 format is unchanged: a 24-byte header and 264-byte records, with a filename of up to 255 bytes. Existing smaller catalogs remain readable.
+
+Index construction uses merge sorting through temporary files on SD with only two current records in RAM. Increasing capacity therefore increases SD storage and sorting work, without allocating a full catalog in RAM. Exceeding 4096 valid files reports an index error. Catalog counts, offsets and browser positions use 32-bit values.
+
+[SdSoundSource](lib/SdSoundSource/SdSoundSource.h) reads catalog records on demand and resolves persistent source references independently of alphabetical positions. The identity range starts at 1024; this is not the catalog capacity. Sound Edit loads a selected window into the existing PSRAM cache for audition through the 16 Players. Saved portions retain an SD reference; the complete `/LILLA_AUDIO` directory must be preserved separately from the normal backup. See [user audio preparation](docs/user-audio-preparation.md).
 
 ## 6. Recording and capture workflows
 
@@ -181,7 +197,7 @@ For text popups and red-button confirmation, reuse `Show_popup_text` and `Confir
 | Change persistent data | `ArchivingManager`, FRAM layout, format validation and backup/restore compatibility. |
 | Add a page or control | `Shared*`, `Pointer*`, `Display*`, control dispatch in `main.cpp` and the User Guide. |
 
-Follow the repository's [AGENTS.md](AGENTS.md) conventions when editing: CRLF text files, single-line code expressions, explicit braces for conditional blocks, and matching header/source ownership for new declarations and definitions. Keep audio critical sections visually distinct. Avoid redundant range checks in hot paths where the caller contract already guarantees valid values; validate external data at its input boundary.
+Follow the local repository conventions when editing: CRLF text files, single-line code expressions, explicit braces for conditional blocks, and matching header/source ownership for new declarations and definitions. Keep audio critical sections visually distinct. Avoid redundant range checks in hot paths where the caller contract already guarantees valid values; validate external data at its input boundary.
 
 For firmware changes, build with `pio run -e teensy41` and exercise the affected workflow on hardware. Changes to audio reads or scheduling also need stress checks with layered notes, release tails, patch switching, MIDI bursts and the relevant recording/effect paths. A successful build alone does not establish real-time headroom or persistence compatibility.
 

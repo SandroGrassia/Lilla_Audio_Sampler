@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.1**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.2**
 
 Guide edition: **15 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.1](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.2](User%20Guide.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -445,7 +445,7 @@ This workflow keeps audio on SD and preserves the existing Flash library and rec
 
 Converted mono RAW files are stored in `/LILLA_AUDIO` at 44.1 kHz, signed 16-bit little-endian PCM. The input format requirements are listed below. Original files are retained and existing destination files are skipped. Files sharing a basename target the same RAW file; use unique names to retain every source. Subdirectories are not processed.
 
-SD conversion processes complete files without the Flash import limit of 3 MiB. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 1,024 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_AUDIO` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
+SD conversion processes complete files without the Flash import limit of 3 MiB. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 4,096 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_AUDIO` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
 
 ### Replace the Flash audio library
 
@@ -760,7 +760,7 @@ Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving
 
 <img src="doc/assets/images/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="37%">
 
-*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.1 calls this route PRE_LIST.*
+*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.2 calls this route PRE_LIST.*
 
 Open **Tools > Mixer** to adjust the eight Sound sources and `L_IN`. Turn Select to choose a source column, then press it to enter the fields. Turn Select through `MUTE`, `GAIN`, `PAN`, `LINEOUT` and `PRE_LIST`; press Select to return to source selection. MUTE and GAIN have separate selection frames.
 
@@ -784,7 +784,11 @@ Use the separate LINEOUT and PRE_LIST routes to decide what your audience hears 
 
 *The ROUTING row selects which sound slots feed the delay. The example values are not recommended defaults.*
 
-Open **Tools > Delay** to adjust feedback, delay time, the left/right time relationship, modulation source, modulation frequency, modulation depth and left/right modulation phase.
+Open **Tools > Delay** to adjust feedback, delay time, the left/right time relationship, echo low-pass cutoff, modulation source, modulation frequency, modulation depth and left/right modulation phase.
+
+`DELAY TIME L/R`: turn Value clockwise to delay the right channel, or counterclockwise to delay the left channel. The offset is limited by the available delay range; at the maximum delay time of 2 seconds, no additional offset is available.
+
+`ECHO LPF CUTOFF` darkens successive repeats. Its frequency is displayed in integer Hz, from 40Hz to 20000Hz, and is saved with the patch. Older patches start at 20000Hz.
 
 Start with low feedback, then increase it while listening. Check the instrument's delay routing if you hear no delayed signal. Save the patch to retain its delay settings.
 
@@ -812,7 +816,7 @@ Resonance emphasizes the filter's response around its characteristic frequency. 
 
 
 
-The common **Cutoff** control changes the low-pass filter. Press it to restore maximum cutoff. **Resolution** and **Downsampling** add digital coloration.
+The common **Cutoff** control changes the low-pass filter, using the same 40 frequency settings as the echo filter, displayed in integer Hz from 40Hz to 20000Hz. Press it to restore maximum cutoff. **Resolution** and **Downsampling** add digital coloration.
 
 The instrument VCF page provides filter type, cutoff, resonance and modulation settings. Adjust these while playing the selected sound so you can hear how they interact with its sample and envelope.
 
@@ -968,7 +972,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.1. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.2. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1022,7 +1026,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.1.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.2.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 

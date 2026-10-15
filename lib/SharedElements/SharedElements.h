@@ -360,11 +360,7 @@ extern bool lowpass_direction;
 extern int lowpass;        // 0 <= lowpass_log_value <= 39
 extern int lowpass_target; // 0 <= lowpass_log_value <= 39
 extern bool display_lowpass_flag;
-constexpr int lowpass_value[LPF_MAX + 1] =
-    {40, 48, 56, 65, 75, 90, 100, 125, 145, 170,
-     200, 230, 270, 320, 380, 440, 520, 600, 720, 840,
-     980, 1150, 1350, 1600, 1900, 2200, 2500, 3000, 3500, 4100,
-     4900, 5700, 6700, 7900, 9200, 10000, 12500, 14500, 17500, 20000}; // 0 -> 39
+constexpr int lowpass_value[LPF_MAX + 1] = {40, 50, 60, 80, 100, 120, 150, 170, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1500, 1700, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000, 12000, 14000, 15000, 16000, 18000, 20000}; // 0 -> 39
 
 // RESOLUTION DOWNSAMPLING
 static constexpr int RES_MAX = 79;

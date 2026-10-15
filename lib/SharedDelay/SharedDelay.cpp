@@ -28,6 +28,7 @@ void Calc_Delay_values(Delay_data_struct &data)
     Delay_values.modulation_frequency = Calc_delay_frequency(data.modulation_frequency);
     Delay_values.modulation_phase_LR = data.modulation_phase_LR;
     Delay_values.loop_gain = Delay_feedback(data.loop_gain); // feedback
+    Delay_values.lpf_cutoff_hz = lowpass_value[data.lpf_cutoff];
 
     if (true)
     {
@@ -180,7 +181,8 @@ int Calc_delay_samples_LR_limit(int time)
 {
     const int samples = Calc_delay_samples(time);
     int limit = Delay_data_limits[SAMPLES_LR][1];
-    while (Calc_delay_samples_LR(limit) > samples)
+    const int headroom = DELAY_CACHE_ACTIVE_SAMPLES - AUDIO_BLOCK_SAMPLES - samples;
+    while (Calc_delay_samples_LR(limit) > samples || Calc_delay_samples_LR(limit) > headroom)
     {
         --limit;
     }
