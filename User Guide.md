@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.0**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.1**
 
 Guide edition: **15 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.0](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.1](User%20Guide.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -330,6 +330,8 @@ From Performance, press **S1-S8** for an active sound to open Sound Edit. An unu
 
 ### Browse Flash or SD audio
 
+The FILE field shows the first 10 characters of the source name, without its extension, for both Flash audio and SD audio.
+
 Choose `BROWSE_FLASH` or `BROWSE_SD` in Sound Edit to browse the corresponding library alphabetically; commands appear when that library contains audio. SD browsing uses the index created by the Setup conversion command described under **Importing audio**.
 
 Selecting an SD file loads a window limited by the available per-source PSRAM cache for MIDI audition, without continuous SD reads during notes. Adjust From, To and Step to choose the portion; the display uses `SAVE FROM` during preview. Gain, pitch, MIDI channel, resolution, downsampling and LPF remain editable. Pan, envelope, playback mode and Noclick are fixed during preview and become editable after SAVE.
@@ -341,7 +343,7 @@ Choose `SAVE` to retain the selected portion and its persistent SD source refere
 ### Choose and trim the source
 
 1. Highlight the file field with **Select**.
-2. Turn **Value** to choose an available source.
+2. Turn **Value** to choose an available source. Hold **Select** while turning Value to move 10 files at a time in either direction, in Flash or SD. Browsing stops at the first or last file.
 3. Play the sound from your MIDI controller.
 4. Turn **From** and **To** to adjust the playback region.
 5. Turn **Step** to select a suitable trimming increment: use larger steps to find the region, then smaller steps to refine it.
@@ -758,7 +760,7 @@ Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving
 
 <img src="doc/assets/images/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="37%">
 
-*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.0 calls this route PRE_LIST.*
+*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.1 calls this route PRE_LIST.*
 
 Open **Tools > Mixer** to adjust the eight Sound sources and `L_IN`. Turn Select to choose a source column, then press it to enter the fields. Turn Select through `MUTE`, `GAIN`, `PAN`, `LINEOUT` and `PRE_LIST`; press Select to return to source selection. MUTE and GAIN have separate selection frames.
 
@@ -966,7 +968,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.0. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.1. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1020,7 +1022,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.0.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.1.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
