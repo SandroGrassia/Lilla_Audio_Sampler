@@ -15081,7 +15081,11 @@ FLASHMEM bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_st
             return false;
         }
         AudioInterrupts();
+
+        // SD loading is synchronous: draw now, before the main loop can observe completion.
+        Display_Performance.P_update_upload_popup(true, P_pointer);
         PatchCache_Manager.Load_sd_sources(patch_id);
+
         AudioNoInterrupts();
         if (midi_running)
         {
