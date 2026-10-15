@@ -16,9 +16,9 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## Development: prepare user audio on SD
+## New in firmware 7.2.0: SD audio library
 
-SETUP now includes `CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO`: immediate copies/conversions of missing files to mono RAW, preservation of existing files, Serial reporting and a 1,024-entry alphabetical index created if absent and updated after import. SOUND_EDIT also supports alphabetical Flash/SD browsing, SD audition through the 16 existing Players using PSRAM, and SAVE of the selected portion with a persistent SD reference. See [User audio preparation](docs/user-audio-preparation.md). This development feature is not part of the published 7.1.1 release.
+SETUP now includes `CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO`: immediate copies/conversions of missing files to mono RAW, preservation of existing files, Serial reporting and a 1,024-entry alphabetical index created if absent and updated after import. SOUND_EDIT also supports alphabetical Flash/SD browsing, SD audition through the 16 existing Players using PSRAM, and SAVE of the selected portion with a persistent SD reference. See [User audio preparation](docs/user-audio-preparation.md). This feature is included in firmware 7.2.0. Direct Flash import now reads `/FLASH_AUDIO`; SD library preparation reads `/EXTERNAL_AUDIO` and writes `/LILLA_AUDIO`. See the [7.2.0 release notes](docs/release-notes-7.2.0.md).
 
 ## What This Project Does
 
@@ -33,7 +33,7 @@ LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work w
 
 Sound shaping includes sample trimming, forward/reverse and loop playback, envelopes, instrument filters and modulation, a common low-pass filter, stereo delay, bit reduction and downsampling. Separate main and pre-listening routes support auditioning and performance.
 
-## New in firmware 7.1.1
+## Previous improvements in firmware 7.1.1
 
 The Mixer now has separate MUTE and GAIN fields, and exclusive PRE_LIST routing for one of its nine sources, or none. MUTE, LINEOUT and PRE_LIST respond to both a Value click and rotation. A Sound in SOLO and the temporary Sampler patch cannot be muted.
 
@@ -128,7 +128,7 @@ Setup groups global playing preferences, MIDI Control Change assignments and sto
 
 For example, moving 12 MIDI keys above the root raises pitch by an octave at the normal setting, but by only six semitones with KEY STEP set to 1/2. This changes the pitch spacing of keyboard playback; FIRST OCTAVE only changes the displayed octave names. KEY STEP is stored as a global setting, so return it to one semitone when conventional chromatic mapping is required.
 
-Setup also provides audio import from `/LILLA_AUDIO`, numbered configuration and recording backups in `/LILLABACKUP`, restoration from the backup root, and factory reset. Import and restore can replace existing material: preserve the relevant audio library, patches and loop files before using those operations. See [Setup and MIDI controls](User%20Guide.md#setup-and-midi-controls) and [Backup and restore](User%20Guide.md#backup-and-restore).
+Setup also provides direct Flash audio import from `/FLASH_AUDIO`, SD library preparation from `/EXTERNAL_AUDIO` into `/LILLA_AUDIO`, numbered configuration and recording backups in `/LILLABACKUP`, restoration from the backup root, and factory reset. Import and restore can replace existing material: preserve the relevant audio library, patches and loop files before using those operations. See [Setup and MIDI controls](User%20Guide.md#setup-and-midi-controls) and [Backup and restore](User%20Guide.md#backup-and-restore).
 
 ## Audio Files and Storage
 
@@ -179,7 +179,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.1.1 (13 October 2026)**: download [Lilla_v7_1_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.1.1/Lilla_v7_1_1.hex) from [release v7.1.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.1.1). See the [7.1.1 release notes](docs/release-notes-7.1.1.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.0 (15 October 2026)**: download [Lilla_v7_2_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.0/Lilla_v7_2_0.hex) from [release v7.2.0](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.0). See the [7.2.0 release notes](docs/release-notes-7.2.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

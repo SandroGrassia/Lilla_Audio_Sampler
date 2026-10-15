@@ -1,4 +1,4 @@
-# User audio preparation on SD (development)
+# User audio preparation on SD (firmware 7.2.0)
 
 This feature adds **CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO** to SETUP. Put source files directly in `/EXTERNAL_AUDIO`, insert the SD, select the command. Preparation starts immediately without confirmation. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
 
