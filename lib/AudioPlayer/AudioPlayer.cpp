@@ -1482,8 +1482,6 @@ void AudioPlayer::update(void)
         if (volume_gain_warmup_flag)
         {
             volume_gain_warmup_flag = false;
-            K_volume_gain = (volume_gain_wait - volume_gain) / SAMPLES_VOLUME; // [Gain/sample]
-            JV0 = samples_counter + SAMPLES_VOLUME;                            // [sample]
             volume_flag = true;
         }
 
@@ -1683,15 +1681,23 @@ void AudioPlayer::update(void)
 
 void AudioPlayer::Update_volume_gain(void)
 {
-    const uint32_t remaining = JV0 - samples_counter; // Unsigned subtraction also handles sample-counter rollover.
-    if (remaining > 1)
+    if (volume_gain < volume_gain_wait)
     {
-        volume_gain = volume_gain_wait - K_volume_gain * (remaining - 1); // Recompute from the target instead of accumulating rounding error.
+        volume_gain += VOLUME_GAIN_STEP;
+        if (volume_gain >= volume_gain_wait)
+        {
+            volume_gain = volume_gain_wait;
+            volume_flag = false;
+        }
     }
     else
     {
-        volume_gain = volume_gain_wait;
-        volume_flag = false;
+        volume_gain -= VOLUME_GAIN_STEP;
+        if (volume_gain <= volume_gain_wait)
+        {
+            volume_gain = volume_gain_wait;
+            volume_flag = false;
+        }
     }
 }
 

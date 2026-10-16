@@ -187,8 +187,7 @@ private:
 
     float ADSR_gain;
     float volume_gain = 1.0;
-    float K_volume_gain; // [Gain/sample]
-    uint32_t JV0;
+    static constexpr float VOLUME_GAIN_STEP = 0.00005f; // Gain per sample; the final step stops exactly at the target.
     int8_t pan_int;
     float pan_gain_L;
     float pan_gain_R;

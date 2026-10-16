@@ -753,6 +753,7 @@ int LOOP_volume_int[TRACKS] = {0};                    // Per-track integer volum
 bool LOOP_run_button_state;                           // Whether the global loop run control is enabled.
 bool LOOP_track_run_memo[TRACKS] = {false};           // Saved per-track run states used when toggling global loop playback.
 int LOOP_stretch_int = 100;                           // Common track time-stretch setting, expressed as a percentage.
+bool LOOP_initial_selection_pending = true; // Select the initial SD loop on the first MIDI Loop entry.
 bool LOOP_original;                                   // Whether the current MIDI Loop data matches the saved version.
 
 // Pointer
@@ -6782,14 +6783,19 @@ void loop()
         result = Read_encoder_simple(EN_PB_Loop);
         if (result != 0)
         {
-            int new_loop_id;
+            const int navigation_id = LOOP_id == NEW_LOOP ? LOOP_suggested_id : LOOP_id;
+            int new_loop_id = navigation_id;
             if (result == +1)
             {
-                new_loop_id = LOOP_Get_next_loop_id_in_SD(LOOP_id);
+                new_loop_id = LOOP_Get_next_loop_id_in_SD(navigation_id);
             }
             else if (result == -1)
             {
-                new_loop_id = LOOP_Get_previous_loop_id_in_SD(LOOP_id);
+                new_loop_id = LOOP_Get_previous_loop_id_in_SD(navigation_id);
+            }
+            if (new_loop_id == navigation_id)
+            {
+                new_loop_id = LOOP_id; // No saved neighbour: keep the current loop, including an unsaved NEW loop.
             }
 
             PRINT_CONTROL_POINT(new_loop_id);
@@ -6904,7 +6910,7 @@ void loop()
         // Recording
         for (auto track = 0; track < TRACKS; ++track)
         {
-            if (Read_pushbutton(PB_Rec[track]) && LOOP_run_button_state && (track == MASTER_TRACK || LOOP_events[MASTER_TRACK] != 0))
+            if (Read_pushbutton(PB_Rec[track]) && (track == MASTER_TRACK || (LOOP_run_button_state && LOOP_events[MASTER_TRACK] != 0)))
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
@@ -6966,6 +6972,7 @@ void loop()
                         LOOP_original = false;
                     }
                 }
+                LOOP_run_button_state = true; // REC from STOP is allowed only for the master track.
                 AudioInterrupts();
 
                 // LED_Rec ON
@@ -10380,11 +10387,35 @@ void Golive_DELAY_SETTINGS(void)
     Clear_UI_events();
 }
 
+FLASHMEM
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
 
     Clear_UI_events();
+
+    if (LOOP_initial_selection_pending)
+    {
+        LOOP_initial_selection_pending = false;
+        const int first_loop_id = LOOP_Get_next_loop_id_in_SD(NEW_LOOP);
+        if (first_loop_id != NEW_LOOP && LOOP_Copy_midi_loop_from_SD_to_RAM(first_loop_id))
+        {
+            LOOP_id = first_loop_id;
+            if (LOOP_time > 0)
+            {
+                LOOP_metronomo.Setup(LOOP_time);
+            }
+            for (auto track = 0; track < TRACKS; ++track)
+            {
+                LOOP_play_event[track] = 0;
+                LOOP_set_time_order(track);
+                LOOP_track_run_memo[track] = LOOP_events[track] > 0;
+                LOOP_track_run[track] = false;
+            }
+            LOOP_run_button_state = LOOP_events[MASTER_TRACK] == 0;
+            restart = true;
+        }
+    }
 
     if (LOOP_id == NEW_LOOP)
     {
@@ -15837,7 +15868,8 @@ void Reload_system_state(void)
     downsampling = 1; // n. of repeated samples  1 = 44.1ksps
 
     // *******************    MIDI LOOP   ************************
-    LOOP_id = -1;
+    LOOP_id = NEW_LOOP;
+    LOOP_initial_selection_pending = true;
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************

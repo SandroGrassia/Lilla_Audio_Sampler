@@ -9,17 +9,20 @@ ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / 'lib/AudioPlayer/AudioPlayer.cpp').read_text(encoding='utf-8')
 methods = '\n'.join(re.search(r'^void AudioPlayer::' + name + r'\(.*?^\}', source, re.M | re.S).group(0) for name in ('Set_volume', 'Update_volume', 'Update_volume_gain'))
 warmup = re.search(r'        if \(volume_gain_warmup_flag\)\n        \{.*?\n        \}', source, re.S).group(0)
+header = (ROOT / 'lib/AudioPlayer/AudioPlayer.h').read_text(encoding='utf-8')
+step = re.search(r'    static constexpr float VOLUME_GAIN_STEP = .*?;', header).group(0)
 code = r'''
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <algorithm>
-constexpr int SAMPLES_VOLUME = 5000;
+#include <cmath>
 struct AudioPlayer
 {
     bool idle = false, volume_flag = false, volume_gain_warmup_flag = false;
-    float volume_gain = 0, volume_gain_wait = 0, K_volume_gain = 0;
-    uint32_t samples_counter = 0, JV0 = 0;
+    STEP_DECLARATION
+    float volume_gain = 0, volume_gain_wait = 0;
+    uint32_t samples_counter = 0;
     void Set_volume(float);
     void Update_volume(float);
     void Update_volume_gain();
@@ -36,13 +39,17 @@ struct AudioPlayer
     {
         const float start = volume_gain;
         Update_volume(target);
-        for (int sample = 0; sample < SAMPLES_VOLUME; ++sample)
+        int sample = 0;
+        do
         {
             const float previous = volume_gain;
             Tick();
             assert(volume_gain >= std::min(start, target) && volume_gain <= std::max(start, target));
             assert(target >= start ? volume_gain >= previous : volume_gain <= previous);
-        }
+            const float expected_step = std::min(VOLUME_GAIN_STEP, std::fabs(target - previous));
+            assert(std::fabs(std::fabs(volume_gain - previous) - expected_step) < 0.000001f);
+            assert(++sample < static_cast<int>(std::ceil(std::fabs(target - start) / VOLUME_GAIN_STEP * 1.02f)) + 2);
+        } while (volume_flag || volume_gain_warmup_flag);
         assert(volume_gain == target && !volume_flag && !volume_gain_warmup_flag);
     }
 };
@@ -63,12 +70,12 @@ int main()
     }
     AudioPlayer player;
     player.Update_volume(1.0f);
-    for (int i = 0; i < SAMPLES_VOLUME - 1; ++i)
+    for (int i = 0; i < static_cast<int>(0.9f / AudioPlayer::VOLUME_GAIN_STEP); ++i)
     {
         player.Tick();
         assert(player.volume_flag);
     }
-    player.Tick();
+    player.Ramp(1.0f); // Floating-point rounding may add a final partial step.
     assert(!player.volume_flag && player.volume_gain == 1.0f);
     player.Update_volume(0.0f);
     for (int i = 0; i < 700; ++i)
@@ -85,9 +92,9 @@ int main()
         player.Tick();
         assert(player.volume_gain == 0.0f);
     }
-    std::puts("PASS: volume bounds, monotonic ramps, exact 5000-sample completion, mute, reversal, retarget and rollover");
+    std::puts("PASS: volume bounds, monotonic ramps, fixed gain steps and exact completion, mute, reversal, retarget and rollover");
 }
-'''.replace('WARMUP', warmup).replace('METHODS', methods)
+'''.replace('STEP_DECLARATION', step).replace('WARMUP', warmup).replace('METHODS', methods)
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-volume-') as directory:
     cpp, exe = Path(directory) / 'volume.cpp', Path(directory) / 'volume.exe'
