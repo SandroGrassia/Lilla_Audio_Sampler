@@ -16,22 +16,17 @@
 /*
 LoopLedSet
 
-Update(track) visualizza gli 8 LED di una Track sulla pagina MIDI_LOOP, in base al contenuto dell'array total_Players_per_instrument in PlayersStatistics,
-e dal confronto con l'array total_Players_per_instrument_old.
-
-IMPORTANTE: Update(track) e Update_all() NON vanno chiamate all'interno delle funzioni update() degli oggetti AudioStream
-
-Lo stato ON/OFF dei led e' contenuto in led[TRACKS][INSTRUMENTS].
-
-Per un funzionamento corretto, ad ogni passaggio di contesto (es da PERFORMANCE a MIDI_LOOP e viceversa) total_Players_per_instrument e
-total_Players_per_instrument_old vanno azzerati assieme al reset dei Player.
+PlayersStatistics requests ON/OFF transitions for each track/instrument without accessing the display.
+The main loop consumes pending transitions and draws them outside the audio IRQ.
+Restore_all_LED() requests a full redraw after the page is cleared, preserving active notes and pending transitions.
+Only a playback reset should clear the player counters and request all LEDs OFF.
 */
 
 class LoopLedSet
 {
 private:
     // riferimenti esterni
-    volatile int8_t led_activity[TRACKS][INSTRUMENTS]; // -2: request switch-OFF   -1: led OFF    +1: led ON   -2: request switch-ON
+    volatile int8_t led_activity[TRACKS][INSTRUMENTS]; // -2: pending OFF, -1: acknowledged OFF, +1: acknowledged ON, +2: pending ON
 
 public:
     LoopLedSet()
@@ -39,6 +34,7 @@ public:
         Request_all_LED_switch_off();    
     }
       
+    void Restore_all_LED(void); // Request a redraw of all 32 states without changing playback.
     void Request_all_LED_switch_off(void); // called by main
     void Request_track_LED_switch_off(int track); // 
     void Request_LED_switch(int track, int instrument_id, bool on); // called by PlayersStatistics - do NOT access to Display

@@ -184,10 +184,25 @@ struct PointerStub
     void Set_pointer_to_first_menu_element() {}
     LOOP_field_description_struct Get_pointer() { return {}; }
 } Pointer_MidiLoop;
-struct DisplayStub { void Show_menu() {} void Show_loop_id() {} void Show_save_failed() {} } Display_MidiLoop;
+struct DisplayMidiLoop { void Show_menu() {} void Show_loop_id(); void Show_save_failed() {} } Display_MidiLoop;
+struct TFTStub
+{
+    String text;
+    void setTextColor(int) {}
+    void print(const char *value) { text = value; }
+    void print(int value) { text = std::to_string(value); }
+} tft;
+constexpr int ILI9341_YELLOW = 0, Loop_chars_loop = 3;
+constexpr int Loop_column_row_loop[] = {0, 0};
+int display_coordinate_x(int value) { return value; }
+int display_coordinate_y(int value) { return value; }
+void Cancel_text_reset_cursor(int, int, int) { tft.text.clear(); }
 void Clear_UI_events() {}
-void LOOP_select_menu_elements() {}
+
 '''
+display = (ROOT / 'lib/DisplayMidiLoop/DisplayMidiLoop.cpp').read_text(encoding='utf-8')
+production += re.search(r'void DisplayMidiLoop::Show_loop_id\(void\)\n\{.*?^\}', display, re.M | re.S).group(0) + '\n'
+production += method('void LOOP_select_menu_elements(void)')
 ui_start = main.index('                    case value_LOOP_Save:\n')
 ui_end = main.index('                    case value_LOOP_Delete:\n', ui_start)
 production += 'void Save_UI(int action)\n{\n    switch (action)\n    {\n' + main[ui_start:ui_end] + '    }\n}\n'
@@ -381,6 +396,39 @@ int main()
     LOOP_original = false;
     Save_UI(value_LOOP_Save);
     assert(LOOP_id == 0 && LOOP_original);
+    // A preview must not turn a new RAM loop into a saved loop or change its menu.
+    seed(3);
+    LOOP_id = NEW_LOOP;
+    LOOP_suggested_id = LOOP_Get_first_loop_id_free();
+    assert(LOOP_suggested_id == 1);
+    Display_MidiLoop.Show_loop_id();
+    assert(tft.text == "1" && LOOP_id == NEW_LOOP);
+    LOOP_select_menu_elements();
+    assert(!Menu_LOOP[0] && Menu_LOOP[1] && !Menu_LOOP[2] && Menu_LOOP[3]);
+    // Occupying the preview before Save selects the next free slot instead of overwriting it.
+    put("/LILLALOOP/1.loop.bak", "reserved");
+    faults.write_limit = 10;
+    Save_UI(value_LOOP_Save);
+    assert(LOOP_id == NEW_LOOP && LOOP_suggested_id == 2 && tft.text == "2" && !LOOP_original);
+    faults = {};
+    Save_UI(value_LOOP_Save);
+    assert(LOOP_id == 2 && LOOP_original && tft.text == "2");
+    assert(SD.sdfs.files["/LILLALOOP/1.loop.bak"]->text == "reserved");
+    // Missing SD and exhausted IDs show the placeholder while keeping the RAM loop unsaved.
+    LOOP_id = NEW_LOOP;
+    faults.begin = true;
+    Save_UI(value_LOOP_Save);
+    assert(LOOP_id == NEW_LOOP && LOOP_suggested_id < 0 && tft.text == "---");
+    faults = {};
+    for (int id = 0; id < MIDI_LOOP_FILES; ++id)
+    {
+        put("/LILLALOOP/" + LOOP_Filename_midi_loop(id), "occupied");
+    }
+    Save_UI(value_LOOP_Save);
+    assert(LOOP_id == NEW_LOOP && LOOP_suggested_id < 0 && tft.text == "---");
+    LOOP_id = 7;
+    Display_MidiLoop.Show_loop_id();
+    assert(tft.text == "7");
     // Exercise production recording conditions: the last slot is usable and no later event writes past it.
     LOOP_learning_track = 0;
     LOOP_elements = 0;

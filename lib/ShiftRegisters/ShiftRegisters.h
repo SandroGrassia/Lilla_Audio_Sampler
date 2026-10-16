@@ -49,6 +49,18 @@ private:
     Pushbuttons &Pushbuttons_manager;
     Switches &Switches_manager;
 
+    static constexpr int PWM_LEDS = 4;
+    static constexpr uint32_t LED_PWM_PERIOD_US = 10000; // 100 Hz carrier.
+    static constexpr uint32_t LED_BREATH_PERIOD_US = 4000000;
+    static constexpr int LED_BREATH_STEPS = 100;
+    static const uint16_t LED_BREATH_ON_US[LED_BREATH_STEPS];
+    bool led_requested_on[PWM_LEDS] = {};
+    bool led_output_on[PWM_LEDS] = {};
+    uint32_t led_cycle_start_us[PWM_LEDS] = {};
+
+    // Cooperative PWM: called only by Update() in the main loop, never by an ISR.
+    void Update_led_pwm(void);
+
     static constexpr int STATES = 4;
     enum Type
     {

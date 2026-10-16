@@ -70,3 +70,21 @@ int LoopLedSet::Consume_LED_activity(int track, int instrument_id)
     }
     return activity;
 }
+
+void LoopLedSet::Restore_all_LED(void)
+{
+    const uint32_t irq_mask = __get_primask();
+    __disable_irq();
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        for (int instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+        {
+            // Preserve the logical state, including any transition queued while the page was hidden.
+            led_activity[track][instrument_id] = led_activity[track][instrument_id] > 0 ? 2 : -2;
+        }
+    }
+    if (irq_mask == 0)
+    {
+        __enable_irq();
+    }
+}

@@ -68,13 +68,14 @@ void DisplayMidiLoop::Show_loop_id(void)
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_loop[0]), display_coordinate_y(Loop_column_row_loop[1]), Loop_chars_loop);
     tft.setTextColor(ILI9341_YELLOW);
 
-    if (LOOP_id < 0)
+    const int displayed_id = LOOP_id == NEW_LOOP ? LOOP_suggested_id : LOOP_id;
+    if (displayed_id < 0)
     {
         tft.print("---");
         return;
     }
 
-    tft.print(LOOP_id);
+    tft.print(displayed_id);
 }
 
 void DisplayMidiLoop::Show_patch_id(void)

@@ -49,3 +49,4 @@ bool LOOP_metronomo_flag_IN[2] = {false, false}; // accendi led_0, switch led de
 
 // LOOP salvataggio su SD
 int LOOP_id;
+int LOOP_suggested_id = NEW_LOOP;

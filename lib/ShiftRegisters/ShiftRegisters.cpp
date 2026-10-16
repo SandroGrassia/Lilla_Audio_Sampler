@@ -8,6 +8,9 @@
 #include <initializer_list>
 #include <SPI.h>
 
+// Four-second cosine cycle, starting at full brightness; duty cycle ranges from 40% to 100%.
+const uint16_t ShiftRegisters::LED_BREATH_ON_US[LED_BREATH_STEPS] = {10000, 9994, 9976, 9947, 9906, 9853, 9789, 9714, 9629, 9533, 9427, 9312, 9187, 9054, 8912, 8763, 8607, 8445, 8277, 8104, 7927, 7746, 7562, 7376, 7188, 7000, 6812, 6624, 6438, 6254, 6073, 5896, 5723, 5555, 5393, 5237, 5088, 4946, 4813, 4688, 4573, 4467, 4371, 4286, 4211, 4147, 4094, 4053, 4024, 4006, 4000, 4006, 4024, 4053, 4094, 4147, 4211, 4286, 4371, 4467, 4573, 4688, 4813, 4946, 5088, 5237, 5393, 5555, 5723, 5896, 6073, 6254, 6438, 6624, 6812, 7000, 7188, 7376, 7562, 7746, 7927, 8104, 8277, 8445, 8607, 8763, 8912, 9054, 9187, 9312, 9427, 9533, 9629, 9714, 9789, 9853, 9906, 9947, 9976, 9994};
+
 void ShiftRegisters::Begin(void)
 {
     // Deselect both devices before enabling their shared hardware SPI bus.
@@ -85,7 +88,42 @@ void ShiftRegisters::Switch_led(LedNames led, bool on)
         return;
     }
 
+    if (led < PWM_LEDS)
+    {
+        if (on && led_requested_on[led])
+        {
+            return;
+        }
+        led_requested_on[led] = on;
+        led_output_on[led] = on;
+        led_cycle_start_us[led] = micros();
+    }
+
     Shifter[UI_leds[led].shifter_id].digitalWrite(UI_leds[led].shifter_channel, (on ? LOW : HIGH));
+}
+
+void ShiftRegisters::Update_led_pwm(void)
+{
+    const uint32_t now_us = micros();
+    for (int led = 0; led < PWM_LEDS; ++led)
+    {
+        if (!led_requested_on[led])
+        {
+            continue;
+        }
+
+        const uint32_t elapsed_us = now_us - led_cycle_start_us[led];
+        const uint32_t phase_us = elapsed_us % LED_BREATH_PERIOD_US;
+        // Advance the epoch each cycle to keep unsigned micros() rollover safe.
+        led_cycle_start_us[led] += elapsed_us - phase_us;
+        const uint32_t step = phase_us / (LED_BREATH_PERIOD_US / LED_BREATH_STEPS);
+        const bool on = (phase_us % LED_PWM_PERIOD_US) < LED_BREATH_ON_US[step];
+        if (on != led_output_on[led])
+        {
+            Shifter[UI_leds[led].shifter_id].digitalWrite(UI_leds[led].shifter_channel, (on ? LOW : HIGH));
+            led_output_on[led] = on;
+        }
+    }
 }
 
 void ShiftRegisters::Set_monitored_encoders(void)
@@ -235,6 +273,8 @@ void ShiftRegisters::Filter_channels_changed_values(const int &shifter_id)
 
 void ShiftRegisters::Update(void)
 {
+    Update_led_pwm();
+
     // Parse all shifter registers
     for (auto shifter_id = 0; shifter_id < SHIFTERS; ++shifter_id)
     {

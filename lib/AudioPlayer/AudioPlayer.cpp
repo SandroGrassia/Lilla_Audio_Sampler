@@ -956,6 +956,11 @@ void AudioPlayer::update(void)
     }
     Enforce_cycle_deadline(); // Check before allocating buffers or harvesting audio; never reset the shared clock here.
 
+    if (state == IDLE)
+    {
+        return; // Routers treat missing input blocks as silence; no output allocation is needed.
+    }
+
     audio_block_t *block_L, *block_R;
     float F_basket_sample;
     float rest;
@@ -981,21 +986,7 @@ void AudioPlayer::update(void)
         return;
     }
 
-    if (state == IDLE)
-    {
-        for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
-        {
-            block_L->data[sample] = 0;
-            block_R->data[sample] = 0;
-        }
-
-        transmit(block_L, 0);
-        release(block_L);
-        transmit(block_R, 1);
-        release(block_R);
-    }
-
-    else
+    // Render the active voice.
     {
         if (warmup_for_play_again_flag)
         {
@@ -1692,22 +1683,25 @@ void AudioPlayer::update(void)
 
 void AudioPlayer::Update_volume_gain(void)
 {
-    if (samples_counter <= JV0)
+    const uint32_t remaining = JV0 - samples_counter; // Unsigned subtraction also handles sample-counter rollover.
+    if (remaining > 1)
     {
-        volume_gain += K_volume_gain;
+        volume_gain = volume_gain_wait - K_volume_gain * (remaining - 1); // Recompute from the target instead of accumulating rounding error.
     }
     else
     {
+        volume_gain = volume_gain_wait;
         volume_flag = false;
     }
 }
 
 void AudioPlayer::Update_pan_gain(void)
 {
-    if (samples_counter < JP0)
+    const uint32_t remaining = JP0 - samples_counter;
+    if (remaining > 1)
     {
-        pan_gain_L += K_pan_gain_L;
-        pan_gain_R += K_pan_gain_R;
+        pan_gain_L = pan_gain_L_table[pan_int + 16] - K_pan_gain_L * (remaining - 1);
+        pan_gain_R = pan_gain_R_table[pan_int + 16] - K_pan_gain_R * (remaining - 1);
     }
     else
     {
@@ -2862,7 +2856,7 @@ void AudioPlayer::Set_volume(float volume_gain_value)
 void AudioPlayer::Update_volume(float volume_gain_value)
 {
     volume_gain_wait = volume_gain_value;
-    if (!idle && (volume_gain_value != volume_gain))
+    if (!idle && (volume_flag || volume_gain_value != volume_gain))
     {
         volume_gain_warmup_flag = true;
     }

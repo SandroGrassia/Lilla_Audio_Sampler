@@ -6810,7 +6810,11 @@ void loop()
                         LOOP_id = new_loop_id;
                     }
 
-                    // Show LOOP_id on display
+                    // Show the saved identity, or refresh the destination after a failed load.
+                    if (LOOP_id == NEW_LOOP)
+                    {
+                        LOOP_suggested_id = LOOP_Get_first_loop_id_free();
+                    }
                     Display_MidiLoop.Show_loop_id();
 
                     // Show LOOP_time on display
@@ -6975,6 +6979,7 @@ void loop()
 
                     // nomina loop_id
                     LOOP_id = NEW_LOOP;
+                    LOOP_suggested_id = LOOP_Get_first_loop_id_free();
                     Display_MidiLoop.Show_loop_id();
 
                     LOOP_time = 0;
@@ -7425,6 +7430,12 @@ void loop()
                     case value_LOOP_Save:
                     {
                         const int saved_loop_id = LOOP_id == NEW_LOOP ? LOOP_Get_first_loop_id_free() : LOOP_id;
+                        if (LOOP_id == NEW_LOOP)
+                        {
+                            // Recheck the card at Save: the displayed slot is a suggestion, not a reservation.
+                            LOOP_suggested_id = saved_loop_id;
+                            Display_MidiLoop.Show_loop_id();
+                        }
                         if (saved_loop_id < 0 || !LOOP_Copy_midi_loop_from_RAM_to_SD(saved_loop_id))
                         {
                             Serial.println(F("Loop save failed; RAM loop remains unsaved."));
@@ -10375,6 +10386,10 @@ void Golive_with_MIDI_LOOP(bool restart)
 
     Clear_UI_events();
 
+    if (LOOP_id == NEW_LOOP)
+    {
+        LOOP_suggested_id = LOOP_Get_first_loop_id_free();
+    }
     LOOP_select_menu_elements();
     Display_MidiLoop.Show_Loop_page();
 
@@ -10389,7 +10404,8 @@ void Golive_with_MIDI_LOOP(bool restart)
         Loop_led_set.Request_all_LED_switch_off();
     }
 
-    // Update_instruments_leds();
+    Loop_led_set.Restore_all_LED();
+    Update_instruments_leds();
     LOOP_metronomo.Leds_off(); // spegni i LED del metronomo
 
     // Se esiste loop_0, accendi il metronomo

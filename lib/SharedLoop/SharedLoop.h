@@ -71,7 +71,8 @@ unsigned long LOOP_Clock_time_from_virtual_time(int T_evento); // definita in ma
 unsigned long LOOP_Clock(void); // definita in main.cpp
 
 // Save to SD
-extern int LOOP_id; // loop_id actually displayed
+extern int LOOP_id; // Saved loop identity; NEW_LOOP until a successful save.
+extern int LOOP_suggested_id; // First free SD slot shown for NEW_LOOP; a negative value means unavailable.
 
 // Pointer
 enum LOOP_field_name

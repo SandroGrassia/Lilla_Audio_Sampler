@@ -62,7 +62,7 @@ void DisplayCommon::Show_all_effects()
         tft.print("DOWNSAMPLING");
 
         tft.setCursor(display_coordinate_x(0), display_coordinate_y(Y_EFF + 1));
-        tft.print("LPF CUTOFF");
+        tft.print("LPF");
     }
 
     else
@@ -78,7 +78,7 @@ void DisplayCommon::Show_all_effects()
         tft.print("DOWNSAMPLING");
 
         tft.setCursor(display_coordinate_x(0), display_coordinate_y(Y_EFF + 1));
-        tft.print("LPF CUTOFF");
+        tft.print("LPF");
     }
 
     Resolution();
@@ -141,7 +141,7 @@ FLASHMEM
 void DisplayCommon::Lowpass_filter(void)
 {
     float Y_EFF = (Lilla_state == MIDI_LOOP ? 1.5 : 2.5);
-    Cancel_text_reset_cursor(display_coordinate_x(11), display_coordinate_y(Y_EFF + 1), 7);
+    Cancel_text_reset_cursor(display_coordinate_x(4), display_coordinate_y(Y_EFF + 1), 7);
 
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(lowpass_value[lowpass_target]);

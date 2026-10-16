@@ -56,10 +56,29 @@ int main()
 {
     for (int i = 0; i < 33; ++i)
     {
-        pan_gain_L_table[i] = (32 - i) / 32.0f;
-        pan_gain_R_table[i] = i / 32.0f;
+        pan_gain_L_table[i] = sin((16.0f - (i - 16)) * 0.049087f);
+        pan_gain_R_table[i] = sin((16.0f + (i - 16)) * 0.049087f);
     }
     AudioPlayer player;
+    for (int from = -16; from <= 16; ++from)
+    {
+        for (int to = -16; to <= 16; ++to)
+        {
+            player.Set_pan(from);
+            player.Start();
+            player.samples_counter = UINT32_MAX - 2500; // The ramp crosses counter rollover.
+            player.Update_pan(to);
+            for (int sample = 0; sample < SAMPLES_VOLUME; ++sample)
+            {
+                player.Tick();
+                assert(player.pan_gain_L >= 0.0f && player.pan_gain_L <= 1.0f);
+                assert(player.pan_gain_R >= 0.0f && player.pan_gain_R <= 1.0f);
+                assert(player.pan_flag == (from != to && sample < SAMPLES_VOLUME - 1));
+            }
+            player.Check(to);
+        }
+    }
+    player.samples_counter = 0;
     for (int target : {-16, -7, 9, 16})
     {
         player.Set_pan(0);
