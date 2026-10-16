@@ -182,12 +182,14 @@ int main()
             assert(!DirectSampler.Is_recording() && spi_users == 0);
             save_error = 1;
             DirectSampler.Start(0, 7, 0, stereo);
-            assert(!DirectSampler.Is_recording() && DirectSampler.Storage_error() == 1);
+            assert(DirectSampler.Is_recording());
+            DirectSampler.Stop_and_wait();
+            assert(!DirectSampler.Is_recording() && spi_users == 0);
             assert(releases[0] == received[0] && releases[1] == received[1]);
             save_error = 0;
         }
     }
-    std::cout << "PASS: mono/stereo capture, missing L/R/both, exact samples and ramps, counters, packet rollover, manual/automatic stop and error releases\n";
+    std::cout << "PASS: mono/stereo capture, missing L/R/both, exact samples and ramps, counters, packet rollover, manual/automatic stop and continued capture after FRAM errors\n";
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

@@ -12,10 +12,10 @@ float AudioPlayer::resampled_basket[AUDIO_BLOCK_SAMPLES];
 
 PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) const
 {
-    PlayerReadBudget::Plan plan; // One geometry snapshot; source promotion is reflected immediately.
+    PlayerReadBudget::Plan plan;                                                                      // One geometry snapshot; source promotion is reflected immediately.
     const bool wavetable = edited ? use_Wavetable_E : (pending ? use_Wavetable_wait : use_Wavetable); // RAM tables bypass the file reader.
-    const AudioFileSource &source = pending ? source_wait : source_now; // Pending starts can use a different source from the outgoing voice.
-    const int file = pending ? file_id_wait : file_id; // File class determines Live and packet behavior.
+    const AudioFileSource &source = pending ? source_wait : source_now;                               // Pending starts can use a different source from the outgoing voice.
+    const int file = pending ? file_id_wait : file_id;                                                // File class determines Live and packet behavior.
     plan.antialias = pending ? tone_filter_level_wait : tone_filter_level;
     plan.live = (file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file));
     plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
@@ -30,8 +30,8 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
     }
     const float tune = pending ? pitch_tune_wait : (pitch_tune_flag && !Has_pending_note() ? fmaxf(pitch_tune, pitch_tune_wait) : pitch_tune); // A staged replacement tune must not be applied to the old voice.
-    const float note_pitch = pending ? pitch_note_wait : pitch_note; // Pitch before bend and vibrato.
-    const float ceiling = file == SdSoundSource::PREVIEW ? 8.0f : (edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit)); // Actual reader ceiling, including pending edits.
+    const float note_pitch = pending ? pitch_note_wait : pitch_note;                                                                           // Pitch before bend and vibrato.
+    const float ceiling = file == SdSoundSource::PREVIEW ? 8.0f : (edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit));       // Actual reader ceiling, including pending edits.
     plan.pitch = constrain(note_pitch * tune * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
     if (!pending && !edited)
     {
@@ -1488,7 +1488,7 @@ void AudioPlayer::update(void)
         if (pan_gain_warmup_flag)
         {
             pan_gain_warmup_flag = false;
-            pan_int = pan_int_wait; // Track the current ramp target, including edits during playback.
+            pan_int = pan_int_wait;                                         // Track the current ramp target, including edits during playback.
             K_pan_gain_L = (pan_gain_L_wait - pan_gain_L) / SAMPLES_VOLUME; // [Gain/sample]
             K_pan_gain_R = (pan_gain_R_wait - pan_gain_R) / SAMPLES_VOLUME; // [Gain/sample]
             JP0 = samples_counter + SAMPLES_VOLUME;                         // [sample]
@@ -3243,7 +3243,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
         if (needed_packet_delta != packet_delta)
         {
             rawfile.close();
-            packet_delta = needed_packet_delta;                    // 0
+            packet_delta = needed_packet_delta; // 0
             if (read_diagnostics_enabled)
             {
                 read_diagnostics.flags |= PlayerReadDiagnostics::PacketOpen;
@@ -3251,7 +3251,6 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             rawfile.packet_fast_open(first_packet + packet_delta); // 13
 
             // Serial.print(F("1 - Packet played is: "));
-
         }
 
         int local_first_byte = first_byte % PACKET_DIM;           // (PD - 2)%PD = (PD - 2)
@@ -3286,7 +3285,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
             rawfile.read(destination_byte, first_part); // read 2 bytes
             rawfile.close();
 
-            packet_delta = packet_delta + (stereo_flag ? 2 : 1);   // 0 + 2 = 2
+            packet_delta = packet_delta + (stereo_flag ? 2 : 1); // 0 + 2 = 2
             if (read_diagnostics_enabled)
             {
                 read_diagnostics.flags |= PlayerReadDiagnostics::PacketOpen;
