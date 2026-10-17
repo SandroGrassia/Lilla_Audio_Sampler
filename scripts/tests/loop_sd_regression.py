@@ -27,6 +27,7 @@ prefix = r'''
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -148,19 +149,23 @@ struct SDStub
         return true;
     }
 } SD;
-String LOOP_Filename_midi_loop(int id) { return std::to_string(id) + ".loop"; }
 '''
 
 globals_start = main.index('DMAMEM uint32_t LOOP_time_order')
 globals_end = main.index('// Pointer', globals_start)
 production = without_includes(header) + without_includes(shared) + main[globals_start:globals_end]
+constants_start = main.index('static constexpr size_t LOOP_FILENAME_SIZE')
+constants_end = main.index('void LOOP_Filename_midi_loop', constants_start)
+production += main[constants_start:constants_end]
+production += method('void LOOP_Filename_midi_loop(int loop_id, char (&filename)[LOOP_FILENAME_SIZE])')
+production += method('void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])')
 production += method('void LOOP_reset_all_data(void)')
 production += 'void LOOP_stop_and_reset_runnig_loop_data() { LOOP_reset_all_data(); }\n'
 production += method('void LOOP_set_time_order(int track)')
 codec_start = main.index('// Loop SD v1:')
 codec_end = main.index('bool LOOP_Look_for_midi_loop_in_SD(int loop_id)\n{', codec_start)
 production += main[codec_start:codec_end]
-for signature in ['int LOOP_Get_first_loop_id_free(void)', 'int LOOP_Get_next_loop_id_in_SD(int loop_id)', 'int LOOP_Get_previous_loop_id_in_SD(int loop_id)']:
+for signature in ['bool LOOP_Look_for_midi_loop_in_SD(int loop_id)', 'int LOOP_Get_first_loop_id_free(void)', 'int LOOP_Get_next_loop_id_in_SD(int loop_id)', 'int LOOP_Get_previous_loop_id_in_SD(int loop_id)']:
     production += method(signature)
 
 reader = (ROOT / 'lib/MidiReader/MidiReader.cpp').read_text(encoding='utf-8')
@@ -277,6 +282,16 @@ String change_byte(String text, size_t index, const String &value)
 }
 int main()
 {
+    char first[LOOP_FILENAME_SIZE], second[LOOP_FILENAME_SIZE];
+    LOOP_Filename_midi_loop(0, first);
+    LOOP_Filename_midi_loop(INT32_MAX, second);
+    assert(std::strcmp(first, "0.loop") == 0 && std::strcmp(second, "2147483647.loop") == 0);
+    char longest_path[LOOP_PATH_SIZE];
+    LOOP_Path_midi_loop(INT32_MIN, longest_path);
+    assert(std::strcmp(longest_path, "/LILLALOOP/-2147483648.loop") == 0);
+    char longest_backup[LOOP_SIDECAR_PATH_SIZE];
+    assert(std::snprintf(longest_backup, sizeof(longest_backup), "%s.bak", longest_path) == int(sizeof(longest_backup) - 1));
+    assert(std::strcmp(longest_backup, "/LILLALOOP/-2147483648.loop.bak") == 0);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_events[0])>, uint32_t>);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_time_order[0][0])>, uint32_t>);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_play_event[0])>, uint32_t>);
@@ -422,7 +437,9 @@ int main()
     faults = {};
     for (int id = 0; id < MIDI_LOOP_FILES; ++id)
     {
-        put("/LILLALOOP/" + LOOP_Filename_midi_loop(id), "occupied");
+        char occupied_path[LOOP_PATH_SIZE];
+        LOOP_Path_midi_loop(id, occupied_path);
+        put(occupied_path, "occupied");
     }
     Save_UI(value_LOOP_Save);
     assert(LOOP_id == NEW_LOOP && LOOP_suggested_id < 0 && tft.text == "---");

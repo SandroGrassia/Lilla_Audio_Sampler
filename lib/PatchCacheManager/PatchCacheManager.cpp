@@ -27,7 +27,7 @@ uint32_t PatchCacheManager::File_samples(int16_t file_id)
         return FlashFileRegisterParser::length(file_id) / sizeof(int16_t);
     }
     const auto &recording = Recording[(file_id - FIRST_RECORDING_FILE) / 2];
-    return recording.consistent && recording.bytes > 0 ? static_cast<uint32_t>(recording.bytes) / sizeof(int16_t) : 0;
+    return recording.consistent && recording.bytes > 0 ? recording.bytes / sizeof(int16_t) : 0;
 }
 
 void PatchCacheManager::Begin(void)

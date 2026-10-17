@@ -52,8 +52,8 @@ const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE]);
 
 // FLASH MEMORY CHIP MANAGEMENT
 extern int verified_flash_memory_MB;
-uint32_t FLASHMEM Get_flash_size(void); // Read the Flash chip capacity in bytes.
-uint32_t FLASHMEM Get_flash_occupation(void); // Sum the sizes of files stored in Flash, in bytes.
+FLASHMEM uint32_t Get_flash_size(void); // Read the Flash chip capacity in bytes.
+FLASHMEM uint32_t Get_flash_occupation(void); // Sum the sizes of files stored in Flash, in bytes.
 
 /*
     PSRAM MANAGEMENT
@@ -214,7 +214,7 @@ struct AudioFileSource
 };
 
 // PERFORMANCE
-static constexpr char PROGMEM note_name[12][3] = {{"C"}, {"C#"}, {"D"}, {"D#"}, {"E"}, {"F"}, {"F#"}, {"G"}, {"G#"}, {"A"}, {"A#"}, {"B"}};
+PROGMEM static constexpr char note_name[12][3] = {{"C"}, {"C#"}, {"D"}, {"D#"}, {"E"}, {"F"}, {"F#"}, {"G"}, {"G#"}, {"A"}, {"A#"}, {"B"}};
 extern uint8_t Patch_id;
 extern int volume_patch;
 inline constexpr int PATCH_VOLUME_MAX = 100;

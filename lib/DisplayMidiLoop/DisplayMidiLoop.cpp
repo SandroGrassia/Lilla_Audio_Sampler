@@ -271,6 +271,9 @@ void DisplayMidiLoop::Loop_show_pointerTrack(const int track, const LOOP_track_v
 {
     switch (pointerTrack)
     {
+    case value_LOOP_Track_none:
+        break;
+
     case value_LOOP_shift:
         Frame_by_col_row(Loop_column_row_slide[track][0], Loop_column_row_slide[track][1], Loop_chars_shift, show);
         break;

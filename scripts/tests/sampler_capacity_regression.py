@@ -22,12 +22,13 @@ export = source.split('                case 11: // EXPORT AS WAV TO SD\n', 1)[1]
 
 prefix = r'''
 #include <cassert>
+#include <cstdint>
 #include <iostream>
 #include <string>
 constexpr int RECORDINGS = 30, DS_menu_elements = 12;
 constexpr int DS_waiting_state = 0, DS_pause_state = 1, DS_recording_state = 2, DS_convert_state = 3, DS_export_SD_state = 4;
 constexpr int DIRECT_SAMPLING = 1, ILI9341_WHITE = 1, ILI9341_RED = 2, ILI9341_BLACK = 3, ILI9341_GREEN = 4;
-struct Entry { int packets = 0, bytes = 256; bool consistent = true, stereo = false; };
+struct Entry { int packets = 0; uint32_t bytes = 256; bool consistent = true, stereo = false; };
 Entry Recording[RECORDINGS];
 bool Menu_DS[DS_menu_elements], DS_recording_slots_full = false;
 int recording = 0, recordings = 0, DS_state = DS_waiting_state, DS_export = 0, DS_menu_max = 0, DS_local_pointer = 0;
@@ -48,8 +49,8 @@ struct PointerStub {
 struct PeakStub { void reset() {} } PeakTracking_L, PeakTracking_R;
 struct PlayersStub { void Stop_all_players() { ++stopped; } } Players_Manager;
 int VFS_Get_packets_free() { return free_packets; }
-int Get_flash_size() { return 64000000; }
-int Get_flash_occupation() { return 0; }
+uint32_t Get_flash_size() { return 64000000; }
+uint32_t Get_flash_occupation() { return 0; }
 void delay(int) {}
 void Clear_UI_events() {}
 void AudioNoInterrupts() {}

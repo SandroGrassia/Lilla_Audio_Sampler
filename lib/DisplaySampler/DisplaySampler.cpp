@@ -206,9 +206,7 @@ void DisplaySampler::DS_hide_recording(void)
 FLASHMEM
 void DisplaySampler::DS_advice_delete(bool value)
 {
-    tft.setTextColor((value ? ILI9341_YELLOW : ILI9341_BLACK));
-    tft.setCursor(display_coordinate_x(DS_column_row_PLEASE_WAIT[0]), display_coordinate_y(DS_column_row_PLEASE_WAIT[1]));
-    tft.print("PLEASE WAIT");
+    Show_popup_text("DELETE RECORDING, PLEASE WAIT", ILI9341_BLACK, value ? ILI9341_GREEN : ILI9341_BLACK, 0);
 }
 
 FLASHMEM

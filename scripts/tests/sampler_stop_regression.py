@@ -25,11 +25,13 @@ prefix = r'''
 #include <vector>
 using byte = uint8_t;
 constexpr int AUDIO_BLOCK_SAMPLES = 128, PACKET_DIM = 65536, PACKET_BLOCKS = 256;
-struct Entry { int first_packet = 0, packets = 0; bool consistent = true; } Recording[30];
+struct Entry { int first_packet = 0, packets = 0; bool consistent = true, stereo = false; } Recording[30];
 int VFS_FAT_table[1024], recording = 0, spi_users = 0, writes = 0, saves = 0, startup_waits = 0;
 bool active = false;
 int available_mask = 3, releases[2] = {}, received[2] = {};
-byte save_error = 0;
+byte save_error = 0, read_error = 0;
+bool mismatch = false;
+Entry persisted;
 std::vector<std::vector<int16_t>> captured;
 struct audio_block_t { int16_t data[AUDIO_BLOCK_SAMPLES] = {}; };
 struct AudioStream {
@@ -71,11 +73,12 @@ struct LillaSerialFlashFile {
 };
 struct LillaFRAM_2x512 { static constexpr byte ERROR_0 = 0; };
 struct ArchivingManager {
-    byte Save_DS_Recording(int id) { assert(!Recording[id].consistent || !active); ++saves; return save_error; }
+    byte Save_DS_Recording(int id) { assert(!active); ++saves; if (!save_error) { persisted = Recording[id]; } return save_error; }
+    byte Read_DS_Recording(int id) { assert(!active); Recording[id] = persisted; if (mismatch) { ++Recording[id].packets; } return read_error; }
 } Archive;
 struct SerialStub { template<class T> void println(T) {} } Serial;
 #define F(x) x
-void AudioStartUsingSPI() { ++spi_users; active = true; }
+void AudioStartUsingSPI() { assert(!persisted.consistent && persisted.packets == 0); ++spi_users; active = true; }
 void AudioStopUsingSPI() { --spi_users; active = false; }
 void delayMicroseconds(int);
 void delay(int);
@@ -95,7 +98,9 @@ void delay(int milliseconds)
 }
 void Require_FRAM(byte result) { assert(result == 0); }
 int DS_get_next_Recording(int) { return -1; }
-void DS_read_Recording(int) { assert(!DirectSampler.Is_recording()); }
+byte DS_read_Recording(int) { assert(!DirectSampler.Is_recording()); return 0; }
+void Require_VFS(bool result) { assert(result); }
+bool VFS_Save_recording_verified(int id) { return Archive.Save_DS_Recording(id) == 0; }
 void DS_update_recordings() {}
 '''
 checks = r'''
@@ -180,16 +185,23 @@ int main()
                 DirectSampler.update();
             }
             assert(!DirectSampler.Is_recording() && spi_users == 0);
-            save_error = 1;
-            DirectSampler.Start(0, 7, 0, stereo);
-            assert(DirectSampler.Is_recording());
-            DirectSampler.Stop_and_wait();
+            const int before_failure = writes;
+            for (int failure = 0; failure < 3; ++failure)
+            {
+                save_error = failure == 0;
+                read_error = failure == 1;
+                mismatch = failure == 2;
+                assert(!DirectSampler.Start(0, 7, 0, stereo));
+                assert(writes == before_failure && spi_users == 0);
+            }
+            read_error = 0;
+            mismatch = false;
             assert(!DirectSampler.Is_recording() && spi_users == 0);
             assert(releases[0] == received[0] && releases[1] == received[1]);
             save_error = 0;
         }
     }
-    std::cout << "PASS: mono/stereo capture, missing L/R/both, exact samples and ramps, counters, packet rollover, manual/automatic stop and continued capture after FRAM errors\n";
+    std::cout << "PASS: mono/stereo capture, missing L/R/both, exact samples and ramps, counters, packet rollover, manual/automatic stop and FRAM writes outside capture and blocked start on save/read/verification errors\n";
 }
 '''
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'

@@ -134,12 +134,12 @@ bool LillaSerialFlashFile::Read_audio_samples(int file_id, int16_t *destination,
 
     const VFS_Recording &source = Recording[recording_id];
 
-    if (source.first_packet < 0 || source.first_packet >= PACKETS || source.packets <= 0 || source.bytes <= 0)
+    if (source.first_packet < 0 || source.first_packet >= PACKETS || source.packets <= 0 || source.bytes == 0)
     {
         return false;
     }
 
-    const uint32_t recording_bytes = static_cast<uint32_t>(source.bytes);
+    const uint32_t recording_bytes = source.bytes;
 
     if (first_byte > recording_bytes || total_bytes > recording_bytes - first_byte)
     {

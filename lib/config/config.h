@@ -21,6 +21,11 @@ This model includes 5 Shift Registers (Shifters) MCP23S17 (SPI communication)
 - each Encoder (DT,CLK,PB) is connected to a single Shifter
 */
 
+// PREFERENCIES
+static constexpr bool STARTUP_LED_PULSES = false; // Set false to skip the two LED pulses before the logo.
+static constexpr bool STARTUP_LILLA_COVER = true; // Set false to skip the two LED pulses before the logo.
+
+
 // Bus SPI1 pins
 // Communication with Display and Shift register chips
 static constexpr int SPI1_SCLK = 27;        // SCK

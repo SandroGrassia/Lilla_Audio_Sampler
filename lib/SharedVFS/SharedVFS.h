@@ -39,7 +39,7 @@ struct VFS_Recording // runtime
 {
     int first_packet; // if stereo is Left channel's first packet (Right channel's first packet is .first_packet + 1)
     int packets;      // packets per channel
-    int bytes;        // per channel
+    uint32_t bytes;   // Byte count per channel; derived in RAM, not stored in FRAM.
     float seconds;
     bool stereo;
     bool consistent;

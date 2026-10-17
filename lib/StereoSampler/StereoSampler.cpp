@@ -14,7 +14,6 @@ void StereoSampler::Begin(void)
 }
 bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
 {
-    AudioStartUsingSPI();
     recording_id = recording_id_in;
     stereo_flag = stereo_in;
 
@@ -45,6 +44,23 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
     Recording[recording_id].first_packet = from_packet;
     Recording[recording_id].packets = 0;
     Recording[recording_id].consistent = false; // consistent will be set TRUE in Main code, after stop()
+    Recording[recording_id].stereo = stereo_in;
+    // Persist the incomplete marker before opening or writing any audio packet.
+    // Startup recovery erases every unowned packet, including those written after this marker.
+    const auto expected = Recording[recording_id];
+    if (Archive.Save_DS_Recording(recording_id) != LillaFRAM_2x512::ERROR_0)
+    {
+        return false;
+    }
+    const byte result = Archive.Read_DS_Recording(recording_id);
+    const auto &stored = Recording[recording_id];
+    const bool verified = result == LillaFRAM_2x512::ERROR_0 && stored.first_packet == expected.first_packet && stored.packets == expected.packets && stored.stereo == expected.stereo && stored.consistent == expected.consistent;
+    Recording[recording_id] = expected;
+    if (!verified)
+    {
+        return false;
+    }
+    AudioStartUsingSPI();
     increment_packets_flag = true;
 
     Packet_L.packet_fast_open(packet_open_L);
@@ -94,7 +110,6 @@ void StereoSampler::update(void)
     {
         countdown_blocks = PACKET_BLOCKS - Slope_blocks; // 256 - 3 = 253
         countdown_flag = true;
-        Serial.println(F("*** SS Last packet!! ***"));
     }
 
     // automatic stop triggered at the last block of the last packet available
@@ -102,7 +117,6 @@ void StereoSampler::update(void)
     {
         countdown_flag = false;
         book_stop_flag = true;
-        Serial.println(F("*** SS countdown_blocks == 1!! ***"));
     }
     else if (countdown_flag == true && countdown_blocks > 1)
     {
@@ -139,7 +153,7 @@ void StereoSampler::update(void)
     if (increment_packets_flag)
     {
         ++Recording[recording_id].packets;
-        Archive.Save_DS_Recording(recording_id);
+        // Packet progress stays in RAM; main commits metadata after recording stops.
 
         VFS_FAT_table[packet_open_L] = recording_id;
         if (stereo_flag)
@@ -197,7 +211,6 @@ void StereoSampler::update(void)
             if (samples_counter == 0)
             {
                 decay_gain_flag = false;
-                Serial.println(F("*** SS Decay stereo terminato ***"));
                 stop();
             }
         }
@@ -331,7 +344,6 @@ bool StereoSampler::Is_recording(void)
 
 void StereoSampler::stop(void)
 {
-    Serial.println(F("SSampler - Stop received!"));
     if (recording)
     {
         // cancel new packet registration if required

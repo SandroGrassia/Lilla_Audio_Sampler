@@ -29,10 +29,6 @@
     - clock: 600MHz
     - Option "Fastest"
 
-    Notes
-    - micro SD card: on Teensy
-    - Audio files: 16bit signed PCM MONO, 44.1 kHz
-
     I/O
     - USB
     - MIDI in
@@ -44,47 +40,7 @@
     - GATE in
     - GATE out
 
-     (Direct) Sampler
-    - Sampler stores audio files into the external 64MB Flash memory chip
-    - Sampler exports audio files into the micro SD card
-
-    Live Sampler
-    - Live Sampler stores audio into the PSRAM chips
-
-    Midi Loop
-    - Midi Loop stores loops data into the micro SD card
-
     Notes from: https://gist.github.com/somebox/d969f8a97e5a4362af5049ed554a9e69
-    - Fact (Voltage Levels): Teensy 4.1 operates at 3.3V logic levels. Its I/O pins are NOT 5V tolerant. Applying more than 3.3V to any general-purpose I/O pin will cause permanent damage.
-    - Best Practice (External Power): The VIN pin accepts an external voltage, with an official maximum of 6V, though staying at 5V is safest.
-    - Best Practice (Library Management): The Arduino IDE prioritizes libraries in Documents/Arduino/libraries. An older or incompatible library here can override the correct version bundled with Teensyduino, causing compilation errors.
-      If you encounter unexpected library-related errors, check this folder for duplicates and remove them.
-    - Critical Warning (VUSB/VIN Separation): If using an external power source on VIN, you must cut the trace between the VUSB and VIN pads on the bottom of the board. Failure to do so can back-feed voltage to your computer's USB port, causing damage.
-    - Fact (USB Host Power): The Teensy 4.1's USB Host port (VHST pin) provides a software-controllable 5V rail with built-in current limiting (~850mA hardware limit, but practically limited by the main 0.5A fuse if USB-powered). This is a feature unique to the T4.1.
-
-    - INPUT_PULLUP: Use pinMode(pin, INPUT_PULLUP) for connecting switches to ground. This activates an internal ~47kÃƒÅ½Ã‚Â© pull-up resistor, eliminating the need for external components.
-    - Synchronization: Sequential digitalWriteFast() calls to multiple pins are not perfectly simultaneous. For true atomic, multi-pin state changes, direct port register manipulation is required.
-    - Audio Library: The Audio library can conflict with other DMA-based libraries (like FastLED/ObjectFLED). This is often a low-level hardware resource contention, which can sometimes be mitigated by adjusting timing parameters in the conflicting library.
-
-    - Known Issue (USB Serial Output): Initial data sent via Serial.println() may be lost or jumbled. This is often a host-side issue. Best Practice: Use while(!Serial && millis() < 5000) {} to wait for the connection to be established without blocking indefinitely.
-      Adding a small extra delay(2) after this loop can also improve reliability.
-
-    - External QSPI Flash: The pads on the bottom of the T4.1 can also be used for an external QSPI Flash chip (up to 256MB). This memory must be accessed via a filesystem like LittleFS. It cannot be used to extend the program memory.
-
-    - Pin States at Boot: GPIO pins are not guaranteed to be tri-stated at power-up. The NXP ROM, which runs first, may drive certain pins (notably UART1 pins 24 and 25) to a HIGH state.
-    - 15-Second Restore: If a Teensy becomes unresponsive, holding the PROGRAM button for ~15 seconds initiates a full flash erase and restores a factory blink sketch. This is a crucial recovery tool.
-    - Blinking Red LED: A slowly blinking red LED in bootloader mode means the Teensy is not detecting any USB communication from the host. This is almost always due to a faulty or "charge-only" USB cable. A solid red LED indicates a successful connection.
-
-    - Best Practice (Level Shifting): WS2812B LEDs require a 5V data signal. The Teensy's 3.3V output may work but is unreliable. Use a 3.3V-to-5V level shifter (e.g., 74AHCT125) for robust operation.
-
-    - CrashReport: Teensy 4.x has a built-in CrashReport feature. Print this to Serial in setup() to see details about the last crash.
-    - addr2line: Use the arm-none-eabi-addr2line utility (part of the Teensy toolchain) with the memory address from a CrashReport and the compiled .elf file to find the exact source file and line number that caused the crash.
-    - Breadcrumbs: Use CrashReport.breadcrumb(num, value) to leave markers in your code, helping to trace the execution path leading up to a crash.
-
-    - RTOS Integration (Zephyr)
-      The Zephyr RTOS has official support for Teensy 4.x boards, offering advanced multi-threading and task management.
-      It uses a complex Device Tree (.dts) and Kconfig system for hardware configuration, which presents a steep learning curve.
-      It is a powerful option for complex, concurrent applications, but requires careful consideration of thread safety for existing code.
 */
 
 // *************************************************************
@@ -111,7 +67,7 @@
 #include <output_i2s.h>
 #include <analyze_fft1024.h>
 #include <SD.h>
-#include <SerialFlash.h> // accesso alla Flash memory SPI
+#include <SerialFlash.h>
 #include <utility/dspinst.h>
 #include <MIDI.h>
 #include <SPI.h>
@@ -119,12 +75,10 @@
 #include <ILI9341_t3n.h>
 #include <array>
 #include <new>
-
 #include "output_noiseshaped_pwm.h"
 #include "Gate.h"
 #include "MidiReader.h"
 #include "MidiOut.h"
-
 #include "config.h"
 #include "Functions.h"
 #include "UserInterface.h"
@@ -132,7 +86,6 @@
 #include "Encoders.h"
 #include "Pushbuttons.h"
 #include "Switches.h"
-
 #include "SharedElements.h"
 #include "SharedPerformance.h"
 #include "SharedSound.h"
@@ -144,20 +97,17 @@
 #include "SharedVFS.h"
 #include "SharedMixer.h"
 #include "SharedMM.h"
-
 #include "InfoMaster.h"
 #include "PlayersManager.h"
 #include "PlayersStatistics.h"
 #include "AudioPlayer.h"
 #include "AudioADSR.h"
 #include "AudioVCF.h"
-
 #include "NoclickCrossmix.h"
 #include "WaveSine.h"
 #include "WaveVibrato.h"
 #include "WavetableManager.h"
 #include "AudioTables.h"
-
 #include "WaveLFO.h"
 #include "FilterBiquadManager.h"
 #include "LillaClock.h"
@@ -176,10 +126,8 @@
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
 #include "CacheCycleFinalizer.h"
-
 #include "ArchivingManager.h"
 #include "LillaFRAM_2x512.h"
-
 #include "GraphicElements.h"
 #include "DisplayPrimitives.h"
 #include "DisplayCommon.h"
@@ -197,7 +145,6 @@
 #include "GlobalDisplaySampler.h"
 #include "DisplayMidiLoop.h"
 #include "GlobalDisplayMidiLoop.h"
-
 #include "PointerPerformance.h"
 #include "PointerSound.h"
 #include "PointerVCF.h"
@@ -206,7 +153,6 @@
 #include "PointerLiveSampler.h"
 #include "PointerSampler.h"
 #include "PointerMidiLoop.h"
-
 #include "PatchCacheManager.h"
 
 // *************************************************************
@@ -217,72 +163,53 @@
 class AutoTuneInput : public AudioStream
 {
 private:
-    const int16_t *samples = nullptr;
-    volatile uint16_t position = 1024;
+    const int16_t *samples = nullptr;  // Source window supplied to the auto-tune FFT input.
+    volatile uint16_t position = 1024; // Next sample to transmit; 1024 marks a completed FFT window.
 
 public:
-    AutoTuneInput() : AudioStream(0, nullptr) {}
-    bool Idle() const { return position == 1024; }
-    void Begin(const int16_t *input) // Called with audio interrupts disabled and the previous window fully sent.
-    {
-        samples = input;
-        position = 0;
-    }
-    void update() override
-    {
-        if (Idle())
-        {
-            return;
-        }
-        audio_block_t *block = allocate();
-        if (block == nullptr)
-        {
-            return;
-        }
-        memcpy(block->data, samples + position, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
-        transmit(block);
-        release(block);
-        position += AUDIO_BLOCK_SAMPLES;
-    }
+    AutoTuneInput();                  // Create an audio source with no input queues.
+    bool Idle() const;                // Return whether the complete FFT window has been transmitted.
+    void Begin(const int16_t *input); // Called with audio interrupts disabled and the previous window fully sent.
+    void update() override;           // Send the next source block to the FFT analyzer.
 };
 
-LillaClock Trigger;
-AudioPlayer Player[PLAYERS];
-Router_16x3 Router_L;
-Router_16x3 Router_R;
-CacheCycleFinalizer CacheCycle_finalizer;
-AudioInputI2S InputDevice;
-StereoGain LINE_IN_amplifier;
-AudioPeakDetector PeakTracking_L;
-AudioPeakDetector PeakTracking_R;
-LillaCompressor LS_Compressor(LillaCompressor::Profile::LiveSampler);
-StereoLiveSampler LiveSampler;
-AutoTuneInput AutoTune_input;
-AudioAnalyzeFFT1024 AutoTune_fft;
+LillaClock Trigger;                                                   // Schedule MIDI and player work at audio-block boundaries.
+AudioPlayer Player[PLAYERS];                                          // Audio voices that process and output the active Sounds.
+Router_16x3 Router_L;                                                 // Route left voice outputs to delay, main and pre-listen buses.
+Router_16x3 Router_R;                                                 // Route right voice outputs to delay, main and pre-listen buses.
+CacheCycleFinalizer CacheCycle_finalizer;                             // Finalize cache-cycle work after the players have run.
+AudioInputI2S InputDevice;                                            // Receive stereo audio from the I2S input.
+StereoGain LINE_IN_amplifier;                                         // Apply stereo input gain before recording and monitoring.
+AudioPeakDetector PeakTracking_L;                                     // Measure the left input peak for the recording display.
+AudioPeakDetector PeakTracking_R;                                     // Measure the right input peak for the recording display.
+LillaCompressor LS_Compressor(LillaCompressor::Profile::LiveSampler); // Compress the stereo sources feeding the Live Sampler.
+StereoLiveSampler LiveSampler;                                        // Record incoming stereo audio into the live PSRAM buffer.
+AutoTuneInput AutoTune_input;                                         // Create an audio source with no input queues.
+AudioAnalyzeFFT1024 AutoTune_fft;                                     // Analyze 1024-sample windows for automatic pitch detection.
 
-ArchivingManager Archive;
-StereoSampler DirectSampler(Archive);
+ArchivingManager Archive;             // Read and write persistent configuration and recording metadata.
+StereoSampler DirectSampler(Archive); // Record input audio into Flash packets using the archive manager.
 
-AudioFilterBiquad D_lpf_L; // Both feedback branches run before the linked stereo compressor.
-AudioGain D_gain_L_feedback;
-AudioFilterBiquad D_lpf_R;
-AudioGain D_gain_R_n;
-LillaCompressor D_Compressor(LillaCompressor::Profile::Delay);
-StereoDelay Delay_L;
-StereoDelay Delay_R;
+AudioFilterBiquad D_lpf_L;                                     // Both feedback branches run before the linked stereo compressor.
+AudioGain D_gain_L_feedback;                                   // Set the left delay feedback gain.
+AudioFilterBiquad D_lpf_R;                                     // Low-pass filter the right delay feedback branch.
+AudioGain D_gain_R_n;                                          // Set the right delay feedback gain.
+LillaCompressor D_Compressor(LillaCompressor::Profile::Delay); // Apply linked stereo compression to delay inputs and feedback.
+StereoDelay Delay_L;                                           // Process the left delay channel.
+StereoDelay Delay_R;                                           // Process the right delay channel.
 
-WaveSine Tone_generator;
-AudioMixer4 mixer_L;
-AudioMixer4 mixer_R;
-AudioFilterBiquad biquad_L;
-AudioFilterBiquad biquad_R;
-AmpliOutMuteIn MAIN_mixer_out_L;
-AmpliOutMuteIn MAIN_mixer_out_R;
-AmpliOutMuteIn PWM_mixer_out_L;
-AmpliOutMuteIn PWM_mixer_out_R;
-AudioOutputNoiseShapedPWM PWM_L(3);
-AudioOutputNoiseShapedPWM PWM_R(4);
-AudioOutputI2S audio_out;
+WaveSine Tone_generator;            // Generate the reference tuning tone.
+AudioMixer4 mixer_L;                // Mix left delay, direct voice and tuning-tone signals.
+AudioMixer4 mixer_R;                // Mix right delay, direct voice and tuning-tone signals.
+AudioFilterBiquad biquad_L;         // Filter the left mixed output.
+AudioFilterBiquad biquad_R;         // Filter the right mixed output.
+AmpliOutMuteIn MAIN_mixer_out_L;    // Combine left playback and input monitoring for the main output.
+AmpliOutMuteIn MAIN_mixer_out_R;    // Combine right playback and input monitoring for the main output.
+AmpliOutMuteIn PWM_mixer_out_L;     // Combine left pre-listen playback and input monitoring.
+AmpliOutMuteIn PWM_mixer_out_R;     // Combine right pre-listen playback and input monitoring.
+AudioOutputNoiseShapedPWM PWM_L(3); // Drive the left pre-listen PWM output on pin 3.
+AudioOutputNoiseShapedPWM PWM_R(4); // Drive the right pre-listen PWM output on pin 4.
+AudioOutputI2S audio_out;           // Send the main stereo signal to the I2S output.
 
 AudioConnection patchCord1(Player[0], 0, Router_L, 0);
 AudioConnection patchCord2(Player[1], 0, Router_L, 1);
@@ -379,7 +306,7 @@ AudioConnection patchCord73(PWM_mixer_out_L, 0, PWM_L, 0);
 AudioConnection patchCord74(PWM_mixer_out_R, 0, PWM_R, 0);
 AudioConnection autoTuneCord(AutoTune_input, 0, AutoTune_fft, 0);
 
-AudioControlSGTL5000 Audio_shield;
+AudioControlSGTL5000 Audio_shield; // Configure the SGTL5000 audio codec.
 
 // *************************************************************
 // ***************   NON AUDIOSTREAM OBJECTS   *****************
@@ -403,11 +330,11 @@ WaveLFO LFO_D[2];                          // Modulation oscillators for the two
 PlayersStatistics Players_statistics;      // Track active voices and their instrument and loop-track assignments.
 FlashFileRegisterParser File_scanner;      // Scan Flash files and cache their metadata.
 
-DisplayCommon Display_Common; // Render shared UI elements.
-DisplaySetup Display_Setup;
-DisplayStorage Display_Storage;
-DisplayDiagnostics Display_Diagnostics;
-DisplayStartup Display_Startup;
+DisplayCommon Display_Common;           // Render shared UI elements.
+DisplaySetup Display_Setup;             // Render system settings and MIDI control configuration.
+DisplayStorage Display_Storage;         // Render storage operations, progress and recovery dialogs.
+DisplayDiagnostics Display_Diagnostics; // Render hardware and controller diagnostic pages.
+DisplayStartup Display_Startup;         // Render the startup logo and cover animation.
 DisplayPerformance Display_Performance; // Render the Performance page.
 DisplaySound Display_Sound;             // Render the Sound editing page.
 DisplayVCF Display_VCF;                 // Render the instrument filter page.
@@ -504,6 +431,29 @@ uint8_t P_Get_previous_Patch_id_existing(void);      // Find the previous existi
 int P_Ask_if_change_Patch(void);                     // Show the patch-change dialog and return the selected action.
 bool P_Ask_if_delete_this_Patch(void);               // Ask whether to delete the current patch; return true if confirmed.
 bool P_Verify_is_Patch_original(const int patch_id); // Compare a patch and its used instruments with the reference metadata.
+struct PatchEditSnapshot
+{
+    const int patch_id = Patch_id; // Patch whose editable state is captured by this snapshot.
+    Patch_struct patch;            // Saved patch metadata for rollback.
+    struct SavedSound
+    {
+        int sound_id;       // Identifier of the Sound stored in this snapshot entry.
+        Sound_struct value; // Saved Sound metadata for rollback.
+    };
+
+    // Teensy 4.1 allocates the heap in RAM2; only this small owner lives on the stack.
+    SavedSound *sounds = nullptr;                                     // Owned array of captured Sound entries in RAM2.
+    size_t count = 0;                                                 // Number of Sound entries already captured.
+    size_t capacity = 0;                                              // Number of entries allocated in the snapshot array.
+    bool valid = true;                                                // Whether all snapshot allocations and captures succeeded.
+    PatchEditSnapshot(const PatchEditSnapshot &) = delete;            // Prevent copying ownership of the captured Sound array.
+    PatchEditSnapshot &operator=(const PatchEditSnapshot &) = delete; // Prevent assigning ownership of the captured Sound array.
+    PatchEditSnapshot(void);                                          // Capture the editable model while preserving the caller's audio IRQ state.
+    ~PatchEditSnapshot(void);                                         // Release the owned snapshot storage.
+    bool Capture_sound(int sound_id);                                 // Save one Sound once; return false if snapshot storage cannot be allocated.
+    const Sound_struct *Find_sound(int sound_id) const;               // Find captured Sound metadata, or return null if it was not captured.
+    void Restore(void) const;                                         // Restore the model and note maps after a failed preparation; published presets remain unchanged.
+};
 
 // >>>>>>>>>>>>>>>>>>>>>>>  INSTRUMENT EDIT
 uint8_t Instrument_id; // Instrument currently selected for editing.
@@ -572,7 +522,7 @@ bool S_Fill_tables(uint8_t instrument_id);                            // Prepare
 bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete table bank while preserving previous presets if preparation fails.
 bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
-void Print_player_read_diagnostics(void);                             // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
+FLASHMEM void Print_player_read_diagnostics(void);                             // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
 void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
 void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
 void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
@@ -592,11 +542,11 @@ uint8_t Line_in_gain = 8;                       // Shared hardware input gain; d
 uint8_t Line_out_level;                         // Hardware line-output level setting.
 
 // functions
-void SET_Prepare_user_audio(void);
+void SET_Prepare_user_audio(void);                               // Suspend playback, import user audio and restore the previous audio/MIDI state.
 bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
 float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
-void SET_Ask_if_IMPORT_EXPORT_setup(void);                       // Present the setup import/export choices and handle the selected operation.
-void SET_Ask_if_FACTORY_RESET(void);                             // Request confirmation before restoring factory settings.
+FLASHMEM void SET_Ask_if_IMPORT_EXPORT_setup(void);                       // Present the setup import/export choices and handle the selected operation.
+FLASHMEM void SET_Ask_if_FACTORY_RESET(void);                             // Request confirmation before restoring factory settings.
 
 // CC Control Change
 uint8_t CC_Sound_gain_cache[INSTRUMENTS]; // Cached per-instrument Sound gains used by the Control Change page.
@@ -605,13 +555,12 @@ int8_t CC_menu;                           // Current Control Change menu selecti
 int CC_number;                            // Selected MIDI Control Change number.
 
 // functions
-byte CC_Save_settings(void);       // Persist Control Change settings and return the FRAM status code.
-byte CC_Read_all_Sound_gain(void); // Load instrument Sound gains for the Control Change page and return the FRAM status.
+FLASHMEM byte CC_Save_settings(void);       // Persist Control Change settings and return the FRAM status code.
+FLASHMEM byte CC_Read_all_Sound_gain(void); // Load instrument Sound gains for the Control Change page and return the FRAM status.
 
 // >>>>>>> DELAY
 EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the left delay channel.
 EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the right delay channel.
-uint8_t delay_instrument_routing;                         // Delay routing target: instrument 0..7, or 8 for the stereo instrument pair 0 and 1.
 
 // pointer
 DELAY_element_name DELAY_local_pointer; // Current Delay menu or parameter selection.
@@ -642,63 +591,78 @@ int DS_recording_change;                     // Working recording selection duri
 static bool DS_recording_slots_full = false; // Updated whenever the Sampler menu is recalculated.
 
 // PACKETS
-int DS_packets_free;     // Number of available recording packets.
 int DS_VFS_packets = 0;  // Number of Flash packets reserved for Direct Sampling.
 int DS_First_packet = 0; // First packet in the Direct Sampling Flash area.
 int DS_Last_packet = 0;  // Last packet in the Direct Sampling Flash area.
 
 // functions
-bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Sampler model and tables with audio interrupts disabled.
-bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
-void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
-bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
-bool DS_convert_file_L(int file_L_RAW);               // Export the trimmed left recording channel to RAW.
-bool DS_convert_file_R(int file_R_RAW);               // Export the trimmed right recording channel to RAW.
-void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
-void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
-byte DS_read_all_Recordings(void);                    // Load all recording metadata and stop at the first FRAM error.
-byte DS_read_Recording(int value);                    // Load one recording and derive its byte count and duration; return the FRAM status.
-float DS_get_Recording_seconds(int value);            // Calculate a recording's duration in seconds from its sample count.
-int DS_find_Recording_free(void);                     // Return a recording slot with no allocated packets, or -1 if none exists.
-int DS_get_next_Recording(int value);                 // Find the next valid recording, retaining the supplied selection if none follows.
-int DS_get_last_Recording(void);                      // Return the last valid recording, or -1 when none exists.
-int DS_get_previous_Recording(int value);             // Find the previous valid recording relative to the supplied selection.
-bool DS_check_conversion(void);                       // Check available Flash space and a free RAW file slot before conversion.
-void DS_define_menu(void);                            // Enable Direct Sampler menu entries for the current recording state.
-void DS_set_DS_Sampling_Patch(void);                  // Configure the temporary patch and Sounds used to play Direct Sampler recordings.
-int DS_get_samples_in_Recording(int value);           // Return the sample count for a Direct Sampler recording.
-void P_Recording(int value);                          // Print one recording's metadata to Serial.
+bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void);              // Prepare the Direct Sampler model and tables with audio interrupts disabled.
+bool DS_export_wav_to_SD(void);                                    // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
+void DS_ask_if_EXIT_from_DS(void);                                 // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
+bool DS_back_to_first_DS_Recording(void);                          // Prepare the first remaining recording before restoring the Direct Sampler page.
+bool DS_convert_file_L(int file_L_RAW);                            // Export the trimmed left recording channel to RAW.
+bool DS_convert_file_R(int file_R_RAW);                            // Export the trimmed right recording channel to RAW.
+FLASHMEM void DS_seed_all_Recordings(void);                                 // Initialize empty recording metadata and save it to FRAM.
+FLASHMEM void DS_update_recordings(void);                                   // Recount valid Direct Sampler recordings.
+FLASHMEM byte DS_read_all_Recordings(void);                                 // Load all recording metadata and stop at the first FRAM error.
+FLASHMEM byte DS_read_Recording(int value);                                 // Load one recording and derive its byte count and duration; return the FRAM status.
+float DS_get_Recording_seconds(int value);                         // Calculate a recording's duration in seconds from its sample count.
+int DS_find_Recording_free(void);                                  // Return a recording slot with no allocated packets, or -1 if none exists.
+int DS_get_next_Recording(int value);                              // Find the next valid recording, retaining the supplied selection if none follows.
+int DS_get_last_Recording(void);                                   // Return the last valid recording, or -1 when none exists.
+int DS_get_previous_Recording(int value);                          // Find the previous valid recording relative to the supplied selection.
+void DS_define_menu(void);                                         // Enable Direct Sampler menu entries for the current recording state.
+void DS_set_DS_Sampling_Patch(void);                               // Configure the temporary patch and Sounds used to play Direct Sampler recordings.
+int DS_get_samples_in_Recording(int value);                        // Return the sample count for a Direct Sampler recording.
+FLASHMEM bool DS_convert_channel_to_raw(int file_id, int channel); // Export one trimmed recording channel to the requested RAW file ID.
+static Sound_struct DS_sound_before_edit[2];                       // Original channel metadata used to propagate stereo parameter edits.
+FLASHMEM bool DS_load_recording_sounds(void);                      // Prepare the temporary sampler patch and Sounds from the selected recording.
+FLASHMEM void DS_open_sound_edit(int channel);                     // Open Sound editing for one Direct Sampler channel.
+FLASHMEM void DS_close_sound_edit(void);                           // Save the recording trim and return to the Direct Sampler page.
+void DS_sync_stereo_parameters(void);                              // Apply edited parameters to the other stereo channel and update playback.
+FLASHMEM void P_Recording(int value);                                       // Print one recording's metadata to Serial.
 
 // VFS VIRTUAL FILE SYSTEM
-void VFS_Make_VFS(void);                              // Ask for the recording-area size and create the erasable Flash packet files.
-int VFS_Get_packets(void);                            // Count the VFS packet files present in Flash.
-void VFS_Print_allocation(void);                      // Print the VFS and Direct Sampler packet allocation to Serial.
-bool VFS_Compile_FAT_table(void);                     // Build the packet ownership table from recording metadata and validate it.
-void VFS_Reset_FAT_table(void);                       // Clear the packet ownership entries in the configured Direct Sampling range.
-int VFS_Get_first_packet_free(void);                  // Find the first available recording packet.
-void VFS_Erase_all_packets(void);                     // Erase all VFS packet files.
-void VFS_Erase_all_packets_for_DS(void);              // Erase packets reserved for Direct Sampling.
-bool VFS_Erase_packet(int value);                     // Erase one packet and report whether the operation succeeded.
-bool VFS_Clean_up_VFS(void);                          // Clean invalid recording data and reclaim unused VFS storage.
-bool VFS_Clean_up_orphan_packets(void);               // Erase packets that are no longer referenced by valid recordings.
-bool VFS_Defragment(void);                            // Compact recording packets to consolidate free VFS storage.
-bool VFS_Shift_file(int to_packet, int recording_id); // Move a recording to the requested packet position and update its metadata.
-void Require_VFS(bool result);                        // Stop further processing and report a failed VFS operation.
-void VFS_Print_FAT(void);                             // Print the packet ownership table to Serial.
-bool BACKUP_Export(void);                             // Export configuration and recording audio to an SD backup.
-bool BACKUP_Restore(bool *config_error = nullptr);    // Restore an SD backup and optionally distinguish configuration errors from other failures.
+FLASHMEM void VFS_Make_VFS(void);                                                    // Ask for the recording-area size and create the erasable Flash packet files.
+int VFS_Get_packets(void);                                                  // Count the VFS packet files present in Flash.
+void VFS_Print_allocation(void);                                            // Print the VFS and Direct Sampler packet allocation to Serial.
+bool VFS_Compile_FAT_table(void);                                           // Build the packet ownership table from recording metadata and validate it.
+void VFS_Reset_FAT_table(void);                                             // Clear the packet ownership entries in the configured Direct Sampling range.
+int VFS_Get_first_packet_free(void);                                        // Find the first available recording packet.
+FLASHMEM void VFS_Erase_all_packets(void);                                           // Erase all VFS packet files.
+FLASHMEM void VFS_Erase_all_packets_for_DS(void);                                    // Erase packets reserved for Direct Sampling.
+bool VFS_Erase_packet(int value);                                           // Erase one packet and report whether the operation succeeded.
+bool VFS_Clean_up_VFS(void);                                                // Clean invalid recording data and reclaim unused VFS storage.
+bool VFS_Clean_up_orphan_packets(void);                                     // Erase packets that are no longer referenced by valid recordings.
+bool VFS_Defragment(void);                                                  // Compact recording packets to consolidate free VFS storage.
+bool VFS_Shift_file(int to_packet, int recording_id);                       // Move a recording to the requested packet position and update its metadata.
+void Require_VFS(bool result);                                              // Stop further processing and report a failed VFS operation.
+FLASHMEM void VFS_Print_FAT(void);                                                   // Print the packet ownership table to Serial.
+bool BACKUP_Export(void);                                                   // Export configuration and recording audio to an SD backup.
+bool BACKUP_Restore(bool *config_error = nullptr);                          // Restore an SD backup and optionally distinguish configuration errors from other failures.
+FLASHMEM bool VFS_Valid_span(const VFS_Recording &entry);                   // Check that a recording packet range fits in the configured VFS.
+FLASHMEM bool VFS_Wait_flash(void);                                         // Wait for Flash readiness with a bounded timeout.
+FLASHMEM bool VFS_Open_packet(int id, SerialFlashFile &file);               // Open a packet and validate its size and erase-block alignment.
+FLASHMEM bool VFS_Packet_is_blank(SerialFlashFile &file, bool &blank);      // Scan a packet for erased bytes and report whether it is blank.
+FLASHMEM bool VFS_Save_recording_verified(int id);                          // Save recording metadata and verify it by reading it back.
+FLASHMEM bool VFS_Packet_used_bytes(SerialFlashFile &file, uint32_t &used); // Find the used packet length by scanning backward past erased audio samples.
+
+struct VFS_Audio_guard // VFS operations run without audio callbacks, which could otherwise access the same SPI Flash.
+{
+    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0; // Audio IRQ state to restore after a successful VFS operation.
+    bool successful = false;                                 // Whether the guarded operation completed safely.
+    VFS_Audio_guard();                                       // Disable audio callbacks while VFS operations use Flash.
+    bool Complete();                                         // Mark the guarded VFS operation successful.
+    ~VFS_Audio_guard();                                      // Restore the audio IRQ only after successful completion.
+};
 
 // STANDARD FILE SYSTEM
-int Get_next_raw_file_in_flash(int file);          // Find the next available RAW audio source after the supplied file ID.
-int Get_previous_raw_file_in_flash(int file);      // Find the previous available RAW audio source before the supplied file ID.
-int Get_samples_in_raw_file(int value);            // Return the sample count for a RAW file or Direct Sampler channel.
-bool Verify_space_on_flash(int value);             // Check whether total capacity minus file sizes covers the requested byte count.
-int Get_first_raw_file_available(int start_value); // Find an unused RAW file ID at or above the starting ID, excluding pending captures.
-void Print_flash_file_list(void);                  // Print Flash filenames, file sizes and storage totals to Serial.
-int Get_flashchip_size(void);                      // Read and print Flash chip identification and return its capacity in bytes.
-int Get_raw_files(void);                           // Count stored RAW files in the ordinary audio-file ID range.
-int Get_raw_files_volume(void);                    // Sum the sizes of stored ordinary RAW files, in bytes.
-const char *id2chip(const unsigned char *id);      // Translate Flash identification bytes into a chip model name.
+int Get_next_raw_file_in_flash(int file);     // Find the next available RAW audio source after the supplied file ID.
+int Get_previous_raw_file_in_flash(int file); // Find the previous available RAW audio source before the supplied file ID.
+int Get_samples_in_raw_file(int value);       // Return the sample count for a RAW file or Direct Sampler channel.
+FLASHMEM void Print_flash_file_list(void);             // Print Flash filenames, file sizes and storage totals to Serial.
+FLASHMEM int Get_raw_files(void);                      // Count stored RAW files in the ordinary audio-file ID range.
+FLASHMEM int Get_raw_files_volume(void);               // Sum the sizes of stored ordinary RAW files, in bytes.
 
 // >>>>>>> LIVE_SAMPLING
 // pointer
@@ -758,40 +722,44 @@ bool LOOP_original;                                   // Whether the current MID
 LOOP_field_description_struct LOOP_local_pointer; // Current MIDI Loop menu, track or parameter selection.
 
 // functions
-void LOOP_reset_all_data(void);                                // Clear MIDI Loop event data and reset loop state.
-void LOOP_select_menu_elements(void);                          // Enable MIDI Loop menu entries according to the current loop state.
-void LOOP_restart_clock(void);                                 // Reset the physical clock used for MIDI Loop scheduling.
-void LOOP_stop_all_midi_tracks(void);                          // Stop every MIDI Loop track; call with audio interrupts disabled.
-unsigned long LOOP_Clock(void);                                // Return the virtual loop time after applying the time-stretch factor.
-unsigned long LOOP_zero_time(void);                            // Return the virtual start time of the current loop iteration.
-int LOOP_normalized_time(void);                                // Return the current virtual time within one loop iteration.
-unsigned long LOOP_Clock_time_from_virtual_time(int T_evento); // Convert an event's loop-relative time to its next absolute virtual time.
-void LOOP_restart_procedure(int track);                        // Prepare the selected track to restart playback.
-void LOOP_set_time_order(int track);                           // Build the event playback order for a track.
-bool LOOP_Print_midi_loop_complete_data(int loop_id);          // Read and print all data from a stored MIDI Loop file.
-bool LOOP_Compile_midi_loop_file(FsFile &file);                // Serialize the current MIDI Loop data into the supplied file.
-bool LOOP_Read_midi_loop_file(FsFile &file, bool load);        // Validate a MIDI Loop file and optionally load its data into RAM.
-String LOOP_Filename_midi_loop(int loop_id);                   // Build the SD filename for the requested MIDI Loop ID.
-bool LOOP_Look_for_midi_loop_in_SD(int loop_id);               // Initialize SD and check for the loop file or its backup copy.
-bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);          // Save the current MIDI Loop to SD using the requested ID.
-bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id);          // Load the selected MIDI Loop from SD.
-bool LOOP_Delete_midi_loop_from_SD(int loop_id);               // Delete the selected MIDI Loop file from SD.
-int LOOP_Get_first_loop_id_free(void);                         // Find the first unused MIDI Loop file ID on SD.
-int LOOP_Get_next_loop_id_in_SD(int loop_id);                  // Find the next stored MIDI Loop ID after the supplied selection.
-int LOOP_Get_previous_loop_id_in_SD(int loop_id);              // Find the previous stored MIDI Loop ID before the supplied selection.
-void LOOP_stop_and_reset_runnig_loop_data(void);               // Stop running tracks and reset their playback state.
+void LOOP_reset_all_data(void);                                                          // Clear MIDI Loop event data and reset loop state.
+void LOOP_select_menu_elements(void);                                                    // Enable MIDI Loop menu entries according to the current loop state.
+void LOOP_restart_clock(void);                                                           // Reset the physical clock used for MIDI Loop scheduling.
+void LOOP_stop_all_midi_tracks(void);                                                    // Stop every MIDI Loop track; call with audio interrupts disabled.
+unsigned long LOOP_Clock(void);                                                          // Return the virtual loop time after applying the time-stretch factor.
+unsigned long LOOP_zero_time(void);                                                      // Return the virtual start time of the current loop iteration.
+int LOOP_normalized_time(void);                                                          // Return the current virtual time within one loop iteration.
+unsigned long LOOP_Clock_time_from_virtual_time(int T_evento);                           // Convert an event's loop-relative time to its next absolute virtual time.
+void LOOP_restart_procedure(int track);                                                  // Prepare the selected track to restart playback.
+void LOOP_set_time_order(int track);                                                     // Build the event playback order for a track.
+FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id);                                    // Read and print all data from a stored MIDI Loop file.
+bool LOOP_Compile_midi_loop_file(FsFile &file);                                          // Serialize the current MIDI Loop data into the supplied file.
+bool LOOP_Read_midi_loop_file(FsFile &file, bool load);                                  // Validate a MIDI Loop file and optionally load its data into RAM.
+static constexpr size_t LOOP_FILENAME_SIZE = sizeof("-2147483648.loop");                 // Enough for every 32-bit int, extension and terminator.
+static constexpr size_t LOOP_PATH_SIZE = sizeof("/LILLALOOP/") - 1 + LOOP_FILENAME_SIZE; // Buffer capacity for an absolute MIDI Loop path, including its terminator.
+static constexpr size_t LOOP_SIDECAR_PATH_SIZE = LOOP_PATH_SIZE + sizeof(".bak") - 1;    // Path capacity including a .bak or .tmp suffix and terminator.
+void LOOP_Filename_midi_loop(int loop_id, char (&filename)[LOOP_FILENAME_SIZE]);         // Write into caller-owned storage.
+void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE]);                     // Build the absolute SD path without dynamic allocation.
+bool LOOP_Look_for_midi_loop_in_SD(int loop_id);                                         // Initialize SD and check for the loop file or its backup copy.
+bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);                                    // Save the current MIDI Loop to SD using the requested ID.
+bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id);                                    // Load the selected MIDI Loop from SD.
+bool LOOP_Delete_midi_loop_from_SD(int loop_id);                                         // Delete the selected MIDI Loop file from SD.
+FLASHMEM int LOOP_Get_first_loop_id_free(void);                                                   // Find the first unused MIDI Loop file ID on SD.
+FLASHMEM int LOOP_Get_next_loop_id_in_SD(int loop_id);                                            // Find the next stored MIDI Loop ID after the supplied selection.
+FLASHMEM int LOOP_Get_previous_loop_id_in_SD(int loop_id);                                        // Find the previous stored MIDI Loop ID before the supplied selection.
+void LOOP_stop_and_reset_runnig_loop_data(void);                                         // Stop running tracks and reset their playback state.
+FLASHMEM bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size);             // Decode decimal byte lines into a binary value or buffer.
+FLASHMEM bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size);           // Encode a binary value or buffer as decimal byte lines.
+FLASHMEM bool LOOP_Recover_SD_file(const char *path);                                    // Restore the backup filename when the primary loop file is missing.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  MIXER
-MX_pointer_struct MX_local_pointer;          // Current Mixer channel or parameter selection.
-int volume_MONITOR = 0;                      // Input monitoring volume setting.
-void Golive_MIXER(void);                     // Display the Mixer page and initialize its controls.
-constexpr int LINE_IN_CHANNEL = INSTRUMENTS; // Mixer channel index reserved for line-input monitoring.
+MX_pointer_struct MX_local_pointer; // Current Mixer channel or parameter selection.
+void Golive_MIXER(void);            // Display the Mixer page and initialize its controls.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  FRAM
-void Factory_setup_FRAM(void); // Initialize persistent configuration with factory defaults.
+FLASHMEM void Factory_setup_FRAM(void); // Initialize persistent configuration with factory defaults.
 
 // >>>>>>>>>>>>>>>>>>>>>>> SGTL5000 Audio_shield
-int headphones_volume_int = 40; // Unused audio-shield headphone volume setting, ranging from 0 to 40.
 
 // Pre-listen Volume
 int headphones_pwm_volume_int = 40;           // PWM pre-listen headphone volume setting, ranging from 0 to 40.
@@ -828,44 +796,31 @@ void Switch_from_MIDI_LOOP_to_SETUP(void);                 // Keep the loop runn
 void Golive_DELAY_SETTINGS(void);                          // Enter and initialize the Delay settings page.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  PRINT
-void Print_Patch(int patch_id);                                        // Print the selected patch's metadata to Serial.
-void Print_Instrument(int patch_id, int instrument_id);                // Print one patch instrument's metadata to Serial.
-void Print_Sound(int sound_id);                                        // Print the selected Sound's metadata to Serial.
-void Print_Lilla_state(void);                                          // Print the current operating mode to Serial.
-void Print_keyboard_state(int midi_channel, int from_key, int to_key); // Print key states for the specified MIDI channel and note range.
-void Print_map_instrument_for_note(int midi_channel);                  // Print the instrument mapping for notes on one MIDI channel.
-void DS_Print_Directory(File dir, int numSpaces);                      // Recursively print an SD directory with the requested indentation.
+FLASHMEM void Print_Patch(int patch_id);                         // Print the selected patch's metadata to Serial.
+FLASHMEM void Print_Instrument(int patch_id, int instrument_id); // Print one patch instrument's metadata to Serial.
+FLASHMEM void Print_Sound(int sound_id);                         // Print the selected Sound's metadata to Serial.
+FLASHMEM void Print_Lilla_state(void);                           // Print the current operating mode to Serial.
+FLASHMEM void DS_Print_Directory(File dir, int numSpaces);       // Recursively print an SD directory with the requested indentation.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  TEST
-bool test_devices = false;                   // Enable device tests during startup.
-bool TEST_Current_Patch_SD_round_trip(void); // Check that the current patch survives configuration export and import through SD.
+FLASHMEM bool TEST_Current_Patch_SD_round_trip(void); // Check that the current patch survives configuration export and import through SD.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  PROTECTION
 bool exibition = false; // Enable exhibition protection against restricted operations.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  GENERAL PURPOSE
-bool changed;             // Shared flag indicating that an operation changed data or a setting.
-bool confirmation;        // Shared completion flag for confirmation dialogs.
-int action;               // Shared selection value for menu actions and confirmation dialogs.
-int row;                  // Working display row used by UI operations.
-int col;                  // Working display column used by UI operations.
-int result;               // Shared integer result from UI input or an operation.
-uint32_t big_result;      // Shared unsigned 32-bit result for operations requiring a wider value.
-elapsedMicros microtimer; // Microsecond timer used for diagnostics and operation timing.
+bool changed;        // Shared flag indicating that an operation changed data or a setting.
+bool confirmation;   // Shared completion flag for confirmation dialogs.
+int action;          // Shared selection value for menu actions and confirmation dialogs.
+int row;             // Working display row used by UI operations.
+int col;             // Working display column used by UI operations.
+int result;          // Shared integer result from UI input or an operation.
+uint32_t big_result; // Shared unsigned 32-bit result for operations requiring a wider value.
 
-inline void P_UpdatePatchOriginalAndMenu(void)
-{
-    patch_original_0 = patch_original;
-    patch_original = P_Verify_is_Patch_original(Patch_id);
-    if (patch_original != patch_original_0)
-    {
-        P_Select_menu_elements();
-        Display_Performance.P_show_Performance_menu();
-    }
-}
+inline void P_UpdatePatchOriginalAndMenu(void); // Recheck patch changes and redraw the menu if its original status changed.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  STARTUP
-bool Startup_mode(void);                 // Prepare tables for the selected startup mode before enabling MIDI callbacks.
+FLASHMEM bool Startup_mode(void);                 // Prepare tables for the selected startup mode before enabling MIDI callbacks.
 void Startup_hardware_and_objects(void); // Initialize hardware, audio objects, buffers and UI controllers.
 void Compile_tables(void);               // Build lookup tables required by playback and the interface.
 void Reload_system_state(void);          // Reload persistent settings and model data into the running system.
@@ -874,138 +829,27 @@ void Reload_system_state(void);          // Reload persistent settings and model
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
 bool Read_pushbutton_fast(int element); // Read the current pushbutton state without consuming a change event.
 int Read_encoder_simple(int element);   // Consume encoder rotation and return -1, 0 or 1 for its direction.
-bool Read_encoder_fast(int element);    // Consume encoder rotation and report whether any movement occurred.
 void Clear_UI_events(void);             // Discard all pending encoder rotation and pushbutton press events without resetting the controllers' internal states.
 
 template <class T>
-bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
-{
-    auto R = Encoders_manager.Get_rotation(encoder);
-    if (R == 0)
-    {
-        return false;
-    }
-    if constexpr (std::is_enum_v<T>)
-    {
-        auto v = static_cast<int>(value);
-        if (R == -1)
-        {
-            if (v > lowest)
-            {
-                value = static_cast<T>(v - increment);
-                return true;
-            }
-            return false;
-        }
-        else
-        {
-            if (v < highest)
-            {
-                value = static_cast<T>(v + increment);
-                return true;
-            }
-            return false;
-        }
-    }
-    else
-    {
-        if (R == -1)
-        {
-            if (value > lowest)
-            {
-                value = value - increment;
-                return true;
-            }
-            return false;
-        }
-        else
-        {
-            if (value < highest)
-            {
-                value = value + increment;
-                return true;
-            }
-            return false;
-        }
-    }
-}
+bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment); // Apply an encoder increment within bounds; report whether the value changed.
 
 template <class T>
-bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
-{
-    auto R = Encoders_manager.Get_rotation(encoder);
-    if (R == 0)
-    {
-        return false;
-    }
-    if constexpr (std::is_enum_v<T>)
-    {
-        auto v = static_cast<int>(value);
-        if (R == 1)
-        {
-            if (v > lowest)
-            {
-                value = static_cast<T>(v - increment);
-                return true;
-            }
-            return false;
-        }
-        else
-        {
-            if (v < highest)
-            {
-                value = static_cast<T>(v + increment);
-                return true;
-            }
-            return false;
-        }
-    }
-    else
-    {
-        if (R == 1)
-        {
-            if (value > lowest)
-            {
-                value = value - increment;
-                return true;
-            }
-            return false;
-        }
-        else
-        {
-            if (value < highest)
-            {
-                value = value + increment;
-                return true;
-            }
-            return false;
-        }
-    }
-}
+bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment); // Apply an encoder increment with reversed direction within bounds.
 
-struct PatchEditSnapshot
-{
-    const int patch_id = Patch_id;
-    Patch_struct patch;
-    struct SavedSound
-    {
-        int sound_id;
-        Sound_struct value;
-    };
+enum class SET_Audio_format : uint8_t; // Supported user-audio input formats; defined with the import helpers.
 
-    // Teensy 4.1 allocates the heap in RAM2; only this small owner lives on the stack.
-    SavedSound *sounds = nullptr;
-    size_t count = 0;
-    size_t capacity = 0;
-    bool valid = true;
-    PatchEditSnapshot(const PatchEditSnapshot &) = delete;
-    PatchEditSnapshot &operator=(const PatchEditSnapshot &) = delete;
-    PatchEditSnapshot(void); // Capture the editable model while preserving the caller's audio IRQ state.
-    ~PatchEditSnapshot(void);
-    bool Capture_sound(int sound_id);
-    const Sound_struct *Find_sound(int sound_id) const;
-    void Restore(void) const; // Restore the model and note maps after a failed preparation; published presets remain unchanged.
-};
+// >>>>>>>>>>>>>>>>>>>>>>> Additional file-local helper declarations.
+FLASHMEM uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size);                                                                                                                                    // Extend a running CRC-32 with the supplied bytes.
+FLASHMEM void BACKUP_Audio_path(char *path, size_t size, const char *directory, int id, int channel);                                                                                                                   // Build the SD backup filename for one recording channel.
+FLASHMEM bool BACKUP_Verify_audio(const char *path, uint32_t bytes, uint32_t expected_crc);                                                                                                                             // Check a backup audio file against its expected length and CRC-32.
+FLASHMEM bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bool restore, uint32_t &crc);                                                                                                    // Copy one channel between Flash packets and SD, calculating its CRC-32.
+FLASHMEM bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio = false, bool *config_error = nullptr); // Validate backup metadata, audio files and capacity; optionally discard invalid audio.
+FLASHMEM bool BACKUP_Export_files(void);                                                                                                                                                                                // Write and verify a staged SD backup before publishing it.
+FLASHMEM bool BACKUP_Restore_files(bool &changed, bool &config_error);                                                                                                                                                  // Restore verified backup files and report changes or configuration errors.
+FLASHMEM static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels);                                                                                                    // Locate supported PCM WAV audio and return its offset, byte length and channel count.
+FLASHMEM static bool SET_AIFF_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels);                                                                                                   // Locate supported AIFF audio and return its offset, byte length and channel count.
+FLASHMEM static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels);                                                                         // Resolve the input format and audio bounds for RAW conversion.
 
 // *************************************************************
 // *************************************************************
@@ -1013,138 +857,15 @@ struct PatchEditSnapshot
 // *************************************************************
 // *************************************************************
 
-static Sound_struct DS_sound_before_edit[2];
-
 FLASHMEM
-bool DS_load_recording_sounds(void)
-{
-    DS_set_DS_Sampling_Patch();
-    if (recording < 0)
-    {
-        Patch[PATCHES_MAX].instruments = 0;
-        Patch[PATCHES_MAX].Instrument[0].used = false;
-        Patch[PATCHES_MAX].Instrument[1].used = false;
-        Sound[SOUNDS_MAX].file = 0;
-        Sound[SOUNDS_MAX].B = 0;
-        Sound[SOUNDS_MAX + 1].file = 0;
-        Sound[SOUNDS_MAX + 1].B = 0;
-        return true;
-    }
-    const bool stereo = Recording[recording].stereo;
-    Patch[PATCHES_MAX].instruments = stereo ? 2 : 1;
-    Patch[PATCHES_MAX].Instrument[1].used = stereo;
-    Sound[SOUNDS_MAX].file = FIRST_RECORDING_FILE + 2 * recording;
-    Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
-    Sound[SOUNDS_MAX].pan = stereo ? -16 : 0;
-    Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (stereo ? 1 : 0);
-    Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
-    uint32_t first_sample = 0;
-    uint32_t last_sample = Sound[SOUNDS_MAX].B;
-    Archive.Read_DS_edit(recording, first_sample, last_sample);
-    Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = first_sample;
-    Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = last_sample;
-    return true;
-}
-
-FLASHMEM
-void DS_open_sound_edit(int channel)
-{
-    if (Lilla_state == DIRECT_SAMPLING)
-    {
-        DS_sound_before_edit[0] = Sound[SOUNDS_MAX];
-        DS_sound_before_edit[1] = Sound[SOUNDS_MAX + 1];
-    }
-    S_Set_Sound_SOLO_OFF();
-    Instrument_id = channel;
-    Sound_id = SOUNDS_MAX + channel;
-    Lilla_state_0 = DIRECT_SAMPLING;
-    Lilla_state = SOUND_EDIT;
-    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
-    Noclick_max = S_Calc_Noclick_max(Preset[channel].use_Wavetable);
-    S_trim_step = S_Calc_trim_step(trim_speed);
-    S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
-    S_sound_original = S_Verify_is_Sound_original(Sound_id);
-    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
-    S_Select_menu_elements();
-    Display_Sound.Show_SOUND_menu();
-    Pointer_Sound.Set_pointer_to_first_menu_element();
-    S_pointer = Pointer_Sound.Get_pointer();
-    Performance_led_set.Restore_all_LED();
-    Display_Sound.Show_wave(Instrument_id);
-    Clear_UI_events();
-}
-
-FLASHMEM
-void DS_close_sound_edit(void)
-{
-    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
-    Archive.Save_DS_edit(recording, trim.first, trim.last);
-    S_Set_Sound_SOLO_OFF();
-    Golive_DIRECT_SAMPLING();
-}
-
-void DS_sync_stereo_parameters(void)
-{
-    if (Lilla_state_0 != DIRECT_SAMPLING || !Recording[recording].stereo)
-    {
-        return;
-    }
-    const int other_instrument = Instrument_id ^ 1;
-    const int other_sound = SOUNDS_MAX + other_instrument;
-    const Sound_struct before = Sound[other_sound];
-    DS_copy_edited_parameters(DS_sound_before_edit[Instrument_id], Sound[Sound_id], Sound[other_sound]);
-    const Sound_struct &after = Sound[other_sound];
-    if (after.data != before.data)
-    {
-        if ((after.data >> 1) != (before.data >> 1))
-        {
-            Players_Manager.Multicast_release_players(other_sound);
-            Players_Manager.Update_Preset_midi_channel(Patch_id, other_instrument);
-            P_Update_all_maps_Instrument_for_notes();
-            if (solo_flag)
-            {
-                S_Map_one_Instrument_for_all_notes(Instrument_id);
-            }
-        }
-        Players_Manager.Update_Preset_attack_type(Patch_id, other_instrument);
-    }
-    if (after.pitch != before.pitch)
-    {
-        Players_Manager.Update_Preset_pitch(Patch_id, other_instrument);
-        Players_Manager.Multicast_pitch_for_sound_edit(other_instrument);
-    }
-    if (after.gain != before.gain)
-    {
-        Players_Manager.Update_Preset_volume(Patch_id, other_instrument, Patch_volume_gain(volume_patch));
-        Players_Manager.Multicast_volume_for_instrument_edit(other_instrument);
-    }
-    if (after.pan != before.pan)
-    {
-        Players_Manager.Update_Preset_pan(Patch_id, other_instrument);
-        Players_Manager.Multicast_pan(other_instrument);
-    }
-    if (after.attack != before.attack)
-    {
-        Players_Manager.Update_Preset_attack(Patch_id, other_instrument);
-    }
-    if (after.decay != before.decay)
-    {
-        Players_Manager.Update_Preset_decay(Patch_id, other_instrument);
-    }
-    if (after.sustain != before.sustain)
-    {
-        Players_Manager.Update_Preset_sustain(Patch_id, other_instrument);
-    }
-    if (after.release != before.release)
-    {
-        Players_Manager.Update_Preset_release(Patch_id, other_instrument);
-    }
-}
-
 void setup()
 {
     AudioNoInterrupts();
     Shifters_manager.Begin();
+    if (STARTUP_LED_PULSES)
+    {
+        Shifters_manager.Pulse_startup_leds();
+    }
 
     /*
       AudioMemory allocates memory for all audio connections. The numberBlocks input specifies how much memory to reserve for audio data.
@@ -1392,7 +1113,6 @@ void loop()
     }
 
     // To-do
-    // Audio_shield.volume(headphones_volume_int / 40.0);
 
     // Resolution
     if (Read_encoder_inverse(EN_PB_Resolution, resolution, RES_MAX, 0, 1))
@@ -4389,7 +4109,7 @@ void loop()
 
             case value_MX_Gain:
             {
-                if (MX_local_pointer.source == LINE_IN_source) // MX_source == LINE_IN_CHANNEL
+                if (MX_local_pointer.source == LINE_IN_source)
                 {
                     if (Read_encoder(EN_PB_Value, Line_in_gain, 15, 0, 1))
                     {
@@ -5822,8 +5542,8 @@ void loop()
                 {
                     Recording[recording].consistent = true;
                     // consistent Recording must be saved
-                    Archive.Save_DS_Recording(recording);
-                    DS_read_Recording(recording); // only to update .bytes and .seconds
+                    Require_VFS(VFS_Save_recording_verified(recording));
+                    Require_VFS(DS_read_Recording(recording) == LillaFRAM_2x512::ERROR_0); // only to update .bytes and .seconds
                 }
 
                 DS_update_recordings();
@@ -5899,6 +5619,8 @@ void loop()
                     Require_VFS(VFS_Defragment());
                     DS_update_recordings();
                     VFS_Print_FAT();
+
+                    Display_Sampler.DS_advice_delete(false);
 
                     // restart from first recording (if exist)
                     recording = DS_get_next_Recording(-1);
@@ -5984,7 +5706,7 @@ void loop()
                     DS_blink_timer = 0;
                     DS_blink_ON = true;
 
-                    DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
+                    Require_VFS(DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo)); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
                     DS_recording_time = 0;
                     DS_recording_time_update = 0;
                 }
@@ -6029,7 +5751,7 @@ void loop()
                     DS_blink_timer = 0;
                     DS_blink_ON = true;
 
-                    DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
+                    Require_VFS(DirectSampler.Start(first_packet_L, last_packet_L, recording, Recording[recording].stereo)); // bool start(int from_packet, int last_packet, int recording_id_in, bool stereo_in)
                     DS_recording_time = 0;
                     DS_recording_time_update = 0;
                 }
@@ -6060,8 +5782,8 @@ void loop()
                     {
                         Recording[recording].consistent = true;
                         // consistent Recording must be saved
-                        Archive.Save_DS_Recording(recording);
-                        DS_read_Recording(recording); // only to update .bytes and .seconds
+                        Require_VFS(VFS_Save_recording_verified(recording));
+                        Require_VFS(DS_read_Recording(recording) == LillaFRAM_2x512::ERROR_0); // only to update .bytes and .seconds
                     }
 
                     DS_update_recordings();
@@ -7275,6 +6997,9 @@ void loop()
                     // Change track parameters
                     switch (LOOP_local_pointer.track_value_element)
                     {
+                    case value_LOOP_Track_none:
+                        break;
+
                     // Slide temporale
                     case value_LOOP_shift:
                     {
@@ -7420,6 +7145,9 @@ void loop()
                 {
                     switch (LOOP_local_pointer.menu_element)
                     {
+                    case value_LOOP_Menu_none:
+                        break;
+
                     case value_LOOP_New:
                     {
                         LOOP_stop_and_reset_runnig_loop_data(); // LOOP_track_run[track] = false; LOOP_metronomo_run == false; LOOP_metronomo_flag_IN[1] = false;
@@ -8296,6 +8024,282 @@ void loop()
     }
 }
 
+// Startup, encoder and audio-input helper definitions.
+inline AutoTuneInput::AutoTuneInput() : AudioStream(0, nullptr)
+{
+}
+
+inline bool AutoTuneInput::Idle() const
+{
+    return position == 1024;
+}
+
+inline void AutoTuneInput::Begin(const int16_t *input) // Called with audio interrupts disabled and the previous window fully sent.
+{
+    samples = input;
+    position = 0;
+}
+
+inline void AutoTuneInput::update()
+{
+    if (Idle())
+    {
+        return;
+    }
+    audio_block_t *block = allocate();
+    if (block == nullptr)
+    {
+        return;
+    }
+    memcpy(block->data, samples + position, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+    transmit(block);
+    release(block);
+    position += AUDIO_BLOCK_SAMPLES;
+}
+
+inline void P_UpdatePatchOriginalAndMenu(void)
+{
+    patch_original_0 = patch_original;
+    patch_original = P_Verify_is_Patch_original(Patch_id);
+    if (patch_original != patch_original_0)
+    {
+        P_Select_menu_elements();
+        Display_Performance.P_show_Performance_menu();
+    }
+}
+
+template <class T>
+bool Read_encoder(const int encoder, T &value, const int highest, const int lowest, const int increment)
+{
+    auto R = Encoders_manager.Get_rotation(encoder);
+    if (R == 0)
+    {
+        return false;
+    }
+    if constexpr (std::is_enum_v<T>)
+    {
+        auto v = static_cast<int>(value);
+        if (R == -1)
+        {
+            if (v > lowest)
+            {
+                value = static_cast<T>(v - increment);
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (v < highest)
+            {
+                value = static_cast<T>(v + increment);
+                return true;
+            }
+            return false;
+        }
+    }
+    else
+    {
+        if (R == -1)
+        {
+            if (value > lowest)
+            {
+                value = value - increment;
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (value < highest)
+            {
+                value = value + increment;
+                return true;
+            }
+            return false;
+        }
+    }
+}
+
+template <class T>
+bool Read_encoder_inverse(const int encoder, T &value, const int highest, const int lowest, const int increment)
+{
+    auto R = Encoders_manager.Get_rotation(encoder);
+    if (R == 0)
+    {
+        return false;
+    }
+    if constexpr (std::is_enum_v<T>)
+    {
+        auto v = static_cast<int>(value);
+        if (R == 1)
+        {
+            if (v > lowest)
+            {
+                value = static_cast<T>(v - increment);
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (v < highest)
+            {
+                value = static_cast<T>(v + increment);
+                return true;
+            }
+            return false;
+        }
+    }
+    else
+    {
+        if (R == 1)
+        {
+            if (value > lowest)
+            {
+                value = value - increment;
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (value < highest)
+            {
+                value = value + increment;
+                return true;
+            }
+            return false;
+        }
+    }
+}
+
+FLASHMEM
+bool DS_load_recording_sounds(void)
+{
+    DS_set_DS_Sampling_Patch();
+    if (recording < 0)
+    {
+        Patch[PATCHES_MAX].instruments = 0;
+        Patch[PATCHES_MAX].Instrument[0].used = false;
+        Patch[PATCHES_MAX].Instrument[1].used = false;
+        Sound[SOUNDS_MAX].file = 0;
+        Sound[SOUNDS_MAX].B = 0;
+        Sound[SOUNDS_MAX + 1].file = 0;
+        Sound[SOUNDS_MAX + 1].B = 0;
+        return true;
+    }
+    const bool stereo = Recording[recording].stereo;
+    Patch[PATCHES_MAX].instruments = stereo ? 2 : 1;
+    Patch[PATCHES_MAX].Instrument[1].used = stereo;
+    Sound[SOUNDS_MAX].file = FIRST_RECORDING_FILE + 2 * recording;
+    Sound[SOUNDS_MAX].B = DS_get_samples_in_Recording(recording) - 1;
+    Sound[SOUNDS_MAX].pan = stereo ? -16 : 0;
+    Sound[SOUNDS_MAX + 1].file = Sound[SOUNDS_MAX].file + (stereo ? 1 : 0);
+    Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
+    uint32_t first_sample = 0;
+    uint32_t last_sample = Sound[SOUNDS_MAX].B;
+    Archive.Read_DS_edit(recording, first_sample, last_sample);
+    Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = first_sample;
+    Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = last_sample;
+    return true;
+}
+
+FLASHMEM
+void DS_open_sound_edit(int channel)
+{
+    if (Lilla_state == DIRECT_SAMPLING)
+    {
+        DS_sound_before_edit[0] = Sound[SOUNDS_MAX];
+        DS_sound_before_edit[1] = Sound[SOUNDS_MAX + 1];
+    }
+    S_Set_Sound_SOLO_OFF();
+    Instrument_id = channel;
+    Sound_id = SOUNDS_MAX + channel;
+    Lilla_state_0 = DIRECT_SAMPLING;
+    Lilla_state = SOUND_EDIT;
+    samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
+    Noclick_max = S_Calc_Noclick_max(Preset[channel].use_Wavetable);
+    S_trim_step = S_Calc_trim_step(trim_speed);
+    S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
+    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+    Display_Sound.Show_SOUND_page(Patch_id, Instrument_id);
+    S_Select_menu_elements();
+    Display_Sound.Show_SOUND_menu();
+    Pointer_Sound.Set_pointer_to_first_menu_element();
+    S_pointer = Pointer_Sound.Get_pointer();
+    Performance_led_set.Restore_all_LED();
+    Display_Sound.Show_wave(Instrument_id);
+    Clear_UI_events();
+}
+
+FLASHMEM
+void DS_close_sound_edit(void)
+{
+    const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
+    Archive.Save_DS_edit(recording, trim.first, trim.last);
+    S_Set_Sound_SOLO_OFF();
+    Golive_DIRECT_SAMPLING();
+}
+
+void DS_sync_stereo_parameters(void)
+{
+    if (Lilla_state_0 != DIRECT_SAMPLING || !Recording[recording].stereo)
+    {
+        return;
+    }
+    const int other_instrument = Instrument_id ^ 1;
+    const int other_sound = SOUNDS_MAX + other_instrument;
+    const Sound_struct before = Sound[other_sound];
+    DS_copy_edited_parameters(DS_sound_before_edit[Instrument_id], Sound[Sound_id], Sound[other_sound]);
+    const Sound_struct &after = Sound[other_sound];
+    if (after.data != before.data)
+    {
+        if ((after.data >> 1) != (before.data >> 1))
+        {
+            Players_Manager.Multicast_release_players(other_sound);
+            Players_Manager.Update_Preset_midi_channel(Patch_id, other_instrument);
+            P_Update_all_maps_Instrument_for_notes();
+            if (solo_flag)
+            {
+                S_Map_one_Instrument_for_all_notes(Instrument_id);
+            }
+        }
+        Players_Manager.Update_Preset_attack_type(Patch_id, other_instrument);
+    }
+    if (after.pitch != before.pitch)
+    {
+        Players_Manager.Update_Preset_pitch(Patch_id, other_instrument);
+        Players_Manager.Multicast_pitch_for_sound_edit(other_instrument);
+    }
+    if (after.gain != before.gain)
+    {
+        Players_Manager.Update_Preset_volume(Patch_id, other_instrument, Patch_volume_gain(volume_patch));
+        Players_Manager.Multicast_volume_for_instrument_edit(other_instrument);
+    }
+    if (after.pan != before.pan)
+    {
+        Players_Manager.Update_Preset_pan(Patch_id, other_instrument);
+        Players_Manager.Multicast_pan(other_instrument);
+    }
+    if (after.attack != before.attack)
+    {
+        Players_Manager.Update_Preset_attack(Patch_id, other_instrument);
+    }
+    if (after.decay != before.decay)
+    {
+        Players_Manager.Update_Preset_decay(Patch_id, other_instrument);
+    }
+    if (after.sustain != before.sustain)
+    {
+        Players_Manager.Update_Preset_sustain(Patch_id, other_instrument);
+    }
+    if (after.release != before.release)
+    {
+        Players_Manager.Update_Preset_release(Patch_id, other_instrument);
+    }
+}
+
 #pragma endregion // CC_SETTINGS
 
 // **************************************************************************************************************************
@@ -8984,8 +8988,8 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
         return "AUTO-TUNE: SOURCE UNAVAILABLE";
     }
 
-    static DMAMEM int16_t window[1024];
-    static DMAMEM int16_t short_loop[1024];
+    DMAMEM static int16_t window[1024];
+    DMAMEM static int16_t short_loop[1024];
     const uint32_t length = sound.B - sound.A + 1u;
     const bool short_grain = length < 1024u;
     const bool looping = sound.mode >= LOOP_FWD;
@@ -9586,7 +9590,7 @@ bool DS_export_wav_to_SD(void)
     char packet_filename[NAME_PACKET_SIZE];
     const auto &entry = Recording[recording];
     const int channels = entry.stereo ? 2 : 1;
-    if (entry.first_packet < 0 || entry.packets <= 0 || entry.packets > VFS_PACKETS_MAX / channels || entry.first_packet > VFS_PACKETS_MAX - entry.packets * channels || entry.bytes <= 0 || entry.bytes > entry.packets * PACKET_DIM || (entry.bytes & 1) != 0)
+    if (entry.first_packet < 0 || entry.packets <= 0 || entry.packets > VFS_PACKETS_MAX / channels || entry.first_packet > VFS_PACKETS_MAX - entry.packets * channels || entry.bytes == 0 || entry.bytes > static_cast<uint32_t>(entry.packets) * PACKET_DIM || (entry.bytes & 1) != 0)
     {
         return false;
     }
@@ -9874,6 +9878,7 @@ bool DS_convert_file_R(int file_R_RAW)
     return DS_convert_channel_to_raw(file_R_RAW, 1);
 }
 
+FLASHMEM
 void DS_Print_Directory(File dir, int numSpaces)
 {
     while (true)
@@ -9902,6 +9907,7 @@ void DS_Print_Directory(File dir, int numSpaces)
     }
 }
 
+FLASHMEM
 void DS_seed_all_Recordings(void)
 {
     Serial.println(F("*** DS_seed_all_Recordings() ***"));
@@ -9921,6 +9927,7 @@ void DS_seed_all_Recordings(void)
     Serial.println();
 }
 
+FLASHMEM
 void DS_update_recordings(void)
 {
     recordings = 0;
@@ -9938,6 +9945,7 @@ void DS_update_recordings(void)
     Serial.println();
 }
 
+FLASHMEM
 byte DS_read_all_Recordings(void)
 {
     for (auto i = 0; i < RECORDINGS; ++i)
@@ -9951,6 +9959,7 @@ byte DS_read_all_Recordings(void)
     return LillaFRAM_2x512::ERROR_0;
 }
 
+FLASHMEM
 byte DS_read_Recording(int recording)
 {
     if (recording >= 0 && recording < RECORDINGS)
@@ -9960,7 +9969,7 @@ byte DS_read_Recording(int recording)
         {
             return result;
         }
-        Recording[recording].bytes = 2 * DS_get_samples_in_Recording(recording);
+        Recording[recording].bytes = 2U * static_cast<uint32_t>(DS_get_samples_in_Recording(recording));
         Recording[recording].seconds = DS_get_Recording_seconds(recording);
 
         Serial.print(F("Read from FRAM Recording: "));
@@ -10031,22 +10040,6 @@ int DS_get_previous_Recording(int value)
         }
     }
     return value;
-}
-
-bool DS_check_conversion(void)
-{
-    char audio_filename[NAME_FILE_SIZE];
-    if ((Get_flash_size() - Get_flash_occupation()) >= Recording[recording].bytes)
-    {
-        for (auto i = 0; i < FIRST_RECORDING_FILE; ++i)
-        {
-            if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
-            {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, {"Stereo Rec"}, {"Stop"}
@@ -10606,8 +10599,8 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
-                DS_read_Recording(recording); // only to update .bytes and .seconds
+                Require_VFS(VFS_Save_recording_verified(recording));
+                Require_VFS(DS_read_Recording(recording) == LillaFRAM_2x512::ERROR_0); // only to update .bytes and .seconds
             }
 
             DS_update_recordings();
@@ -10784,8 +10777,8 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
-                DS_read_Recording(recording); // only to update .bytes and .seconds
+                Require_VFS(VFS_Save_recording_verified(recording));
+                Require_VFS(DS_read_Recording(recording) == LillaFRAM_2x512::ERROR_0); // only to update .bytes and .seconds
             }
 
             DS_update_recordings();
@@ -10947,8 +10940,8 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
                 Recording[recording].consistent = true;
 
                 // consistent Recording must be saved
-                Archive.Save_DS_Recording(recording);
-                DS_read_Recording(recording); // call for updating .bytes and .seconds
+                Require_VFS(VFS_Save_recording_verified(recording));
+                Require_VFS(DS_read_Recording(recording) == LillaFRAM_2x512::ERROR_0); // call for updating .bytes and .seconds
             }
 
             DS_update_recordings();
@@ -11284,6 +11277,7 @@ void LOOP_restart_procedure(int track)
     }
 }
 
+FLASHMEM
 bool LOOP_Print_midi_loop_complete_data(int loop_id)
 {
     if (false)
@@ -11349,16 +11343,22 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     return true;
 }
 
-String LOOP_Filename_midi_loop(int loop_id)
+void LOOP_Filename_midi_loop(int loop_id, char (&filename)[LOOP_FILENAME_SIZE])
 {
-    String filename = String(loop_id);
-    return String(filename + ".loop");
+    snprintf(filename, sizeof(filename), "%d.loop", loop_id);
+}
+
+void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])
+{
+    char filename[LOOP_FILENAME_SIZE];
+    LOOP_Filename_midi_loop(loop_id, filename);
+    snprintf(path, sizeof(path), "/LILLALOOP/%s", filename);
 }
 
 // Loop SD v1: magic line, uint32_t track count, uint16_t duration, uint32_t event counts,
 // int32_t slides/pitches/stretch, then 8-byte events. Little-endian bytes, one decimal byte per line.
 // Legacy files omit magic/track count and use uint8_t event counts; malformed 24-byte arrays are rejected.
-static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 1\r\n";
+static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 1\r\n"; // Header identifying the versioned MIDI Loop SD format.
 static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
 
 FLASHMEM
@@ -11523,10 +11523,11 @@ bool LOOP_Compile_midi_loop_file(FsFile &file)
 }
 
 FLASHMEM
-bool LOOP_Recover_SD_file(const String &path)
+bool LOOP_Recover_SD_file(const char *path)
 {
-    const String backup = path + ".bak";
-    return SD.exists(path.c_str()) || !SD.exists(backup.c_str()) || SD.rename(backup.c_str(), path.c_str());
+    char backup[LOOP_SIDECAR_PATH_SIZE];
+    snprintf(backup, sizeof(backup), "%s.bak", path);
+    return SD.exists(path) || !SD.exists(backup) || SD.rename(backup, path);
 }
 
 FLASHMEM
@@ -11540,14 +11541,17 @@ bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
     {
         return false;
     }
-    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
-    const String temporary = path + ".tmp";
-    const String backup = path + ".bak";
+    char path[LOOP_PATH_SIZE];
+    LOOP_Path_midi_loop(loop_id, path);
+    char temporary[LOOP_SIDECAR_PATH_SIZE];
+    snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    char backup[LOOP_SIDECAR_PATH_SIZE];
+    snprintf(backup, sizeof(backup), "%s.bak", path);
     if (!LOOP_Recover_SD_file(path))
     {
         return false;
     }
-    FsFile file = SD.sdfs.open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+    FsFile file = SD.sdfs.open(temporary, O_WRONLY | O_CREAT | O_TRUNC);
     if (!file)
     {
         return false;
@@ -11558,28 +11562,28 @@ bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
     {
         return false;
     }
-    file = SD.sdfs.open(temporary.c_str(), O_RDONLY);
+    file = SD.sdfs.open(temporary, O_RDONLY);
     const bool verified = file && LOOP_Read_midi_loop_file(file, false);
     file.close();
     if (!verified)
     {
         return false;
     }
-    const bool had_previous = SD.exists(path.c_str());
+    const bool had_previous = SD.exists(path);
     if (had_previous)
     {
-        if (SD.exists(backup.c_str()) && !SD.remove(backup.c_str()))
+        if (SD.exists(backup) && !SD.remove(backup))
         {
             return false;
         }
-        if (!SD.rename(path.c_str(), backup.c_str()))
+        if (!SD.rename(path, backup))
         {
             return false;
         }
     }
-    if (!SD.rename(temporary.c_str(), path.c_str()))
+    if (!SD.rename(temporary, path))
     {
-        if (had_previous && !SD.rename(backup.c_str(), path.c_str()))
+        if (had_previous && !SD.rename(backup, path))
         {
             Serial.println(F("Loop replacement failed; previous loop retained in .loop.bak."));
         }
@@ -11595,12 +11599,13 @@ bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id)
     {
         return false;
     }
-    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    char path[LOOP_PATH_SIZE];
+    LOOP_Path_midi_loop(loop_id, path);
     if (!LOOP_Recover_SD_file(path))
     {
         return false;
     }
-    FsFile file = SD.sdfs.open(path.c_str(), O_RDONLY);
+    FsFile file = SD.sdfs.open(path, O_RDONLY);
     if (!file || !LOOP_Read_midi_loop_file(file, false) || !file.seekSet(0))
     {
         return false; // No active-loop data has been changed.
@@ -11627,12 +11632,14 @@ bool LOOP_Delete_midi_loop_from_SD(int loop_id)
     {
         return false;
     }
-    const String path = "/LILLALOOP/" + LOOP_Filename_midi_loop(loop_id);
+    char path[LOOP_PATH_SIZE];
+    LOOP_Path_midi_loop(loop_id, path);
     // Remove sidecars first so a deleted loop cannot be rediscovered through its backup.
     for (const char *suffix : {".tmp", ".bak", ""})
     {
-        const String target = path + suffix;
-        if (SD.exists(target.c_str()) && !SD.remove(target.c_str()))
+        char target[LOOP_SIDECAR_PATH_SIZE];
+        snprintf(target, sizeof(target), "%s%s", path, suffix);
+        if (SD.exists(target) && !SD.remove(target))
         {
             return false;
         }
@@ -11650,11 +11657,12 @@ bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
             return false;
         }
 
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
+        char full_path[LOOP_PATH_SIZE];
+        LOOP_Path_midi_loop(loop_id, full_path);
+        char backup[LOOP_SIDECAR_PATH_SIZE];
+        snprintf(backup, sizeof(backup), "%s.bak", full_path);
 
-        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
+        if (SD.exists(full_path) || SD.exists(backup))
         {
             return true;
         }
@@ -11668,6 +11676,7 @@ bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
     return false;
 }
 
+FLASHMEM
 int LOOP_Get_first_loop_id_free(void)
 {
     if (!SD.begin(BUILTIN_SDCARD))
@@ -11682,10 +11691,11 @@ int LOOP_Get_first_loop_id_free(void)
     }
     for (auto loop_id = 0; loop_id < MIDI_LOOP_FILES; ++loop_id)
     {
-        String filename = LOOP_Filename_midi_loop(loop_id);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-        if (!SD.exists(full_path_) && !SD.exists((full_path + ".bak").c_str()))
+        char full_path[LOOP_PATH_SIZE];
+        LOOP_Path_midi_loop(loop_id, full_path);
+        char backup[LOOP_SIDECAR_PATH_SIZE];
+        snprintf(backup, sizeof(backup), "%s.bak", full_path);
+        if (!SD.exists(full_path) && !SD.exists(backup))
         {
             Serial.print(F("LOOP_Get_first_loop_id_free(void) - loop_id: "));
             Serial.println(loop_id);
@@ -11696,6 +11706,7 @@ int LOOP_Get_first_loop_id_free(void)
     return -3;
 }
 
+FLASHMEM
 int LOOP_Get_next_loop_id_in_SD(int loop_id)
 {
     if (!SD.begin(BUILTIN_SDCARD))
@@ -11710,10 +11721,11 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id)
     }
     for (auto next_loop = loop_id + 1; next_loop < MIDI_LOOP_FILES; ++next_loop)
     {
-        String filename = LOOP_Filename_midi_loop(next_loop);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
+        char full_path[LOOP_PATH_SIZE];
+        LOOP_Path_midi_loop(next_loop, full_path);
+        char backup[LOOP_SIDECAR_PATH_SIZE];
+        snprintf(backup, sizeof(backup), "%s.bak", full_path);
+        if (SD.exists(full_path) || SD.exists(backup))
         {
             return next_loop;
         }
@@ -11723,6 +11735,7 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id)
     return loop_id;
 }
 
+FLASHMEM
 int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 {
     if (loop_id <= 0)
@@ -11742,10 +11755,11 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
     }
     for (auto previous_loop = loop_id - 1; previous_loop >= 0; --previous_loop)
     {
-        String filename = LOOP_Filename_midi_loop(previous_loop);
-        String full_path = String("/LILLALOOP/" + filename);
-        const char *full_path_ = &full_path[0];
-        if (SD.exists(full_path_) || SD.exists((full_path + ".bak").c_str()))
+        char full_path[LOOP_PATH_SIZE];
+        LOOP_Path_midi_loop(previous_loop, full_path);
+        char backup[LOOP_SIDECAR_PATH_SIZE];
+        snprintf(backup, sizeof(backup), "%s.bak", full_path);
+        if (SD.exists(full_path) || SD.exists(backup))
         {
             return previous_loop;
         }
@@ -11758,6 +11772,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 // **********************************            VIRTUAL FILE SYSTEM            **********************************
 // ***************************************************************************************************************
 
+FLASHMEM
 void VFS_Make_VFS(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
@@ -11862,25 +11877,24 @@ void VFS_Print_allocation(void)
     Serial.println();
 }
 
-// VFS operations run without audio callbacks, which could otherwise access the same SPI Flash.
-struct VFS_Audio_guard
+inline VFS_Audio_guard::VFS_Audio_guard()
 {
-    const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-    bool successful = false;
-    VFS_Audio_guard() { AudioNoInterrupts(); }
-    bool Complete()
+    AudioNoInterrupts();
+}
+
+inline bool VFS_Audio_guard::Complete()
+{
+    successful = true;
+    return true;
+}
+
+inline VFS_Audio_guard::~VFS_Audio_guard()
+{
+    if (successful && enabled && SerialFlash.ready())
     {
-        successful = true;
-        return true;
+        AudioInterrupts();
     }
-    ~VFS_Audio_guard()
-    {
-        if (successful && enabled && SerialFlash.ready())
-        {
-            AudioInterrupts();
-        }
-    }
-};
+}
 
 FLASHMEM
 void Require_VFS(bool result)
@@ -11960,6 +11974,7 @@ int VFS_Get_first_packet_free(void)
     return -1;
 }
 
+FLASHMEM
 void VFS_Erase_all_packets(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
@@ -11975,6 +11990,7 @@ void VFS_Erase_all_packets(void)
     Serial.println();
 }
 
+FLASHMEM
 void VFS_Erase_all_packets_for_DS(void)
 {
     Serial.println("*** Erase ALL Packets for Direct Sampling and VFS_FAT ***");
@@ -11987,7 +12003,7 @@ void VFS_Erase_all_packets_for_DS(void)
 }
 
 static constexpr uint32_t VFS_FLASH_TIMEOUT_MS = 10000;
-static constexpr uint32_t VFS_COPY_BYTES = 256;
+static constexpr uint32_t VFS_COPY_BYTES = 256; // Chunk size used for VFS packet copies and verification.
 
 FLASHMEM
 bool VFS_Wait_flash(void)
@@ -12314,6 +12330,7 @@ bool VFS_Defragment(void)
     return audio_guard.Complete();
 }
 
+FLASHMEM
 void VFS_Print_FAT(void)
 {
     Serial.println();
@@ -12333,8 +12350,8 @@ void VFS_Print_FAT(void)
 
 // Complete SD backups: metadata v3 binds every audio channel by length and CRC.
 // RAW files preserve full allocated packets, including erased tails, without trusting inferred runtime lengths.
-static constexpr char BACKUP_ROOT[] = "/LILLABACKUP";
-static constexpr char BACKUP_CONFIG[] = "LILLA_CONFIG.fram";
+static constexpr char BACKUP_ROOT[] = "/LILLABACKUP";        // SD directory containing the published full backup.
+static constexpr char BACKUP_CONFIG[] = "LILLA_CONFIG.fram"; // Configuration filename within a full SD backup.
 
 FLASHMEM
 uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size)
@@ -12424,7 +12441,7 @@ bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bo
 }
 
 FLASHMEM
-bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio = false, bool *config_error = nullptr)
+bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio, bool *config_error)
 {
     char packet_filename[NAME_PACKET_SIZE];
     char path[64];
@@ -12770,27 +12787,6 @@ int Get_samples_in_raw_file(int file_id) // value is a file_id
         return 0;
 }
 
-bool Verify_space_on_flash(int value)
-{
-    return ((Get_flashchip_size() - Get_flash_occupation()) >= value ? true : false);
-}
-
-int Get_first_raw_file_available(int start_value)
-{
-    char audio_filename[NAME_FILE_SIZE];
-    if (start_value >= 0)
-    {
-        for (auto i = start_value; i < FIRST_RECORDING_FILE; ++i)
-        {
-            if (FileNameRegistry::Numeric_available(i) && Capture_find(i) == nullptr && !SerialFlash.exists(Get_file_name(i, audio_filename)))
-            {
-                return i;
-            }
-        }
-    }
-    return -1; // nessun file .RAW
-}
-
 FLASHMEM
 void Print_flash_file_list(void)
 {
@@ -12828,39 +12824,6 @@ void Print_flash_file_list(void)
 }
 
 FLASHMEM
-int Get_flashchip_size(void)
-{
-    unsigned char buf[256];
-    unsigned long chipsize, blocksize;
-    SerialFlash.readID(buf);
-    chipsize = SerialFlash.capacity(buf);
-
-    Serial.println();
-    Serial.println(F("Read Chip Identification:"));
-    Serial.print(F("  JEDEC ID:     "));
-    Serial.print(buf[0], HEX);
-    Serial.print(' ');
-    Serial.print(buf[1], HEX);
-    Serial.print(' ');
-    Serial.println(buf[2], HEX);
-    Serial.print(F("  Part Number: "));
-    Serial.println(id2chip(buf));
-    Serial.print(F("  Memory Size:  "));
-    Serial.print(chipsize);
-    Serial.println(F(" bytes"));
-
-    if (chipsize == 0)
-    {
-        return false;
-    }
-    blocksize = SerialFlash.blockSize();
-
-    Serial.print(F("  Block Size:   "));
-    Serial.print(blocksize);
-    Serial.println(F(" bytes"));
-    return chipsize;
-}
-
 int Get_raw_files(void)
 {
     char audio_filename[NAME_FILE_SIZE];
@@ -12875,6 +12838,7 @@ int Get_raw_files(void)
     return value; // nessun file .RAW
 }
 
+FLASHMEM
 int Get_raw_files_volume(void)
 {
     char audio_filename[NAME_FILE_SIZE];
@@ -12889,161 +12853,6 @@ int Get_raw_files_volume(void)
         }
     }
     return value;
-}
-
-FLASHMEM
-const char *id2chip(const unsigned char *id)
-{
-    if (id[0] == 0xEF)
-    {
-        // Winbond
-        if (id[1] == 0x40)
-        {
-            if (id[2] == 0x14)
-            {
-                return "W25Q80BV";
-            }
-            if (id[2] == 0x15)
-            {
-                return "W25Q16DV";
-            }
-            if (id[2] == 0x17)
-            {
-                return "W25Q64FV";
-            }
-            if (id[2] == 0x18)
-            {
-                return "W25Q128FV";
-            }
-            if (id[2] == 0x19)
-            {
-                return "W25Q256FV";
-            }
-            if (id[2] == 0x20) // aggiunto io
-            {
-                return "W25Q512FV";
-            }
-        }
-    }
-
-    if (id[0] == 0x01)
-    {
-        // Spansion
-        if (id[1] == 0x02)
-        {
-            if (id[2] == 0x16)
-            {
-                return "S25FL064A";
-            }
-            if (id[2] == 0x19)
-            {
-                return "S25FL256S";
-            }
-            if (id[2] == 0x20)
-            {
-                return "S25FL512S";
-            }
-        }
-        if (id[1] == 0x20)
-        {
-            if (id[2] == 0x18)
-            {
-                return "S25FL127S";
-            }
-        }
-    }
-
-    if (id[0] == 0xC2)
-    {
-        // Macronix
-        if (id[1] == 0x20)
-        {
-            if (id[2] == 0x18)
-            {
-                return "MX25L12805D";
-            }
-        }
-    }
-
-    if (id[0] == 0x20)
-    {
-        // Micron
-        if (id[1] == 0xBA)
-        {
-            if (id[2] == 0x20)
-            {
-                return "N25Q512A";
-            }
-            if (id[2] == 0x21)
-            {
-                return "N25Q00AA";
-            }
-        }
-        if (id[1] == 0xBB)
-        {
-            if (id[2] == 0x22)
-            {
-                return "MT25QL02GC";
-            }
-        }
-    }
-
-    if (id[0] == 0xBF)
-    {
-        // SST
-        if (id[1] == 0x25)
-        {
-            if (id[2] == 0x02)
-            {
-                return "SST25WF010";
-            }
-            if (id[2] == 0x03)
-            {
-                return "SST25WF020";
-            }
-            if (id[2] == 0x04)
-            {
-                return "SST25WF040";
-            }
-            if (id[2] == 0x41)
-            {
-                return "SST25VF016B";
-            }
-            if (id[2] == 0x4A)
-            {
-                return "SST25VF032";
-            }
-        }
-        if (id[1] == 0x25)
-        {
-            if (id[2] == 0x01)
-            {
-                return "SST26VF016";
-            }
-            if (id[2] == 0x02)
-            {
-                return "SST26VF032";
-            }
-            if (id[2] == 0x43)
-            {
-                return "SST26VF064";
-            }
-        }
-    }
-
-    if (id[0] == 0x1F)
-    {
-        // Adesto
-        if (id[1] == 0x89)
-        {
-            if (id[2] == 0x01)
-            {
-                return "AT25SF128A";
-            }
-        }
-    }
-
-    return "(unknown chip)";
 }
 
 // ***************************************************************************************************************
@@ -13314,53 +13123,6 @@ void Print_Lilla_state(void)
         PRINT_ERROR(F("Switch MISSING! "));
         break;
     }
-}
-
-FLASHMEM
-void Print_keyboard_state(int midi_channel, int from_key, int to_key)
-{
-    Serial.println();
-    Serial.print(F("********  Print_keyboard_state - MIDI CH.: "));
-    Serial.print(midi_channel + 1);
-    Serial.println("   *********");
-    for (auto key = from_key; key <= to_key; ++key)
-    {
-        Serial.print(key_state[midi_channel][key]);
-        Serial.print("  ");
-    }
-    Serial.println();
-    for (auto key = from_key; key <= to_key; ++key)
-    {
-        Serial.print(key);
-        Serial.print("  ");
-    }
-    Serial.println();
-}
-
-FLASHMEM
-void Print_map_instrument_for_note(int midi_channel)
-{
-    Serial.println();
-    Serial.print(F("Map notes/Sound for MIDI channel:"));
-    Serial.println(midi_channel + 1);
-    for (auto Inst_id = (INSTRUMENTS - 1); Inst_id >= 0; --Inst_id)
-    {
-        for (auto note_number = 0; note_number < NOTE_NUMBERS; ++note_number)
-        {
-            Serial.print(bitRead(map_instrument_for_note[midi_channel][note_number], Inst_id));
-            Serial.print("  ");
-        }
-        Serial.println();
-    }
-    Serial.println();
-
-    for (auto note_number = 0; note_number < NOTE_NUMBERS; ++note_number)
-    {
-        Serial.print(note_number);
-        Serial.print("  ");
-    }
-    Serial.println();
-    Serial.println();
 }
 
 // ***************************************************************************************************************
@@ -14173,6 +13935,7 @@ void Golive_MIXER(void)
 // ****************************                         SETTINGS                        **************************
 // ***************************************************************************************************************
 
+FLASHMEM
 byte CC_Save_settings(void)
 {
     Midi_reader.Stop();
@@ -14183,6 +13946,7 @@ byte CC_Save_settings(void)
     return result;
 }
 
+FLASHMEM
 void SET_Ask_if_IMPORT_EXPORT_setup(void)
 {
     confirmation = false;
@@ -14206,6 +13970,7 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
     Clear_UI_events();
 }
 
+FLASHMEM
 void SET_Ask_if_FACTORY_RESET(void)
 {
     confirmation = false;
@@ -14232,6 +13997,7 @@ void SET_Ask_if_FACTORY_RESET(void)
 // ****************************                 CONTROL CHANGE ASSIGNENT                **************************
 // ***************************************************************************************************************
 
+FLASHMEM
 byte CC_Read_all_Sound_gain()
 {
     return Archive.Read_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
@@ -14241,7 +14007,7 @@ byte CC_Read_all_Sound_gain()
 // ****************************   COPY RAW FILES FROM SD/FLASH_AUDIO TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
-static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES = 3U * 1024U * 1024U;
+static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES = 3U * 1024U * 1024U; // Maximum decoded audio size accepted by the user-audio importer.
 
 enum class SET_Audio_format : uint8_t
 {
@@ -15097,19 +14863,6 @@ int Read_encoder_simple(int element)
         return -1;
     }
 }
-bool Read_encoder_fast(int element)
-{
-    auto R = Encoders_manager.Get_rotation(element);
-    if (R == 0)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
 void Clear_UI_events(void)
 {
     Encoders_manager.Clear_rotation_all_encoders();
@@ -15261,6 +15014,7 @@ bool P_Quiesce_audio_players(void)
     return ready;
 }
 
+FLASHMEM
 bool Startup_mode(void)
 {
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
@@ -15871,7 +15625,10 @@ void Reload_system_state(void)
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
-    Display_Startup.Lilla_cover_slow();
+    if (STARTUP_LILLA_COVER)
+    {
+        Display_Startup.Lilla_cover_slow();
+    }
 
     // ****************    DEFINE STARTUP MODE     ************
     if (!Startup_mode())
@@ -15889,6 +15646,7 @@ void Reload_system_state(void)
     delay(20);
 }
 
+FLASHMEM
 bool TEST_Current_Patch_SD_round_trip(void)
 {
     const int test_patch_id = Patch_id;
@@ -16045,6 +15803,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     AudioInterrupts(); // Restore audio processing
 }
 
+FLASHMEM
 void Print_player_read_diagnostics(void)
 {
     DMAMEM static PlayersManager::ReadDiagnosticsSnapshot snapshots[4];

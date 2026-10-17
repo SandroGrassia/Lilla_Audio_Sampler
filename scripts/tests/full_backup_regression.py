@@ -245,7 +245,10 @@ bool VFS_Clean_up_orphan_packets(void);
 '''
 
 production = 'ArchivingManager Archive;\nbool BACKUP_Restore(bool *config_error = nullptr);\n'
-production += main[main.index('// VFS operations run without audio callbacks'):main.index('void VFS_Print_FAT(void)\n{')]
+production += re.search(r'^FLASHMEM bool BACKUP_Verify_directory[^\n]*;', main, re.M).group(0) + '\n'
+guard_start = main.index('struct VFS_Audio_guard')
+guard_end = main.index('\n};', guard_start) + len('\n};')
+production += main[guard_start:guard_end] + '\n' + main[main.index('inline VFS_Audio_guard::VFS_Audio_guard()'):main.index('void VFS_Print_FAT(void)\n{')]
 production += main[main.index('// Complete SD backups:'):main.index('// End complete SD backups.')]
 
 tests = r'''

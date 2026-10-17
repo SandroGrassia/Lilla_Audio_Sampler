@@ -22,15 +22,15 @@ class ArchivingManager
 private:
 #define AUDIO_BOARD_SDCARD 10
 
-    String Filename_Patch(const int patch_id);
-    String Filename_Sound(const int patch_id, const int instrument_id);
+    FLASHMEM String Filename_Patch(const int patch_id);
+    FLASHMEM String Filename_Sound(const int patch_id, const int instrument_id);
 
     static constexpr size_t PATCH_PATH_SIZE = 32;
-    bool Is_SD_inserted(void);
-    bool Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
-    bool Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
-    void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
-    void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
+    FLASHMEM bool Is_SD_inserted(void);
+    FLASHMEM bool Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
+    FLASHMEM bool Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
+    FLASHMEM void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
+    FLASHMEM void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
 
     static constexpr uint16_t FILEHEADER_VERSION = 0;
 
@@ -230,18 +230,18 @@ private:
 public:
     ArchivingManager(void) {}
 
-    byte Save_CC_lowpass_filter(const int CC_lowpass_filter);
-    byte Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter);
-    byte Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter);
-    byte Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter);
-    byte Save_key_step(const uint8_t key_step);
-    byte Read_key_step(uint8_t &key_step);
-    byte Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);
-    byte Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument);
+    FLASHMEM byte Save_CC_lowpass_filter(const int CC_lowpass_filter);
+    FLASHMEM byte Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter);
+    FLASHMEM byte Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter);
+    FLASHMEM byte Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter);
+    FLASHMEM byte Save_key_step(const uint8_t key_step);
+    FLASHMEM byte Read_key_step(uint8_t &key_step);
+    FLASHMEM byte Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);
+    FLASHMEM byte Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument);
     byte Read_Delay(uint8_t patch_id, Delay_data_struct &Delay_data);
     byte Save_Delay(uint8_t patch_id, const Delay_data_struct &Delay_data);
-    byte Read_first_octave(int8_t &first_octave);
-    byte Save_first_octave(const int8_t first_octave);
+    FLASHMEM byte Read_first_octave(int8_t &first_octave);
+    FLASHMEM byte Save_first_octave(const int8_t first_octave);
     byte Save_Sound(const int sound_id);
     bool Validate_Sound_AB_file_raw(uint32_t sound_id);
     byte Read_Sound(const int sound_id);
@@ -252,30 +252,30 @@ public:
     byte Save_DS_edit(int recording, uint32_t first_sample, uint32_t last_sample);
     byte Read_DS_edit(int recording, uint32_t &first_sample, uint32_t &last_sample); // Missing or corrupt edits leave the supplied full-length defaults intact.
     byte Clear_DS_edit(int recording);
-    bool Copy_Patch_from_RAM_to_SD(const int patch_id);
-    bool Copy_Patch_from_SD_to_RAM(const int patch_id);
+    FLASHMEM bool Copy_Patch_from_RAM_to_SD(const int patch_id);
+    FLASHMEM bool Copy_Patch_from_SD_to_RAM(const int patch_id);
 
-    bool Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id);
-    bool Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id);
+    FLASHMEM bool Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id);
+    FLASHMEM bool Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id);
 
-    bool Save_Patch_from_RAM_to_SD(const int patch_id);
-    bool Resume_Patch_from_SD_to_RAM(const int patch_id);
+    FLASHMEM bool Save_Patch_from_RAM_to_SD(const int patch_id);
+    FLASHMEM bool Resume_Patch_from_SD_to_RAM(const int patch_id);
 
-    byte Factory_reset_FRAM(bool publish_ready = true);
-    byte Check_FRAM_archive();
-    byte Set_FRAM_archive_state(uint32_t state);
+    FLASHMEM byte Factory_reset_FRAM(bool publish_ready = true);
+    FLASHMEM byte Check_FRAM_archive();
+    FLASHMEM byte Set_FRAM_archive_state(uint32_t state);
     struct Recording_backup_audio
     {
         uint32_t bytes[2];
         uint32_t crc32[2];
     };
     static_assert(sizeof(Recording_backup_audio) == 16);
-    bool Verify_FRAM_backup(File &file);
-    bool Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings);
+    FLASHMEM bool Verify_FRAM_backup(File &file);
+    FLASHMEM bool Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings);
     static constexpr uint32_t RESTORE_IN_PROGRESS = 0x52535452;
     static constexpr uint32_t ARCHIVE_READY = 0x52454144;
-    bool Save_FRAM_backup(File &file, const Recording_backup_audio *audio = nullptr);
-    bool Restore_FRAM_backup(File &file, bool publish_ready = true);
+    FLASHMEM bool Save_FRAM_backup(File &file, const Recording_backup_audio *audio = nullptr);
+    FLASHMEM bool Restore_FRAM_backup(File &file, bool publish_ready = true);
     struct FRAM_Repair_report
     {
         uint16_t cleared_patches = 0;
@@ -285,22 +285,22 @@ public:
         bool failed_sound = false;
     };
     // Startup only, before runtime loading. Repairs FRAM without changing the RAM model.
-    byte Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report);
+    FLASHMEM byte Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report);
     struct FRAM_Recording_repair_report
     {
         uint8_t cleared_recordings = 0;
         uint8_t failed_id = UINT8_MAX;
     };
     // Startup only. CRC-corrupt Recording metadata is replaced with an empty, inconsistent cleanup marker.
-    byte Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report);
+    FLASHMEM byte Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report);
     struct FRAM_System_repair_report
     {
         bool defaulted = false;
     };
     // Startup only. A CRC-corrupt System record is replaced with safe defaults.
-    byte Repair_System_in_FRAM(FRAM_System_repair_report &report);
+    FLASHMEM byte Repair_System_in_FRAM(FRAM_System_repair_report &report);
     // Startup only: clears runtime arrays on failure and reports the failing record ID.
-    byte Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound);
+    FLASHMEM byte Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound);
     static constexpr byte FRAM_ERROR_VERIFY = 13;
     static constexpr byte FRAM_ERROR_SOURCE = 14;
     static constexpr byte FRAM_ERROR_CRC = 12; // Stored Patch or Sound checksum does not match its payload.

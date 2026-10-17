@@ -80,8 +80,8 @@ private:
     uint16_t monitored_channels[SHIFTERS];
 
     // Setup physical shifter
-    void Start_SPI_for_shifters(void);
-    void Setup_physical_channels(void);
+    FLASHMEM void Start_SPI_for_shifters(void);
+    FLASHMEM void Setup_physical_channels(void);
 
     // Initializes the previous-scan cache as all channels open/high, matching the MCP23S17 input pull-up idle state.
     void Reset_shifters_channels(void);
@@ -95,11 +95,11 @@ private:
     // Detects which channels changed since the previous scan, keeps only the monitored ones, then promotes the last scan to the old state.
     void Filter_channels_changed_values(const int &id);
 
-    void Set_monitored_encoders(void);
-    void Set_monitored_pushbuttons(void);
-    void Set_monitored_switches(void);
-    void Set_monitored_encoders_pushbuttons_switches(void);
-    void Init_controller_masks(void);
+    FLASHMEM void Set_monitored_encoders(void);
+    FLASHMEM void Set_monitored_pushbuttons(void);
+    FLASHMEM void Set_monitored_switches(void);
+    FLASHMEM void Set_monitored_encoders_pushbuttons_switches(void);
+    FLASHMEM void Init_controller_masks(void);
 
 public:
     ShiftRegisters(Encoders &EncsObj, Pushbuttons &PbsObj, Switches &SwcObj) : Encoders_manager(EncsObj), Pushbuttons_manager(PbsObj), Switches_manager(SwcObj)
@@ -108,8 +108,9 @@ public:
         Init_controller_masks();
     }
 
-    void Begin(void);
-    void Monitor_all_controllers(void);
+    FLASHMEM void Begin(void);
+    FLASHMEM void Pulse_startup_leds(void);
+    FLASHMEM void Monitor_all_controllers(void);
     void Update(void);
     void Switch_all_leds(bool on);
     void Switch_led(LedNames led, bool on);

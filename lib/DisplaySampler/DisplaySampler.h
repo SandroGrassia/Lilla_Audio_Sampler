@@ -48,7 +48,6 @@ private:
     static constexpr float DS_column_row_FILE_MONO[2] = {0, DS_ROW_RECORDING + 1};
     static constexpr float DS_column_row_FILE_RIGHT[2] = {0, DS_ROW_RECORDING + 2}; // stereo only
     static constexpr float DS_column_row_LENGTH[2] = {0, DS_ROW_RECORDING + 2};     // mono; stereo uses DS_ROW_LENGTH_STEREO
-    static constexpr float DS_column_row_PLEASE_WAIT[2] = {3.5, DS_ROW_RECORDING};
     static constexpr float DS_column_row_POPUP_LINE_0[2] = {0, DS_ROW_RECORDING};
     static constexpr float DS_column_row_POPUP_LINE_1[2] = {0, DS_ROW_RECORDING + 1};
     static constexpr float DS_column_row_POPUP_LINE_2[2] = {0, DS_ROW_RECORDING + 2};
@@ -123,7 +122,7 @@ public:
     // Clears the recording description area on screen.
     void DS_hide_recording(void);
 
-    // Shows or hides the 'PLEASE WAIT' delete advice.
+    // Shows or hides the centered green deletion popup with black text.
     void DS_advice_delete(bool value);
 
     // Shows or hides the 'UNABLE TO CREATE RAW FILE' advice with the reason (DS_export: 0 = no space, -1 = no name).

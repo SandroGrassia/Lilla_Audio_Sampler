@@ -10,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 main = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
 shared = (ROOT / 'lib/SharedVFS/SharedVFS.h').read_text(encoding='utf-8')
 recording = shared[shared.index('struct VFS_Recording'):]
-production = main[main.index('// VFS operations run without audio callbacks'):main.index('void VFS_Print_FAT(void)\n{')]
+guard_start = main.index('struct VFS_Audio_guard')
+guard_end = main.index('\n};', guard_start) + len('\n};')
+production = main[guard_start:guard_end] + '\n' + main[main.index('inline VFS_Audio_guard::VFS_Audio_guard()'):main.index('void VFS_Print_FAT(void)\n{')]
 
 prefix = r'''
 #include <algorithm>
@@ -332,7 +334,7 @@ int main()
     reset();
     add(0, 6, 1, false);
     const auto survivor = contents(0);
-    fram[1].consistent = 0; // Empty durable marker produced by CRC repair.
+    fram[1].consistent = 0; // Empty durable marker produced before capture (also used by CRC repair).
     Recording[1].consistent = false;
     flash[1][0] = flash[20][0] = 0;
     cut_after = 2; // Persist marker then erase the first orphan.
