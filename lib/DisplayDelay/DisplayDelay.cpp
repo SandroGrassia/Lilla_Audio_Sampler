@@ -81,10 +81,15 @@ void DisplayDelay::D_show_page()
     tft.print("FEEDBACK");
     D_feedback();
 
-    tft.setCursor(display_coordinate_x(DELAY_column_row_COMPRESSOR[0]), display_coordinate_y(DELAY_column_row_COMPRESSOR[1]));
+    tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK_COMPRESSOR[0]), display_coordinate_y(DELAY_column_row_FEEDBACK_COMPRESSOR[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("COMPRESSOR");
-    D_compressor();
+    tft.print("FEED COMPRESSOR");
+    D_feedback_compressor();
+
+    tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK_LPF[0]), display_coordinate_y(DELAY_column_row_FEEDBACK_LPF[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("FEED LPF");
+    D_feedback_lpf();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_DELAY_TIME[0]), display_coordinate_y(DELAY_column_row_DELAY_TIME[1]));
     tft.setTextColor(TEXT_COLOR);
@@ -95,11 +100,6 @@ void DisplayDelay::D_show_page()
     tft.setTextColor(TEXT_COLOR);
     tft.print("DELAY TIME L/R");
     D_delay_time_LR();
-
-    tft.setCursor(display_coordinate_x(DELAY_column_row_LPF_CUTOFF[0]), display_coordinate_y(DELAY_column_row_LPF_CUTOFF[1]));
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("ECHO LPF");
-    D_lpf_cutoff();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_MODULATION_SOURCE[0]), display_coordinate_y(DELAY_column_row_MODULATION_SOURCE[1]));
     tft.setTextColor(TEXT_COLOR);
@@ -223,9 +223,9 @@ void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while 
 }
 
 FLASHMEM
-void DisplayDelay::D_lpf_cutoff(void)
+void DisplayDelay::D_feedback_lpf(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_lpf_cutoff[0]), display_coordinate_y(DELAY_column_row_lpf_cutoff[1]), DELAY_chars_lpf_cutoff);
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback_lpf[0]), display_coordinate_y(DELAY_column_row_feedback_lpf[1]), DELAY_chars_feedback_lpf);
     tft.setTextColor(ILI9341_YELLOW);
     const int frequency = lowpass_value[Delay_data.lpf_cutoff];
     tft.print(frequency);
@@ -300,9 +300,9 @@ void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, co
 }
 
 FLASHMEM
-void DisplayDelay::D_compressor(void)
+void DisplayDelay::D_feedback_compressor(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_compressor[0]), display_coordinate_y(DELAY_column_row_compressor[1]), DELAY_chars_compressor);
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback_compressor[0]), display_coordinate_y(DELAY_column_row_feedback_compressor[1]), DELAY_chars_feedback_compressor);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Delay_data.compressor ? "ON" : "OFF");
 }

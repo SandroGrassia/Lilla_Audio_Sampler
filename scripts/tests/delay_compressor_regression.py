@@ -92,7 +92,7 @@ public:
 
 checks = r'''
 
-void Run(AudioDelayCompressor &processor, int blocks, int left, int right, int feedback_left = 0, int feedback_right = 0, unsigned mask = 15)
+void Run(LillaCompressor &processor, int blocks, int left, int right, int feedback_left = 0, int feedback_right = 0, unsigned mask = 15)
 {
     for (int block = 0; block < blocks; ++block)
     {
@@ -103,7 +103,7 @@ void Run(AudioDelayCompressor &processor, int blocks, int left, int right, int f
 }
 int main()
 {
-    AudioDelayCompressor p;
+    LillaCompressor p(LillaCompressor::Profile::Delay);
     // Both bypass and enabled paths retain exactly 32 samples of history.
     for (bool enabled : {false, true})
     {
@@ -179,7 +179,7 @@ int main()
     std::cout << "PASS: Delay stereo linking, 32-sample latency, unclipped sum, ceiling, bypass, release, rollover, missing inputs and allocation failures\n";
 }
 '''
-production = source('lib/AudioDelayCompressor/AudioDelayCompressor.h').replace('private:', 'public:') + source('lib/AudioDelayCompressor/AudioDelayCompressor.cpp')
+production = source('lib/LillaCompressor/LillaCompressor.h').replace('private:', 'public:') + source('lib/LillaCompressor/LillaCompressor.cpp')
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
 environment = os.environ.copy()
 environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')

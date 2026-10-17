@@ -164,7 +164,6 @@
 #include "PerformanceLedSet.h"
 #include "DelayManager.h"
 #include "StereoDelay.h"
-#include "AudioDelayCompressor.h"
 #include "StereoGain.h"
 #include "AudioGain.h"
 #include "Router_16x3.h"
@@ -173,7 +172,7 @@
 #include "AudioPeakDetector.h"
 #include "StereoSampler.h"
 #include "StereoLiveSampler.h"
-#include "AudioLiveCompressor.h"
+#include "LillaCompressor.h"
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
 #include "CacheCycleFinalizer.h"
@@ -256,7 +255,7 @@ AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
 AudioPeakDetector PeakTracking_L;
 AudioPeakDetector PeakTracking_R;
-AudioLiveCompressor LS_Compressor;
+LillaCompressor LS_Compressor(LillaCompressor::Profile::LiveSampler);
 StereoLiveSampler LiveSampler;
 AutoTuneInput AutoTune_input;
 AudioAnalyzeFFT1024 AutoTune_fft;
@@ -268,7 +267,7 @@ AudioFilterBiquad D_lpf_L; // Both feedback branches run before the linked stere
 AudioGain D_gain_L_feedback;
 AudioFilterBiquad D_lpf_R;
 AudioGain D_gain_R_n;
-AudioDelayCompressor D_Compressor;
+LillaCompressor D_Compressor(LillaCompressor::Profile::Delay);
 StereoDelay Delay_L;
 StereoDelay Delay_R;
 
@@ -636,10 +635,10 @@ enum DS_state_name
     DS_convert_state,
     DS_export_SD_state
 };
-DS_state_name DS_state;                 // Current Direct Sampler state: waiting, paused, recording, converting or exporting.
-elapsedMillis DS_recording_time;        // Elapsed recording duration in milliseconds.
-elapsedMillis DS_recording_time_update; // Timer used to throttle recording-time display updates.
-int DS_recording_change;                // Working recording selection during Direct Sampler navigation.
+DS_state_name DS_state;                      // Current Direct Sampler state: waiting, paused, recording, converting or exporting.
+elapsedMillis DS_recording_time;             // Elapsed recording duration in milliseconds.
+elapsedMillis DS_recording_time_update;      // Timer used to throttle recording-time display updates.
+int DS_recording_change;                     // Working recording selection during Direct Sampler navigation.
 static bool DS_recording_slots_full = false; // Updated whenever the Sampler menu is recalculated.
 
 // PACKETS
@@ -653,8 +652,8 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Samp
 bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
 void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
 bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
-bool DS_convert_file_L(int file_L_RAW);              // Export the trimmed left recording channel to RAW.
-bool DS_convert_file_R(int file_R_RAW);              // Export the trimmed right recording channel to RAW.
+bool DS_convert_file_L(int file_L_RAW);               // Export the trimmed left recording channel to RAW.
+bool DS_convert_file_R(int file_R_RAW);               // Export the trimmed right recording channel to RAW.
 void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
 void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
 byte DS_read_all_Recordings(void);                    // Load all recording metadata and stop at the first FRAM error.
@@ -752,7 +751,7 @@ int LOOP_volume_int[TRACKS] = {0};                    // Per-track integer volum
 bool LOOP_run_button_state;                           // Whether the global loop run control is enabled.
 bool LOOP_track_run_memo[TRACKS] = {false};           // Saved per-track run states used when toggling global loop playback.
 int LOOP_stretch_int = 100;                           // Common track time-stretch setting, expressed as a percentage.
-bool LOOP_initial_selection_pending = true; // Select the initial SD loop on the first MIDI Loop entry.
+bool LOOP_initial_selection_pending = true;           // Select the initial SD loop on the first MIDI Loop entry.
 bool LOOP_original;                                   // Whether the current MIDI Loop data matches the saved version.
 
 // Pointer
@@ -789,7 +788,7 @@ void Golive_MIXER(void);                     // Display the Mixer page and initi
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS; // Mixer channel index reserved for line-input monitoring.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  FRAM
-void Factory_setup_FRAM(void);  // Initialize persistent configuration with factory defaults.
+void Factory_setup_FRAM(void); // Initialize persistent configuration with factory defaults.
 
 // >>>>>>>>>>>>>>>>>>>>>>> SGTL5000 Audio_shield
 int headphones_volume_int = 40; // Unused audio-shield headphone volume setting, ranging from 0 to 40.
@@ -1274,7 +1273,6 @@ void loop()
     }
     char audio_filename[NAME_FILE_SIZE];
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
-
 
     P_Service_patch_cache();
 
@@ -2703,8 +2701,6 @@ void loop()
                         }
                     }
                 }
-
-
             }
             break;
 
@@ -2900,8 +2896,6 @@ void loop()
                         Display_Sound.Show_SOUND_menu();
                     }
                 }
-
-
             }
             break;
 
@@ -4416,7 +4410,6 @@ void loop()
                         Display_Mixer.MX_source_values_edit(Instrument_id);
                     }
                 }
-
             }
             break;
 
@@ -4433,7 +4426,7 @@ void loop()
 
                         Display_Mixer.MX_source_values_edit(Instrument_id);
                     }
-                    else if(Read_pushbutton(EN_PB_Value))
+                    else if (Read_pushbutton(EN_PB_Value))
                     {
                         Sound[Sound_id].pan = 0;
 
@@ -4687,12 +4680,12 @@ void loop()
         case value_DELAY_Compressor:
             if (D_Read_value(DELAY_COMPRESSOR))
             {
-                Display_Delay.D_compressor();
+                Display_Delay.D_feedback_compressor();
             }
             else if (Read_pushbutton(EN_PB_Value))
             {
                 D_Set_value(DELAY_COMPRESSOR, !Delay_data.compressor);
-                Display_Delay.D_compressor();
+                Display_Delay.D_feedback_compressor();
             }
             break;
         case value_DELAY_Delay_time:
@@ -4711,7 +4704,7 @@ void loop()
         case value_DELAY_Lpf_cutoff:
             if (D_Read_value(FEEDBACK_CUTOFF))
             {
-                Display_Delay.D_lpf_cutoff();
+                Display_Delay.D_feedback_lpf();
             }
             break;
         case value_DELAY_Modulation_source:
@@ -6275,28 +6268,28 @@ void loop()
                         Serial.println(F("Don't convert any file"));
                         break;
 
-                    case 7:                                                   // Convert Mono (file_L)
+                    case 7: // Convert Mono (file_L)
                         converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
-                    case 8:                                                   // Convert file_L
+                    case 8: // Convert file_L
                         converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
-                    case 9:                                                   // Convert file_R
+                    case 9: // Convert file_R
                         converted = DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
-                    case 10:                                                  // Convert both file_L and file_R
+                    case 10: // Convert both file_L and file_R
                         converted = DS_convert_file_L(file_L_RAW) && DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
@@ -16132,7 +16125,6 @@ FLASHMEM void SET_Prepare_user_audio(void)
         {
             AudioInterrupts();
         }
-
     }
     else
     {

@@ -42,7 +42,7 @@ prefix = r'''
 #define bitRead(value, bit) (((value) >> (bit)) & 1)
 enum State { PERFORMANCE, DIRECT_SAMPLING, LIVE_SAMPLING, MIDI_LOOP, DELAY_SETTINGS };
 State Lilla_state = PERFORMANCE, Lilla_state_0 = PERFORMANCE;
-enum DELAY_element_name { value_DELAY_Feedback, value_DELAY_Compressor, value_DELAY_Delay_time, value_DELAY_Delay_time_LR, value_DELAY_Lpf_cutoff, value_DELAY_Modulation_source, value_DELAY_Modulation_frequency, value_DELAY_Modulation_depth, value_DELAY_Modulation_phase_LR, DELAY_element_names };
+PRODUCTION_DELAY_ENUM
 enum Item { DELAY_COMPRESSOR, FEEDBACK_CUTOFF, LOOP_GAIN, SAMPLES, SAMPLES_LR, MODULATION_SOURCE, MODULATION_FREQUENCY, MODULATION_DEPTH, MODULATION_PHASE_LR, INSTRUMENT_ROUTE };
 enum Control { EN_PB_LineOutVol, EN_PB_Select, EN_PB_Value };
 constexpr int INSTRUMENTS = 8, TRACKS = 2, PATCH_VOLUME_MAX = 100;
@@ -148,6 +148,13 @@ void Cancel_text_reset_cursor(int col, int row, int chars)
     clear_row = row;
     clear_chars = chars;
 }
+int frame_col, frame_row, frame_chars;
+void Frame_by_col_row(float col, float row, int chars, bool)
+{
+    frame_col = col;
+    frame_row = row;
+    frame_chars = chars;
+}
 int display_coordinate_x(float v) { return v; }
 int display_coordinate_y(float v) { return v; }
 void Backgorund_red(int, int, int) {}
@@ -171,6 +178,9 @@ struct SamplerPointer
 } Pointer_Sampler;
 void DS_define_menu() {}
 '''
+shared_delay = (root / 'lib/SharedDelay/SharedDelay.h').read_text(encoding='utf-8')
+prefix = prefix.replace('PRODUCTION_DELAY_ENUM', re.search(r'enum DELAY_element_name\s*\{.*?};', shared_delay, re.S).group(0) + '\n' + re.search(r'static constexpr int DELAY_element_names = \d+;', shared_delay).group(0))
+
 elements = (root / 'lib/SharedElements/SharedElements.h').read_text(encoding='utf-8')
 prefix += re.search(r'static constexpr int LPF_MAX = \d+;', elements).group(0) + '\n'
 prefix += re.search(r'constexpr int lowpass_value\[.*?};', elements, re.S).group(0) + '\n'
@@ -186,7 +196,7 @@ void DisplayDelay::D_modulation_frequency() {}
 void DisplayDelay::D_modulation_depth() {}
 void DisplayDelay::D_modulation_phase_LR() {}
 '''
-production = method(display, 'void DisplayDelay::D_compressor(void)') + method(display, 'void DisplayDelay::D_sounds(void)') + method(display, 'void DisplayDelay::D_lpf_cutoff(void)') + method(display, 'void DisplayDelay::D_show_page()') + method(display, 'void DisplayDelay::D_disabled(void)') + method(main, 'void Golive_DELAY_SETTINGS(void)') + entry + controls + panic + back
+production = method(display, 'void DisplayDelay::DELAY_show_pointer_frame(') + method(display, 'void DisplayDelay::D_feedback_compressor(void)') + method(display, 'void DisplayDelay::D_sounds(void)') + method(display, 'void DisplayDelay::D_feedback_lpf(void)') + method(display, 'void DisplayDelay::D_show_page()') + method(display, 'void DisplayDelay::D_disabled(void)') + method(main, 'void Golive_DELAY_SETTINGS(void)') + entry + controls + panic + back
 checks = r'''
 int main()
 {
@@ -228,8 +238,14 @@ int main()
         assert(Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
     }
     assert(pointer_sets == 3);
-    assert(std::find(labels.begin(), labels.end(), "ECHO LPF") != labels.end());
-    assert(std::find(labels.begin(), labels.end(), "COMPRESSOR") != labels.end());
+    const int expected_frames[DELAY_element_names][3] = {{9, 8, 6}, {9, 9, 7}, {16, 10, 3}, {11, 11, 8}, {15, 12, 10}, {39, 8, 6}, {42, 9, 7}, {38, 10, 6}, {42, 11, 6}};
+    for (int item = 0; item < DELAY_element_names; ++item)
+    {
+        Display_Delay.DELAY_show_pointer_frame(static_cast<DELAY_element_name>(item), true);
+        assert(frame_col == expected_frames[item][0] && frame_row == expected_frames[item][1] && frame_chars == expected_frames[item][2]);
+    }
+    assert(std::find(labels.begin(), labels.end(), "FEED LPF") != labels.end());
+    assert(std::find(labels.begin(), labels.end(), "FEED COMPRESSOR") != labels.end());
     Lilla_state_0 = LIVE_SAMPLING;
     labels.clear();
     Display_Delay.D_sounds();
@@ -238,16 +254,16 @@ int main()
     {
         Delay_data.compressor = enabled;
         labels.clear();
-        Display_Delay.D_compressor();
-        assert(clear_col == 12 && clear_row == 9 && clear_chars == 3);
+        Display_Delay.D_feedback_compressor();
+        assert(clear_col == 16 && clear_row == 10 && clear_chars == 3);
         assert(labels.size() == 1 && labels[0] == (enabled ? "ON" : "OFF"));
     }
     for (int cutoff = 0; cutoff <= LPF_MAX; ++cutoff)
     {
         Delay_data.lpf_cutoff = cutoff;
         labels.clear();
-        Display_Delay.D_lpf_cutoff();
-        assert(clear_col == 9 && clear_row == 12 && clear_chars == 7);
+        Display_Delay.D_feedback_lpf();
+        assert(clear_col == 9 && clear_row == 9 && clear_chars == 7);
         assert(labels.size() == 2 && labels[0].size() + labels[1].size() <= 7);
         assert(labels[0] == std::to_string(lowpass_value[cutoff]));
         assert(labels[1] == "Hz");

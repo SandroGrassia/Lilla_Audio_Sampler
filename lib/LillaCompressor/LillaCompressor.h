@@ -1,4 +1,4 @@
-/* LILLA Audio Sampler - stereo Live Sampler feedback and recording dynamics. */
+/* LILLA Audio Sampler - shared stereo Live Sampler and Delay dynamics. */
 #pragma once
 
 #include <Arduino.h>
@@ -6,16 +6,22 @@
 #include <array>
 #include "StereoLiveSampler.h"
 
-class AudioLiveCompressor : public AudioStream
+class LillaCompressor : public AudioStream
 {
+public:
+    enum class Profile { LiveSampler, Delay };
+
 private:
-    static constexpr unsigned LOOKAHEAD = 128;
-    static constexpr unsigned PEAK_QUEUE_SIZE = LOOKAHEAD + 2;
+    static constexpr unsigned MAX_LOOKAHEAD = 32;
+    static constexpr unsigned PEAK_QUEUE_SIZE = MAX_LOOKAHEAD + 2;
     static constexpr float CEILING = 29204.0f; // Approximately -1 dBFS.
     static const std::array<float, 258> gain_table;
+    const Profile profile;
+    const unsigned lookahead;
+    const float attack_step;
     audio_block_t *input_queue[4]; // Line L/R, followed by feedback L/R.
-    int32_t delayed_left[LOOKAHEAD] = {};
-    int32_t delayed_right[LOOKAHEAD] = {};
+    int32_t delayed_left[MAX_LOOKAHEAD] = {};
+    int32_t delayed_right[MAX_LOOKAHEAD] = {};
     int32_t peak_values[PEAK_QUEUE_SIZE] = {};
     uint32_t peak_times[PEAK_QUEUE_SIZE] = {};
     uint32_t sample_clock = 0;
@@ -34,10 +40,11 @@ private:
     static int16_t To_sample(float sample);
 
 public:
-    AudioLiveCompressor();
+    explicit LillaCompressor(Profile selected_profile);
+    void Reset(void); // Clear history with audio interrupts disabled; preserve the requested enable state.
     StereoLiveSampler *Recorder_ptr = nullptr; // Connected at startup before recording can begin.
     void update(void) override;
-    void Set_feedback(float feedback); // Caller supplies the Live Sampler table range [0, 1].
+    void Set_feedback(float feedback); // LiveSampler profile only; caller supplies the table range [0, 1].
     void Set_enabled(bool value); // Call with audio interrupts disabled.
     bool Is_enabled(void) const;
 };

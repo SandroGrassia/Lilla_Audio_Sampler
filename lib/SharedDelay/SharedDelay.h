@@ -99,10 +99,10 @@ static constexpr int DELAY_element_names = 9;
 enum DELAY_element_name
 {
     value_DELAY_Feedback,
+    value_DELAY_Lpf_cutoff,
     value_DELAY_Compressor,
     value_DELAY_Delay_time,
     value_DELAY_Delay_time_LR,
-    value_DELAY_Lpf_cutoff,
     value_DELAY_Modulation_source,
     value_DELAY_Modulation_frequency,
     value_DELAY_Modulation_depth,

@@ -82,7 +82,7 @@ public:
     }
 };
 '''
-prefix += 'class AudioDelayCompressor { public: bool enabled = false; void Set_enabled(bool value) { enabled = value; } };\n'
+prefix += 'class LillaCompressor { public: bool enabled = false; void Set_enabled(bool value) { enabled = value; } };\n'
 shared = source('lib/SharedDelay/SharedDelay.h') + source('lib/SharedDelay/SharedDelay.cpp')
 gain_header = source('lib/AudioGain/AudioGain.h').replace('private:', 'public:')
 gain_cpp = source('lib/AudioGain/AudioGain.cpp')
@@ -124,7 +124,7 @@ int main() {
  AudioGain gainL,gainR;
  PlayersManager players;
  DelayManager &m = Delay_manager;
- AudioDelayCompressor compressor;
+ LillaCompressor compressor;
  m.Compressor_ptr = &compressor;
  assert(m.Set_value(DELAY_COMPRESSOR, 1));
  m.Update();

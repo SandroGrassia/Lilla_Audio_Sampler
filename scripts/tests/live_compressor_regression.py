@@ -91,7 +91,7 @@ public:
 '''
 
 checks = r'''
-void Run(AudioLiveCompressor &processor, int blocks, int left, int right, int feedback_left = 0, int feedback_right = 0, unsigned mask = 15)
+void Run(LillaCompressor &processor, int blocks, int left, int right, int feedback_left = 0, int feedback_right = 0, unsigned mask = 15)
 {
     processor.Recorder_ptr = &live_recorder;
     for (int block = 0; block < blocks; ++block)
@@ -150,7 +150,7 @@ int main()
     assert(!LS_Compressor.Is_enabled());
 
     // Inactive updates drain all inputs without allocating or transmitting any output blocks.
-    AudioLiveCompressor inactive;
+    LillaCompressor inactive(LillaCompressor::Profile::LiveSampler);
     inactive.Set_enabled(true);
     Run(inactive, 8, 20000, -10000);
     inactive.Clear_output();
@@ -160,9 +160,10 @@ int main()
     assert(inactive.Is_enabled());
     live_recorder.writing = true;
     Run(inactive, 1, 4000, -2000);
-    for (int value : inactive.output[0])
+    for (unsigned sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
     {
-        assert(value == 0);
+        assert(inactive.output[0][sample] == (sample < 32 ? 0 : 4000));
+        assert(inactive.output[1][sample] == (sample < 32 ? 0 : -2000));
     }
     inactive.Clear_output();
     Run(inactive, 1, 4000, -2000);
@@ -173,14 +174,22 @@ int main()
     inactive.update();
     assert(inactive.allocations == 0 && inactive.output[0].empty() && AudioStream::outstanding == 0);
 
-    // Bypass is exact apart from a constant 128-sample delay, with no channel swap.
-    AudioLiveCompressor dry;
+    // Bypass is exact apart from a constant 32-sample delay, with no channel swap.
+    LillaCompressor dry(LillaCompressor::Profile::LiveSampler);
     assert(!dry.Is_enabled());
     Run(dry, 1, 12000, -6000);
-    assert(std::all_of(dry.output[0].begin(), dry.output[0].end(), [](int value) { return value == 0; }));
+    for (unsigned sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+    {
+        assert(dry.output[0][sample] == (sample < 32 ? 0 : 12000));
+        assert(dry.output[1][sample] == (sample < 32 ? 0 : -6000));
+    }
     dry.Clear_output();
     Run(dry, 1, -7000, 3000);
-    assert(dry.output[0].front() == 12000 && dry.output[1].back() == -6000);
+    for (unsigned sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+    {
+        assert(dry.output[0][sample] == (sample < 32 ? 12000 : -7000));
+        assert(dry.output[1][sample] == (sample < 32 ? -6000 : 3000));
+    }
 
     // Enable below threshold: unchanged audio and unchanged delay.
     dry.Set_enabled(true);
@@ -188,7 +197,7 @@ int main()
     assert(dry.output[0].back() == 12000 && dry.output[1].back() == -6000);
 
     // An isolated full-scale transient is caught, including after prolonged silence.
-    AudioLiveCompressor impulse;
+    LillaCompressor impulse(LillaCompressor::Profile::LiveSampler);
     impulse.Set_enabled(true);
     Run(impulse, 20, 0, 0);
     impulse.Clear_output();
@@ -197,12 +206,12 @@ int main()
     impulse.pending[1]->data[127] = 16384;
     impulse.update();
     Run(impulse, 2, 0, 0);
-    assert(std::abs(static_cast<int>(impulse.output[0][255])) <= 29204);
-    assert(std::abs(static_cast<int>(impulse.output[0][255])) > 20000);
-    assert(std::abs(impulse.output[0][255] + 2 * impulse.output[1][255]) <= 2);
+    assert(std::abs(static_cast<int>(impulse.output[0][159])) <= 29204);
+    assert(std::abs(static_cast<int>(impulse.output[0][159])) > 20000);
+    assert(std::abs(impulse.output[0][159] + 2 * impulse.output[1][159]) <= 2);
 
     // Sum before limiting: a 40000 input retains its correct curve value, not a clipped 32767.
-    AudioLiveCompressor wide;
+    LillaCompressor wide(LillaCompressor::Profile::LiveSampler);
     wide.Set_feedback(1.0f);
     wide.Set_enabled(true);
     Run(wide, 1200, 20000, -10000, 20000, -10000);
@@ -217,7 +226,7 @@ int main()
     }
 
     // Steady over-range stereo input: toggles and reversals have bounded sample changes.
-    AudioLiveCompressor toggled;
+    LillaCompressor toggled(LillaCompressor::Profile::LiveSampler);
     toggled.Set_feedback(1.0f);
     Run(toggled, 600, 30000, 10000, 30000, 10000);
     toggled.Clear_output();
@@ -273,7 +282,7 @@ int main()
     }
 
     // Missing input channels are silence; missing outputs release all blocks and retain history.
-    AudioLiveCompressor missing;
+    LillaCompressor missing(LillaCompressor::Profile::LiveSampler);
     Run(missing, 2, 12000, 0, 0, 0, 1);
     assert(missing.output[0].back() == 12000 && missing.output[1].back() == 0);
     for (int failure : {0, 1})
@@ -294,7 +303,7 @@ int main()
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
 environment = os.environ.copy()
 environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
-production = source('lib/AudioLiveCompressor/AudioLiveCompressor.h') + source('lib/AudioLiveCompressor/AudioLiveCompressor.cpp')
+production = source('lib/LillaCompressor/LillaCompressor.h') + source('lib/LillaCompressor/LillaCompressor.cpp')
 main_source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
 handler_start = main_source.index('        for (int Inst_id = 0;', main_source.index('Display_LiveSampler.Update_no_recorded_audio(live_unrecorded_notice);'))
 handler_end = main_source.index('\n        /*', handler_start)
@@ -303,7 +312,7 @@ constexpr int INSTRUMENTS = 8;
 const int PB_Sound[INSTRUMENTS] = {0, 1, 2, 3, 4, 5, 6, 7};
 int pressed = -1;
 int captured = -1;
-AudioLiveCompressor LS_Compressor;
+LillaCompressor LS_Compressor(LillaCompressor::Profile::LiveSampler);
 struct DisplayStub
 {
     bool enabled = false;
