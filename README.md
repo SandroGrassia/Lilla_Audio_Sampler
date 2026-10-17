@@ -16,9 +16,11 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.2
+## New in firmware 7.2.3
 
-The SD audio library now supports up to **4,096 indexed files**, up from 1,024.
+**Stereo compression in the Delay feedback path** helps contain peaks as echoes accumulate. Enable **FEED COMPRESSOR** on the Delay page; its ON/OFF setting is saved with the patch. Both channels share the same attenuation to preserve stereo balance.
+
+Delay and Live Sampler now use the same compressor class with a short 32-sample lookahead (about 0.73 ms). See the [7.2.3 release notes](docs/release-notes-7.2.3.md) and the [User Guide](User%20Guide.md#delay).
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -40,14 +42,6 @@ LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work w
 | MIDI Loop | Four tracks of MIDI events, played through the current patch and stored on microSD. |
 
 Sound shaping includes sample trimming, forward/reverse and loop playback, envelopes, instrument filters and modulation, a common low-pass filter, stereo delay, bit reduction and downsampling. Separate main and pre-listening routes support auditioning and performance.
-
-## Previous improvements in firmware 7.1.1
-
-The Mixer now has separate MUTE and GAIN fields, and exclusive PRE_LIST routing for one of its nine sources, or none. MUTE, LINEOUT and PRE_LIST respond to both a Value click and rotation. A Sound in SOLO and the temporary Sampler patch cannot be muted.
-
-Sound Edit adds ONLY_PRE_LISTEN, TO_LINE_OUT and SOLO/RESET_SOLO. Cloning retains the original gain and sends the copy only to pre-listen. The Sound Edit commands stay aligned with Mixer routing, including when neither output is enabled. PAN changes and return-to-centre now affect notes already playing through a smooth transition.
-
-Performance shows a green PATCH UPLOADING notice while audio is loaded from Flash into PSRAM. Deletion commands use DELETE in Performance, Sampler and Live Sampler. See the [7.1.1 release notes](docs/release-notes-7.1.1.md) and the [User Guide](User%20Guide.md).
 
 ## Operating Modes
 
@@ -94,49 +88,6 @@ Track 1 is the master and establishes the loop duration. Record the first phrase
 Tracks can be started or stopped individually. Their **LEVEL**, **SHIFT** and **TRANSP** parameters adjust playback level, timing offset and note transposition. The Tempo control changes the timing of the MIDI sequence, while the Loop control selects saved loops and controls group playback. Tempo changes affect event timing rather than time-stretching sample audio.
 
 Save an arrangement or save a new variation to microSD in `/LILLALOOP`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
-
-## Tools
-
-Set the **Tools** selector to the desired position and press the Tools button to open its page. Mixer, Delay, Setup and Test provide routing, effects, global configuration and MIDI diagnostics.
-
-### Mixer
-
-Mixer controls how sound sources and the line input reach the main output and the separate monitoring output. Source gain or mute, pan and output routing let you balance the material that is heard in the performance and the material used for pre-listening.
-
-Turn Select to choose a source column, press it to enter that source's fields, then use Select and Value to choose and adjust parameters. Press Select again to leave the fields. Separate **LINEOUT** and **PRE_LIST** routes are useful when auditioning material or checking a source before adding it to the main mix.
-
-If a source is silent, check its output route and mute/gain settings as well as its MIDI channel, keyboard range and patch volume. See [Mixer](User%20Guide.md#mixer).
-
-### Delay
-
-Delay is a stereo effect with selectable sound routing, feedback, delay time and a left/right time relationship. Choose which patch sounds feed it, then set the repeat spacing and feedback to move from isolated echoes to longer repeating textures. Its settings are retained when the patch is saved.
-
-Modulation varies the delay time. Source, frequency, depth and left/right phase controls shape how the repeats move, while the difference between the two channel times creates stereo separation. Start with one routed sound and low feedback, listen to short notes with gaps between them, then increase feedback or modulation to build the effect.
-
-The Delay page controls the echo effect's feedback; the Live Sampler's Feedback control determines how much playback is mixed back into the recording. See [Delay](User%20Guide.md#delay).
-
-### MIDI Monitor
-
-The **Test** position opens the MIDI Monitor. It displays incoming MIDI messages and their associated data, making it possible to check reception of notes, pitch bend, aftertouch and Control Change messages from a connected controller.
-
-Use it to verify that a keyboard or sequencer is transmitting and that the expected channel, note or controller data reaches LILLA. If note messages appear but no sound is heard, continue with the patch's MIDI assignments, keyboard ranges, audio sources and Mixer routes. See [Check incoming MIDI](User%20Guide.md#check-incoming-midi).
-
-### Setup
-
-Setup groups global playing preferences, MIDI Control Change assignments and storage operations. **FIRST OCTAVE** changes the octave-number convention used in note names. **CONTROL CHANGE ASSIGNMENT** maps external MIDI controls to the gains of Sound 1-8 and the common low-pass cutoff, allowing compatible controller knobs and sliders to adjust them while playing.
-
-**KEY STEP** sets the pitch interval between adjacent MIDI keys. The normal setting is one semitone; smaller steps make the keyboard suitable for microtonal playing and finer pitch movement around a sound's root key:
-
-| KEY STEP | Interval per MIDI key | MIDI-key steps for one octave |
-| --- | --- | --- |
-| 1 semitone | 100 cents | 12 |
-| 1/2 semitone | 50 cents | 24 |
-| 1/4 semitone | 25 cents | 48 |
-| 1/8 semitone | 12.5 cents | 96 |
-
-For example, moving 12 MIDI keys above the root raises pitch by an octave at the normal setting, but by only six semitones with KEY STEP set to 1/2. This changes the pitch spacing of keyboard playback; FIRST OCTAVE only changes the displayed octave names. KEY STEP is stored as a global setting, so return it to one semitone when conventional chromatic mapping is required.
-
-Setup also provides direct Flash audio import from `/FLASH_AUDIO`, SD library preparation from `/EXTERNAL_AUDIO` into `/LILLA_AUDIO`, numbered configuration and recording backups in `/LILLABACKUP`, restoration from the backup root, and factory reset. Import and restore can replace existing material: preserve the relevant audio library, patches and loop files before using those operations. See [Setup and MIDI controls](User%20Guide.md#setup-and-midi-controls) and [Backup and restore](User%20Guide.md#backup-and-restore).
 
 ## Audio Files and Storage
 
@@ -187,7 +138,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.2 (15 October 2026)**: download [Lilla_v7_2_2.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.2/Lilla_v7_2_2.hex) from [release v7.2.2](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.2). See the [7.2.2 release notes](docs/release-notes-7.2.2.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.3 (17 October 2026)**: download [Lilla_v7_2_3.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.3/Lilla_v7_2_3.hex) from [release v7.2.3](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.3). See the [7.2.3 release notes](docs/release-notes-7.2.3.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

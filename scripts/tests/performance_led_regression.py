@@ -46,7 +46,14 @@ update_start = main.index('void Update_instruments_leds()\n{')
 update_end = main.index('    else if (Lilla_state == PERFORMANCE)', update_start)
 source += r'''
 LoopLedSet Loop_led_set;
-constexpr int NEW_LOOP = -1;
+constexpr int NEW_LOOP = -1, MASTER_TRACK = 0;
+bool LOOP_initial_selection_pending = false; // This fixture exercises returning to an already selected loop.
+int LOOP_time = 1000;
+int LOOP_play_event[TRACKS] = {};
+bool LOOP_track_run_memo[TRACKS] = {}, LOOP_track_run[TRACKS] = {};
+int LOOP_Get_next_loop_id_in_SD(int) { return 3; }
+bool LOOP_Copy_midi_loop_from_SD_to_RAM(int) { return true; }
+void LOOP_set_time_order(int) {}
 int LOOP_id = 3, LOOP_suggested_id = -1;
 int LOOP_events[TRACKS] = {1, 1, 1, 1};
 bool LOOP_run_button_state = false;
@@ -83,7 +90,7 @@ struct StatisticsStub
 {
     void Reset_total_Players_per_track_instrument() { ++player_resets; }
 } Players_statistics;
-struct MetronomeStub { void Leds_off() {} void Led_ON(int) {} } LOOP_metronomo;
+struct MetronomeStub { void Setup(int) {} void Leds_off() {} void Led_ON(int) {} } LOOP_metronomo;
 void Clear_UI_events() {}
 void LOOP_select_menu_elements() {}
 int LOOP_Get_first_loop_id_free() { return 4; }
