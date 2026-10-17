@@ -17,6 +17,7 @@
 enum DELAY_element_name
 {
     value_DELAY_Feedback,
+    value_DELAY_Compressor,
     value_DELAY_Delay_time,
     value_DELAY_Delay_time_LR,
     value_DELAY_Lpf_cutoff,

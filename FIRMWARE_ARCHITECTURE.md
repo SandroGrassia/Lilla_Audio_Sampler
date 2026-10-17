@@ -53,7 +53,7 @@ Keep protected sections short. Display operations, serial reporting and bulk sto
 
 ## 3. Audio signal flow
 
-The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its mixers, independent left/right feedback low-pass filters and feedback gain stages.
+The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its linked stereo compressor/summing stage, independent left/right feedback low-pass filters and feedback gain stages.
 
 ```mermaid
 flowchart TD
@@ -89,7 +89,11 @@ Each feedback path has its own `AudioFilterBiquad` (`D_lpf_L` and `D_lpf_R`), co
 
 `DELAY TIME L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, so it becomes zero at the maximum 2-second base delay.
 
-The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. Invalid encoded indices are rejected when loading.
+`AudioDelayCompressor` replaces the two saturating input/feedback mixers. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed the main mix, preserving the existing routing. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
+
+The compressor uses a 258-entry soft-knee gain table, a -6.02 dBFS threshold, an approximately -1 dBFS ceiling, 32 samples of lookahead (about 0.73 ms), and a 100 ms exponential release. The lookahead is retained in bypass and is additional to the configured cache delay; ON/OFF uses a 10 ms smooth crossfade. The Delay page exposes `COMPRESSOR` below `FEEDBACK`, editable with the value encoder or its pushbutton. `DELAY TIME`, `DELAY TIME L/R` and `ECHO LPF` follow below; Live Sampler routing is labeled `LIVE SAMPLER`.
+
+The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. `reserved[2]` stores compressor OFF/ON as 0/1; older patches remain bypassed. Invalid encoded cutoff or compressor values are rejected when loading.
 
 ## 4. Patch, sound and voice model
 

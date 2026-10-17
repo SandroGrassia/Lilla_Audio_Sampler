@@ -81,6 +81,11 @@ void DisplayDelay::D_show_page()
     tft.print("FEEDBACK");
     D_feedback();
 
+    tft.setCursor(display_coordinate_x(DELAY_column_row_COMPRESSOR[0]), display_coordinate_y(DELAY_column_row_COMPRESSOR[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("COMPRESSOR");
+    D_compressor();
+
     tft.setCursor(display_coordinate_x(DELAY_column_row_DELAY_TIME[0]), display_coordinate_y(DELAY_column_row_DELAY_TIME[1]));
     tft.setTextColor(TEXT_COLOR);
     tft.print("DELAY TIME");
@@ -93,7 +98,7 @@ void DisplayDelay::D_show_page()
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_LPF_CUTOFF[0]), display_coordinate_y(DELAY_column_row_LPF_CUTOFF[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("ECHO LPF CUTOFF");
+    tft.print("ECHO LPF");
     D_lpf_cutoff();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_MODULATION_SOURCE[0]), display_coordinate_y(DELAY_column_row_MODULATION_SOURCE[1]));
@@ -131,7 +136,7 @@ void DisplayDelay::D_sounds(void) // Display the requested setting while the aud
 
         if ((Delay_data.instrument_route & 3) != 0)
         {
-            tft.print("RECORDED AUDIO");
+            tft.print("LIVE SAMPLER");
         }
         else
         {
@@ -292,4 +297,12 @@ void DisplayDelay::D_disabled(void)
 void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show)
 {
     Frame_by_col_row(DELAY_column_row_element[pointer][0], DELAY_column_row_element[pointer][1], DELAY_chars_element[pointer], show);
+}
+
+FLASHMEM
+void DisplayDelay::D_compressor(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_compressor[0]), display_coordinate_y(DELAY_column_row_compressor[1]), DELAY_chars_compressor);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Delay_data.compressor ? "ON" : "OFF");
 }

@@ -164,6 +164,7 @@
 #include "PerformanceLedSet.h"
 #include "DelayManager.h"
 #include "StereoDelay.h"
+#include "AudioDelayCompressor.h"
 #include "StereoGain.h"
 #include "AudioGain.h"
 #include "Router_16x3.h"
@@ -263,14 +264,12 @@ AudioAnalyzeFFT1024 AutoTune_fft;
 ArchivingManager Archive;
 StereoSampler DirectSampler(Archive);
 
-AudioFilterBiquad D_lpf_L; // Run before the feedback gain/mixer, preserving the existing loop block latency.
+AudioFilterBiquad D_lpf_L; // Both feedback branches run before the linked stereo compressor.
 AudioGain D_gain_L_feedback;
-Mixer_2x1 D_mixer_L_feedback;
-StereoDelay Delay_L;
-
 AudioFilterBiquad D_lpf_R;
 AudioGain D_gain_R_n;
-Mixer_2x1 D_mixer_R_in;
+AudioDelayCompressor D_Compressor;
+StereoDelay Delay_L;
 StereoDelay Delay_R;
 
 WaveSine Tone_generator;
@@ -320,20 +319,20 @@ AudioConnection patchCord30(Player[13], 1, Router_R, 13);
 AudioConnection patchCord31(Player[14], 1, Router_R, 14);
 AudioConnection patchCord32(Player[15], 1, Router_R, 15);
 
-AudioConnection patchCord33(Router_L, 0, D_mixer_L_feedback, 0);
-AudioConnection patchCord34(D_mixer_L_feedback, 0, Delay_L, 0);
-AudioConnection patchCord35(D_mixer_L_feedback, 0, mixer_L, 0);
+AudioConnection patchCord33(Router_L, 0, D_Compressor, 0);
+AudioConnection patchCord34(D_Compressor, 0, Delay_L, 0);
+AudioConnection patchCord35(D_Compressor, 0, mixer_L, 0);
 AudioConnection patchCord36(Delay_L, 0, D_lpf_L, 0);
 AudioConnection delayLpfCordL(D_lpf_L, 0, D_gain_L_feedback, 0);
-AudioConnection patchCord37(D_gain_L_feedback, 0, D_mixer_L_feedback, 1);
+AudioConnection patchCord37(D_gain_L_feedback, 0, D_Compressor, 2);
 AudioConnection patchCord38(Router_L, 0, Delay_L, 1);
 
-AudioConnection patchCord39(Router_R, 0, D_mixer_R_in, 0);
-AudioConnection patchCord40(D_mixer_R_in, 0, Delay_R, 0);
-AudioConnection patchCord41(D_mixer_R_in, 0, mixer_R, 0);
+AudioConnection patchCord39(Router_R, 0, D_Compressor, 1);
+AudioConnection patchCord40(D_Compressor, 1, Delay_R, 0);
+AudioConnection patchCord41(D_Compressor, 1, mixer_R, 0);
 AudioConnection patchCord42(Delay_R, 0, D_lpf_R, 0);
 AudioConnection delayLpfCordR(D_lpf_R, 0, D_gain_R_n, 0);
-AudioConnection patchCord43(D_gain_R_n, 0, D_mixer_R_in, 1);
+AudioConnection patchCord43(D_gain_R_n, 0, D_Compressor, 3);
 AudioConnection patchCord44(Router_R, 0, Delay_R, 1);
 
 AudioConnection patchCord45(Router_L, 1, mixer_L, 1);
@@ -4683,6 +4682,17 @@ void loop()
             if (D_Read_value(LOOP_GAIN))
             {
                 Display_Delay.D_feedback();
+            }
+            break;
+        case value_DELAY_Compressor:
+            if (D_Read_value(DELAY_COMPRESSOR))
+            {
+                Display_Delay.D_compressor();
+            }
+            else if (Read_pushbutton(EN_PB_Value))
+            {
+                D_Set_value(DELAY_COMPRESSOR, !Delay_data.compressor);
+                Display_Delay.D_compressor();
             }
             break;
         case value_DELAY_Delay_time:
@@ -11043,7 +11053,7 @@ bool D_Read_value(int item) // Edit a requested value locally so the encoder nev
     int value = Delay_manager.Get_value(item);
     const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
     const int lowest = item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
-    const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
+    const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : (item == DELAY_COMPRESSOR ? 1 : 2));
     // Clockwise increases the Right delay: negative offsets delay the right channel.
     const bool changed = item == SAMPLES_LR ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
     if (!changed)
@@ -13134,6 +13144,7 @@ void Factory_setup_FRAM(void)
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 65;
+    Delay_data.compressor = false;
     Delay_data.lpf_cutoff = LPF_MAX;
     Archive.Save_Delay(0, Delay_data);
 
@@ -15469,6 +15480,7 @@ void Startup_hardware_and_objects(void)
     canvas.setTextWrap(false);
 
     // DelayManager
+    Delay_manager.Compressor_ptr = &D_Compressor;
     Delay_manager.Delay_L_ptr = &Delay_L;
     Delay_manager.Delay_R_ptr = &Delay_R;
     Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
@@ -15801,6 +15813,8 @@ void Reload_system_state(void)
 
     Archive.Read_Delay(Patch_id, Delay_data);
     Calc_Delay_values(Delay_data);
+    D_Compressor.Set_enabled(Delay_data.compressor);
+    D_Compressor.Reset();
 
     // Transmits data to Delay objects
     Delay_L.Setup_delay(Delay_values.samples + (Delay_values.samples_LR > 0 ? Delay_values.samples_LR : 0)); // Restore the same signed left offset used by runtime parameter changes.
