@@ -86,29 +86,33 @@ int main()
     }
     Delay_data_struct delay{99, -10, 0xA5, 2, 39, 90, 359, 5};
     delay.lpf_cutoff = 20;
+    delay.compressor = true;
     assert(archive.Save_Delay(199, delay) == 0);
     assert(archive.Save_Patch(199) == 0);
     const auto expected = Patch[199];
     Patch[199] = {};
     assert(archive.Read_Patch(199) == 0 && Patch[199] == expected);
     Delay_data_struct actual{};
-    assert(archive.Read_Delay(199, actual) == 0 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    assert(archive.Read_Delay(199, actual) == 0);
+    assert(actual.samples == delay.samples && actual.samples_LR == delay.samples_LR && actual.instrument_route == delay.instrument_route);
+    assert(actual.modulation_source == delay.modulation_source && actual.modulation_depth == delay.modulation_depth && actual.modulation_frequency == delay.modulation_frequency && actual.modulation_phase_LR == delay.modulation_phase_LR);
+    assert(actual.loop_gain == delay.loop_gain && actual.lpf_cutoff == delay.lpf_cutoff && actual.compressor == delay.compressor); // Compare fields, not runtime-struct padding.
     ArchivingManager::FRAM_Patch_delay_struct old_delay{};
     old_delay.samples = 20;
     old_delay.loop_gain = 5;
     assert(archive.FRAM_Write_delay(197, old_delay) == 0);
-    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX && !actual.compressor);
     ArchivingManager::FRAM_Patch_delay_struct stored{};
     assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 20 && stored.reserved[0] == 0);
     assert(archive.Save_Delay(197, actual) == 0);
     assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 24 && stored.reserved[0] == 1);
-    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX && !actual.compressor);
 
     // Version-1 patches with an unused cutoff byte keep the default; all new cutoff indices round-trip.
     stored.reserved[0] = 1;
     stored.reserved[1] = 0;
     assert(archive.FRAM_Write_delay(197, stored) == 0);
-    assert(archive.Read_Delay(197, actual) == 0 && actual.lpf_cutoff == LPF_MAX);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.lpf_cutoff == LPF_MAX && !actual.compressor);
     for (int cutoff = 0; cutoff <= LPF_MAX; ++cutoff)
     {
         actual.lpf_cutoff = cutoff;
@@ -116,6 +120,14 @@ int main()
         assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.reserved[1] == cutoff + 1);
         Delay_data_struct loaded{};
         assert(archive.Read_Delay(197, loaded) == 0 && loaded.lpf_cutoff == cutoff);
+    }
+    for (bool enabled : {false, true})
+    {
+        actual.compressor = enabled;
+        assert(archive.Save_Delay(197, actual) == 0);
+        assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.reserved[2] == enabled);
+        Delay_data_struct loaded{};
+        assert(archive.Read_Delay(197, loaded) == 0 && loaded.compressor == enabled);
     }
     const auto before_invalid = actual;
     stored.reserved[1] = LPF_MAX + 2;

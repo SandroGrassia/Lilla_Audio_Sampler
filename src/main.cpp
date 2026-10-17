@@ -172,7 +172,7 @@
 #include "AudioPeakDetector.h"
 #include "StereoSampler.h"
 #include "StereoLiveSampler.h"
-#include "AudioLiveCompressor.h"
+#include "LillaCompressor.h"
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
 #include "CacheCycleFinalizer.h"
@@ -255,7 +255,7 @@ AudioInputI2S InputDevice;
 StereoGain LINE_IN_amplifier;
 AudioPeakDetector PeakTracking_L;
 AudioPeakDetector PeakTracking_R;
-AudioLiveCompressor LS_Compressor;
+LillaCompressor LS_Compressor(LillaCompressor::Profile::LiveSampler);
 StereoLiveSampler LiveSampler;
 AutoTuneInput AutoTune_input;
 AudioAnalyzeFFT1024 AutoTune_fft;
@@ -263,14 +263,12 @@ AudioAnalyzeFFT1024 AutoTune_fft;
 ArchivingManager Archive;
 StereoSampler DirectSampler(Archive);
 
-AudioFilterBiquad D_lpf_L; // Run before the feedback gain/mixer, preserving the existing loop block latency.
+AudioFilterBiquad D_lpf_L; // Both feedback branches run before the linked stereo compressor.
 AudioGain D_gain_L_feedback;
-Mixer_2x1 D_mixer_L_feedback;
-StereoDelay Delay_L;
-
 AudioFilterBiquad D_lpf_R;
 AudioGain D_gain_R_n;
-Mixer_2x1 D_mixer_R_in;
+LillaCompressor D_Compressor(LillaCompressor::Profile::Delay);
+StereoDelay Delay_L;
 StereoDelay Delay_R;
 
 WaveSine Tone_generator;
@@ -320,20 +318,20 @@ AudioConnection patchCord30(Player[13], 1, Router_R, 13);
 AudioConnection patchCord31(Player[14], 1, Router_R, 14);
 AudioConnection patchCord32(Player[15], 1, Router_R, 15);
 
-AudioConnection patchCord33(Router_L, 0, D_mixer_L_feedback, 0);
-AudioConnection patchCord34(D_mixer_L_feedback, 0, Delay_L, 0);
-AudioConnection patchCord35(D_mixer_L_feedback, 0, mixer_L, 0);
+AudioConnection patchCord33(Router_L, 0, D_Compressor, 0);
+AudioConnection patchCord34(D_Compressor, 0, Delay_L, 0);
+AudioConnection patchCord35(D_Compressor, 0, mixer_L, 0);
 AudioConnection patchCord36(Delay_L, 0, D_lpf_L, 0);
 AudioConnection delayLpfCordL(D_lpf_L, 0, D_gain_L_feedback, 0);
-AudioConnection patchCord37(D_gain_L_feedback, 0, D_mixer_L_feedback, 1);
+AudioConnection patchCord37(D_gain_L_feedback, 0, D_Compressor, 2);
 AudioConnection patchCord38(Router_L, 0, Delay_L, 1);
 
-AudioConnection patchCord39(Router_R, 0, D_mixer_R_in, 0);
-AudioConnection patchCord40(D_mixer_R_in, 0, Delay_R, 0);
-AudioConnection patchCord41(D_mixer_R_in, 0, mixer_R, 0);
+AudioConnection patchCord39(Router_R, 0, D_Compressor, 1);
+AudioConnection patchCord40(D_Compressor, 1, Delay_R, 0);
+AudioConnection patchCord41(D_Compressor, 1, mixer_R, 0);
 AudioConnection patchCord42(Delay_R, 0, D_lpf_R, 0);
 AudioConnection delayLpfCordR(D_lpf_R, 0, D_gain_R_n, 0);
-AudioConnection patchCord43(D_gain_R_n, 0, D_mixer_R_in, 1);
+AudioConnection patchCord43(D_gain_R_n, 0, D_Compressor, 3);
 AudioConnection patchCord44(Router_R, 0, Delay_R, 1);
 
 AudioConnection patchCord45(Router_L, 1, mixer_L, 1);
@@ -637,10 +635,10 @@ enum DS_state_name
     DS_convert_state,
     DS_export_SD_state
 };
-DS_state_name DS_state;                 // Current Direct Sampler state: waiting, paused, recording, converting or exporting.
-elapsedMillis DS_recording_time;        // Elapsed recording duration in milliseconds.
-elapsedMillis DS_recording_time_update; // Timer used to throttle recording-time display updates.
-int DS_recording_change;                // Working recording selection during Direct Sampler navigation.
+DS_state_name DS_state;                      // Current Direct Sampler state: waiting, paused, recording, converting or exporting.
+elapsedMillis DS_recording_time;             // Elapsed recording duration in milliseconds.
+elapsedMillis DS_recording_time_update;      // Timer used to throttle recording-time display updates.
+int DS_recording_change;                     // Working recording selection during Direct Sampler navigation.
 static bool DS_recording_slots_full = false; // Updated whenever the Sampler menu is recalculated.
 
 // PACKETS
@@ -654,8 +652,8 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void); // Prepare the Direct Samp
 bool DS_export_wav_to_SD(void);                       // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
 void DS_ask_if_EXIT_from_DS(void);                    // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
 bool DS_back_to_first_DS_Recording(void);             // Prepare the first remaining recording before restoring the Direct Sampler page.
-bool DS_convert_file_L(int file_L_RAW);              // Export the trimmed left recording channel to RAW.
-bool DS_convert_file_R(int file_R_RAW);              // Export the trimmed right recording channel to RAW.
+bool DS_convert_file_L(int file_L_RAW);               // Export the trimmed left recording channel to RAW.
+bool DS_convert_file_R(int file_R_RAW);               // Export the trimmed right recording channel to RAW.
 void DS_seed_all_Recordings(void);                    // Initialize empty recording metadata and save it to FRAM.
 void DS_update_recordings(void);                      // Recount valid Direct Sampler recordings.
 byte DS_read_all_Recordings(void);                    // Load all recording metadata and stop at the first FRAM error.
@@ -753,6 +751,7 @@ int LOOP_volume_int[TRACKS] = {0};                    // Per-track integer volum
 bool LOOP_run_button_state;                           // Whether the global loop run control is enabled.
 bool LOOP_track_run_memo[TRACKS] = {false};           // Saved per-track run states used when toggling global loop playback.
 int LOOP_stretch_int = 100;                           // Common track time-stretch setting, expressed as a percentage.
+bool LOOP_initial_selection_pending = true;           // Select the initial SD loop on the first MIDI Loop entry.
 bool LOOP_original;                                   // Whether the current MIDI Loop data matches the saved version.
 
 // Pointer
@@ -789,8 +788,7 @@ void Golive_MIXER(void);                     // Display the Mixer page and initi
 constexpr int LINE_IN_CHANNEL = INSTRUMENTS; // Mixer channel index reserved for line-input monitoring.
 
 // >>>>>>>>>>>>>>>>>>>>>>>  FRAM
-void Factory_setup_FRAM(void);  // Initialize persistent configuration with factory defaults.
-void Require_FRAM(byte result); // Halt further operations and display an error if a FRAM access failed.
+void Factory_setup_FRAM(void); // Initialize persistent configuration with factory defaults.
 
 // >>>>>>>>>>>>>>>>>>>>>>> SGTL5000 Audio_shield
 int headphones_volume_int = 40; // Unused audio-shield headphone volume setting, ranging from 0 to 40.
@@ -1042,11 +1040,10 @@ bool DS_load_recording_sounds(void)
     Sound[SOUNDS_MAX + 1].B = Sound[SOUNDS_MAX].B;
     uint32_t first_sample = 0;
     uint32_t last_sample = Sound[SOUNDS_MAX].B;
-    const byte result = Archive.Read_DS_edit(recording, first_sample, last_sample);
-    Require_FRAM(result);
+    Archive.Read_DS_edit(recording, first_sample, last_sample);
     Sound[SOUNDS_MAX].A = Sound[SOUNDS_MAX + 1].A = first_sample;
     Sound[SOUNDS_MAX].B = Sound[SOUNDS_MAX + 1].B = last_sample;
-    return result == LillaFRAM_2x512::ERROR_0;
+    return true;
 }
 
 FLASHMEM
@@ -1081,7 +1078,7 @@ FLASHMEM
 void DS_close_sound_edit(void)
 {
     const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
-    Require_FRAM(Archive.Save_DS_edit(recording, trim.first, trim.last));
+    Archive.Save_DS_edit(recording, trim.first, trim.last);
     S_Set_Sound_SOLO_OFF();
     Golive_DIRECT_SAMPLING();
 }
@@ -1276,9 +1273,6 @@ void loop()
     }
     char audio_filename[NAME_FILE_SIZE];
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
-
-    // Recording stops asynchronously: catch storage errors even after leaving the Sampler page.
-    Require_FRAM(DirectSampler.Storage_error());
 
     P_Service_patch_cache();
 
@@ -1693,8 +1687,8 @@ void loop()
                         Golive_with_PERFORMANCE(Patch_id);
                         break;
                     }
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
-                    Require_FRAM(Archive.Save_Patch(Patch_id));
+                    Archive.Save_Delay(Patch_id, Delay_data);
+                    Archive.Save_Patch(Patch_id);
                     LS_Capture_finish_save();
                     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
@@ -1748,7 +1742,7 @@ void loop()
                             Golive_with_PERFORMANCE(Patch_id);
                             break;
                         }
-                        Require_FRAM(Archive.Save_Patch(deleted_patch));
+                        Archive.Save_Patch(deleted_patch);
                         LS_Capture_finish_save();
                         Archive.Copy_Patch_from_RAM_to_SD(deleted_patch);
 
@@ -1830,8 +1824,8 @@ void loop()
                                     Golive_with_PERFORMANCE(Patch_id);
                                     return;
                                 }
-                                Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
-                                Require_FRAM(Archive.Save_Patch(Patch_id));
+                                Archive.Save_Delay(Patch_id, Delay_data);
+                                Archive.Save_Patch(Patch_id);
                                 LS_Capture_finish_save();
                                 Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
                             }
@@ -2707,8 +2701,6 @@ void loop()
                         }
                     }
                 }
-
-
             }
             break;
 
@@ -2904,8 +2896,6 @@ void loop()
                         Display_Sound.Show_SOUND_menu();
                     }
                 }
-
-
             }
             break;
 
@@ -3536,7 +3526,7 @@ void loop()
             }
             if (Sound[Sound_id].A != sound_before_edit.A || Sound[Sound_id].B != sound_before_edit.B)
             {
-                Require_FRAM(Archive.Save_DS_edit(recording, Sound[Sound_id].A, Sound[Sound_id].B));
+                Archive.Save_DS_edit(recording, Sound[Sound_id].A, Sound[Sound_id].B);
             }
         }
 
@@ -4420,7 +4410,6 @@ void loop()
                         Display_Mixer.MX_source_values_edit(Instrument_id);
                     }
                 }
-
             }
             break;
 
@@ -4437,7 +4426,7 @@ void loop()
 
                         Display_Mixer.MX_source_values_edit(Instrument_id);
                     }
-                    else if(Read_pushbutton(EN_PB_Value))
+                    else if (Read_pushbutton(EN_PB_Value))
                     {
                         Sound[Sound_id].pan = 0;
 
@@ -4688,6 +4677,17 @@ void loop()
                 Display_Delay.D_feedback();
             }
             break;
+        case value_DELAY_Compressor:
+            if (D_Read_value(DELAY_COMPRESSOR))
+            {
+                Display_Delay.D_feedback_compressor();
+            }
+            else if (Read_pushbutton(EN_PB_Value))
+            {
+                D_Set_value(DELAY_COMPRESSOR, !Delay_data.compressor);
+                Display_Delay.D_feedback_compressor();
+            }
+            break;
         case value_DELAY_Delay_time:
             if (D_Read_value(SAMPLES))
             {
@@ -4704,7 +4704,7 @@ void loop()
         case value_DELAY_Lpf_cutoff:
             if (D_Read_value(FEEDBACK_CUTOFF))
             {
-                Display_Delay.D_lpf_cutoff();
+                Display_Delay.D_feedback_lpf();
             }
             break;
         case value_DELAY_Modulation_source:
@@ -4778,7 +4778,7 @@ void loop()
             {
                 if (Patch_id < PATCHES_MAX)
                 {
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    Archive.Save_Delay(Patch_id, Delay_data);
                 }
                 switch (Lilla_state_0)
                 {
@@ -4841,7 +4841,7 @@ void loop()
             {
                 if (Patch_id < PATCHES_MAX)
                 {
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    Archive.Save_Delay(Patch_id, Delay_data);
                 }
                 switch (Lilla_state_0)
                 {
@@ -4892,7 +4892,7 @@ void loop()
                     // Salva il Delay della Patch su FRAM.
                     if (Patch_id < PATCHES_MAX)
                     {
-                        Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                        Archive.Save_Delay(Patch_id, Delay_data);
                     }
 
                     if (true)
@@ -4929,7 +4929,7 @@ void loop()
             {
                 if (Patch_id < PATCHES_MAX)
                 {
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    Archive.Save_Delay(Patch_id, Delay_data);
                 }
                 Golive_with_MIDI_LOOP(false);
             }
@@ -4946,7 +4946,7 @@ void loop()
             {
                 if (Patch_id < PATCHES_MAX)
                 {
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    Archive.Save_Delay(Patch_id, Delay_data);
                 }
                 Switch_to_MIXER();
             }
@@ -4959,7 +4959,7 @@ void loop()
             {
                 if (Patch_id < PATCHES_MAX)
                 {
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    Archive.Save_Delay(Patch_id, Delay_data);
                 }
                 Golive_SETUP();
             }
@@ -4969,7 +4969,7 @@ void loop()
             {
                 if (Patch_id < PATCHES_MAX)
                 {
-                    Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+                    Archive.Save_Delay(Patch_id, Delay_data);
                 }
                 Golive_MIDI_MONITOR();
             }
@@ -5806,7 +5806,6 @@ void loop()
             // Stop if SteroSampler has stopped
             if (!DirectSampler.Is_recording())
             {
-                Require_FRAM(DirectSampler.Storage_error());
                 DS_state = DS_waiting_state;
 
                 // switch OFF Audio Input monitor
@@ -5823,7 +5822,7 @@ void loop()
                 {
                     Recording[recording].consistent = true;
                     // consistent Recording must be saved
-                    Require_FRAM(Archive.Save_DS_Recording(recording));
+                    Archive.Save_DS_Recording(recording);
                     DS_read_Recording(recording); // only to update .bytes and .seconds
                 }
 
@@ -5923,7 +5922,7 @@ void loop()
                     Display_Sampler.DS_update_volume(false); // cambia il colore del volume in bianco (fisso)
 
                     recording = DS_find_Recording_free();
-                    Require_FRAM(Archive.Clear_DS_edit(recording));
+                    Archive.Clear_DS_edit(recording);
                     Serial.println(F("*** Pause + Record: listen to Audio Input ***"));
                     Serial.print(F("**** Prossimo recording: "));
                     Serial.println(recording);
@@ -6042,7 +6041,6 @@ void loop()
                     if (DS_state == DS_recording_state)
                     {
                         DirectSampler.Stop_and_wait();
-                        Require_FRAM(DirectSampler.Storage_error());
                     }
                     DS_state = DS_waiting_state;
 
@@ -6062,7 +6060,7 @@ void loop()
                     {
                         Recording[recording].consistent = true;
                         // consistent Recording must be saved
-                        Require_FRAM(Archive.Save_DS_Recording(recording));
+                        Archive.Save_DS_Recording(recording);
                         DS_read_Recording(recording); // only to update .bytes and .seconds
                     }
 
@@ -6270,28 +6268,28 @@ void loop()
                         Serial.println(F("Don't convert any file"));
                         break;
 
-                    case 7:                                                   // Convert Mono (file_L)
+                    case 7: // Convert Mono (file_L)
                         converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
-                    case 8:                                                   // Convert file_L
+                    case 8: // Convert file_L
                         converted = DS_convert_file_L(file_L_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
-                    case 9:                                                   // Convert file_R
+                    case 9: // Convert file_R
                         converted = DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
                         File_scanner.Read_all_file_data();
                         break;
 
-                    case 10:                                                  // Convert both file_L and file_R
+                    case 10: // Convert both file_L and file_R
                         converted = DS_convert_file_L(file_L_RAW) && DS_convert_file_R(file_R_RAW);
 
                         // occorre rifare lo scan di tutti i file per compilare tutti i metadati del nuovo file, dirindex compreso
@@ -6782,14 +6780,19 @@ void loop()
         result = Read_encoder_simple(EN_PB_Loop);
         if (result != 0)
         {
-            int new_loop_id;
+            const int navigation_id = LOOP_id == NEW_LOOP ? LOOP_suggested_id : LOOP_id;
+            int new_loop_id = navigation_id;
             if (result == +1)
             {
-                new_loop_id = LOOP_Get_next_loop_id_in_SD(LOOP_id);
+                new_loop_id = LOOP_Get_next_loop_id_in_SD(navigation_id);
             }
             else if (result == -1)
             {
-                new_loop_id = LOOP_Get_previous_loop_id_in_SD(LOOP_id);
+                new_loop_id = LOOP_Get_previous_loop_id_in_SD(navigation_id);
+            }
+            if (new_loop_id == navigation_id)
+            {
+                new_loop_id = LOOP_id; // No saved neighbour: keep the current loop, including an unsaved NEW loop.
             }
 
             PRINT_CONTROL_POINT(new_loop_id);
@@ -6810,7 +6813,11 @@ void loop()
                         LOOP_id = new_loop_id;
                     }
 
-                    // Show LOOP_id on display
+                    // Show the saved identity, or refresh the destination after a failed load.
+                    if (LOOP_id == NEW_LOOP)
+                    {
+                        LOOP_suggested_id = LOOP_Get_first_loop_id_free();
+                    }
                     Display_MidiLoop.Show_loop_id();
 
                     // Show LOOP_time on display
@@ -6900,7 +6907,7 @@ void loop()
         // Recording
         for (auto track = 0; track < TRACKS; ++track)
         {
-            if (Read_pushbutton(PB_Rec[track]) && LOOP_run_button_state && (track == MASTER_TRACK || LOOP_events[MASTER_TRACK] != 0))
+            if (Read_pushbutton(PB_Rec[track]) && (track == MASTER_TRACK || (LOOP_run_button_state && LOOP_events[MASTER_TRACK] != 0)))
             {
                 LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
 
@@ -6962,6 +6969,7 @@ void loop()
                         LOOP_original = false;
                     }
                 }
+                LOOP_run_button_state = true; // REC from STOP is allowed only for the master track.
                 AudioInterrupts();
 
                 // LED_Rec ON
@@ -6975,6 +6983,7 @@ void loop()
 
                     // nomina loop_id
                     LOOP_id = NEW_LOOP;
+                    LOOP_suggested_id = LOOP_Get_first_loop_id_free();
                     Display_MidiLoop.Show_loop_id();
 
                     LOOP_time = 0;
@@ -7425,6 +7434,12 @@ void loop()
                     case value_LOOP_Save:
                     {
                         const int saved_loop_id = LOOP_id == NEW_LOOP ? LOOP_Get_first_loop_id_free() : LOOP_id;
+                        if (LOOP_id == NEW_LOOP)
+                        {
+                            // Recheck the card at Save: the displayed slot is a suggestion, not a reservation.
+                            LOOP_suggested_id = saved_loop_id;
+                            Display_MidiLoop.Show_loop_id();
+                        }
                         if (saved_loop_id < 0 || !LOOP_Copy_midi_loop_from_RAM_to_SD(saved_loop_id))
                         {
                             Serial.println(F("Loop save failed; RAM loop remains unsaved."));
@@ -7748,7 +7763,7 @@ void loop()
         {
             Display_Setup.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
-            Require_FRAM(Archive.Save_key_step(static_cast<uint8_t>(key_step)));
+            Archive.Save_key_step(static_cast<uint8_t>(key_step));
         }
 
         // Set Prima ottava
@@ -7999,7 +8014,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
                 Switch_to_MIXER();
                 break;
@@ -8010,7 +8025,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
 
                 Golive_DELAY_SETTINGS();
@@ -8025,7 +8040,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
 
                 Golive_MIDI_MONITOR();
@@ -8047,7 +8062,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
 
                 switch (Lilla_state_0)
@@ -8097,7 +8112,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
 
                 switch (Lilla_state_0)
@@ -8131,7 +8146,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
 
                 switch (Lilla_state_0)
@@ -8164,7 +8179,7 @@ void loop()
             {
                 if (first_octave != first_octave_cache)
                 {
-                    Require_FRAM(Archive.Save_first_octave(first_octave));
+                    Archive.Save_first_octave(first_octave);
                 }
                 switch (Lilla_state_0)
                 {
@@ -8506,7 +8521,7 @@ void P_Read_all_Patches(void)
 {
     for (auto patch_id = 0; patch_id < PATCHES_MAX; ++patch_id)
     {
-        Require_FRAM(Archive.Read_Patch(patch_id));
+        Archive.Read_Patch(patch_id);
     }
 }
 
@@ -8669,7 +8684,7 @@ bool P_Ask_if_delete_this_Patch(void)
 bool P_Jump_to_Patch(uint8_t next_patch)
 {
     Delay_data_struct next_delay{};
-    Require_FRAM(Archive.Read_Delay(next_patch, next_delay));
+    Archive.Read_Delay(next_patch, next_delay);
     Preset_struct next_presets[INSTRUMENTS] = {};
     uint16_t next_tables_mask = 0;
     if (!P_Prepare_audio_tables(next_patch, Patch_volume_gain(volume_patch), next_presets, next_tables_mask, true))
@@ -8806,8 +8821,8 @@ bool P_Save_current_patch_as_new(void)
     {
         return false;
     }
-    Require_FRAM(Archive.Save_Patch(Patch_id));
-    Require_FRAM(Archive.Save_Delay(Patch_id, cloned_delay));
+    Archive.Save_Patch(Patch_id);
+    Archive.Save_Delay(Patch_id, cloned_delay);
     if (Capture_new_patch == previous.patch_id)
     {
         Capture_new_patch = -1;
@@ -9214,7 +9229,7 @@ bool S_Save_all_Sounds_changed(void)
         // Sound which have been changed only for .used
         if (Sound[sound_id].used != S_Sound_cache_P[sound_id].used)
         {
-            Require_FRAM(Archive.Save_Sound(sound_id));
+            Archive.Save_Sound(sound_id);
             Serial.println("S_Save_all_Sounds_changed: attenzione! Sound[sound_id].used e' variato per sound_id: ");
             Serial.println(sound_id);
         }
@@ -9222,7 +9237,7 @@ bool S_Save_all_Sounds_changed(void)
         // Sound used which have been changed
         else if ((Sound[sound_id].used == 1) && !S_Verify_is_Sound_original(sound_id)) // save Sound used and changed in phisical properties
         {
-            Require_FRAM(Archive.Save_Sound(sound_id));
+            Archive.Save_Sound(sound_id);
             Serial.println("S_Save_all_Sounds_changed: attenzione! S_Verify_is_Sound_original ha dato esito NEGATIVO che ha richiesto salvataggio su FRAM per sound_id: ");
             Serial.println(sound_id);
         }
@@ -9267,7 +9282,7 @@ bool S_Read_all_Sounds(PatchEditSnapshot *snapshot)
             audio_tables_error_pending = true;
             return false;
         }
-        Require_FRAM(Archive.Read_Sound(sound_id));
+        Archive.Read_Sound(sound_id);
     }
     return true;
 }
@@ -9898,7 +9913,7 @@ void DS_seed_all_Recordings(void)
         Recording[i].seconds = 0.0; // float
         Recording[i].stereo = 0;
         Recording[i].consistent = true;
-        Require_FRAM(Archive.Save_DS_Recording(i));
+        Archive.Save_DS_Recording(i);
         Serial.print(F("Seeded Recording: "));
         Serial.println(i);
     }
@@ -10369,12 +10384,40 @@ void Golive_DELAY_SETTINGS(void)
     Clear_UI_events();
 }
 
+FLASHMEM
 void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
 
     Clear_UI_events();
 
+    if (LOOP_initial_selection_pending)
+    {
+        LOOP_initial_selection_pending = false;
+        const int first_loop_id = LOOP_Get_next_loop_id_in_SD(NEW_LOOP);
+        if (first_loop_id != NEW_LOOP && LOOP_Copy_midi_loop_from_SD_to_RAM(first_loop_id))
+        {
+            LOOP_id = first_loop_id;
+            if (LOOP_time > 0)
+            {
+                LOOP_metronomo.Setup(LOOP_time);
+            }
+            for (auto track = 0; track < TRACKS; ++track)
+            {
+                LOOP_play_event[track] = 0;
+                LOOP_set_time_order(track);
+                LOOP_track_run_memo[track] = LOOP_events[track] > 0;
+                LOOP_track_run[track] = false;
+            }
+            LOOP_run_button_state = LOOP_events[MASTER_TRACK] == 0;
+            restart = true;
+        }
+    }
+
+    if (LOOP_id == NEW_LOOP)
+    {
+        LOOP_suggested_id = LOOP_Get_first_loop_id_free();
+    }
     LOOP_select_menu_elements();
     Display_MidiLoop.Show_Loop_page();
 
@@ -10389,7 +10432,8 @@ void Golive_with_MIDI_LOOP(bool restart)
         Loop_led_set.Request_all_LED_switch_off();
     }
 
-    // Update_instruments_leds();
+    Loop_led_set.Restore_all_LED();
+    Update_instruments_leds();
     LOOP_metronomo.Leds_off(); // spegni i LED del metronomo
 
     // Se esiste loop_0, accendi il metronomo
@@ -10550,7 +10594,6 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
         else // stop and exit
         {
             DirectSampler.Stop_and_wait();
-            Require_FRAM(DirectSampler.Storage_error());
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
@@ -10563,7 +10606,7 @@ void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Require_FRAM(Archive.Save_DS_Recording(recording));
+                Archive.Save_DS_Recording(recording);
                 DS_read_Recording(recording); // only to update .bytes and .seconds
             }
 
@@ -10729,7 +10772,6 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
         else // stop and exit
         {
             DirectSampler.Stop_and_wait();
-            Require_FRAM(DirectSampler.Storage_error());
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
             MAIN_mixer_out_R.gain(1, 0.0);
@@ -10742,7 +10784,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
             {
                 Recording[recording].consistent = true;
                 // consistent Recording must be saved
-                Require_FRAM(Archive.Save_DS_Recording(recording));
+                Archive.Save_DS_Recording(recording);
                 DS_read_Recording(recording); // only to update .bytes and .seconds
             }
 
@@ -10772,7 +10814,7 @@ void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 void Switch_to_PERFORMANCE_patch_old(void)
 {
     Delay_data_struct next_delay{};
-    Require_FRAM(Archive.Read_Delay(Patch_id_old, next_delay));
+    Archive.Read_Delay(Patch_id_old, next_delay);
     AudioNoInterrupts();
     if (!P_Rebuild_patch_old())
     {
@@ -10788,7 +10830,7 @@ void Switch_from_MIDI_LOOP_to_PERFORMANCE(void)
 {
     if (Patch_id < PATCHES_MAX)
     {
-        Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+        Archive.Save_Delay(Patch_id, Delay_data);
     }
     AudioNoInterrupts();
     LOOP_stop_all_midi_tracks();
@@ -10889,7 +10931,6 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
         else // stop and exit
         {
             DirectSampler.Stop_and_wait();
-            Require_FRAM(DirectSampler.Storage_error());
 
             // switch OFF Line OUT monitor
             MAIN_mixer_out_L.gain(1, 0.0);
@@ -10906,7 +10947,7 @@ void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
                 Recording[recording].consistent = true;
 
                 // consistent Recording must be saved
-                Require_FRAM(Archive.Save_DS_Recording(recording));
+                Archive.Save_DS_Recording(recording);
                 DS_read_Recording(recording); // call for updating .bytes and .seconds
             }
 
@@ -11005,7 +11046,7 @@ bool D_Read_value(int item) // Edit a requested value locally so the encoder nev
     int value = Delay_manager.Get_value(item);
     const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
     const int lowest = item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
-    const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
+    const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : (item == DELAY_COMPRESSOR ? 1 : 2));
     // Clockwise increases the Right delay: negative offsets delay the right channel.
     const bool changed = item == SAMPLES_LR ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
     if (!changed)
@@ -13030,7 +13071,7 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
 FLASHMEM
 void Factory_setup_FRAM(void)
 {
-    Require_FRAM(Archive.Factory_reset_FRAM(false));
+    Archive.Factory_reset_FRAM(false);
 
     // cancella gli array descrittivi di Patch e Sound
     P_Delete_all_Patches_and_Sounds();
@@ -13055,7 +13096,7 @@ void Factory_setup_FRAM(void)
     Patch[0].Instrument[0].Filter.frequency_time = 5; // 0 --> 20
 
     Patch_id = 0;
-    Require_FRAM(Archive.Save_Patch(Patch_id));
+    Archive.Save_Patch(Patch_id);
     Archive.Copy_Patch_from_RAM_to_SD(Patch_id);
 
     Serial.println(F("Patch[0] Saved"));
@@ -13080,10 +13121,10 @@ void Factory_setup_FRAM(void)
     Sound[0].gain = 12; // 20 means gain = 1.0
     Serial.println(F("Saving Sound[0]"));
     Sound_id = 0;
-    Require_FRAM(Archive.Save_Sound(Sound_id));
+    Archive.Save_Sound(Sound_id);
 
     // Salva in FRAM l'ottava del NoteNumber 0.
-    Require_FRAM(Archive.Save_first_octave(-2));
+    Archive.Save_first_octave(-2);
 
     // Default: 12 file voices, pitch up to x16 from cache or x2.8 from Flash.
 
@@ -13096,12 +13137,13 @@ void Factory_setup_FRAM(void)
     Delay_data.modulation_frequency = 12;     // 0 --> 40 only for waveform
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 65;
+    Delay_data.compressor = false;
     Delay_data.lpf_cutoff = LPF_MAX;
-    Require_FRAM(Archive.Save_Delay(0, Delay_data));
+    Archive.Save_Delay(0, Delay_data);
 
     // cancella il contenute dei packet sulla Flash aggiuntiva
     VFS_Erase_all_packets();
-    Require_FRAM(Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY));
+    Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY);
 }
 
 FLASHMEM
@@ -15431,6 +15473,7 @@ void Startup_hardware_and_objects(void)
     canvas.setTextWrap(false);
 
     // DelayManager
+    Delay_manager.Compressor_ptr = &D_Compressor;
     Delay_manager.Delay_L_ptr = &Delay_L;
     Delay_manager.Delay_R_ptr = &Delay_R;
     Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
@@ -15756,13 +15799,15 @@ void Reload_system_state(void)
 
         if (Patch_id < PATCHES_MAX)
         {
-            Require_FRAM(Archive.Save_Delay(Patch_id, Delay_data));
+            Archive.Save_Delay(Patch_id, Delay_data);
         }
     }
     // |||||||||||||||||       END TOOLS      ||||||||||||||||||||
 
-    Require_FRAM(Archive.Read_Delay(Patch_id, Delay_data));
+    Archive.Read_Delay(Patch_id, Delay_data);
     Calc_Delay_values(Delay_data);
+    D_Compressor.Set_enabled(Delay_data.compressor);
+    D_Compressor.Reset();
 
     // Transmits data to Delay objects
     Delay_L.Setup_delay(Delay_values.samples + (Delay_values.samples_LR > 0 ? Delay_values.samples_LR : 0)); // Restore the same signed left offset used by runtime parameter changes.
@@ -15821,7 +15866,8 @@ void Reload_system_state(void)
     downsampling = 1; // n. of repeated samples  1 = 44.1ksps
 
     // *******************    MIDI LOOP   ************************
-    LOOP_id = -1;
+    LOOP_id = NEW_LOOP;
+    LOOP_initial_selection_pending = true;
     LOOP_reset_all_data();
 
     // *******************    COVER PAGE    **********************
@@ -16061,26 +16107,6 @@ void Print_player_read_diagnostics(void)
     }
 }
 
-void Require_FRAM(byte result)
-{
-    if (result == LillaFRAM_2x512::ERROR_0)
-    {
-        return;
-    }
-
-    Serial.print(F("FRAM operation failed, error "));
-    Serial.println(result);
-
-    P_Quiesce_audio_players();
-    AudioNoInterrupts();
-    Display_Storage.FRAM_io_error_popup();
-    // Do not run subsequent save, erase or cache-publication steps after a failed access.
-    while (true)
-    {
-        delay(10);
-    }
-}
-
 FLASHMEM void SET_Prepare_user_audio(void)
 {
     const bool resume_trigger = Trigger.Is_running();
@@ -16099,7 +16125,6 @@ FLASHMEM void SET_Prepare_user_audio(void)
         {
             AudioInterrupts();
         }
-
     }
     else
     {

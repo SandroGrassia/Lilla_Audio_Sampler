@@ -32,10 +32,11 @@ enum Delay_parameters
         LOOP_GAIN,
         FEEDBACK_CUTOFF,
         INSTRUMENT_ROUTE,
-        MODULATION_SOURCE
+        MODULATION_SOURCE,
+        DELAY_COMPRESSOR
     };
 
-static constexpr int DELAY_ITEMS = 9; // all Delay parameters
+static constexpr int DELAY_ITEMS = 10; // all Delay parameters
 static constexpr int DELAY_LPF_ITEMS = 7; // Parameters through FEEDBACK_CUTOFF have independent smoothing.
 
 struct Delay_data_struct // DELAY_DATA_DIM byte
@@ -49,6 +50,7 @@ struct Delay_data_struct // DELAY_DATA_DIM byte
     uint16_t modulation_phase_LR;
     uint16_t loop_gain;
     uint16_t lpf_cutoff = LPF_MAX; // Index in the common cutoff table; old patches default to 20 kHz.
+    bool compressor = false; // Persisted in the existing FRAM Delay reserved bytes.
 };
 static constexpr int DELAY_DATA_DIM = sizeof(Delay_data_struct);
 
@@ -93,13 +95,14 @@ void Print_Delay_data(const Delay_data_struct &data);
 void Print_Delay_values(Delay_values_struct Delay_values);
 
 // Pointer
-static constexpr int DELAY_element_names = 8;
+static constexpr int DELAY_element_names = 9;
 enum DELAY_element_name
 {
     value_DELAY_Feedback,
+    value_DELAY_Lpf_cutoff,
+    value_DELAY_Compressor,
     value_DELAY_Delay_time,
     value_DELAY_Delay_time_LR,
-    value_DELAY_Lpf_cutoff,
     value_DELAY_Modulation_source,
     value_DELAY_Modulation_frequency,
     value_DELAY_Modulation_depth,

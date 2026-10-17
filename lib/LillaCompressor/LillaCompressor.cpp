@@ -1,5 +1,5 @@
-/* LILLA Audio Sampler - stereo Live Sampler feedback and recording dynamics. */
-#include "AudioLiveCompressor.h"
+/* LILLA Audio Sampler - shared stereo Live Sampler and Delay dynamics. */
+#include "LillaCompressor.h"
 #include <algorithm>
 #include <cstdlib>
 
@@ -30,35 +30,35 @@ constexpr std::array<float, 258> Make_gain_table(float ceiling)
 }
 
 // Constant-initialized LUT: no logarithms or curve construction in the audio interrupt.
-const std::array<float, 258> AudioLiveCompressor::gain_table = Make_gain_table(CEILING);
+const std::array<float, 258> LillaCompressor::gain_table = Make_gain_table(CEILING);
 
 FLASHMEM
-AudioLiveCompressor::AudioLiveCompressor() : AudioStream(4, input_queue)
+LillaCompressor::LillaCompressor(Profile selected_profile) : AudioStream(4, input_queue), profile(selected_profile), lookahead(MAX_LOOKAHEAD), attack_step(1.0f / static_cast<float>(lookahead))
 {
 }
 
 FLASHMEM
-void AudioLiveCompressor::Set_feedback(float feedback)
+void LillaCompressor::Set_feedback(float feedback)
 {
     feedback_target = (static_cast<int32_t>(feedback * 65536.0f) / 128) * 128;
 }
 
 FLASHMEM
-void AudioLiveCompressor::Set_enabled(bool value)
+void LillaCompressor::Set_enabled(bool value)
 {
     enabled = value; // Retarget the running fade; never reset audio history or envelopes.
 }
 
 FLASHMEM
-bool AudioLiveCompressor::Is_enabled(void) const
+bool LillaCompressor::Is_enabled(void) const
 {
     return enabled;
 }
 
-float AudioLiveCompressor::Required_gain(int32_t peak)
+float LillaCompressor::Required_gain(int32_t peak)
 {
-    // Keep the largest peak in [now - LOOKAHEAD, now], including the sample being emitted.
-    while (peak_count != 0 && static_cast<uint32_t>(sample_clock - peak_times[peak_head]) > LOOKAHEAD)
+    // Keep the largest peak in [now - lookahead, now], including the sample being emitted.
+    while (peak_count != 0 && static_cast<uint32_t>(sample_clock - peak_times[peak_head]) > lookahead)
     {
         peak_head = (peak_head + 1) % PEAK_QUEUE_SIZE;
         --peak_count;
@@ -83,18 +83,18 @@ float AudioLiveCompressor::Required_gain(int32_t peak)
     return target;
 }
 
-int16_t AudioLiveCompressor::To_sample(float sample)
+int16_t LillaCompressor::To_sample(float sample)
 {
     return static_cast<int16_t>(std::max(-32768.0f, std::min(32767.0f, sample)));
 }
 
-void AudioLiveCompressor::Process_sample(int32_t left, int32_t right, int16_t &output_left, int16_t &output_right)
+void LillaCompressor::Process_sample(int32_t left, int32_t right, int16_t &output_left, int16_t &output_right)
 {
     const float target = Required_gain(std::max(std::abs(left), std::abs(right)));
     if (target < compressor_gain)
     {
-        // A full-scale gain reduction takes at most LOOKAHEAD samples, before the peak arrives.
-        compressor_gain = std::max(target, compressor_gain - 1.0f / static_cast<float>(LOOKAHEAD));
+        // A full-scale gain reduction takes at most lookahead samples, before the peak arrives.
+        compressor_gain = std::max(target, compressor_gain - attack_step);
     }
     else
     {
@@ -116,7 +116,10 @@ void AudioLiveCompressor::Process_sample(int32_t left, int32_t right, int16_t &o
     const int32_t delayed_r = delayed_right[delay_position];
     delayed_left[delay_position] = left;
     delayed_right[delay_position] = right;
-    delay_position = (delay_position + 1) % LOOKAHEAD;
+    if (++delay_position == lookahead)
+    {
+        delay_position = 0;
+    }
 
     // Delay both dry and wet paths, including bypass: toggling never moves the recording timeline.
     const float dry_l = To_sample(static_cast<float>(delayed_l));
@@ -125,9 +128,24 @@ void AudioLiveCompressor::Process_sample(int32_t left, int32_t right, int16_t &o
     output_right = To_sample(dry_r + wet * (static_cast<float>(delayed_r) * compressor_gain - dry_r));
 }
 
-void AudioLiveCompressor::update(void)
+FLASHMEM
+void LillaCompressor::Reset(void)
 {
-    if (Recorder_ptr == nullptr || !Recorder_ptr->Is_writing())
+    std::fill(std::begin(delayed_left), std::end(delayed_left), 0);
+    std::fill(std::begin(delayed_right), std::end(delayed_right), 0);
+    delay_position = 0;
+    peak_head = 0;
+    peak_count = 0;
+    sample_clock = 0;
+    compressor_gain = 1.0f;
+    bypass_position = enabled ? 1.0f : 0.0f;
+    feedback_gain = feedback_target;
+    processing = true;
+}
+
+void LillaCompressor::update(void)
+{
+    if (profile == Profile::LiveSampler && (Recorder_ptr == nullptr || !Recorder_ptr->Is_writing()))
     {
         for (unsigned channel = 0; channel < 4; ++channel)
         {
@@ -142,16 +160,11 @@ void AudioLiveCompressor::update(void)
     }
     if (!processing)
     {
-        std::fill(std::begin(delayed_left), std::end(delayed_left), 0);
-        std::fill(std::begin(delayed_right), std::end(delayed_right), 0);
-        delay_position = 0;
-        peak_head = 0;
-        peak_count = 0;
-        sample_clock = 0;
-        compressor_gain = 1.0f;
-        bypass_position = 0.0f;
-        feedback_gain = feedback_target;
-        processing = true;
+        Reset();
+        if (profile == Profile::LiveSampler)
+        {
+            bypass_position = 0.0f; // Preserve the Live Sampler fade-in at the start of each recording.
+        }
     }
     audio_block_t *inputs[4];
     for (unsigned channel = 0; channel < 4; ++channel)
@@ -162,11 +175,11 @@ void AudioLiveCompressor::update(void)
     audio_block_t *output_r = allocate();
     for (unsigned sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
     {
-        if (feedback_gain < feedback_target)
+        if (profile == Profile::LiveSampler && feedback_gain < feedback_target)
         {
             ++feedback_gain;
         }
-        else if (feedback_gain > feedback_target)
+        else if (profile == Profile::LiveSampler && feedback_gain > feedback_target)
         {
             --feedback_gain;
         }
@@ -174,8 +187,8 @@ void AudioLiveCompressor::update(void)
         const int32_t line_r = inputs[1] == nullptr ? 0 : inputs[1]->data[sample];
         const int32_t return_l = inputs[2] == nullptr ? 0 : inputs[2]->data[sample];
         const int32_t return_r = inputs[3] == nullptr ? 0 : inputs[3]->data[sample];
-        const int32_t sum_l = line_l + ((feedback_gain * return_l) >> 16);
-        const int32_t sum_r = line_r + ((feedback_gain * return_r) >> 16);
+        const int32_t sum_l = line_l + (profile == Profile::LiveSampler ? (feedback_gain * return_l) >> 16 : return_l);
+        const int32_t sum_r = line_r + (profile == Profile::LiveSampler ? (feedback_gain * return_r) >> 16 : return_r);
         int16_t result_l;
         int16_t result_r;
         Process_sample(sum_l, sum_r, result_l, result_r);

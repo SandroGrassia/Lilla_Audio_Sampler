@@ -82,6 +82,7 @@ public:
     }
 };
 '''
+prefix += 'class LillaCompressor { public: bool enabled = false; void Set_enabled(bool value) { enabled = value; } };\n'
 shared = source('lib/SharedDelay/SharedDelay.h') + source('lib/SharedDelay/SharedDelay.cpp')
 gain_header = source('lib/AudioGain/AudioGain.h').replace('private:', 'public:')
 gain_cpp = source('lib/AudioGain/AudioGain.cpp')
@@ -123,6 +124,16 @@ int main() {
  AudioGain gainL,gainR;
  PlayersManager players;
  DelayManager &m = Delay_manager;
+ LillaCompressor compressor;
+ m.Compressor_ptr = &compressor;
+ assert(m.Set_value(DELAY_COMPRESSOR, 1));
+ m.Update();
+ assert(compressor.enabled && Delay_data.compressor);
+ Delay_data_struct compressor_patch = Delay_data;
+ compressor_patch.compressor = false;
+ m.New_values(&compressor_patch);
+ m.Update();
+ assert(!compressor.enabled && !Delay_data.compressor);
  AudioFilterBiquad filterL, filterR;
  m.D_lpf_L_ptr = &filterL; m.D_lpf_R_ptr = &filterR;
  m.Delay_L_ptr=&left; m.Delay_R_ptr=&right; m.LFO_D_ptr[0]=&lfoL; m.LFO_D_ptr[1]=&lfoR; m.D_gain_L_feedback_ptr=&gainL; m.D_gain_R_feedback_ptr=&gainR; m.Players_Manager_ptr=&players;

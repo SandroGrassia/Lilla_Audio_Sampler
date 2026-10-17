@@ -63,7 +63,6 @@ bool StereoSampler::Start(int from_packet, int last_packet, int recording_id_in,
     decay_gain_flag = false;
     countdown_flag = false;
     book_stop_flag = false;
-    storage_error = 0;
     missing_blocks_L = 0;
     missing_blocks_R = 0;
     recording = true;
@@ -140,22 +139,7 @@ void StereoSampler::update(void)
     if (increment_packets_flag)
     {
         ++Recording[recording_id].packets;
-        const byte result = Archive.Save_DS_Recording(recording_id);
-
-        if (result != LillaFRAM_2x512::ERROR_0)
-        {
-            storage_error = result;
-            stop();
-            if (in_block_L != nullptr)
-            {
-                release(in_block_L);
-            }
-            if (in_block_R != nullptr)
-            {
-                release(in_block_R);
-            }
-            return;
-        }
+        Archive.Save_DS_Recording(recording_id);
 
         VFS_FAT_table[packet_open_L] = recording_id;
         if (stereo_flag)

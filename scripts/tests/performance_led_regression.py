@@ -39,6 +39,64 @@ struct AudioPlayer
     void My_LED(bool on);
 };
 ''' + led_method
+# Exercise the real page-entry path and MIDI Loop LED drawing branch with a fake display.
+main = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
+entry = re.search(r'void Golive_with_MIDI_LOOP\(bool restart\)\n\{.*?^\}', main, re.M | re.S).group(0)
+update_start = main.index('void Update_instruments_leds()\n{')
+update_end = main.index('    else if (Lilla_state == PERFORMANCE)', update_start)
+source += r'''
+LoopLedSet Loop_led_set;
+constexpr int NEW_LOOP = -1, MASTER_TRACK = 0;
+bool LOOP_initial_selection_pending = false; // This fixture exercises returning to an already selected loop.
+int LOOP_time = 1000;
+int LOOP_play_event[TRACKS] = {};
+bool LOOP_track_run_memo[TRACKS] = {}, LOOP_track_run[TRACKS] = {};
+int LOOP_Get_next_loop_id_in_SD(int) { return 3; }
+bool LOOP_Copy_midi_loop_from_SD_to_RAM(int) { return true; }
+void LOOP_set_time_order(int) {}
+int LOOP_id = 3, LOOP_suggested_id = -1;
+int LOOP_events[TRACKS] = {1, 1, 1, 1};
+bool LOOP_run_button_state = false;
+int Patch_id = 0;
+struct InstrumentStub { bool used = true; };
+struct PatchStub { InstrumentStub Instrument[INSTRUMENTS]; } Patch[1];
+struct DisplayStub
+{
+    int leds[TRACKS][INSTRUMENTS] = {};
+    void Show_Loop_page()
+    {
+        for (auto &row : leds)
+        {
+            for (auto &led : row)
+            {
+                led = -1; // Page clear removes both bright and dim LED bitmaps.
+            }
+        }
+    }
+    void Loop_led(int track, int instrument, bool on)
+    {
+        assert(irq_mask == 0); // SPI drawing must happen after the atomic state update.
+        leds[track][instrument] = on;
+    }
+} Display_MidiLoop;
+struct PointerStub
+{
+    void Set_pointer_to_first_menu_element() {}
+    int Get_pointer() { return 0; }
+} Pointer_MidiLoop;
+int LOOP_local_pointer = 0;
+int player_resets = 0, clock_restarts = 0;
+struct StatisticsStub
+{
+    void Reset_total_Players_per_track_instrument() { ++player_resets; }
+} Players_statistics;
+struct MetronomeStub { void Setup(int) {} void Leds_off() {} void Led_ON(int) {} } LOOP_metronomo;
+void Clear_UI_events() {}
+void LOOP_select_menu_elements() {}
+int LOOP_Get_first_loop_id_free() { return 4; }
+void LOOP_restart_clock() { ++clock_restarts; }
+'''
+source += main[update_start:update_end] + '}\n' + entry + '\n'
 checks = r'''
 int main()
 {
@@ -95,6 +153,53 @@ int main()
     assert(loop.Consume_LED_activity(2, 3) == -2);
     loop.Request_LED_switch(2, 3, true);
     assert(loop.Consume_LED_activity(2, 3) == 2);
+    // Return from tools with a mix of acknowledged and pending ON/OFF states across all 32 LEDs.
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        for (int instrument = 0; instrument < INSTRUMENTS; ++instrument)
+        {
+            const int pattern = (track * INSTRUMENTS + instrument) % 4;
+            Loop_led_set.Request_LED_switch(track, instrument, (pattern % 2) != 0);
+            if (pattern < 2)
+            {
+                Loop_led_set.Consume_LED_activity(track, instrument);
+            }
+        }
+    }
+    for (int visit = 0; visit < 2; ++visit)
+    {
+        Lilla_state = 0; // Mixer/Delay: playback requests continue while the loop page is hidden.
+        Golive_with_MIDI_LOOP(false);
+        assert(player_resets == 0 && clock_restarts == 0);
+        for (int track = 0; track < TRACKS; ++track)
+        {
+            for (int instrument = 0; instrument < INSTRUMENTS; ++instrument)
+            {
+                const bool on = ((track * INSTRUMENTS + instrument) % 2) != 0;
+                assert(Display_MidiLoop.leds[track][instrument] == on);
+                assert(Loop_led_set.Read_LED_activity(track, instrument) == (on ? 1 : -1));
+            }
+        }
+    }
+    // A note transition after restoration must survive until the next drawing pass.
+    Loop_led_set.Restore_all_LED();
+    Loop_led_set.Request_LED_switch(0, 0, true);
+    Loop_led_set.Request_LED_switch(3, 7, false);
+    Update_instruments_leds();
+    assert(Display_MidiLoop.leds[0][0] == 1 && Display_MidiLoop.leds[3][7] == 0);
+    irq_mask = 1;
+    Loop_led_set.Restore_all_LED();
+    assert(irq_mask == 1);
+    irq_mask = 0;
+    Golive_with_MIDI_LOOP(true);
+    assert(player_resets == 1 && clock_restarts == 1);
+    for (auto &row : Display_MidiLoop.leds)
+    {
+        for (auto led : row)
+        {
+            assert(led == 0);
+        }
+    }
     leds.Restore_all_LED();
     for (int i = 0; i < INSTRUMENTS; ++i)
     {
@@ -113,4 +218,4 @@ with tempfile.TemporaryDirectory() as folder:
     cpp.write_text('#include <cstdint>\n#include <cstdlib>\n#include <cassert>\nconstexpr int INSTRUMENTS = 8;\nconstexpr int TRACKS = 4;\nuint32_t irq_mask = 0;\nuint32_t __get_primask() { return irq_mask; }\nvoid __disable_irq() { irq_mask = 1; }\nvoid __enable_irq() { irq_mask = 0; }\n' + header + '\n' + source + '\n' + checks, encoding='utf-8')
     subprocess.run([compiler, '-std=c++17', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)
-print('PASS: LED ownership, reassignment, mode changes, IRQ request consumption and redraw')
+print('PASS: LED ownership, reassignment, mode changes, IRQ request consumption, redraw and all 32 MIDI Loop LEDs after tool return')

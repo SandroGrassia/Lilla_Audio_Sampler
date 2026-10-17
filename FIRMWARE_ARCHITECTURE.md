@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.2 15/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.3 17/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -53,7 +53,7 @@ Keep protected sections short. Display operations, serial reporting and bulk sto
 
 ## 3. Audio signal flow
 
-The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its mixers, independent left/right feedback low-pass filters and feedback gain stages.
+The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its linked stereo compressor/summing stage, independent left/right feedback low-pass filters and feedback gain stages.
 
 ```mermaid
 flowchart TD
@@ -89,7 +89,11 @@ Each feedback path has its own `AudioFilterBiquad` (`D_lpf_L` and `D_lpf_R`), co
 
 `DELAY TIME L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, so it becomes zero at the maximum 2-second base delay.
 
-The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. Invalid encoded indices are rejected when loading.
+`D_Compressor`, an instance of [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) with `Profile::Delay`, replaces the two saturating input/feedback mixers. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed the main mix, preserving the existing routing. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
+
+The compressor uses a 258-entry soft-knee gain table, a -6.02 dBFS threshold, an approximately -1 dBFS ceiling, 32 samples of lookahead (about 0.73 ms), and a 100 ms exponential release. The lookahead is retained in bypass and is additional to the configured cache delay; ON/OFF uses a 10 ms smooth crossfade. The Delay page lists `FEEDBACK`, `FEED LPF`, `FEED COMPRESSOR`, `DELAY TIME` and `DELAY TIME L/R` in that order. `FEED COMPRESSOR` is editable with the value encoder or its pushbutton; Live Sampler routing is labeled `LIVE SAMPLER`.
+
+The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. `reserved[2]` stores compressor OFF/ON as 0/1; older patches remain bypassed. Invalid encoded cutoff or compressor values are rejected when loading.
 
 ## 4. Patch, sound and voice model
 
@@ -159,7 +163,7 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 [StereoLiveSampler](lib/StereoLiveSampler/StereoLiveSampler.h) records into circular PSRAM storage. Playback can refer to this live source while recording continues. Read/write positioning, wrap behavior and the initial partially filled buffer must remain consistent when changing playback logic.
 
-[AudioLiveCompressor](lib/AudioLiveCompressor/AudioLiveCompressor.h) combines the input and feedback paths using wider intermediate values and linked stereo dynamics. Its implementation uses 128 samples of lookahead and a ceiling of approximately -1 dBFS. It is connected before the live recorder.
+`LS_Compressor` uses the same [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) class with `Profile::LiveSampler` and combines the input and feedback paths using wider intermediate values and linked stereo dynamics. Like the Delay profile, this profile uses 32 samples of lookahead (about 0.73 ms) and a ceiling of approximately -1 dBFS. The two instances share the immutable gain table and DSP implementation, while maintaining independent histories, envelopes and enable states. It is connected before the live recorder.
 
 [CaptureSources](lib/CaptureSources/CaptureSources.h) represents captured regions with ordinary RAW identifiers while their audio backing is still temporary. Saving a captured patch persists the required audio to Flash. A captured region available for playback in PSRAM is therefore not, by itself, a durable recording.
 

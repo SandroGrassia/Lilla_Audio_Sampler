@@ -40,11 +40,11 @@ private:
     PlayerToneFilter tone_filter;
     uint8_t tone_filter_level = 0;
     uint8_t tone_filter_level_wait = 0;
-    int16_t budget_tail_sample = 0; // Last rendered mono sample for a continuous source-free retirement ramp.
-    bool budget_tail_pending = false; // Emit one fading cached block before the replacement renders.
+    int16_t budget_tail_sample = 0;    // Last rendered mono sample for a continuous source-free retirement ramp.
+    bool budget_tail_pending = false;  // Emit one fading cached block before the replacement renders.
     bool rendered_block_valid = false; // Never read an uninitialized output block when retiring a new voice.
-    float budget_tail_pan_L = 0.0f; // Preserve outgoing routing gains across a replacement start.
-    float budget_tail_pan_R = 0.0f; // Preserve outgoing routing gains across a replacement start.
+    float budget_tail_pan_L = 0.0f;    // Preserve outgoing routing gains across a replacement start.
+    float budget_tail_pan_R = 0.0f;    // Preserve outgoing routing gains across a replacement start.
     uint8_t mix_samples = 32;
     uint8_t identity;
     enum PlayerStates
@@ -187,8 +187,7 @@ private:
 
     float ADSR_gain;
     float volume_gain = 1.0;
-    float K_volume_gain; // [Gain/sample]
-    uint32_t JV0;
+    static constexpr float VOLUME_GAIN_STEP = 0.00005f; // Gain per sample; the final step stops exactly at the target.
     int8_t pan_int;
     float pan_gain_L;
     float pan_gain_R;
@@ -218,7 +217,7 @@ private:
     int32_t Flash_first_RAM_sample;
     int16_t *Noclick_ptr;
     uint16_t delta_Noclick = 0;
-    
+
     // AudioTables: banco corrente, prossima partenza e modifica in attesa.
     uint8_t tables_bank_mask = 0;
     uint8_t tables_bank_mask_wait = 0;
@@ -290,7 +289,7 @@ private:
     // LIVE_SAMPLING
     bool LS_flag = false;
     inline static volatile bool live_unrecorded_notice = false; // Segnala al loop principale un tentativo di riproduzione di audio non ancora registrato nel buffer Live Sampler.
-    bool live_forward_end = false; // Fade the final block when FWD reaches never-recorded samples.
+    bool live_forward_end = false;                              // Fade the final block when FWD reaches never-recorded samples.
     bool live_forward_empty = false;
     int16_t live_forward_last_sample = 0;
     int16_t *FIFO;
@@ -304,7 +303,7 @@ private:
     static float resampled_basket[AUDIO_BLOCK_SAMPLES]; // Each harvest is consumed before the next.
     int harvested_samples = 0;
     void Harvest_filtered_samples(int left, int right, float distance); // Source context does not advance the logical playhead.
-    void Harvest_samples(int outputs = AUDIO_BLOCK_SAMPLES); // Includes source-domain anti-alias processing in diagnostics.
+    void Harvest_samples(int outputs = AUDIO_BLOCK_SAMPLES);            // Includes source-domain anti-alias processing in diagnostics.
     float Read_rendered_sample(int sample, float position) const
     {
         return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, interpolation_mix);
@@ -314,13 +313,13 @@ private:
     void Update_pan_gain(void);
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
-    bool Harvest_live_continuous(void); // Circular FWD reading while recording, for SYNC and FIXED alike.
+    bool Harvest_live_continuous(void);  // Circular FWD reading while recording, for SYNC and FIXED alike.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.
     void Fade_live_forward_end(void);
     void Flash_memory_harvest(void);
-    int Loop_period(int first, int last, int crossfade, uint8_t mode) const; // Return the sample period for forward, reverse or ping-pong loops.
+    int Loop_period(int first, int last, int crossfade, uint8_t mode) const;                                                                                  // Return the sample period for forward, reverse or ping-pong loops.
     bool Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period); // Caller supplies a valid buffer, positive count, nonnegative phase and the positive Loop_period() already validated for this geometry. Fill through the active sample reader.
-    void Loop_memory_harvest(void); // Fill repeated file loops from Flash/cache without reading beyond A/B or NoClick.
+    void Loop_memory_harvest(void);                                                                                                                           // Fill repeated file loops from Flash/cache without reading beyond A/B or NoClick.
     void Wavetable_harvest(void);
     void Read_samples(int16_t *destination, int first_sample, int total_samples); // Read logical samples from Flash, a complete cache or the live circular buffer.
 
@@ -341,13 +340,13 @@ public:
 
     static void Enable_read_diagnostics(bool enabled) { read_diagnostics_enabled = enabled; }
     const PlayerReadDiagnostics &Get_read_diagnostics(void) const { return read_diagnostics; } // Read from audio IRQ or with audio IRQ disabled.
-    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false) const; // Capture source geometry without reading samples; caller owns the audio IRQ.
-    float Reserved_read_us(void) const; // Maximum current/pending/edited full-block cost, with idle voices excluded.
-    float Current_read_us(uint32_t output_samples) const; // Cost of an outgoing crossfade segment.
-    void Retire_for_read_budget(void); // Release source ownership now and fade previously computed audio without further source reads.
-    void Set_edit_mix_samples(uint8_t value); // Override only a pending edit crossfade before its next render.
-    bool Has_pending_edit(void) const { return main_settings_editing_flag; } // Expose edit transitions to the shared read-budget planner.
-    static bool Take_live_unrecorded_notice(void); // Consume from the main loop with audio interrupts disabled by the caller.
+    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false) const;     // Capture source geometry without reading samples; caller owns the audio IRQ.
+    float Reserved_read_us(void) const;                                                        // Maximum current/pending/edited full-block cost, with idle voices excluded.
+    float Current_read_us(uint32_t output_samples) const;                                      // Cost of an outgoing crossfade segment.
+    void Retire_for_read_budget(void);                                                         // Release source ownership now and fade previously computed audio without further source reads.
+    void Set_edit_mix_samples(uint8_t value);                                                  // Override only a pending edit crossfade before its next render.
+    bool Has_pending_edit(void) const { return main_settings_editing_flag; }                   // Expose edit transitions to the shared read-budget planner.
+    static bool Take_live_unrecorded_notice(void);                                             // Consume from the main loop with audio interrupts disabled by the caller.
     void Set_tone_filter(uint8_t level) { tone_filter_level_wait = level; }
     void Update_tone_filter(int patch, int instrument, uint8_t level);
     void begin(void);
@@ -386,12 +385,12 @@ public:
     int Assigned_instrument(void) const { return Has_pending_note() ? instrument_id_wait : instrument_id; }
     int Assigned_patch(void) const { return Has_pending_note() ? patch_id_wait : local_patch; }
     void Set_modulation(uint8_t value);
-    void set_file(int file_id_in); // Select a Flash or Live Sampler file for the next note.
-    void Set_source(const AudioFileSource &source); // Attach the prepared source before configuring the next note.
+    void set_file(int file_id_in);                             // Select a Flash or Live Sampler file for the next note.
+    void Set_source(const AudioFileSource &source);            // Attach the prepared source before configuring the next note.
     void Refresh_cached_source(const AudioFileSource &source); // Promote identical data and refresh current/pending pitch limits; call with audio interrupts disabled.
-    bool Uses_flash(void) const; // Reserve Flash capacity for current playback and queued starts or edits.
-    bool Uses_sample_voice(void) const; // Reserve one shared Flash/cache voice across current playback, queued starts and edits.
-    bool Fast_stop_using_cache(uint16_t cache_mask); // Fade a current cache reader after pending edits and restarts complete.
+    bool Uses_flash(void) const;                               // Reserve Flash capacity for current playback and queued starts or edits.
+    bool Uses_sample_voice(void) const;                        // Reserve one shared Flash/cache voice across current playback, queued starts and edits.
+    bool Fast_stop_using_cache(uint16_t cache_mask);           // Fade a current cache reader after pending edits and restarts complete.
 
     void Set_volume(float volume_gain_value);
     void Update_volume(float volume_gain_value);
@@ -407,14 +406,14 @@ public:
     void Write_update_time(uint16_t value);
     void Set_mix_samples(uint8_t value);
 
-    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Prepare the next start from precomputed preset parameters and table references. 
-    void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in); // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
+    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);         // Prepare the next start from precomputed preset parameters and table references.
+    void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in);                                                                     // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
     void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.
-    
-    void Release_note(void); // release note, fires ADSR "release"
+
+    void Release_note(void);          // release note, fires ADSR "release"
     void Release_patch(int patch_id); // Cancel outgoing queued notes and bound current patch voices, including voices already fading; call with audio interrupts disabled.
-    void Fast_stop(void); 
-    void Panic_stop(void); // Cancel pending replacement notes before requesting the fast release.
+    void Fast_stop(void);
+    void Panic_stop(void);                           // Cancel pending replacement notes before requesting the fast release.
     bool Fast_stop_using_tables(uint8_t banks_mask); // Request a fast stop when current playback uses one of the specified banks. Call from the audio IRQ or with audio interrupts disabled.
 
     float Read_pitch(void);
@@ -436,9 +435,9 @@ public:
 
     // PSRAM cache management
     uint16_t Get_cache_reference_mask(void); // Protect current audio, queued starts and edits that keep using the current source.
-    
+
     // AudioTables: chiamare nell'IRQ audio oppure con IRQ audio disabilitati.
-    uint8_t Get_tables_reference_mask(void); // Include current playback, pending starts and pending edits.
-    void Refresh_audio_table_references(AudioTables &tables); // Move equivalent table references without restarting playback; call with audio interrupts disabled.
+    uint8_t Get_tables_reference_mask(void);                                                                             // Include current playback, pending starts and pending edits.
+    void Refresh_audio_table_references(AudioTables &tables);                                                            // Move equivalent table references without restarting playback; call with audio interrupts disabled.
     bool Apply_preset_edit(int patch, int instrument, const Preset_struct &preset, const AudioTables::Pointers &tables); // Update matching current and pending notes; return whether the current note needs a crossmix.
 };

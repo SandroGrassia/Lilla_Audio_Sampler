@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.2**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.3**
 
-Guide edition: **15 October 2026**
+Guide edition: **17 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.2](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.3](User%20Guide.pdf).
 
 <img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
 
@@ -646,7 +646,7 @@ On the Live Sampler page, turn **Select** to highlight the yellow `ON`/`OFF` val
 
 The compressor acts on the sum of line input and feedback before writing to the live buffer. Audio processing runs only while Live Sampler is recording, including when its Mixer or Delay page is open; otherwise the block drains its inputs without allocating output blocks. The ON/OFF setting is retained, and lookahead history is cleared when recording resumes. Left and right share the same gain reduction, including when recording a mono mix. It begins reducing gain around -6 dBFS and limits sample peaks to approximately -1 dBFS once fully enabled. It does not repair clipping that has already occurred at the input or elsewhere in the feedback path, and does not process material already recorded.
 
-A 128-sample lookahead adds approximately 2.9 ms to the recording path, including when the compressor is off. Switching uses a gradual 10 ms transition between equally delayed signals, so the recording timeline does not jump. Gain recovery takes approximately 100 ms per time constant. Strong compression can still change the sound and feedback behavior. During bypass or the transition to/from bypass, full peak protection is not guaranteed.
+A 32-sample lookahead adds approximately 0.73 ms to the recording path, including when the compressor is off. Switching uses a gradual 10 ms transition between equally delayed signals, so the recording timeline does not jump. Gain recovery takes approximately 100 ms per time constant. Strong compression can still change the sound and feedback behavior. During bypass or the transition to/from bypass, full peak protection is not guaranteed.
 
 ### Capture a live loop into a patch
 
@@ -730,8 +730,9 @@ The recorded events trigger the patch's current sounds. Changing a source, keybo
 
 ### Play and edit
 
-- Turn **Loop** to browse saved loops.
-- Press Loop to stop or restart the group of tracks.
+- At the first MIDI Loop entry after startup, the lowest saved loop ID is selected, with playback stopped. If no loops exist, the first free ID is displayed.
+- Turn **Loop** to browse saved loops. After NEW, browsing starts from the displayed free ID.
+- Press Loop to stop or restart the group of tracks. While stopped, only Rec 1 can start a new recording: it clears the current loop and starts again from zero. Recording other tracks requires group playback to be enabled.
 - Press a **Track** encoder to stop or start that individual track.
 - Turn **Tempo** to change playback timing; press it to reset the timing adjustment.
 - Use Select to choose the track parameter row, then turn each Track encoder to change that track's level, pitch or time shift.
@@ -760,7 +761,7 @@ Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving
 
 <img src="doc/assets/images/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="37%">
 
-*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.2 calls this route PRE_LIST.*
+*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.3 calls this route PRE_LIST.*
 
 Open **Tools > Mixer** to adjust the eight Sound sources and `L_IN`. Turn Select to choose a source column, then press it to enter the fields. Turn Select through `MUTE`, `GAIN`, `PAN`, `LINEOUT` and `PRE_LIST`; press Select to return to source selection. MUTE and GAIN have separate selection frames.
 
@@ -782,13 +783,17 @@ Use the separate LINEOUT and PRE_LIST routes to decide what your audience hears 
 
 <img src="doc/assets/images/9.jpg" alt="Delay page with sound routing, feedback, time and stereo modulation" width="37%">
 
-*The ROUTING row selects which sound slots feed the delay. The example values are not recommended defaults.*
+*The ROUTING row selects which sound slots feed the delay. This photograph predates the FEED LPF and FEED COMPRESSOR controls; use the field order described below. The example values are not recommended defaults.*
 
-Open **Tools > Delay** to adjust feedback, delay time, the left/right time relationship, echo low-pass cutoff, modulation source, modulation frequency, modulation depth and left/right modulation phase.
+Open **Tools > Delay** to adjust feedback, feedback low-pass filtering, stereo compression, delay time, the left/right time relationship and modulation. The left column is ordered **FEEDBACK**, **FEED LPF**, **FEED COMPRESSOR**, **DELAY TIME**, **DELAY TIME L/R**. When opened from Live Sampler, enabled routing is labeled **LIVE SAMPLER**.
+
+**New in firmware 7.2.3: stereo compression in the Delay feedback path.** Select `FEED COMPRESSOR`, then turn or press Value to choose ON or OFF. It controls peaks in the sum of routed audio and feedback before that sum is written into the delay buffers. Left and right share the same attenuation, preserving stereo balance. The setting is saved with the patch; existing patches start with it OFF.
+
+The compressor starts reducing gain around -6 dBFS and limits sample peaks to approximately -1 dBFS once fully enabled, without boosting low-level signals. Its 32-sample lookahead adds about 0.73 ms to the configured delay, including in bypass. ON/OFF transitions are gradual, and gain recovery uses a 100 ms time constant. Compression can change the sound of accumulating echoes; it cannot undo clipping earlier in the signal path. During bypass or switching, full peak protection is not guaranteed.
 
 `DELAY TIME L/R`: turn Value clockwise to delay the right channel, or counterclockwise to delay the left channel. The offset is limited by the available delay range; at the maximum delay time of 2 seconds, no additional offset is available.
 
-`ECHO LPF CUTOFF` darkens successive repeats. Its frequency is displayed in integer Hz, from 40Hz to 20000Hz, and is saved with the patch. Older patches start at 20000Hz.
+`FEED LPF` darkens successive repeats. Its frequency is displayed in integer Hz, from 40Hz to 20000Hz, and is saved with the patch. Older patches start at 20000Hz.
 
 Start with low feedback, then increase it while listening. Check the instrument's delay routing if you hear no delayed signal. Save the patch to retain its delay settings.
 
@@ -972,7 +977,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.2. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.3. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1026,7 +1031,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.2.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.3.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1166,6 +1171,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 15 October 2026*
+*LILLA User Guide - English edition - 17 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*
