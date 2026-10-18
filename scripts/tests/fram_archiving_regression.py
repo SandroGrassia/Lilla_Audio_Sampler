@@ -7,7 +7,7 @@ import tempfile
 import zlib
 
 ROOT = Path(__file__).resolve().parents[2]
-header = (ROOT / "lib/ArchivingManager/ArchivingManager.h").read_text(encoding="utf-8")
+header = (ROOT / "lib/ArchivingManager/ArchivingManager.h").read_text(encoding="utf-8").replace("FLASHMEM ", "")
 implementation = (ROOT / "lib/ArchivingManager/ArchivingManager.cpp").read_text(encoding="utf-8")
 layout = header[header.index("    struct alignas(4)"):header.index("\npublic:")]
 declarations = header[header.index("    struct FRAM_Repair_report"):header.rindex("};")]

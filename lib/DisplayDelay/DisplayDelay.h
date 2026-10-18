@@ -62,7 +62,7 @@ private:
 
     static constexpr int DELAY_chars_sounds = 23;
     static constexpr int DELAY_chars_feedback = 6;
-    static constexpr int DELAY_chars_feedback_compressor = 3;
+    static constexpr int DELAY_chars_feedback_compressor = 6;
     static constexpr int DELAY_chars_feedback_lpf = 7;
     static constexpr int DELAY_chars_delay_time = 8;
     static constexpr int DELAY_chars_delay_time_LR = 10;

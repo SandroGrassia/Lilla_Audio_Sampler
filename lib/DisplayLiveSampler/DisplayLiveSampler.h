@@ -25,7 +25,7 @@
 class DisplayLiveSampler
 {
 private:
-    bool compressor_enabled = false;
+    int compressor_threshold = -6;
     float LS_K_wave_color;             // samples-per-pixel ratio for the waveform canvas
     float LS_wave_poit_distance_0 = 0; // previous pixel distance from write head, used for colour gradient
     int LS_window_A_sample;            // first sample index of the visible window
@@ -68,20 +68,17 @@ private:
     static constexpr float LS_column_row_PLAY_MODE[2] = {0, LS_ROW_VALUES + 1};
     static constexpr float LS_column_row_FEEDBACK[2] = {0, LS_ROW_VALUES + 2};
     static constexpr float LS_column_row_WINDOW[2] = {0, LS_ROW_VALUES + 3};
-
     static constexpr float LS_column_row_START_POINT[2] = {0, LS_ROW_VALUES + 4};
     static constexpr float LS_column_row_LOOP[2] = {29, LS_ROW_VALUES + 4};
-    static constexpr float LS_column_row_COMPRESSOR[2] = {LS_column_row_LOOP[0], LS_column_row_FEEDBACK[1]};
-    static constexpr float LS_column_row_compressor[2] = {LS_column_row_COMPRESSOR[0] + 11, LS_column_row_COMPRESSOR[1]};
-
+    static constexpr float LS_column_row_FEEDBACK_COMPRESSOR[2] = {LS_column_row_LOOP[0] - 4, LS_column_row_FEEDBACK[1]};
     static constexpr float LS_column_row_STEP[2] = {0, LS_ROW_VALUES + 5};
 
     static constexpr float LS_column_row_buffer[2] = {27, 0};
     static constexpr float LS_column_row_volume[2] = {48, 0};
-
     static constexpr float LS_column_row_gain[2] = {13, LS_ROW_VALUES};
     static constexpr float LS_column_row_play_mode[2] = {10, LS_ROW_VALUES + 1};
     static constexpr float LS_column_row_feedback[2] = {9, LS_ROW_VALUES + 2};
+    static constexpr float LS_column_row_feedback_compressor[2] = {LS_column_row_FEEDBACK_COMPRESSOR[0] + 16, LS_column_row_FEEDBACK_COMPRESSOR[1]};
     static constexpr float LS_column_row_window[2] = {7, LS_ROW_VALUES + 3};
 
     static constexpr float LS_column_row_loop_time_mode_2[2] = {23, LS_ROW_VALUES};
@@ -95,7 +92,7 @@ private:
         {LS_column_row_gain[0], LS_column_row_gain[1]},
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
         {LS_column_row_feedback[0], LS_column_row_feedback[1]},
-        {LS_column_row_compressor[0], LS_column_row_compressor[1]},
+        {LS_column_row_feedback_compressor[0], LS_column_row_feedback_compressor[1]},
         {LS_column_row_window[0], LS_column_row_window[1]}};
 
     int LS_chars_play_mode;
@@ -120,7 +117,7 @@ public:
 
     // Renders the full Live Sampler page (title, all labels and values).
     void Page(void);
-    void Compressor(bool enabled); // Selectable ON/OFF status on the feedback row, toggled with Select.
+    void Compressor(int threshold); // Value adjusts the threshold or selects OFF at the upper end.
     void Update_no_recorded_audio(bool requested); // Erase only the popup rectangle when it expires.
 
     // Redraws the Feedback parameter value.

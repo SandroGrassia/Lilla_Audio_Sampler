@@ -9,13 +9,18 @@
 class LillaCompressor : public AudioStream
 {
 public:
+    static constexpr int THRESHOLD_OFF = -2; // Encoder position after -3 dBFS; not a physical threshold.
     enum class Profile { LiveSampler, Delay };
 
 private:
     static constexpr unsigned MAX_LOOKAHEAD = 32;
     static constexpr unsigned PEAK_QUEUE_SIZE = MAX_LOOKAHEAD + 2;
     static constexpr float CEILING = 29204.0f; // Approximately -1 dBFS.
-    static const std::array<float, 258> gain_table;
+    PROGMEM static const std::array<std::array<float, 258>, 22> gain_table;
+    int threshold_db = -6;
+    float threshold_position = 18.0f;
+    float threshold_step = 0.0f;
+    unsigned threshold_remaining = 0;
     const Profile profile;
     const unsigned lookahead;
     const float attack_step;
@@ -47,4 +52,6 @@ public:
     void Set_feedback(float feedback); // LiveSampler profile only; caller supplies the table range [0, 1].
     void Set_enabled(bool value); // Call with audio interrupts disabled.
     bool Is_enabled(void) const;
+    void Set_threshold(int db); // Caller supplies [-24, -3] dBFS or THRESHOLD_OFF with audio interrupts disabled.
+    int Get_threshold(void) const;
 };

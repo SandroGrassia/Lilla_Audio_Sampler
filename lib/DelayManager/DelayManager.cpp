@@ -9,8 +9,8 @@ int DelayManager::Get_value(int item) const // Keep requested values separate fr
 {
     switch (item)
     {
-    case DELAY_COMPRESSOR:
-        return Delay_data.compressor;
+    case DELAY_THRESHOLD:
+        return Delay_data.compressor_threshold;
     case SAMPLES:
         return Delay_data.samples;
     case SAMPLES_LR:
@@ -44,9 +44,13 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     {
         value = constrain(value, Delay_data_limits[item][0], Delay_data_limits[item][1]);
     }
+    else if (item == DELAY_THRESHOLD)
+    {
+        value = constrain(value, -24, LillaCompressor::THRESHOLD_OFF);
+    }
     else
     {
-        value = constrain(value, 0, item == INSTRUMENT_ROUTE ? 255 : (item == DELAY_COMPRESSOR ? 1 : 2));
+        value = constrain(value, 0, item == INSTRUMENT_ROUTE ? 255 : 2);
     }
     if (item == SAMPLES_LR)
     {
@@ -59,8 +63,8 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     }
     switch (item)
     {
-    case DELAY_COMPRESSOR:
-        Delay_data.compressor = value != 0;
+    case DELAY_THRESHOLD:
+        Delay_data.compressor_threshold = value;
         break;
     case SAMPLES:
         Delay_data.samples = value;
@@ -104,7 +108,7 @@ bool DelayManager::New_values(const Delay_data_struct *data) // Publish a stable
 {
     const Delay_data_struct target = *data;
     bool pending = false;
-    pending |= Set_value(DELAY_COMPRESSOR, target.compressor);
+    pending |= Set_value(DELAY_THRESHOLD, target.compressor_threshold);
     pending |= Set_value(SAMPLES, target.samples);
     pending |= Set_value(SAMPLES_LR, target.samples_LR);
     pending |= Set_value(MODULATION_DEPTH, target.modulation_depth);
@@ -129,10 +133,10 @@ void DelayManager::Apply_delay_times(void) // Restore the unshifted channel when
 
 void DelayManager::Update(void) // Apply independent transitions once per audio block and clear completed flags.
 {
-    if (flag[DELAY_COMPRESSOR])
+    if (flag[DELAY_THRESHOLD])
     {
-        Compressor_ptr->Set_enabled(Delay_data.compressor);
-        flag[DELAY_COMPRESSOR] = false;
+        Compressor_ptr->Set_threshold(Delay_data.compressor_threshold);
+        flag[DELAY_THRESHOLD] = false;
     }
     if (flag[INSTRUMENT_ROUTE])
     {

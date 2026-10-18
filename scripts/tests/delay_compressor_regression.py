@@ -15,6 +15,7 @@ def source(name):
 
 prefix = r'''
 #define FLASHMEM
+#define PROGMEM
 #include <algorithm>
 #include <array>
 #include <cassert>

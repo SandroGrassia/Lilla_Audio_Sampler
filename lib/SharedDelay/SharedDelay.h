@@ -33,7 +33,7 @@ enum Delay_parameters
         FEEDBACK_CUTOFF,
         INSTRUMENT_ROUTE,
         MODULATION_SOURCE,
-        DELAY_COMPRESSOR
+        DELAY_THRESHOLD
     };
 
 static constexpr int DELAY_ITEMS = 10; // all Delay parameters
@@ -50,7 +50,8 @@ struct Delay_data_struct // DELAY_DATA_DIM byte
     uint16_t modulation_phase_LR;
     uint16_t loop_gain;
     uint16_t lpf_cutoff = LPF_MAX; // Index in the common cutoff table; old patches default to 20 kHz.
-    bool compressor = false; // Persisted in the existing FRAM Delay reserved bytes.
+    int8_t compressor_threshold = -6;
+    bool compressor = false; // Legacy stored flag retained for archive compatibility; playback uses compressor_threshold (-2 selects OFF).
 };
 static constexpr int DELAY_DATA_DIM = sizeof(Delay_data_struct);
 

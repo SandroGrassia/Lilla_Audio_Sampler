@@ -15,6 +15,7 @@ def source(name):
 
 prefix = r'''
 #define FLASHMEM
+#define PROGMEM
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -104,6 +105,48 @@ void Run(LillaCompressor &processor, int blocks, int left, int right, int feedba
 
 int main()
 {
+    for (auto profile : {LillaCompressor::Profile::LiveSampler, LillaCompressor::Profile::Delay})
+    {
+        LillaCompressor adjustable(profile);
+        adjustable.Set_enabled(true);
+        Run(adjustable, 150, 16000, -8000);
+        const int dry = adjustable.output[0].back();
+        adjustable.Clear_output();
+        adjustable.Set_threshold(-24);
+        Run(adjustable, 100, 16000, -8000);
+        assert(adjustable.output[0].back() < dry - 1000);
+        int previous = dry;
+        for (int sample : adjustable.output[0])
+        {
+            assert(std::abs(sample - previous) <= 16);
+            previous = sample;
+        }
+        adjustable.Set_threshold(-3);
+        Run(adjustable, 300, 16000, -8000);
+        assert(adjustable.output[0].back() >= dry - 24);
+        for (int db = -24; db <= -3; ++db)
+        {
+            adjustable.Set_threshold(db);
+            Run(adjustable, 1, 16000, -8000); // Retarget before the previous ramp ends.
+        }
+        adjustable.Set_threshold(LillaCompressor::THRESHOLD_OFF);
+        assert(!adjustable.Is_enabled());
+        Run(adjustable, 10, 32000, -31000);
+        assert(adjustable.output[0].back() == 32000 && adjustable.output[1].back() == -31000);
+        adjustable.Reset();
+        Run(adjustable, 10, 32000, -31000);
+        assert(adjustable.output[0].back() == 32000 && adjustable.output[1].back() == -31000);
+        adjustable.Set_threshold(-3);
+        assert(adjustable.Is_enabled());
+        for (int db : {-24, -3, -6})
+        {
+            adjustable.Set_threshold(db);
+            Run(adjustable, 100, 32767, -32768, 32767, -32768);
+            assert(std::abs(adjustable.output[0].back()) <= 29205);
+            assert(std::abs(adjustable.output[1].back()) <= 29205);
+        }
+    }
+
     // All eight sound buttons, including S3, capture without changing compression.
     for (int slot = 0; slot < INSTRUMENTS; ++slot)
     {
@@ -140,14 +183,15 @@ int main()
         assert(AudioStream::outstanding == 0);
     }
 
+    LS_Compressor.Set_enabled(true);
     pressed = EN_PB_Select;
     Handle_select();
-    assert(LS_Compressor.Is_enabled() && Display_LiveSampler.enabled);
+    assert(LS_Compressor.Is_enabled());
     Handle_select();
-    assert(!LS_Compressor.Is_enabled() && !Display_LiveSampler.enabled);
+    assert(LS_Compressor.Is_enabled());
     pressed = -1;
     Handle_select();
-    assert(!LS_Compressor.Is_enabled());
+    assert(LS_Compressor.Is_enabled());
 
     // Inactive updates drain all inputs without allocating or transmitting any output blocks.
     LillaCompressor inactive(LillaCompressor::Profile::LiveSampler);
@@ -316,7 +360,7 @@ LillaCompressor LS_Compressor(LillaCompressor::Profile::LiveSampler);
 struct DisplayStub
 {
     bool enabled = false;
-    void Compressor(bool value) { enabled = value; }
+    void Compressor(int) {}
 } Display_LiveSampler;
 bool Read_pushbutton(int button) { return button == pressed; }
 void AudioNoInterrupts() {}
@@ -328,7 +372,7 @@ void Handle_buttons()
 select_start = main_source.index('            case value_LS_Compressor:')
 select_end = main_source.index('            case value_LS_Window:', select_start)
 select_body = main_source[select_start:select_end].split(':', 1)[1].rsplit('break;', 1)[0]
-handler += '\nconstexpr int EN_PB_Select = 99;\nvoid Handle_select()\n{\n' + select_body + '\n}\n'
+handler += '\nconstexpr int EN_PB_Value = 98;\nbool Read_encoder_inverse(int, int &, int, int, int) { return false; }\nconstexpr int EN_PB_Select = 99;\nvoid Handle_select()\n{\n' + select_body + '\n}\n'
 recorder = (ROOT / 'lib/StereoLiveSampler/StereoLiveSampler.cpp').read_text(encoding='utf-8')
 guard_start = recorder.index('    static const int16_t silence')
 guard_end = recorder.index('    // microtimer', guard_start)

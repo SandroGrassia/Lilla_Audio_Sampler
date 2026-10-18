@@ -129,6 +129,21 @@ int main()
         Delay_data_struct loaded{};
         assert(archive.Read_Delay(197, loaded) == 0 && loaded.compressor == enabled);
     }
+    assert(actual.compressor_threshold == -6);
+    for (int db = -24; db <= -2; ++db)
+    {
+        actual.compressor_threshold = db;
+        assert(archive.Save_Delay(197, actual) == 0);
+        assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.reserved[3] == db + 25);
+        Delay_data_struct loaded{};
+        assert(archive.Read_Delay(197, loaded) == 0 && loaded.compressor_threshold == db);
+    }
+    stored.reserved[3] = 24;
+    assert(archive.FRAM_Write_delay(197, stored) == 0);
+    assert(archive.Read_Delay(197, actual) != 0 && actual.compressor_threshold == -2);
+    stored.reserved[3] = 0;
+    assert(archive.FRAM_Write_delay(197, stored) == 0);
+    assert(archive.Read_Delay(197, actual) == 0 && actual.compressor_threshold == -6);
     const auto before_invalid = actual;
     stored.reserved[1] = LPF_MAX + 2;
     assert(archive.FRAM_Write_delay(197, stored) == 0);

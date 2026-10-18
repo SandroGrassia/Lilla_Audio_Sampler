@@ -5,10 +5,9 @@
 
 namespace
 {
-constexpr std::array<float, 258> Make_gain_table(float ceiling)
+constexpr std::array<float, 258> Make_gain_table(float ceiling, float threshold)
 {
     std::array<float, 258> table = {};
-    constexpr float threshold = 16384.0f; // Compression starts at -6.02 dBFS.
     const float knee_end = 2.0f * ceiling - threshold;
     for (unsigned index = 0; index < table.size(); ++index)
     {
@@ -29,8 +28,9 @@ constexpr std::array<float, 258> Make_gain_table(float ceiling)
 }
 }
 
-// Constant-initialized LUT: no logarithms or curve construction in the audio interrupt.
-const std::array<float, 258> LillaCompressor::gain_table = Make_gain_table(CEILING);
+// One curve per dB from -24 to -3; amplitudes are 16384 * 10^((dB + 6) / 20), preserving the original -6 dB curve.
+// Constant-initialized LUTs: no logarithms or curve construction in the audio interrupt.
+PROGMEM const std::array<std::array<float, 258>, 22> LillaCompressor::gain_table = {Make_gain_table(CEILING, 2062.6233947f), Make_gain_table(CEILING, 2314.3015131f), Make_gain_table(CEILING, 2596.6890065f), Make_gain_table(CEILING, 2913.5329854f), Make_gain_table(CEILING, 3269.0377768f), Make_gain_table(CEILING, 3667.9207134f), Make_gain_table(CEILING, 4115.4747294f), Make_gain_table(CEILING, 4617.6385946f), Make_gain_table(CEILING, 5181.0757184f), Make_gain_table(CEILING, 5813.2625692f), Make_gain_table(CEILING, 6522.5878823f), Make_gain_table(CEILING, 7318.4639738f), Make_gain_table(CEILING, 8211.4516357f), Make_gain_table(CEILING, 9213.4002719f), Make_gain_table(CEILING, 10337.6051320f), Make_gain_table(CEILING, 11598.9837313f), Make_gain_table(CEILING, 13014.2737977f), Make_gain_table(CEILING, 14602.2553704f), Make_gain_table(CEILING, 16384.0000000f), Make_gain_table(CEILING, 18383.1503553f), Make_gain_table(CEILING, 20626.2339468f), Make_gain_table(CEILING, 23143.0151311f)};
 
 FLASHMEM
 LillaCompressor::LillaCompressor(Profile selected_profile) : AudioStream(4, input_queue), profile(selected_profile), lookahead(MAX_LOOKAHEAD), attack_step(1.0f / static_cast<float>(lookahead))
@@ -55,6 +55,30 @@ bool LillaCompressor::Is_enabled(void) const
     return enabled;
 }
 
+FLASHMEM
+void LillaCompressor::Set_threshold(int db)
+{
+    enabled = db != THRESHOLD_OFF;
+    if (db == threshold_db)
+    {
+        return;
+    }
+    threshold_db = db;
+    if (!enabled)
+    {
+        threshold_remaining = 0;
+        return;
+    }
+    threshold_remaining = static_cast<unsigned>(0.050f * AUDIO_SAMPLE_RATE_EXACT);
+    threshold_step = (static_cast<float>(db + 24) - threshold_position) / threshold_remaining;
+}
+
+FLASHMEM
+int LillaCompressor::Get_threshold(void) const
+{
+    return threshold_db;
+}
+
 float LillaCompressor::Required_gain(int32_t peak)
 {
     // Keep the largest peak in [now - lookahead, now], including the sample being emitted.
@@ -75,7 +99,17 @@ float LillaCompressor::Required_gain(int32_t peak)
     const int32_t maximum = peak_values[peak_head];
     const unsigned index = static_cast<unsigned>(maximum) >> 8;
     const float fraction = static_cast<float>(maximum & 255) / 256.0f;
-    float target = gain_table[index] + fraction * (gain_table[index + 1] - gain_table[index]);
+    if (threshold_remaining != 0)
+    {
+        --threshold_remaining;
+        threshold_position = threshold_remaining == 0 ? static_cast<float>(threshold_db + 24) : threshold_position + threshold_step;
+    }
+    // Interpolate adjacent curves sample by sample, continuing from the current position on retarget.
+    const unsigned curve = std::min(20u, static_cast<unsigned>(threshold_position));
+    const float blend = threshold_position - static_cast<float>(curve);
+    const float lower = gain_table[curve][index] + fraction * (gain_table[curve][index + 1] - gain_table[curve][index]);
+    const float upper = gain_table[curve + 1][index] + fraction * (gain_table[curve + 1][index + 1] - gain_table[curve + 1][index]);
+    float target = lower + blend * (upper - lower);
     if (maximum > CEILING)
     {
         target = std::min(target, CEILING / static_cast<float>(maximum)); // Bound interpolation error at the ceiling.
@@ -138,6 +172,8 @@ void LillaCompressor::Reset(void)
     peak_count = 0;
     sample_clock = 0;
     compressor_gain = 1.0f;
+    threshold_position = static_cast<float>(std::min(threshold_db, -3) + 24);
+    threshold_remaining = 0;
     bypass_position = enabled ? 1.0f : 0.0f;
     feedback_gain = feedback_target;
     processing = true;

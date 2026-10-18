@@ -12,7 +12,7 @@ def source(path):  # Read production code without firmware-only includes.
     return re.sub(r'^\s*#(?:include|pragma)[^\n]*', '', (ROOT / path).read_text(encoding='utf-8'), flags=re.M)
 
 def method(code, signature):  # Extract one complete production method for the hardware-free fixture.
-    match = re.search(r'^' + re.escape(signature) + r'.*?^}', code, re.M | re.S)
+    match = re.search(r'^' + re.escape(signature) + r'[^;\n]*\n\{.*?^}', code, re.M | re.S)
     if not match:
         raise RuntimeError('Missing production method: ' + signature)
     return match.group(0)
@@ -82,7 +82,7 @@ public:
     }
 };
 '''
-prefix += 'class LillaCompressor { public: bool enabled = false; void Set_enabled(bool value) { enabled = value; } };\n'
+prefix += 'class LillaCompressor { public: static constexpr int THRESHOLD_OFF = -2; int threshold = -6; void Set_threshold(int db) { threshold = db; enabled = db != THRESHOLD_OFF; } bool enabled = false; void Set_enabled(bool value) { enabled = value; } };\n'
 shared = source('lib/SharedDelay/SharedDelay.h') + source('lib/SharedDelay/SharedDelay.cpp')
 gain_header = source('lib/AudioGain/AudioGain.h').replace('private:', 'public:')
 gain_cpp = source('lib/AudioGain/AudioGain.cpp')
@@ -126,14 +126,17 @@ int main() {
  DelayManager &m = Delay_manager;
  LillaCompressor compressor;
  m.Compressor_ptr = &compressor;
- assert(m.Set_value(DELAY_COMPRESSOR, 1));
+ compressor.Set_enabled(true);
+ assert(m.Set_value(DELAY_THRESHOLD, -24));
  m.Update();
- assert(compressor.enabled && Delay_data.compressor);
+ assert(compressor.threshold == -24 && Delay_data.compressor_threshold == -24);
  Delay_data_struct compressor_patch = Delay_data;
  compressor_patch.compressor = false;
+ compressor_patch.compressor_threshold = -3;
  m.New_values(&compressor_patch);
  m.Update();
- assert(!compressor.enabled && !Delay_data.compressor);
+ assert(compressor.enabled); // Loading a legacy OFF patch must not disable compression.
+ assert(compressor.threshold == -3);
  AudioFilterBiquad filterL, filterR;
  m.D_lpf_L_ptr = &filterL; m.D_lpf_R_ptr = &filterR;
  m.Delay_L_ptr=&left; m.Delay_R_ptr=&right; m.LFO_D_ptr[0]=&lfoL; m.LFO_D_ptr[1]=&lfoR; m.D_gain_L_feedback_ptr=&gainL; m.D_gain_R_feedback_ptr=&gainR; m.Players_Manager_ptr=&players;

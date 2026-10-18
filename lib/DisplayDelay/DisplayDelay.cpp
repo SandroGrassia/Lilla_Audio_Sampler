@@ -1,3 +1,4 @@
+#include "LillaCompressor.h"
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
@@ -304,5 +305,14 @@ void DisplayDelay::D_feedback_compressor(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback_compressor[0]), display_coordinate_y(DELAY_column_row_feedback_compressor[1]), DELAY_chars_feedback_compressor);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Delay_data.compressor ? "ON" : "OFF");
+    if (Delay_data.compressor_threshold == LillaCompressor::THRESHOLD_OFF)
+    {
+        tft.print("OFF");
+    }
+    else
+    {
+        tft.print(Delay_data.compressor_threshold);
+        tft.setTextColor(ILI9341_ORANGE);
+        tft.print(" dB");
+    }
 }

@@ -4398,13 +4398,8 @@ void loop()
             }
             break;
         case value_DELAY_Compressor:
-            if (D_Read_value(DELAY_COMPRESSOR))
+            if (D_Read_value(DELAY_THRESHOLD))
             {
-                Display_Delay.D_feedback_compressor();
-            }
-            else if (Read_pushbutton(EN_PB_Value))
-            {
-                D_Set_value(DELAY_COMPRESSOR, !Delay_data.compressor);
                 Display_Delay.D_feedback_compressor();
             }
             break;
@@ -5043,14 +5038,14 @@ void loop()
             break;
             case value_LS_Compressor:
             {
-                if (Read_pushbutton(EN_PB_Select))
+                int threshold = LS_Compressor.Get_threshold();
+                if (Read_encoder_inverse(EN_PB_Value, threshold, LillaCompressor::THRESHOLD_OFF, -24, 1))
                 {
                     AudioNoInterrupts();
-                    const bool compressor_enabled = !LS_Compressor.Is_enabled();
-                    LS_Compressor.Set_enabled(compressor_enabled);
+                    LS_Compressor.Set_threshold(threshold);
                     AudioInterrupts();
 
-                    Display_LiveSampler.Compressor(compressor_enabled);
+                    Display_LiveSampler.Compressor(threshold);
                 }
             }
             break;
@@ -11038,10 +11033,10 @@ bool D_Read_value(int item) // Edit a requested value locally so the encoder nev
 {
     int value = Delay_manager.Get_value(item);
     const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
-    const int lowest = item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
-    const int highest = item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : (item == DELAY_COMPRESSOR ? 1 : 2));
-    // Clockwise increases the Right delay: negative offsets delay the right channel.
-    const bool changed = item == SAMPLES_LR ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
+    const int lowest = item == DELAY_THRESHOLD ? -24 : item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
+    const int highest = item == DELAY_THRESHOLD ? LillaCompressor::THRESHOLD_OFF : item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
+    // Clockwise lowers the compressor threshold or increases the Right delay through negative offsets.
+    const bool changed = (item == SAMPLES_LR || item == DELAY_THRESHOLD) ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
     if (!changed)
     {
         return false;
@@ -12947,6 +12942,7 @@ void Factory_setup_FRAM(void)
     Delay_data.modulation_phase_LR = 0;       // 0 --> 359 only for waveform
     Delay_data.loop_gain = 65;
     Delay_data.compressor = false;
+    Delay_data.compressor_threshold = -6;
     Delay_data.lpf_cutoff = LPF_MAX;
     Archive.Save_Delay(0, Delay_data);
 
@@ -15215,9 +15211,10 @@ void Startup_hardware_and_objects(void)
 
     // Setup Wavetable-s
 
-    // Setup stereo Live Sampler feedback and compressor (initially bypassed).
+    // Setup stereo Live Sampler feedback and the initial compression threshold.
     LS_Compressor.Recorder_ptr = &LiveSampler;
     LS_Compressor.Set_feedback(0);
+    LS_Compressor.Set_threshold(-6);
 
     // Setup Display (module)
     tft.begin();
@@ -15560,7 +15557,7 @@ void Reload_system_state(void)
 
     Archive.Read_Delay(Patch_id, Delay_data);
     Calc_Delay_values(Delay_data);
-    D_Compressor.Set_enabled(Delay_data.compressor);
+    D_Compressor.Set_threshold(Delay_data.compressor_threshold);
     D_Compressor.Reset();
 
     // Transmits data to Delay objects
