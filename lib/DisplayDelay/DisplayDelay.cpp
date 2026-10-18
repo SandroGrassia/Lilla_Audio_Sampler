@@ -121,6 +121,7 @@ void DisplayDelay::D_show_page()
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD PHASE L/R");
     D_modulation_phase_LR();
+    D_reverb();
     if (Lilla_state_0 == DIRECT_SAMPLING)
     {
         D_disabled();
@@ -314,5 +315,34 @@ void DisplayDelay::D_feedback_compressor(void)
         tft.print(Delay_data.compressor_threshold);
         tft.setTextColor(ILI9341_ORANGE);
         tft.print(" dB");
+    }
+}
+
+FLASHMEM void DisplayDelay::D_reverb(void)
+{
+    const char *labels[3] = {"REVERB LEVEL", "REVERB DECAY", "REVERB DAMP"};
+    for (int item = 0; item < 3; ++item)
+    {
+        tft.setCursor(display_coordinate_x(28), display_coordinate_y(12 + item));
+        tft.setTextColor(TEXT_COLOR);
+        tft.print(labels[item]);
+        Cancel_text_reset_cursor(display_coordinate_x(43), display_coordinate_y(12 + item), 6);
+        tft.setTextColor(ILI9341_YELLOW);
+        if (item == 0 && Delay_data.reverb_level == 0)
+        {
+            tft.print("OFF");
+        }
+        else if (item == 1)
+        {
+            tft.print(Delay_data.reverb_decay / 10);
+            tft.print('.');
+            tft.print(Delay_data.reverb_decay % 10);
+            tft.print(" s");
+        }
+        else
+        {
+            tft.print(item == 0 ? Delay_data.reverb_level : Delay_data.reverb_damping);
+            tft.print(" %");
+        }
     }
 }

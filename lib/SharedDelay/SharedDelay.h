@@ -33,10 +33,13 @@ enum Delay_parameters
         FEEDBACK_CUTOFF,
         INSTRUMENT_ROUTE,
         MODULATION_SOURCE,
-        DELAY_THRESHOLD
+        DELAY_THRESHOLD,
+        REVERB_LEVEL,
+        REVERB_DECAY,
+        REVERB_DAMPING
     };
 
-static constexpr int DELAY_ITEMS = 10; // all Delay parameters
+static constexpr int DELAY_ITEMS = 13; // all Delay parameters
 static constexpr int DELAY_LPF_ITEMS = 7; // Parameters through FEEDBACK_CUTOFF have independent smoothing.
 
 struct Delay_data_struct // DELAY_DATA_DIM byte
@@ -51,6 +54,9 @@ struct Delay_data_struct // DELAY_DATA_DIM byte
     uint16_t loop_gain;
     uint16_t lpf_cutoff = LPF_MAX; // Index in the common cutoff table; old patches default to 20 kHz.
     int8_t compressor_threshold = -6;
+    uint8_t reverb_level = 0; // 0: OFF, 100: wet only.
+    uint8_t reverb_decay = 15; // Tenths of a second.
+    uint8_t reverb_damping = 50; // Percent high-frequency damping.
     bool compressor = false; // Legacy stored flag retained for archive compatibility; playback uses compressor_threshold (-2 selects OFF).
 };
 static constexpr int DELAY_DATA_DIM = sizeof(Delay_data_struct);
@@ -96,7 +102,7 @@ void Print_Delay_data(const Delay_data_struct &data);
 void Print_Delay_values(Delay_values_struct Delay_values);
 
 // Pointer
-static constexpr int DELAY_element_names = 9;
+static constexpr int DELAY_element_names = 12;
 enum DELAY_element_name
 {
     value_DELAY_Feedback,
@@ -107,5 +113,8 @@ enum DELAY_element_name
     value_DELAY_Modulation_source,
     value_DELAY_Modulation_frequency,
     value_DELAY_Modulation_depth,
-    value_DELAY_Modulation_phase_LR
+    value_DELAY_Modulation_phase_LR,
+    value_DELAY_Reverb_level,
+    value_DELAY_Reverb_decay,
+    value_DELAY_Reverb_damping
 };

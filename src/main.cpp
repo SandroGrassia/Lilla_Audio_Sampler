@@ -123,6 +123,7 @@
 #include "StereoSampler.h"
 #include "StereoLiveSampler.h"
 #include "LillaCompressor.h"
+#include "LillaReverb.h"
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
 #include "CacheCycleFinalizer.h"
@@ -199,6 +200,7 @@ StereoDelay Delay_L;                                           // Process the le
 StereoDelay Delay_R;                                           // Process the right delay channel.
 
 WaveSine Tone_generator;            // Generate the reference tuning tone.
+LillaReverb D_Reverb; // Coupled L/R comb networks on the routed Delay branch, before the final mixers.
 AudioMixer4 mixer_L;                // Mix left delay, direct voice and tuning-tone signals.
 AudioMixer4 mixer_R;                // Mix right delay, direct voice and tuning-tone signals.
 AudioFilterBiquad biquad_L;         // Filter the left mixed output.
@@ -247,7 +249,8 @@ AudioConnection patchCord32(Player[15], 1, Router_R, 15);
 
 AudioConnection patchCord33(Router_L, 0, D_Compressor, 0);
 AudioConnection patchCord34(D_Compressor, 0, Delay_L, 0);
-AudioConnection patchCord35(D_Compressor, 0, mixer_L, 0);
+AudioConnection patchCord35(D_Compressor, 0, D_Reverb, 0);
+AudioConnection reverbCordL(D_Reverb, 0, mixer_L, 0);
 AudioConnection patchCord36(Delay_L, 0, D_lpf_L, 0);
 AudioConnection delayLpfCordL(D_lpf_L, 0, D_gain_L_feedback, 0);
 AudioConnection patchCord37(D_gain_L_feedback, 0, D_Compressor, 2);
@@ -255,7 +258,8 @@ AudioConnection patchCord38(Router_L, 0, Delay_L, 1);
 
 AudioConnection patchCord39(Router_R, 0, D_Compressor, 1);
 AudioConnection patchCord40(D_Compressor, 1, Delay_R, 0);
-AudioConnection patchCord41(D_Compressor, 1, mixer_R, 0);
+AudioConnection patchCord41(D_Compressor, 1, D_Reverb, 1);
+AudioConnection reverbCordR(D_Reverb, 1, mixer_R, 0);
 AudioConnection patchCord42(Delay_R, 0, D_lpf_R, 0);
 AudioConnection delayLpfCordR(D_lpf_R, 0, D_gain_R_n, 0);
 AudioConnection patchCord43(D_gain_R_n, 0, D_Compressor, 3);
@@ -1053,6 +1057,7 @@ void loop()
             Player[player].Panic_stop();
         }
         Delay_manager.Silence_feedback();
+        D_Reverb.Suspend(true);
         for (int local_track = 0; local_track < TRACKS; ++local_track)
         {
             LOOP_track_run[local_track] = false;
@@ -1083,6 +1088,8 @@ void loop()
         }
 
         AudioNoInterrupts();
+        D_Reverb.Reset();
+        D_Reverb.Suspend(false);
         Delay_manager.Restore_feedback(); // Restore the current setting, including unsaved edits, before accepting new notes.
         if (resume_midi)
         {
@@ -4395,6 +4402,14 @@ void loop()
             if (D_Read_value(LOOP_GAIN))
             {
                 Display_Delay.D_feedback();
+            }
+            break;
+        case value_DELAY_Reverb_level:
+        case value_DELAY_Reverb_decay:
+        case value_DELAY_Reverb_damping:
+            if (D_Read_value(REVERB_LEVEL + DELAY_local_pointer - value_DELAY_Reverb_level))
+            {
+                Display_Delay.D_reverb();
             }
             break;
         case value_DELAY_Compressor:
@@ -11033,8 +11048,8 @@ bool D_Read_value(int item) // Edit a requested value locally so the encoder nev
 {
     int value = Delay_manager.Get_value(item);
     const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
-    const int lowest = item == DELAY_THRESHOLD ? -24 : item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
-    const int highest = item == DELAY_THRESHOLD ? LillaCompressor::THRESHOLD_OFF : item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
+    const int lowest = item >= REVERB_LEVEL ? (item == REVERB_DECAY ? 2 : 0) : item == DELAY_THRESHOLD ? -24 : item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
+    const int highest = item >= REVERB_LEVEL ? (item == REVERB_DECAY ? 50 : 100) : item == DELAY_THRESHOLD ? LillaCompressor::THRESHOLD_OFF : item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
     // Clockwise lowers the compressor threshold or increases the Right delay through negative offsets.
     const bool changed = (item == SAMPLES_LR || item == DELAY_THRESHOLD) ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
     if (!changed)
@@ -12943,6 +12958,9 @@ void Factory_setup_FRAM(void)
     Delay_data.loop_gain = 65;
     Delay_data.compressor = false;
     Delay_data.compressor_threshold = -6;
+    Delay_data.reverb_level = 0;
+    Delay_data.reverb_decay = 15;
+    Delay_data.reverb_damping = 50;
     Delay_data.lpf_cutoff = LPF_MAX;
     Archive.Save_Delay(0, Delay_data);
 
@@ -15225,6 +15243,7 @@ void Startup_hardware_and_objects(void)
 
     // DelayManager
     Delay_manager.Compressor_ptr = &D_Compressor;
+    Delay_manager.Reverb_ptr = &D_Reverb;
     Delay_manager.Delay_L_ptr = &Delay_L;
     Delay_manager.Delay_R_ptr = &Delay_R;
     Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
@@ -15534,6 +15553,8 @@ void Reload_system_state(void)
     // Delay objects setup
     Delay_L.DELAY_fifo = DELAY_fifo_L;
     Delay_R.DELAY_fifo = DELAY_fifo_R;
+    static_assert(DELAY_CACHE_ACTIVE_SAMPLES + LillaReverb::CHANNEL_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES);
+    D_Reverb.Setup(DELAY_fifo_L + DELAY_CACHE_ACTIVE_SAMPLES, DELAY_fifo_R + DELAY_CACHE_ACTIVE_SAMPLES);
 
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
     if (false)
@@ -15559,6 +15580,8 @@ void Reload_system_state(void)
     Calc_Delay_values(Delay_data);
     D_Compressor.Set_threshold(Delay_data.compressor_threshold);
     D_Compressor.Reset();
+    D_Reverb.Set_parameters(Delay_data.reverb_level, Delay_data.reverb_decay, Delay_data.reverb_damping);
+    D_Reverb.Reset();
 
     // Transmits data to Delay objects
     Delay_L.Setup_delay(Delay_values.samples + (Delay_values.samples_LR > 0 ? Delay_values.samples_LR : 0)); // Restore the same signed left offset used by runtime parameter changes.

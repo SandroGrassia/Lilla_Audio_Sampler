@@ -59,6 +59,10 @@ bool Capture_pending(int file) { return file == pending_file; }
 struct InfoStub { int Raw_file_samples(int) { return 100000; } } Info;
 """
 tests = r"""
+bool Equal_delay(const Delay_data_struct &a, const Delay_data_struct &b)
+{
+    return a.samples == b.samples && a.samples_LR == b.samples_LR && a.instrument_route == b.instrument_route && a.modulation_source == b.modulation_source && a.modulation_depth == b.modulation_depth && a.modulation_frequency == b.modulation_frequency && a.modulation_phase_LR == b.modulation_phase_LR && a.loop_gain == b.loop_gain && a.lpf_cutoff == b.lpf_cutoff && a.compressor_threshold == b.compressor_threshold && a.compressor == b.compressor && a.reverb_level == b.reverb_level && a.reverb_decay == b.reverb_decay && a.reverb_damping == b.reverb_damping;
+}
 int main()
 {
     ArchivingManager archive;
@@ -87,6 +91,9 @@ int main()
     Delay_data_struct delay{99, -10, 0xA5, 2, 39, 90, 359, 5};
     delay.lpf_cutoff = 20;
     delay.compressor = true;
+    delay.reverb_level = 37;
+    delay.reverb_decay = 28;
+    delay.reverb_damping = 72;
     assert(archive.Save_Delay(199, delay) == 0);
     assert(archive.Save_Patch(199) == 0);
     const auto expected = Patch[199];
@@ -97,11 +104,13 @@ int main()
     assert(actual.samples == delay.samples && actual.samples_LR == delay.samples_LR && actual.instrument_route == delay.instrument_route);
     assert(actual.modulation_source == delay.modulation_source && actual.modulation_depth == delay.modulation_depth && actual.modulation_frequency == delay.modulation_frequency && actual.modulation_phase_LR == delay.modulation_phase_LR);
     assert(actual.loop_gain == delay.loop_gain && actual.lpf_cutoff == delay.lpf_cutoff && actual.compressor == delay.compressor); // Compare fields, not runtime-struct padding.
+    assert(Equal_delay(actual, delay));
     ArchivingManager::FRAM_Patch_delay_struct old_delay{};
     old_delay.samples = 20;
     old_delay.loop_gain = 5;
     assert(archive.FRAM_Write_delay(197, old_delay) == 0);
     assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX && !actual.compressor);
+    assert(actual.reverb_level == 0 && actual.reverb_decay == 15 && actual.reverb_damping == 50);
     ArchivingManager::FRAM_Patch_delay_struct stored{};
     assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 20 && stored.reserved[0] == 0);
     assert(archive.Save_Delay(197, actual) == 0);
@@ -144,11 +153,20 @@ int main()
     stored.reserved[3] = 0;
     assert(archive.FRAM_Write_delay(197, stored) == 0);
     assert(archive.Read_Delay(197, actual) == 0 && actual.compressor_threshold == -6);
+    for (int index : {4, 5, 6})
+    {
+        assert(archive.Save_Delay(197, actual) == 0);
+        assert(archive.FRAM_Read_delay(197, stored) == 0);
+        stored.reserved[index] = 255;
+        assert(archive.FRAM_Write_delay(197, stored) == 0);
+        const auto previous = actual;
+        assert(archive.Read_Delay(197, actual) != 0 && Equal_delay(actual, previous));
+    }
     const auto before_invalid = actual;
     stored.reserved[1] = LPF_MAX + 2;
     assert(archive.FRAM_Write_delay(197, stored) == 0);
     assert(archive.Read_Delay(197, actual) != 0);
-    assert(memcmp(&actual, &before_invalid, sizeof(actual)) == 0);
+    assert(Equal_delay(actual, before_invalid));
     assert(archive.Save_Sound(800) == 11 && archive.Save_Patch(200) == 11);
     File wire{std::make_shared<std::vector<uint8_t>>()};
     assert(archive.Copy_Patch_from_RAM_to_SD(199, wire));
@@ -224,7 +242,7 @@ int main()
     LillaFram.clear_io();
     LillaFram.memory[0x100 + 199 * 192] ^= 1;
     actual = delay;
-    assert(archive.Read_Delay(199, actual) == 12 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    assert(archive.Read_Delay(199, actual) == 12 && Equal_delay(actual, delay));
     // New capture delay remains in RAM and pending audio cannot reach persistent metadata.
     LillaFram.clear_io();
     Capture_new_patch = 198;
@@ -232,7 +250,7 @@ int main()
     const auto before_capture = LillaFram.memory;
     assert(archive.Save_Delay(198, delay) == 0);
     actual = {};
-    assert(archive.Read_Delay(198, actual) == 0 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    assert(archive.Read_Delay(198, actual) == 0 && Equal_delay(actual, delay));
     assert(LillaFram.memory == before_capture);
     Patch[198] = expected;
     pending_file = Sound[799].file;
@@ -250,7 +268,7 @@ int main()
     pending_file = -1;
     assert(archive.Save_Sound(799) == 0 && archive.Save_Patch(198) == 0 && Capture_new_patch == -1);
     actual = {};
-    assert(archive.Read_Delay(198, actual) == 0 && memcmp(&actual, &delay, sizeof(delay)) == 0);
+    assert(archive.Read_Delay(198, actual) == 0 && Equal_delay(actual, delay));
     std::puts("PASS: runtime high IDs, signed fields, Delay preservation, SD round trip, padded legacy import and atomic rejection");
 }
 """

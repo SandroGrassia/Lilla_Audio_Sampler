@@ -60,7 +60,8 @@ flowchart TD
     Voices[16 AudioPlayer voices] --> Routers[Left and right 16-to-3 routers]
     Routers --> Delay[Delay send and stereo feedback paths]
     Routers --> Dry[Dry main mix]
-    Delay --> Dry
+    Delay --> Reverb[Coupled stereo four-comb reverb]
+    Reverb --> Dry
     Tone[Tuning tone] --> Dry
     Dry --> Filter[Common biquad filters]
     Filter --> Main[Main output mixers]
@@ -89,11 +90,21 @@ Each feedback path has its own `AudioFilterBiquad` (`D_lpf_L` and `D_lpf_R`), co
 
 `DELAY TIME L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, so it becomes zero at the maximum 2-second base delay.
 
-`D_Compressor`, an instance of [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) with `Profile::Delay`, replaces the two saturating input/feedback mixers. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed the main mix, preserving the existing routing. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
+`D_Compressor`, an instance of [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) with `Profile::Delay`, replaces the two saturating input/feedback mixers. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed `D_Reverb`, whose stereo outputs feed the main mix. The routed dry branch bypasses both effects. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
 
 The compressor uses a 258-entry soft-knee gain table, a -6.02 dBFS threshold, an approximately -1 dBFS ceiling, 32 samples of lookahead (about 0.73 ms), and a 100 ms exponential release. The lookahead is retained in bypass and is additional to the configured cache delay; ON/OFF uses a 10 ms smooth crossfade. The Delay page lists `FEEDBACK`, `FEED LPF`, `FEED COMPRESSOR`, `DELAY TIME` and `DELAY TIME L/R` in that order. `FEED COMPRESSOR` is editable with the value encoder or its pushbutton; Live Sampler routing is labeled `LIVE SAMPLER`.
 
 The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. `reserved[2]` stores compressor OFF/ON as 0/1; older patches remain bypassed. Invalid encoded cutoff or compressor values are rejected when loading.
+
+### Stereo reverb on the Delay branch
+
+`LillaReverb` processes two four-comb networks in one stereo audio callback. `D_Compressor` outputs feed both the Delay caches and the reverb inputs; only the reverb outputs feed `mixer_L/R` input 0. The reverb is outside the Delay feedback loop. Router output 1 and the tuning tone still feed the mixers directly. The reverb is included in the downstream Live Sampler return.
+
+Each channel borrows 16384 int16 storage slots immediately after `DELAY_CACHE_ACTIVE_SAMPLES` in its existing 20-second Delay allocation (64 KiB total, no increase in PSRAM allocation). Static assertions ensure the active Delay and reverb regions do not overlap or exceed the allocation. Four fixed, unequal delay lengths per channel are processed with individual low-pass feedback histories. Each sample is stored as a 32-bit float across two reserved int16 slots using `memcpy`, avoiding aliasing and repeated 16-bit quantization in the feedback. Feedback mixes 85% of the same-channel history and 15% of the opposite-channel history. Both histories are read before either feedback write, avoiding audio-object scheduling asymmetry.
+
+The Delay page exposes `REVERB LEVEL` (0/OFF to 100% wet mix), `REVERB DECAY` (0.2?5.0 seconds nominal low-frequency decay), and `REVERB DAMP` (0?100%). Internal feedback coefficients, damping and mix follow approximately 50 ms exponential smoothing. Comb injection is normalized for decorrelated feedback energy, including the 85/15 cross-channel coupling, and the four comb outputs use a 1/sqrt(4) sum factor. This replaces DC normalization, which made long-decay wet output excessively quiet. A stereo-linked 32-sample lookahead peak guard bounds the wet output at 30000 before the linear dry/wet mix; the dry path remains unaltered at OFF. The feedback buffers retain floating-point precision; only the final mixed output is converted to 16 bits. No allpass diffusion stages are included in this first version.
+
+The existing FRAM Delay record size is unchanged: reserved bytes 4, 5 and 6 store level plus one, decay in tenths of a second, and damping plus one. Legacy zeros load OFF, 1.5 seconds and 50% damping. Panic suspends reverb writes while the shared Delay arrays are cleared, then resets comb positions and filter histories before resuming. Host tests cover stereo crossfeed, tail decay, full-scale boundedness, exact settled OFF, reset, buffer boundaries and allocation failure. CPU margin under maximum polyphony still requires measurement on hardware.
 
 ## 4. Patch, sound and voice model
 

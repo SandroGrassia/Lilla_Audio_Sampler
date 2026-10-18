@@ -81,7 +81,10 @@ private:
         {DELAY_column_row_modulation_source[0], DELAY_column_row_modulation_source[1]},
         {DELAY_column_row_modulation_frequency[0], DELAY_column_row_modulation_frequency[1]},
         {DELAY_column_row_modulation_depth[0], DELAY_column_row_modulation_depth[1]},
-        {DELAY_column_row_modulation_phase_LR[0], DELAY_column_row_modulation_phase_LR[1]}};
+        {DELAY_column_row_modulation_phase_LR[0], DELAY_column_row_modulation_phase_LR[1]},
+        {43, 12},
+        {43, 13},
+        {43, 14}};
 
     static constexpr int DELAY_chars_element[DELAY_element_names] = {
         DELAY_chars_feedback,
@@ -92,7 +95,8 @@ private:
         DELAY_chars_modulation_source,
         DELAY_chars_modulation_frequency,
         DELAY_chars_modulation_depth,
-        DELAY_chars_modulation_phase_LR};
+        DELAY_chars_modulation_phase_LR,
+        6, 6, 6};
 
 public:
     DisplayDelay() {}
@@ -102,6 +106,7 @@ public:
     void D_sounds(void); // Display the requested setting, independently of intermediate DSP values.
     void D_feedback(void);             // feedback
     void D_feedback_compressor(void);
+    void D_reverb(void);
     void D_feedback_lpf(void);           // Feedback cutoff in integer Hz within seven characters.
     void D_delay_time(void);           // Display the requested setting, independently of intermediate DSP values.
     void D_delay_time_LR(void);        // Display the requested setting, independently of intermediate DSP values.
