@@ -72,7 +72,7 @@ FLASHMEM uint32_t Get_flash_occupation(void); // Sum the sizes of files stored i
 */
 
 // Delay cache (for each channel)
-static constexpr int DELAY_CACHE_SECONDS = 20; // each channel
+static constexpr int DELAY_CACHE_SECONDS = 2; // Maximum delay time per channel.
 static constexpr int DELAY_CACHE_CHANNEL_SAMPLES = ceil(DELAY_CACHE_SECONDS * AUDIO_SAMPLE_RATE / AUDIO_BLOCK_SAMPLES) * AUDIO_BLOCK_SAMPLES + AUDIO_BLOCK_SAMPLES;
 
 // Live sampler cache: must be multiple of AUDIO_BLOCK_SAMPLES samples (256 byte)
@@ -89,8 +89,10 @@ static constexpr int LS_CACHE_MONO_SAMPLES = LS_CACHE_TOTAL_SAMPLES;
 // Cache per copia .raw file
 static constexpr uint32_t PSRAM_TOTAL_SAMPLES = (32 * 1024 * 1024) / 2;
 static constexpr uint32_t PSRAM_MINIMUM_FREE_SAMPLES = 500;
+static constexpr uint32_t PSRAM_FUTURE_USE_RESERVE_BYTES = 3174912; // Unallocated space recovered from the former 20-second Delay buffers; excluded from every application.
+static constexpr uint32_t PSRAM_FUTURE_USE_RESERVE_SAMPLES = PSRAM_FUTURE_USE_RESERVE_BYTES / sizeof(int16_t);
 static constexpr uint8_t PATCH_CACHE_ARRAY_COUNT = INSTRUMENTS + 1;
-static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
+static constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES = (PSRAM_TOTAL_SAMPLES - PSRAM_MINIMUM_FREE_SAMPLES - PSRAM_FUTURE_USE_RESERVE_SAMPLES - LS_CACHE_TOTAL_SAMPLES - 2 * DELAY_CACHE_CHANNEL_SAMPLES) / PATCH_CACHE_ARRAY_COUNT;
 static constexpr uint32_t PATCH_CACHE_ARRAY_BYTES = PATCH_CACHE_ARRAY_SAMPLES * 2;
 extern volatile uint32_t audio_update_cycle; // Advances every audio cycle, including paused control callbacks.
 extern elapsedMicros audio_update_time_micros; // Shared elapsed time from Trigger: Player protection, crossfades and background copies.

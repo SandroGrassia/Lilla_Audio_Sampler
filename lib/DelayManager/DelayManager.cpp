@@ -9,12 +9,6 @@ int DelayManager::Get_value(int item) const // Keep requested values separate fr
 {
     switch (item)
     {
-    case REVERB_LEVEL:
-        return Delay_data.reverb_level;
-    case REVERB_DECAY:
-        return Delay_data.reverb_decay;
-    case REVERB_DAMPING:
-        return Delay_data.reverb_damping;
     case DELAY_THRESHOLD:
         return Delay_data.compressor_threshold;
     case SAMPLES:
@@ -50,10 +44,6 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     {
         value = constrain(value, Delay_data_limits[item][0], Delay_data_limits[item][1]);
     }
-    else if (item >= REVERB_LEVEL)
-    {
-        value = constrain(value, 0, item == REVERB_DECAY ? 50 : 100);
-    }
     else if (item == DELAY_THRESHOLD)
     {
         value = constrain(value, -24, LillaCompressor::THRESHOLD_OFF);
@@ -73,15 +63,6 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     }
     switch (item)
     {
-    case REVERB_LEVEL:
-        Delay_data.reverb_level = value;
-        break;
-    case REVERB_DECAY:
-        Delay_data.reverb_decay = value;
-        break;
-    case REVERB_DAMPING:
-        Delay_data.reverb_damping = value;
-        break;
     case DELAY_THRESHOLD:
         Delay_data.compressor_threshold = value;
         break;
@@ -127,9 +108,6 @@ bool DelayManager::New_values(const Delay_data_struct *data) // Publish a stable
 {
     const Delay_data_struct target = *data;
     bool pending = false;
-    pending |= Set_value(REVERB_LEVEL, target.reverb_level);
-    pending |= Set_value(REVERB_DECAY, target.reverb_decay);
-    pending |= Set_value(REVERB_DAMPING, target.reverb_damping);
     pending |= Set_value(DELAY_THRESHOLD, target.compressor_threshold);
     pending |= Set_value(SAMPLES, target.samples);
     pending |= Set_value(SAMPLES_LR, target.samples_LR);
@@ -155,11 +133,6 @@ void DelayManager::Apply_delay_times(void) // Restore the unshifted channel when
 
 void DelayManager::Update(void) // Apply independent transitions once per audio block and clear completed flags.
 {
-    if (flag[REVERB_LEVEL] || flag[REVERB_DECAY] || flag[REVERB_DAMPING])
-    {
-        Reverb_ptr->Set_parameters(Delay_data.reverb_level, Delay_data.reverb_decay, Delay_data.reverb_damping);
-        flag[REVERB_LEVEL] = flag[REVERB_DECAY] = flag[REVERB_DAMPING] = false;
-    }
     if (flag[DELAY_THRESHOLD])
     {
         Compressor_ptr->Set_threshold(Delay_data.compressor_threshold);

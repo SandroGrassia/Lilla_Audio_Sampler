@@ -45,7 +45,7 @@ void Setup_GATE_pins(void);
 
 // MAIN CONSTANTS
 static constexpr int AUDIO_CYCLE_BUDGET_US = 2900; // Conservative block budget for 128 samples at 44.1 kHz.
-static constexpr int AUDIO_POST_PLAYER_RESERVE_US = 800; // Provisional effects reserve after measuring a 416 us reverb peak; includes added diffusion and other downstream work, pending hardware validation.
+static constexpr int AUDIO_POST_PLAYER_RESERVE_US = 200; // Restored downstream margin for the audio chain without reverb; validate under worst-case hardware load.
 static constexpr int AUDIO_PLAYER_DEADLINE_US = AUDIO_CYCLE_BUDGET_US - AUDIO_POST_PLAYER_RESERVE_US; // Emergency cutoff measured from Trigger, including MIDI preparation.
 static constexpr int PLAYERS = 16;
 static constexpr int INSTRUMENTS = 8;   // mux number of Instruments per Patch

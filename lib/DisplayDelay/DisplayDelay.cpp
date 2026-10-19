@@ -121,7 +121,6 @@ void DisplayDelay::D_show_page()
     tft.setTextColor(TEXT_COLOR);
     tft.print("MOD PHASE L/R");
     D_modulation_phase_LR();
-    D_reverb();
     if (Lilla_state_0 == DIRECT_SAMPLING)
     {
         D_disabled();
@@ -318,43 +317,4 @@ void DisplayDelay::D_feedback_compressor(void)
         tft.setTextColor(ILI9341_ORANGE);
         tft.print("dB");
     }
-}
-
-FLASHMEM void DisplayDelay::D_reverb(void)
-{
-    tft.setCursor(display_coordinate_x(DELAY_column_row_REVERB_LEVEL[0]), display_coordinate_y(DELAY_column_row_REVERB_LEVEL[1]));
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("REVERB LEVEL");
-    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_reverb_level[0]), display_coordinate_y(DELAY_column_row_reverb_level[1]), DELAY_chars_reverb_level);
-    tft.setTextColor(ILI9341_YELLOW);
-    if (Delay_data.reverb_level == 0)
-    {
-        tft.print("OFF");
-    }
-    else
-    {
-        tft.print(Delay_data.reverb_level);
-        tft.setTextColor(ILI9341_ORANGE);
-        tft.print("%");
-    }
-
-    tft.setCursor(display_coordinate_x(DELAY_column_row_REVERB_DECAY[0]), display_coordinate_y(DELAY_column_row_REVERB_DECAY[1]));
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("REVERB DECAY");
-    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_reverb_decay[0]), display_coordinate_y(DELAY_column_row_reverb_decay[1]), DELAY_chars_reverb_decay);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Delay_data.reverb_decay / 10);
-    tft.print('.');
-    tft.print(Delay_data.reverb_decay % 10);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("s");
-
-    tft.setCursor(display_coordinate_x(DELAY_column_row_REVERB_DAMPING[0]), display_coordinate_y(DELAY_column_row_REVERB_DAMPING[1]));
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("REVERB DUMPING");
-    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_reverb_damping[0]), display_coordinate_y(DELAY_column_row_reverb_damping[1]), DELAY_chars_reverb_damping);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.print(Delay_data.reverb_damping);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("%");
 }

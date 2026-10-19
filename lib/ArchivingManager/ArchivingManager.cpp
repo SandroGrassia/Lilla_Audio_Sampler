@@ -1468,13 +1468,6 @@ byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_dat
     {
         return FRAM_ERROR_SOURCE;
     }
-    if (source.reserved[4] > 101 || source.reserved[5] > 51 || source.reserved[6] > 101)
-    {
-        return FRAM_ERROR_SOURCE;
-    }
-    candidate.reverb_level = source.reserved[4] == 0 ? 0 : source.reserved[4] - 1;
-    candidate.reverb_decay = source.reserved[5] == 0 ? 15 : (source.reserved[5] == 51 ? 0 : source.reserved[5]);
-    candidate.reverb_damping = source.reserved[6] == 0 ? 50 : source.reserved[6] - 1;
     candidate.compressor_threshold = source.reserved[3] == 0 ? -6 : static_cast<int>(source.reserved[3]) - 25;
     candidate.compressor = source.reserved[2] != 0; // Legacy zero-filled reserved storage means bypass.
     candidate.lpf_cutoff = source.reserved[1] == 0 ? LPF_MAX : source.reserved[1] - 1;
@@ -1508,9 +1501,6 @@ byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &del
     destination.loop_gain = delay_data.loop_gain;
     destination.reserved[2] = delay_data.compressor ? 1 : 0;
     destination.reserved[3] = delay_data.compressor_threshold + 25;
-    destination.reserved[4] = delay_data.reverb_level + 1;
-    destination.reserved[5] = delay_data.reverb_decay == 0 ? 51 : delay_data.reverb_decay; // Keep zero reserved for the legacy 1.5-second default.
-    destination.reserved[6] = delay_data.reverb_damping + 1;
     destination.reserved[0] = 1; // Delay encoding: stepped time and integer feedback percent.
     destination.reserved[1] = delay_data.lpf_cutoff + 1; // Zero denotes a legacy patch without a feedback cutoff.
     return FRAM_Write_delay(patch_id, destination);

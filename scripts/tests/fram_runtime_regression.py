@@ -42,7 +42,8 @@ delay_header = (base["ROOT"] / "lib/SharedDelay/SharedDelay.h").read_text(encodi
 elements = (base["ROOT"] / "lib/SharedElements/SharedElements.h").read_text(encoding="utf-8")
 mock += re.search(r"static constexpr int LPF_MAX = \d+;", elements).group(0) + "\n"
 mock += delay_header[delay_header.index("struct Delay_data_struct"):delay_header.index("static constexpr int DELAY_DATA_DIM")]
-mock += '\n#include <cmath>\n#define constrain(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))\nconstexpr float AUDIO_SAMPLE_RATE = 44100.0f;\nconstexpr int AUDIO_BLOCK_SAMPLES = 128;\nconstexpr int DELAY_CACHE_CHANNEL_SAMPLES = 882128;\n'
+mock += '\n#include <cmath>\n#define constrain(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))\nconstexpr float AUDIO_SAMPLE_RATE = 44100.0f;\nconstexpr int AUDIO_BLOCK_SAMPLES = 128;\n'
+mock += '\n'.join(line for line in elements.splitlines() if line.startswith('static constexpr int DELAY_CACHE_SECONDS =') or line.startswith('static constexpr int DELAY_CACHE_CHANNEL_SAMPLES =')) + '\n'
 mock += delay_header[delay_header.index("static constexpr int DELAY_CACHE_ACTIVE_SECONDS"):delay_header.index("static constexpr float depth_array")]
 mock += '\nint Calc_delay_samples(int value);\nint Calc_delay_time_tenths(int value);\n'
 delay_source = (base["ROOT"] / "lib/SharedDelay/SharedDelay.cpp").read_text(encoding="utf-8")
@@ -61,7 +62,7 @@ struct InfoStub { int Raw_file_samples(int) { return 100000; } } Info;
 tests = r"""
 bool Equal_delay(const Delay_data_struct &a, const Delay_data_struct &b)
 {
-    return a.samples == b.samples && a.samples_LR == b.samples_LR && a.instrument_route == b.instrument_route && a.modulation_source == b.modulation_source && a.modulation_depth == b.modulation_depth && a.modulation_frequency == b.modulation_frequency && a.modulation_phase_LR == b.modulation_phase_LR && a.loop_gain == b.loop_gain && a.lpf_cutoff == b.lpf_cutoff && a.compressor_threshold == b.compressor_threshold && a.compressor == b.compressor && a.reverb_level == b.reverb_level && a.reverb_decay == b.reverb_decay && a.reverb_damping == b.reverb_damping;
+    return a.samples == b.samples && a.samples_LR == b.samples_LR && a.instrument_route == b.instrument_route && a.modulation_source == b.modulation_source && a.modulation_depth == b.modulation_depth && a.modulation_frequency == b.modulation_frequency && a.modulation_phase_LR == b.modulation_phase_LR && a.loop_gain == b.loop_gain && a.lpf_cutoff == b.lpf_cutoff && a.compressor_threshold == b.compressor_threshold && a.compressor == b.compressor;
 }
 int main()
 {
@@ -92,9 +93,6 @@ int main()
     Delay_data_struct delay{99, -10, 0xA5, 2, 39, 90, 359, 5};
     delay.lpf_cutoff = 20;
     delay.compressor = true;
-    delay.reverb_level = 37;
-    delay.reverb_decay = 28;
-    delay.reverb_damping = 72;
     assert(archive.Save_Delay(199, delay) == 0);
     assert(archive.Save_Patch(199) == 0);
     const auto expected = Patch[199];
@@ -106,18 +104,22 @@ int main()
     assert(actual.modulation_source == delay.modulation_source && actual.modulation_depth == delay.modulation_depth && actual.modulation_frequency == delay.modulation_frequency && actual.modulation_phase_LR == delay.modulation_phase_LR);
     assert(actual.loop_gain == delay.loop_gain && actual.lpf_cutoff == delay.lpf_cutoff && actual.compressor == delay.compressor); // Compare fields, not runtime-struct padding.
     assert(Equal_delay(actual, delay));
-    for (int decay = 0; decay <= 50; ++decay)
-    {
-        delay.reverb_decay = decay;
-        assert(archive.Save_Delay(199, delay) == 0);
-        assert(archive.Read_Delay(199, actual) == 0 && Equal_delay(actual, delay));
-    }
+    ArchivingManager::FRAM_Patch_delay_struct previous{};
+    assert(archive.FRAM_Read_delay(199, previous) == 0);
+    previous.reserved[4] = 255;
+    previous.reserved[5] = 255;
+    previous.reserved[6] = 255;
+    assert(archive.FRAM_Write_delay(199, previous) == 0);
+    assert(archive.Read_Delay(199, actual) == 0 && Equal_delay(actual, delay));
+    assert(archive.Save_Delay(199, actual) == 0);
+    assert(archive.FRAM_Read_delay(199, previous) == 0);
+    assert(previous.reserved[4] == 0 && previous.reserved[5] == 0 && previous.reserved[6] == 0);
+
     ArchivingManager::FRAM_Patch_delay_struct old_delay{};
     old_delay.samples = 20;
     old_delay.loop_gain = 5;
     assert(archive.FRAM_Write_delay(197, old_delay) == 0);
     assert(archive.Read_Delay(197, actual) == 0 && actual.samples == 24 && actual.loop_gain == 65 && actual.lpf_cutoff == LPF_MAX && !actual.compressor);
-    assert(actual.reverb_level == 0 && actual.reverb_decay == 15 && actual.reverb_damping == 50);
     ArchivingManager::FRAM_Patch_delay_struct stored{};
     assert(archive.FRAM_Read_delay(197, stored) == 0 && stored.samples == 20 && stored.reserved[0] == 0);
     assert(archive.Save_Delay(197, actual) == 0);
@@ -167,7 +169,7 @@ int main()
         stored.reserved[index] = 255;
         assert(archive.FRAM_Write_delay(197, stored) == 0);
         const auto previous = actual;
-        assert(archive.Read_Delay(197, actual) != 0 && Equal_delay(actual, previous));
+        assert(archive.Read_Delay(197, actual) == 0 && Equal_delay(actual, previous));
     }
     const auto before_invalid = actual;
     stored.reserved[1] = LPF_MAX + 2;

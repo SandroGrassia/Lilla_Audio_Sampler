@@ -82,7 +82,6 @@ public:
     }
 };
 '''
-prefix += 'class LillaReverb { public: void Set_parameters(int, int, int) {} };\n'
 prefix += 'class LillaCompressor { public: static constexpr int THRESHOLD_OFF = -2; int threshold = -6; void Set_threshold(int db) { threshold = db; enabled = db != THRESHOLD_OFF; } bool enabled = false; void Set_enabled(bool value) { enabled = value; } };\n'
 shared = source('lib/SharedDelay/SharedDelay.h') + source('lib/SharedDelay/SharedDelay.cpp')
 gain_header = source('lib/AudioGain/AudioGain.h').replace('private:', 'public:')
@@ -132,8 +131,6 @@ int main() {
  AudioGain gainL,gainR;
  PlayersManager players;
  DelayManager &m = Delay_manager;
- LillaReverb reverb;
- m.Reverb_ptr = &reverb;
  LillaCompressor compressor;
  m.Compressor_ptr = &compressor;
  compressor.Set_enabled(true);
@@ -399,46 +396,6 @@ int main() {
  m.Set_value(LOOP_GAIN, 50);
  Encoders_manager.rotation = 1;
  assert(D_Read_value(LOOP_GAIN) && Delay_data.loop_gain == 51);
- m.Set_value(REVERB_LEVEL, 0);
- Encoders_manager.rotation = 1;
- assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 5);
- m.Set_value(REVERB_LEVEL, 100);
- Encoders_manager.rotation = 1;
- assert(!D_Read_value(REVERB_LEVEL));
- m.Set_value(REVERB_DECAY, 0);
- Encoders_manager.rotation = -1;
- assert(!D_Read_value(REVERB_DECAY));
- m.Set_value(REVERB_DAMPING, 50);
- Encoders_manager.rotation = -1;
- assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 40);
- value_pressed = true;
- assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 0);
- value_pressed = true;
- assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 0);
- value_pressed = true;
- assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 100);
- value_pressed = true;
- assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 40);
- m.Set_value(REVERB_DECAY, 40);
- value_pressed = true;
- assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 0);
- m.Update();
- value_pressed = true;
- assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 40);
- value_pressed = true;
- assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 0);
- Encoders_manager.rotation = 1;
- assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 1);
- value_pressed = true;
- assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 0);
- value_pressed = true;
- assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 1);
- m.Set_value(REVERB_LEVEL, 98);
- Encoders_manager.rotation = 1;
- assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 100);
- m.Set_value(REVERB_DAMPING, 3);
- Encoders_manager.rotation = -1;
- assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 0);
  // Independent, bounded feedback filter transitions reach the same cutoff on both channels.
  for (int target : {0, LPF_MAX, 20})
  {

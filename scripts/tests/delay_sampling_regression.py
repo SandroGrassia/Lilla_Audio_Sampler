@@ -43,7 +43,7 @@ prefix = r'''
 enum State { PERFORMANCE, DIRECT_SAMPLING, LIVE_SAMPLING, MIDI_LOOP, DELAY_SETTINGS };
 State Lilla_state = PERFORMANCE, Lilla_state_0 = PERFORMANCE;
 PRODUCTION_DELAY_ENUM
-enum Item { DELAY_COMPRESSOR, FEEDBACK_CUTOFF, LOOP_GAIN, SAMPLES, SAMPLES_LR, MODULATION_SOURCE, MODULATION_FREQUENCY, MODULATION_DEPTH, MODULATION_PHASE_LR, INSTRUMENT_ROUTE };
+enum Item { DELAY_THRESHOLD, FEEDBACK_CUTOFF, LOOP_GAIN, SAMPLES, SAMPLES_LR, MODULATION_SOURCE, MODULATION_FREQUENCY, MODULATION_DEPTH, MODULATION_PHASE_LR, INSTRUMENT_ROUTE };
 enum Control { EN_PB_LineOutVol, EN_PB_Select, EN_PB_Value };
 constexpr int INSTRUMENTS = 8, TRACKS = 2, PATCH_VOLUME_MAX = 100;
 constexpr int PLAYERS = 16, AUDIO_BLOCK_SAMPLES = 128, DELAY_CACHE_CHANNEL_SAMPLES = 256;
@@ -63,7 +63,8 @@ DELAY_element_name DELAY_local_pointer = value_DELAY_Feedback;
 int edits = 0, pointer_moves = 0, pointer_sets = 0, clears = 0, feedback_draws = 0, stops = 0, gains = 0;
 bool rotate_value = false, rotate_volume = false;
 std::set<int> pressed;
-struct DelayData { int loop_gain = 7; int lpf_cutoff = 39; bool compressor = false; int instrument_route = 3; } Delay_data, Delay_values;
+struct LillaCompressor { static constexpr int THRESHOLD_OFF = -2; };
+struct DelayData { int loop_gain = 7; int lpf_cutoff = 39; int compressor_threshold = -6; int instrument_route = 3; } Delay_data, Delay_values;
 struct Manager
 {
     int route = 0;
@@ -238,32 +239,33 @@ int main()
         assert(Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
     }
     assert(pointer_sets == 3);
-    const int expected_frames[DELAY_element_names][3] = {{9, 8, 6}, {9, 9, 7}, {16, 10, 3}, {11, 11, 8}, {15, 12, 10}, {39, 8, 6}, {42, 9, 7}, {38, 10, 6}, {42, 11, 6}};
+    const int expected_frames[DELAY_element_names][3] = {{13, 6, 3}, {9, 7, 7}, {11, 8, 6}, {10, 9, 6}, {20, 10, 7}, {41, 6, 6}, {43, 7, 7}, {40, 8, 6}, {43, 9, 6}};
     for (int item = 0; item < DELAY_element_names; ++item)
     {
         Display_Delay.DELAY_show_pointer_frame(static_cast<DELAY_element_name>(item), true);
         assert(frame_col == expected_frames[item][0] && frame_row == expected_frames[item][1] && frame_chars == expected_frames[item][2]);
     }
-    assert(std::find(labels.begin(), labels.end(), "FEED LPF") != labels.end());
-    assert(std::find(labels.begin(), labels.end(), "FEED COMPRESSOR") != labels.end());
+    assert(std::find(labels.begin(), labels.end(), "ECHO LPF") != labels.end());
+    assert(std::find(labels.begin(), labels.end(), "COMPRESSOR") != labels.end());
     Lilla_state_0 = LIVE_SAMPLING;
     labels.clear();
     Display_Delay.D_sounds();
     assert(labels.size() == 1 && labels[0] == "LIVE SAMPLER");
     for (bool enabled : {false, true})
     {
-        Delay_data.compressor = enabled;
+        Delay_data.compressor_threshold = enabled ? -6 : LillaCompressor::THRESHOLD_OFF;
         labels.clear();
         Display_Delay.D_feedback_compressor();
-        assert(clear_col == 16 && clear_row == 10 && clear_chars == 3);
-        assert(labels.size() == 1 && labels[0] == (enabled ? "ON" : "OFF"));
+        assert(clear_col == 11 && clear_row == 8 && clear_chars == 6);
+        assert(labels[0] == (enabled ? "-6" : "OFF"));
+        assert(enabled ? labels.size() == 2 && labels[1] == "dB" : labels.size() == 1);
     }
     for (int cutoff = 0; cutoff <= LPF_MAX; ++cutoff)
     {
         Delay_data.lpf_cutoff = cutoff;
         labels.clear();
         Display_Delay.D_feedback_lpf();
-        assert(clear_col == 9 && clear_row == 9 && clear_chars == 7);
+        assert(clear_col == 9 && clear_row == 7 && clear_chars == 7);
         assert(labels.size() == 2 && labels[0].size() + labels[1].size() <= 7);
         assert(labels[0] == std::to_string(lowpass_value[cutoff]));
         assert(labels[1] == "Hz");

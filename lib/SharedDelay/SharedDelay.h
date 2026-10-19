@@ -10,7 +10,7 @@
 #include "SharedElements.h"
 #include "config.h"
 
-static constexpr int DELAY_CACHE_ACTIVE_SECONDS = 2; // Maximum delay time per channel.
+static constexpr int DELAY_CACHE_ACTIVE_SECONDS = DELAY_CACHE_SECONDS; // Maximum delay time per channel.
 static constexpr int DELAY_CACHE_ACTIVE_SAMPLES = static_cast<int>(DELAY_CACHE_ACTIVE_SECONDS * AUDIO_SAMPLE_RATE) + AUDIO_BLOCK_SAMPLES; // Read/write span includes one block reserved for incoming audio.
 static_assert(DELAY_CACHE_ACTIVE_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES);
 static constexpr int DELAY_TIME_MAX_INDEX = 102; // Last position: 1990 ms, displayed as 2.0sec.
@@ -34,12 +34,9 @@ enum Delay_parameters
         INSTRUMENT_ROUTE,
         MODULATION_SOURCE,
         DELAY_THRESHOLD,
-        REVERB_LEVEL,
-        REVERB_DECAY,
-        REVERB_DAMPING
     };
 
-static constexpr int DELAY_ITEMS = 13; // all Delay parameters
+static constexpr int DELAY_ITEMS = 10; // all Delay parameters
 static constexpr int DELAY_LPF_ITEMS = 7; // Parameters through FEEDBACK_CUTOFF have independent smoothing.
 
 struct Delay_data_struct // DELAY_DATA_DIM byte
@@ -54,9 +51,6 @@ struct Delay_data_struct // DELAY_DATA_DIM byte
     uint16_t loop_gain;
     uint16_t lpf_cutoff = LPF_MAX; // Index in the common cutoff table; old patches default to 20 kHz.
     int8_t compressor_threshold = -6;
-    uint8_t reverb_level = 0; // 0: OFF, 100: wet only.
-    uint8_t reverb_decay = 15; // Tenths of a second.
-    uint8_t reverb_damping = 50; // Percent high-frequency damping.
     bool compressor = false; // Legacy stored flag retained for archive compatibility; playback uses compressor_threshold (-2 selects OFF).
 };
 static constexpr int DELAY_DATA_DIM = sizeof(Delay_data_struct);
@@ -102,7 +96,7 @@ void Print_Delay_data(const Delay_data_struct &data);
 void Print_Delay_values(Delay_values_struct Delay_values);
 
 // Pointer
-static constexpr int DELAY_element_names = 12;
+static constexpr int DELAY_element_names = 9;
 enum DELAY_element_name
 {
     value_DELAY_Feedback,
@@ -114,7 +108,4 @@ enum DELAY_element_name
     value_DELAY_Modulation_frequency,
     value_DELAY_Modulation_depth,
     value_DELAY_Modulation_phase_LR,
-    value_DELAY_Reverb_level,
-    value_DELAY_Reverb_decay,
-    value_DELAY_Reverb_damping
 };

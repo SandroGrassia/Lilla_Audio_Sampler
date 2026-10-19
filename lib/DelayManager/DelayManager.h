@@ -11,7 +11,6 @@
 #include "WaveLFO.h"
 #include "AudioGain.h"
 #include "LillaCompressor.h"
-#include "LillaReverb.h"
 #include <filter_biquad.h>
 #include "PlayersManager.h"
 #include "config.h"
@@ -39,7 +38,6 @@ private:
 public:
     DelayManager(void) = default; // Start with no pending parameter changes.
     LillaCompressor *Compressor_ptr = nullptr;
-    LillaReverb *Reverb_ptr = nullptr;
     StereoDelay *Delay_L_ptr = nullptr;
     StereoDelay *Delay_R_ptr = nullptr;
     WaveLFO *LFO_D_ptr[2] = {};
