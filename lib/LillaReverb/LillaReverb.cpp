@@ -5,10 +5,10 @@
 #include <cstring>
 
 PROGMEM const unsigned LillaReverb::lengths[2][4] = {{1493, 1601, 1867, 2081}, {1559, 1699, 1999, 2203}};
-PROGMEM const unsigned LillaReverb::allpass_lengths[2][2] = {{211, 337}, {223, 349}};
+PROGMEM const unsigned LillaReverb::allpass_lengths[2][ALLPASS_STAGES] = {{211, 337, 457, 613}, {223, 349, 479, 631}};
 static_assert(sizeof(float) == 2 * sizeof(int16_t));
-static_assert(1493 + 1601 + 1867 + 2081 + 211 + 337 <= LillaReverb::CHANNEL_SAMPLES / 2);
-static_assert(1559 + 1699 + 1999 + 2203 + 223 + 349 <= LillaReverb::CHANNEL_SAMPLES / 2);
+static_assert(1493 + 1601 + 1867 + 2081 + 211 + 337 + 457 + 613 <= LillaReverb::CHANNEL_SAMPLES / 2);
+static_assert(1559 + 1699 + 1999 + 2203 + 223 + 349 + 479 + 631 <= LillaReverb::CHANNEL_SAMPLES / 2);
 
 FLASHMEM LillaReverb::LillaReverb() : AudioStream(2, input_queue)
 {
@@ -120,8 +120,8 @@ void LillaReverb::update()
                     offset[channel] += lengths[channel][comb];
                 }
             }
-            // Schroeder all-pass sections use the free tail of each existing float buffer.
-            for (unsigned stage = 0; stage < 2; ++stage)
+            // Four unity-energy diffusers spread the comb arrivals without adding comb feedback or gain.
+            for (unsigned stage = 0; stage < ALLPASS_STAGES; ++stage)
             {
                 for (unsigned channel = 0; channel < 2; ++channel)
                 {

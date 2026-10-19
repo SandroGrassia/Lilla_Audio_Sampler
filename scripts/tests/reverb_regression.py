@@ -21,11 +21,11 @@ int main()
     std::fill(std::begin(memory_r), std::end(memory_r), 2345);
     const auto check_unused_storage = [&]()
     {
-        for (unsigned i = 1 + 2 * (1493 + 1601 + 1867 + 2081 + 211 + 337); i <= LillaReverb::CHANNEL_SAMPLES; ++i)
+        for (unsigned i = 1 + 2 * (1493 + 1601 + 1867 + 2081 + 211 + 337 + 457 + 613); i <= LillaReverb::CHANNEL_SAMPLES; ++i)
         {
             assert(memory_l[i] == 2345);
         }
-        for (unsigned i = 1 + 2 * (1559 + 1699 + 1999 + 2203 + 223 + 349); i <= LillaReverb::CHANNEL_SAMPLES; ++i)
+        for (unsigned i = 1 + 2 * (1559 + 1699 + 1999 + 2203 + 223 + 349 + 479 + 631); i <= LillaReverb::CHANNEL_SAMPLES; ++i)
         {
             assert(memory_r[i] == 2345);
         }
@@ -62,18 +62,51 @@ int main()
                 assert(attack.output[channel][sample] == 0);
             }
             const float pole = damping * 0.009f;
-            const float expected = 2500.0f * (1.0f - pole); // One comb, two all-pass direct gains and the first low-pass tap.
+            const float expected = 625.0f * (1.0f - pole); // One comb, four all-pass direct gains and the first low-pass tap.
             assert(std::abs(attack.output[channel][first[channel]] - expected) <= 1.0f);
             double energy = 0.0;
             for (int sample = first[channel]; sample < first[channel] + 100; ++sample)
             {
                 const double value = attack.output[channel][sample];
+                const double expected_sample = expected * std::pow(pole, sample - first[channel]);
+                assert(std::abs(value - expected_sample) <= 1.0); // Allow only the final int16 truncation, including the quieter four-stage first tap.
                 energy += value * value;
             }
-            const double expected_energy = 6250000.0 * (1.0 - pole) / (1.0 + pole);
-            assert(std::abs(energy / expected_energy - 1.0) < 0.01);
+            const double expected_energy = 390625.0 * (1.0 - pole) / (1.0 + pole);
+            assert(std::abs(energy - expected_energy) <= 2.0 * 625.0 + 100.0); // Sum of the one-LSB energy error bound over these 100 samples.
         }
         assert(AudioStream::outstanding == 0);
+    }
+    // The first 50-100 ms after an impulse must be diffuse even without damping hiding sparse echoes.
+    for (int damping : {0, 80})
+    {
+        LillaReverb diffuse;
+        diffuse.Set_parameters(100, 15, damping);
+        diffuse.Setup(memory_l + 1, memory_r + 1);
+        for (unsigned block = 0; block < 35; ++block)
+        {
+            diffuse.Feed(0, 0);
+            if (block == 0)
+            {
+                diffuse.pending[0]->data[0] = diffuse.pending[1]->data[0] = 20000;
+            }
+            diffuse.update();
+        }
+        for (unsigned channel = 0; channel < 2; ++channel)
+        {
+            unsigned occupied = 0;
+            double energy = 0.0;
+            int peak = 0;
+            for (unsigned sample = 2205; sample < 4410; ++sample)
+            {
+                const int value = diffuse.output[channel][sample];
+                occupied += std::abs(value) >= 4;
+                energy += static_cast<double>(value) * value;
+                peak = std::max(peak, std::abs(value));
+            }
+            assert(occupied > (damping == 0 ? 0.30 : 0.80) * 2205);
+            assert(static_cast<double>(peak) * peak * 2205 < 100.0 * energy); // Crest factor below 20 dB, versus over 22 dB for the previous undamped diffuser.
+        }
     }
     // Zero comb decay retains only the short all-pass tail, with unity-energy diffusion.
     for (int previous : {0, 40})
@@ -84,7 +117,7 @@ int main()
         zero.Setup(memory_l + 1, memory_r + 1);
         unsigned nonzero[2] = {};
         double energy[2] = {};
-        for (int block = 0; block < 100; ++block)
+        for (int block = 0; block < 160; ++block)
         {
             zero.Clear_output();
             zero.Feed(0, 0);
@@ -99,7 +132,7 @@ int main()
                 {
                     nonzero[channel] += value != 0;
                     energy[channel] += static_cast<double>(value) * value;
-                    if (block >= 80)
+                    if (block >= 140)
                     {
                         assert(value == 0);
                     }
