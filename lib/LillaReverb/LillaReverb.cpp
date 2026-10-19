@@ -96,7 +96,7 @@ void LillaReverb::update()
                     filtered[channel][comb] += (1.0f - damping) * (delayed[channel] - filtered[channel][comb]);
                     gain[channel][comb] += (gain_target[channel][comb] - gain[channel][comb]) * smoothing;
                     injection[channel][comb] += (injection_target[channel][comb] - injection[channel][comb]) * smoothing;
-                    wet[channel] += delayed[channel] * 0.5f; // Energy normalization for four decorrelated comb outputs.
+                    wet[channel] += filtered[channel][comb] * 0.5f; // Damping also softens the first reflections, before all-pass diffusion.
                 }
                 for (unsigned channel = 0; channel < 2; ++channel)
                 {

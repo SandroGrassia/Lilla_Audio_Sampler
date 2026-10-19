@@ -25,6 +25,42 @@ int main()
     p.Feed(12345, -23456);
     p.update();
     assert(p.output[0][0] == 12345 && p.output[1][0] == -23456);
+    // Damping must affect the very first reflection, even with comb recirculation disabled.
+    for (int damping : {0, 50, 100})
+    {
+        LillaReverb attack;
+        attack.Set_parameters(100, 0, damping);
+        attack.Setup(memory_l + 1, memory_r + 1);
+        for (int block = 0; block < 20; ++block)
+        {
+            attack.Feed(0, 0);
+            if (block == 0)
+            {
+                attack.pending[0]->data[0] = attack.pending[1]->data[0] = 20000;
+            }
+            attack.update();
+        }
+        const int first[2] = {1493 + 32, 1559 + 32};
+        for (unsigned channel = 0; channel < 2; ++channel)
+        {
+            for (int sample = 0; sample < first[channel]; ++sample)
+            {
+                assert(attack.output[channel][sample] == 0);
+            }
+            const float pole = damping * 0.009f;
+            const float expected = 2500.0f * (1.0f - pole); // One comb, two all-pass direct gains and the first low-pass tap.
+            assert(std::abs(attack.output[channel][first[channel]] - expected) <= 1.0f);
+            double energy = 0.0;
+            for (int sample = first[channel]; sample < first[channel] + 100; ++sample)
+            {
+                const double value = attack.output[channel][sample];
+                energy += value * value;
+            }
+            const double expected_energy = 6250000.0 * (1.0 - pole) / (1.0 + pole);
+            assert(std::abs(energy / expected_energy - 1.0) < 0.01);
+        }
+        assert(AudioStream::outstanding == 0);
+    }
     // Zero comb decay retains only the short all-pass tail, with unity-energy diffusion.
     for (int previous : {0, 40})
     {
@@ -241,7 +277,7 @@ int main()
         assert(clipped == 0 && rms_db > -10.0);
         std::cout << "Decay 4s, damping 0, level " << mix << "%: RMS " << rms_db << " dB, clipped " << clipped << "\n";
     }
-    std::cout << "PASS: unity-energy all-pass diffusion, exact OFF, stereo crossfeed, decaying tail, full-scale stability, Panic suspension/reset, buffer guards, missing inputs and allocation failures\n";
+    std::cout << "PASS: damped first reflections, unity-energy all-pass diffusion, exact OFF, stereo crossfeed, decaying tail, full-scale stability, Panic suspension/reset, buffer guards, missing inputs and allocation failures\n";
 }
 '''
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
