@@ -45,7 +45,7 @@ FLASHMEM
 void DisplayLiveSampler::Show_no_recorded_audio(void)
 {
     const int height = display_coordinate_y(1);
-    const int y_offset = display_coordinate_y(LS_column_row_FEEDBACK[1]) - 5 - Centered_element_top(height);
+    const int y_offset = display_coordinate_y(LS_column_row_GAIN[1]) - 8 - Centered_element_top(height);
     Show_popup_text("NO RECORDED AUDIO", ILI9341_WHITE, ILI9341_RED, y_offset);
 }
 
@@ -71,9 +71,8 @@ void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
         no_recorded_audio_visible = false;
         const int width = display_coordinate_x(sizeof("NO RECORDED AUDIO") - 1 + 2);
         const int height = display_coordinate_y(1);
-        const int top = display_coordinate_y(LS_column_row_FEEDBACK[1]) - 5;
+        const int top = display_coordinate_y(LS_column_row_GAIN[1]) - 8;
         tft.fillRect(Centered_element_left(width), top, width, height, ILI9341_BLACK);
-        Compressor(compressor_threshold); // Restore the label overlapped by the temporary notice.
     }
 }
 
@@ -136,10 +135,10 @@ FLASHMEM
 void DisplayLiveSampler::Compressor(int threshold)
 {
     compressor_threshold = threshold;
-    tft.setCursor(display_coordinate_x(LS_column_row_FEEDBACK_COMPRESSOR[0]), display_coordinate_y(LS_column_row_FEEDBACK_COMPRESSOR[1]));
+    tft.setCursor(display_coordinate_x(LS_column_row_COMPRESSOR[0]), display_coordinate_y(LS_column_row_COMPRESSOR[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("FEED COMPRESSOR");
-    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_feedback_compressor[0]), display_coordinate_y(LS_column_row_feedback_compressor[1]), 6);
+    tft.print("FEEDBACK COMPRESSOR");
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_compressor[0]), display_coordinate_y(LS_column_row_compressor[1]), 6);
     tft.setTextColor(ILI9341_YELLOW);
     if (threshold == LillaCompressor::THRESHOLD_OFF)
     {
@@ -149,7 +148,7 @@ void DisplayLiveSampler::Compressor(int threshold)
     {
         tft.print(threshold);
         tft.setTextColor(ILI9341_ORANGE);
-        tft.print(" dB");
+        tft.print("dB");
     }
 }
 
@@ -241,15 +240,15 @@ FLASHMEM
 void DisplayLiveSampler::Loop_time(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time[0]), display_coordinate_y(LS_column_row_loop_time[1]), LS_chars_loop_time);
+    tft.setTextColor(ILI9341_YELLOW);
     if (LS_mode > 1)
     {
-        tft.setTextColor(ILI9341_YELLOW);
         tft.print(LS_XY_delta / AUDIO_SAMPLE_RATE, 2);
         Show_measure_unit("sec", 3);
     }
     else
     {
-        tft.print("--");
+        tft.print("NO");
     }
 }
 

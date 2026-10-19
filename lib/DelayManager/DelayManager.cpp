@@ -52,7 +52,7 @@ bool DelayManager::Set_value(int item, int value) // The latest request wins for
     }
     else if (item >= REVERB_LEVEL)
     {
-        value = constrain(value, item == REVERB_DECAY ? 2 : 0, item == REVERB_DECAY ? 50 : 100);
+        value = constrain(value, 0, item == REVERB_DECAY ? 50 : 100);
     }
     else if (item == DELAY_THRESHOLD)
     {

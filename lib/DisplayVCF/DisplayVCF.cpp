@@ -83,7 +83,7 @@ void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instrument_id)
 
     tft.setCursor(display_coordinate_x(VCF_column_row_CUTOFF[0]), display_coordinate_y(VCF_column_row_CUTOFF[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("CUTOFF (PITCH 1.0)");
+    tft.print("TUNED LPF");
     VCF_show_cutoff_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(VCF_column_row_RESONANCE[0]), display_coordinate_y(VCF_column_row_RESONANCE[1]));
@@ -159,7 +159,9 @@ void DisplayVCF::VCF_show_filter_type_value(const int instrument_id)
         }
     }
     else
-        tft.print("  NONE");
+    {
+        tft.print("NONE");
+    }
 }
 
 FLASHMEM
@@ -172,7 +174,7 @@ void DisplayVCF::VCF_show_cutoff_value(const int instrument_id)
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].Filter.pivot, 0);
     tft.setTextColor(ILI9341_ORANGE);
-    tft.print("Hz");
+    tft.print("Hz x pitch");
 }
 
 FLASHMEM

@@ -1,5 +1,6 @@
 #include "SdSoundSource.h"
 #include "PlayersManager.h"
+#include "SharedVCF.h"
 #include <algorithm>
 
 namespace
@@ -1078,8 +1079,7 @@ Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, floa
     result.Filter.use = Patch[patch_id].Instrument[instrument_id].Filter.use;
     result.Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type;
 
-    const float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;
-    result.Filter.pivot = 20.0f * pow(2.0f, value);
+    result.Filter.pivot = Calc_vcf_cutoff(Patch[patch_id].Instrument[instrument_id].Filter.pivot);
     result.Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f;
     result.Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index / 20.0f;
     result.Filter.modulation = Patch[patch_id].Instrument[instrument_id].Filter.modulation;
@@ -1335,8 +1335,7 @@ void PlayersManager::Update_Preset_IF(int patch_id, int instrument_id)
     Preset[instrument_id].Filter.use = Patch[patch_id].Instrument[instrument_id].Filter.use;
     Preset[instrument_id].Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type; // 0 -> 3
 
-    float value = Patch[patch_id].Instrument[instrument_id].Filter.pivot / 10.0f;                                        // 0 --> 100  0 --> 10
-    Preset[instrument_id].Filter.pivot = 20.0f * pow(2.0f, value);                                                       //  20 --> 20048
+    Preset[instrument_id].Filter.pivot = Calc_vcf_cutoff(Patch[patch_id].Instrument[instrument_id].Filter.pivot);
     Preset[instrument_id].Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f; // 0 --> 40
     Preset[instrument_id].Filter.index = Patch[patch_id].Instrument[instrument_id].Filter.index / 20.0f;                 // 0 --> 20 : 0 --> 1.0
     Update_Preset_IF_modulation(patch_id, instrument_id);

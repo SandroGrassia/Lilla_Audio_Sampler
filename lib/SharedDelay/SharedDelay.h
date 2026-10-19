@@ -13,7 +13,7 @@
 static constexpr int DELAY_CACHE_ACTIVE_SECONDS = 2; // Maximum delay time per channel.
 static constexpr int DELAY_CACHE_ACTIVE_SAMPLES = static_cast<int>(DELAY_CACHE_ACTIVE_SECONDS * AUDIO_SAMPLE_RATE) + AUDIO_BLOCK_SAMPLES; // Read/write span includes one block reserved for incoming audio.
 static_assert(DELAY_CACHE_ACTIVE_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES);
-static constexpr int DELAY_TIME_MAX_INDEX = 102; // Last position: 2000 ms.
+static constexpr int DELAY_TIME_MAX_INDEX = 102; // Last position: 1990 ms, displayed as 2.0sec.
 
 
 static constexpr float depth_array[40] = {

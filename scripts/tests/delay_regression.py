@@ -94,6 +94,13 @@ main_source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
 controls = r'''
 #include <type_traits>
 constexpr int EN_PB_Value = 0;
+bool value_pressed = false;
+bool Read_pushbutton(int)
+{
+    const bool pressed = value_pressed;
+    value_pressed = false;
+    return pressed;
+}
 struct EncoderStub
 {
     int rotation = 0;
@@ -198,13 +205,15 @@ int main() {
  }
  // Exercise all UI time positions, signed offsets, patch loading and startup normalization.
  assert(DELAY_CACHE_ACTIVE_SAMPLES == 88328);
- assert(Calc_delay_samples(DELAY_TIME_MAX_INDEX) == 88200);
+ assert(Calc_delay_samples(DELAY_TIME_MAX_INDEX) == 87759);
+ assert(Calc_delay_samples_LR_limit(DELAY_TIME_MAX_INDEX) == 10);
  std::vector<int> times;
  for (int t = 0; t <= 10; ++t) { times.push_back(t); }
  for (int t = 20; t <= 100; t += 10) { times.push_back(t); }
  for (int t = 150; t <= 2000; t += 50) { times.push_back(t); }
  for (int t = 2100; t <= 5000; t += 100) { times.push_back(t); }
  for (int t = 6000; t <= 20000; t += 1000) { times.push_back(t); }
+ times.back() = 19900;
  assert(times.size() == DELAY_TIME_MAX_INDEX + 1);
  const int legacy_gains[] = {0, 7, 18, 40, 60, 65, 71, 80, 92, 98};
  for (int old_index = 0; old_index <= 99; ++old_index)
@@ -376,24 +385,60 @@ int main() {
  assert(!D_Read_value(SAMPLES_LR));
  m.Set_value(SAMPLES, DELAY_TIME_MAX_INDEX);
  m.Update();
- assert(Delay_data.samples_LR == 0);
+ assert(Delay_data.samples_LR == 10);
  Encoders_manager.rotation = 1;
- assert(!D_Read_value(SAMPLES_LR));
+ assert(D_Read_value(SAMPLES_LR) && Delay_data.samples_LR == 9);
+ m.Set_value(SAMPLES_LR, -10);
+ m.Update();
+ assert(right.delay_central_value_target == 88200);
+ assert(left.delay_central_value_target == 87759);
+ m.Set_value(SAMPLES_LR, 10);
+ m.Update();
+ assert(left.delay_central_value_target == 88200);
+ assert(right.delay_central_value_target == 87759);
  m.Set_value(LOOP_GAIN, 50);
  Encoders_manager.rotation = 1;
  assert(D_Read_value(LOOP_GAIN) && Delay_data.loop_gain == 51);
  m.Set_value(REVERB_LEVEL, 0);
  Encoders_manager.rotation = 1;
- assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 1);
+ assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 5);
  m.Set_value(REVERB_LEVEL, 100);
  Encoders_manager.rotation = 1;
  assert(!D_Read_value(REVERB_LEVEL));
- m.Set_value(REVERB_DECAY, 2);
+ m.Set_value(REVERB_DECAY, 0);
  Encoders_manager.rotation = -1;
  assert(!D_Read_value(REVERB_DECAY));
  m.Set_value(REVERB_DAMPING, 50);
  Encoders_manager.rotation = -1;
- assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 49);
+ assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 40);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 0);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 0);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 100);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 40);
+ m.Set_value(REVERB_DECAY, 40);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 0);
+ m.Update();
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 40);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 0);
+ Encoders_manager.rotation = 1;
+ assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 1);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 0);
+ value_pressed = true;
+ assert(D_Read_value(REVERB_DECAY) && Delay_data.reverb_decay == 1);
+ m.Set_value(REVERB_LEVEL, 98);
+ Encoders_manager.rotation = 1;
+ assert(D_Read_value(REVERB_LEVEL) && Delay_data.reverb_level == 100);
+ m.Set_value(REVERB_DAMPING, 3);
+ Encoders_manager.rotation = -1;
+ assert(D_Read_value(REVERB_DAMPING) && Delay_data.reverb_damping == 0);
  // Independent, bounded feedback filter transitions reach the same cutoff on both channels.
  for (int target : {0, LPF_MAX, 20})
  {

@@ -34,57 +34,67 @@ enum DELAY_element_name
 class DisplayDelay
 {
 private:
-    static constexpr int DEL_ROW_SOUND = 6;
-    static constexpr int DEL_COL_MOD_SOURCE = 28;
+    static constexpr int DEL_ROW_SOUND = 5;
+    static constexpr int DEL_COL_REVERB = 28;
 
     static constexpr float DELAY_column_row_VOLUME[2] = {41, 0};
 
-    static constexpr float DELAY_column_row_FEEDBACK[2] = {0, DEL_ROW_SOUND + 2};
-    static constexpr float DELAY_column_row_FEEDBACK_COMPRESSOR[2] = {0, DEL_ROW_SOUND + 4};
-    static constexpr float DELAY_column_row_FEEDBACK_LPF[2] = {0, DEL_ROW_SOUND + 3};
-    static constexpr float DELAY_column_row_DELAY_TIME[2] = {0, DEL_ROW_SOUND + 5};
-    static constexpr float DELAY_column_row_DELAY_TIME_LR[2] = {0, DEL_ROW_SOUND + 6};
-    static constexpr float DELAY_column_row_MODULATION_SOURCE[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 2};
-    static constexpr float DELAY_column_row_MODULATION_FREQUENCY[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 3};
-    static constexpr float DELAY_column_row_MODULATION_DEPTH[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 4};
-    static constexpr float DELAY_column_row_MODULATION_PHASE_LR[2] = {DEL_COL_MOD_SOURCE, DEL_ROW_SOUND + 5};
+    static constexpr float DELAY_column_row_FEEDBACK[2] = {0, DEL_ROW_SOUND + 1.5};
+    static constexpr float DELAY_column_row_COMPRESSOR[2] = {0, DEL_ROW_SOUND + 3.5};
+    static constexpr float DELAY_column_row_FEEDBACK_LPF[2] = {0, DEL_ROW_SOUND + 2.5};
+    static constexpr float DELAY_column_row_DELAY_TIME[2] = {0, DEL_ROW_SOUND + 4.5};
+    static constexpr float DELAY_column_row_DELAY_TIME_LR[2] = {0, DEL_ROW_SOUND + 5.5};
+    static constexpr float DELAY_column_row_MODULATION_SOURCE[2] = {0, DELAY_column_row_DELAY_TIME_LR[1] + 1};
+    static constexpr float DELAY_column_row_MODULATION_FREQUENCY[2] = {0, DELAY_column_row_DELAY_TIME_LR[1] + 2};
+    static constexpr float DELAY_column_row_MODULATION_DEPTH[2] = {0, DELAY_column_row_DELAY_TIME_LR[1] + 3};
+    static constexpr float DELAY_column_row_MODULATION_PHASE_LR[2] = {0, DELAY_column_row_DELAY_TIME_LR[1] + 4};
+    static constexpr float DELAY_column_row_REVERB_LEVEL[2] = {DEL_COL_REVERB, DEL_ROW_SOUND + 1.5};
+    static constexpr float DELAY_column_row_REVERB_DECAY[2] = {DEL_COL_REVERB, DELAY_column_row_REVERB_LEVEL[1] + 1};
+    static constexpr float DELAY_column_row_REVERB_DAMPING[2] = {DEL_COL_REVERB, DELAY_column_row_REVERB_LEVEL[1] + 2};
 
     static constexpr float DELAY_column_row_sounds[2] = {8, DEL_ROW_SOUND};
-    static constexpr float DELAY_column_row_feedback[2] = {9, DEL_ROW_SOUND + 2};
-    static constexpr float DELAY_column_row_feedback_compressor[2] = {16, DEL_ROW_SOUND + 4};
-    static constexpr float DELAY_column_row_feedback_lpf[2] = {9, DEL_ROW_SOUND + 3};
-    static constexpr float DELAY_column_row_delay_time[2] = {11, DEL_ROW_SOUND + 5};
-    static constexpr float DELAY_column_row_delay_time_LR[2] = {15, DEL_ROW_SOUND + 6};
-    static constexpr float DELAY_column_row_modulation_source[2] = {DEL_COL_MOD_SOURCE + 11, DEL_ROW_SOUND + 2};
-    static constexpr float DELAY_column_row_modulation_frequency[2] = {DEL_COL_MOD_SOURCE + 14, DEL_ROW_SOUND + 3};
-    static constexpr float DELAY_column_row_modulation_depth[2] = {DEL_COL_MOD_SOURCE + 10, DEL_ROW_SOUND + 4};
-    static constexpr float DELAY_column_row_modulation_phase_LR[2] = {DEL_COL_MOD_SOURCE + 14, DEL_ROW_SOUND + 5};
+    static constexpr float DELAY_column_row_feedback[2] = {8, DEL_ROW_SOUND + 1.5};
+    static constexpr float DELAY_column_row_compressor[2] = {11, DEL_ROW_SOUND + 3.5};
+    static constexpr float DELAY_column_row_feedback_lpf[2] = {13, DEL_ROW_SOUND + 2.5};
+    static constexpr float DELAY_column_row_delay_time[2] = {10, DEL_ROW_SOUND + 4.5};
+    static constexpr float DELAY_column_row_delay_time_LR[2] = {20, DEL_ROW_SOUND + 5.5};
+    static constexpr float DELAY_column_row_modulation_source[2] = {DELAY_column_row_MODULATION_SOURCE[0] + 11, DELAY_column_row_MODULATION_SOURCE[1]};
+    static constexpr float DELAY_column_row_modulation_frequency[2] = {DELAY_column_row_MODULATION_FREQUENCY[0] + 14, DELAY_column_row_MODULATION_FREQUENCY[1]};
+    static constexpr float DELAY_column_row_modulation_depth[2] = {DELAY_column_row_MODULATION_DEPTH[0] + 10, DELAY_column_row_MODULATION_DEPTH[1]};
+    static constexpr float DELAY_column_row_modulation_phase_LR[2] = {DELAY_column_row_MODULATION_PHASE_LR[0] + 14, DELAY_column_row_MODULATION_PHASE_LR[1]};
+    static constexpr float DELAY_column_row_reverb_level[2] = {DELAY_column_row_REVERB_LEVEL[0] + sizeof("REVERB LEVEL"), DELAY_column_row_REVERB_LEVEL[1]};
+    static constexpr float DELAY_column_row_reverb_decay[2] = {DELAY_column_row_REVERB_DECAY[0] + sizeof("REVERB DECAY"), DELAY_column_row_REVERB_DECAY[1]};
+    static constexpr float DELAY_column_row_reverb_damping[2] = {DELAY_column_row_REVERB_DAMPING[0] + sizeof("REVERB DUMPING"), DELAY_column_row_REVERB_DAMPING[1]};
 
     static constexpr int DELAY_chars_sounds = 23;
-    static constexpr int DELAY_chars_feedback = 6;
+    static constexpr int DELAY_chars_feedback = 3;
     static constexpr int DELAY_chars_feedback_compressor = 6;
     static constexpr int DELAY_chars_feedback_lpf = 7;
-    static constexpr int DELAY_chars_delay_time = 8;
-    static constexpr int DELAY_chars_delay_time_LR = 10;
+    static constexpr int DELAY_chars_delay_time = 6;
+    static constexpr int DELAY_chars_delay_time_LR = 7;
     static constexpr int DELAY_chars_modulation_source = 6;
     static constexpr int DELAY_chars_modulation_frequency = 7;
     static constexpr int DELAY_chars_modulation_depth = 6;
     static constexpr int DELAY_chars_modulation_phase_LR = 6;
 
+    static constexpr int DELAY_chars_reverb_level = 4;
+    static constexpr int DELAY_chars_reverb_decay = 4;
+    static constexpr int DELAY_chars_reverb_damping = 4;
+
     // pointer
     static constexpr float DELAY_column_row_element[DELAY_element_names][2] = {
         {DELAY_column_row_feedback[0], DELAY_column_row_feedback[1]},
         {DELAY_column_row_feedback_lpf[0], DELAY_column_row_feedback_lpf[1]},
-        {DELAY_column_row_feedback_compressor[0], DELAY_column_row_feedback_compressor[1]},
+        {DELAY_column_row_compressor[0], DELAY_column_row_compressor[1]},
         {DELAY_column_row_delay_time[0], DELAY_column_row_delay_time[1]},
         {DELAY_column_row_delay_time_LR[0], DELAY_column_row_delay_time_LR[1]},
         {DELAY_column_row_modulation_source[0], DELAY_column_row_modulation_source[1]},
         {DELAY_column_row_modulation_frequency[0], DELAY_column_row_modulation_frequency[1]},
         {DELAY_column_row_modulation_depth[0], DELAY_column_row_modulation_depth[1]},
         {DELAY_column_row_modulation_phase_LR[0], DELAY_column_row_modulation_phase_LR[1]},
-        {43, 12},
-        {43, 13},
-        {43, 14}};
+        {DELAY_column_row_reverb_level[0], DELAY_column_row_reverb_level[1]},
+        {DELAY_column_row_reverb_decay[0], DELAY_column_row_reverb_decay[1]},
+        {DELAY_column_row_reverb_damping[0], DELAY_column_row_reverb_damping[1]}};
 
     static constexpr int DELAY_chars_element[DELAY_element_names] = {
         DELAY_chars_feedback,
@@ -96,7 +106,9 @@ private:
         DELAY_chars_modulation_frequency,
         DELAY_chars_modulation_depth,
         DELAY_chars_modulation_phase_LR,
-        6, 6, 6};
+        DELAY_chars_reverb_level,
+        DELAY_chars_reverb_decay,
+        DELAY_chars_reverb_damping};
 
 public:
     DisplayDelay() {}
