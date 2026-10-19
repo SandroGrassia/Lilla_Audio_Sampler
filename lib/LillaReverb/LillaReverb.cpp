@@ -31,7 +31,7 @@ FLASHMEM void LillaReverb::Set_parameters(int requested_level, int requested_dec
         {
             for (unsigned comb = 0; comb < 4; ++comb)
             {
-                gain_target[channel][comb] = powf(0.001f, lengths[channel][comb] / (AUDIO_SAMPLE_RATE_EXACT * requested_decay * 0.1f));
+                gain_target[channel][comb] = requested_decay == 0 ? 0.0f : powf(0.001f, lengths[channel][comb] / (AUDIO_SAMPLE_RATE_EXACT * requested_decay * 0.1f));
                 const float g = gain_target[channel][comb];
                 constexpr float feedback_energy = (1.0f - CROSS_FEEDBACK) * (1.0f - CROSS_FEEDBACK) + CROSS_FEEDBACK * CROSS_FEEDBACK;
                 injection_target[channel][comb] = sqrtf(1.0f - feedback_energy * g * g); // Normalize decorrelated feedback energy instead of DC gain.

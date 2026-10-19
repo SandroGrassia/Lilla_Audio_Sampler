@@ -79,27 +79,27 @@ void DisplayDelay::D_show_page()
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK[0]), display_coordinate_y(DELAY_column_row_FEEDBACK[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("FEEDBACK");
+    tft.print("REPEATS");
     D_feedback();
 
-    tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK_COMPRESSOR[0]), display_coordinate_y(DELAY_column_row_FEEDBACK_COMPRESSOR[1]));
+    tft.setCursor(display_coordinate_x(DELAY_column_row_COMPRESSOR[0]), display_coordinate_y(DELAY_column_row_COMPRESSOR[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("FEED COMPRESSOR");
+    tft.print("COMPRESSOR");
     D_feedback_compressor();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK_LPF[0]), display_coordinate_y(DELAY_column_row_FEEDBACK_LPF[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("FEED LPF");
+    tft.print("FEEDBACK LPF");
     D_feedback_lpf();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_DELAY_TIME[0]), display_coordinate_y(DELAY_column_row_DELAY_TIME[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("DELAY TIME");
+    tft.print("ECHO TIME");
     D_delay_time();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_DELAY_TIME_LR[0]), display_coordinate_y(DELAY_column_row_DELAY_TIME_LR[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("DELAY TIME L/R");
+    tft.print("ECHO TIME DELTA L/R");
     D_delay_time_LR();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_MODULATION_SOURCE[0]), display_coordinate_y(DELAY_column_row_MODULATION_SOURCE[1]));
@@ -172,6 +172,7 @@ void DisplayDelay::D_feedback(void)
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback[0]), display_coordinate_y(DELAY_column_row_feedback[1]), DELAY_chars_feedback);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Delay_data.loop_gain);
+    tft.setTextColor(ILI9341_ORANGE);
     tft.print("%");
 }
 
@@ -277,6 +278,7 @@ void DisplayDelay::D_modulation_depth(void) // Display the requested setting whi
     {
         tft.print(Calc_delay_depth(Delay_data.modulation_depth) * 100, 0);
     }
+    tft.setTextColor(ILI9341_ORANGE);
     tft.print("%");
 }
 
@@ -304,7 +306,7 @@ void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, co
 FLASHMEM
 void DisplayDelay::D_feedback_compressor(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback_compressor[0]), display_coordinate_y(DELAY_column_row_feedback_compressor[1]), DELAY_chars_feedback_compressor);
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_compressor[0]), display_coordinate_y(DELAY_column_row_compressor[1]), DELAY_chars_feedback_compressor);
     tft.setTextColor(ILI9341_YELLOW);
     if (Delay_data.compressor_threshold == LillaCompressor::THRESHOLD_OFF)
     {
@@ -314,35 +316,45 @@ void DisplayDelay::D_feedback_compressor(void)
     {
         tft.print(Delay_data.compressor_threshold);
         tft.setTextColor(ILI9341_ORANGE);
-        tft.print(" dB");
+        tft.print("dB");
     }
 }
 
 FLASHMEM void DisplayDelay::D_reverb(void)
 {
-    const char *labels[3] = {"REVERB LEVEL", "REVERB DECAY", "REVERB DAMP"};
-    for (int item = 0; item < 3; ++item)
+    tft.setCursor(display_coordinate_x(DELAY_column_row_REVERB_LEVEL[0]), display_coordinate_y(DELAY_column_row_REVERB_LEVEL[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("REVERB LEVEL");
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_reverb_level[0]), display_coordinate_y(DELAY_column_row_reverb_level[1]), DELAY_chars_reverb_level);
+    tft.setTextColor(ILI9341_YELLOW);
+    if (Delay_data.reverb_level == 0)
     {
-        tft.setCursor(display_coordinate_x(28), display_coordinate_y(12 + item));
-        tft.setTextColor(TEXT_COLOR);
-        tft.print(labels[item]);
-        Cancel_text_reset_cursor(display_coordinate_x(43), display_coordinate_y(12 + item), 6);
-        tft.setTextColor(ILI9341_YELLOW);
-        if (item == 0 && Delay_data.reverb_level == 0)
-        {
-            tft.print("OFF");
-        }
-        else if (item == 1)
-        {
-            tft.print(Delay_data.reverb_decay / 10);
-            tft.print('.');
-            tft.print(Delay_data.reverb_decay % 10);
-            tft.print(" s");
-        }
-        else
-        {
-            tft.print(item == 0 ? Delay_data.reverb_level : Delay_data.reverb_damping);
-            tft.print(" %");
-        }
+        tft.print("OFF");
     }
+    else
+    {
+        tft.print(Delay_data.reverb_level);
+        tft.setTextColor(ILI9341_ORANGE);
+        tft.print("%");
+    }
+
+    tft.setCursor(display_coordinate_x(DELAY_column_row_REVERB_DECAY[0]), display_coordinate_y(DELAY_column_row_REVERB_DECAY[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("REVERB DECAY");
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_reverb_decay[0]), display_coordinate_y(DELAY_column_row_reverb_decay[1]), DELAY_chars_reverb_decay);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Delay_data.reverb_decay / 10);
+    tft.print('.');
+    tft.print(Delay_data.reverb_decay % 10);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("s");
+
+    tft.setCursor(display_coordinate_x(DELAY_column_row_REVERB_DAMPING[0]), display_coordinate_y(DELAY_column_row_REVERB_DAMPING[1]));
+    tft.setTextColor(TEXT_COLOR);
+    tft.print("REVERB DUMPING");
+    Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_reverb_damping[0]), display_coordinate_y(DELAY_column_row_reverb_damping[1]), DELAY_chars_reverb_damping);
+    tft.setTextColor(ILI9341_YELLOW);
+    tft.print(Delay_data.reverb_damping);
+    tft.setTextColor(ILI9341_ORANGE);
+    tft.print("%");
 }

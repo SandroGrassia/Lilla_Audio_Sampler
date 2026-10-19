@@ -20,3 +20,8 @@ enum VCF_value_name : int
     value_VCF_LfoModFreqTime = 6,
     value_VCF_LfoModDepth = 7
 };
+
+// Keep legacy patch frequencies intact; new edits use exact shared LPF values.
+static constexpr uint8_t VCF_CUTOFF_TABLE_BASE = 128;
+float Calc_vcf_cutoff(uint8_t value);
+int VCF_cutoff_index(uint8_t value);

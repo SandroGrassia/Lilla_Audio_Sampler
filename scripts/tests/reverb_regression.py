@@ -25,6 +25,34 @@ int main()
     p.Feed(12345, -23456);
     p.update();
     assert(p.output[0][0] == 12345 && p.output[1][0] == -23456);
+    // Zero decay works on first use and after a nonzero setting, with no recirculating tail.
+    for (int previous : {0, 40})
+    {
+        LillaReverb zero;
+        zero.Set_parameters(100, previous, 0);
+        zero.Set_parameters(100, 0, 0);
+        zero.Setup(memory_l + 1, memory_r + 1);
+        bool heard = false;
+        for (int block = 0; block < 50; ++block)
+        {
+            zero.Clear_output();
+            zero.Feed(0, 0);
+            if (block == 0)
+            {
+                zero.pending[0]->data[0] = 10000;
+            }
+            zero.update();
+            for (int value : zero.output[0])
+            {
+                heard = heard || value != 0;
+                if (block >= 20)
+                {
+                    assert(value == 0);
+                }
+            }
+        }
+        assert(heard && AudioStream::outstanding == 0);
+    }
     p.Set_parameters(100, 15, 50);
     p.Reset();
     double early = 0.0;

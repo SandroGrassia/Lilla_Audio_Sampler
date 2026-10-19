@@ -3556,11 +3556,20 @@ void loop()
 
         case value_VCF_FilterType:
         {
-            if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.type, 3, 0, 1))
+            auto &filter = Patch[Patch_id].Instrument[Instrument_id].Filter;
+            int selection = filter.use ? filter.type + 1 : 0;
+            if (Read_encoder(EN_PB_Value, selection, 4, 0, 1))
             {
+                filter.use = selection != 0;
+                if (selection != 0)
+                {
+                    filter.type = selection - 1;
+                }
                 if (Lilla_state_0 == LIVE_SAMPLING)
                 {
+                    Patch[Patch_id].Instrument[1].Filter.use = Patch[Patch_id].Instrument[0].Filter.use;
                     Patch[Patch_id].Instrument[1].Filter.type = Patch[Patch_id].Instrument[0].Filter.type;
+
                     AudioNoInterrupts();
                     Players_Manager.Update_Preset_IF(Patch_id, 0);
                     Players_Manager.Update_Preset_IF(Patch_id, 1);
@@ -3590,8 +3599,11 @@ void loop()
 
         case value_VCF_Cutoff:
         {
-            if (Read_encoder(EN_PB_Value, Patch[Patch_id].Instrument[Instrument_id].Filter.pivot, 100, 0, 1))
+            int cutoff = VCF_cutoff_index(Patch[Patch_id].Instrument[Instrument_id].Filter.pivot);
+            if (Read_encoder(EN_PB_Value, cutoff, LPF_MAX, 0, 1))
             {
+                Patch[Patch_id].Instrument[Instrument_id].Filter.pivot = VCF_CUTOFF_TABLE_BASE + cutoff;
+
                 AudioNoInterrupts();
                 Players_Manager.Update_Preset_IF(Patch_id, Instrument_id);
                 if (Preset[Instrument_id].Filter.use == 1)
@@ -11046,13 +11058,29 @@ void D_Set_value(int item, int value) // Publish one UI request through the same
 
 bool D_Read_value(int item) // Edit a requested value locally so the encoder never writes intermediate DSP state.
 {
+    static int reverb_restore[3] = {};
     int value = Delay_manager.Get_value(item);
     const int offset_limit = item == SAMPLES_LR ? Calc_delay_samples_LR_limit(Delay_manager.Get_value(SAMPLES)) : 0;
-    const int lowest = item >= REVERB_LEVEL ? (item == REVERB_DECAY ? 2 : 0) : item == DELAY_THRESHOLD ? -24 : item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
+    const int lowest = item >= REVERB_LEVEL ? 0 : item == DELAY_THRESHOLD ? -24 : item == SAMPLES_LR ? -offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][0] : 0);
     const int highest = item >= REVERB_LEVEL ? (item == REVERB_DECAY ? 50 : 100) : item == DELAY_THRESHOLD ? LillaCompressor::THRESHOLD_OFF : item == SAMPLES_LR ? offset_limit : (item < DELAY_LPF_ITEMS ? Delay_data_limits[item][1] : 2);
+    const int increment = item == REVERB_LEVEL ? 5 : (item == REVERB_DAMPING ? 10 : 1);
+    const bool reset = item >= REVERB_LEVEL && Read_pushbutton(EN_PB_Value);
     // Clockwise lowers the compressor threshold or increases the Right delay through negative offsets.
-    const bool changed = (item == SAMPLES_LR || item == DELAY_THRESHOLD) ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, 1) : Read_encoder(EN_PB_Value, value, highest, lowest, 1);
-    if (!changed)
+    const bool changed = (item == SAMPLES_LR || item == DELAY_THRESHOLD) ? Read_encoder_inverse(EN_PB_Value, value, highest, lowest, increment) : Read_encoder(EN_PB_Value, value, highest, lowest, increment);
+    if (reset)
+    {
+        int &restore = reverb_restore[item - REVERB_LEVEL];
+        if (value != 0)
+        {
+            restore = value;
+            value = 0;
+        }
+        else
+        {
+            value = restore;
+        }
+    }
+    if (!changed && !reset)
     {
         return false;
     }

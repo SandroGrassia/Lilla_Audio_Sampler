@@ -174,6 +174,10 @@ int Calc_delay_time_tenths(int value)
     {
         return 2000 + (value - 57) * 100;
     }
+    if (value == DELAY_TIME_MAX_INDEX)
+    {
+        return 19900; // Reserve 10 ms for the L/R offset; the display rounds 1.99 seconds to 2.0sec.
+    }
     return 5000 + (value - 87) * 1000;
 }
 

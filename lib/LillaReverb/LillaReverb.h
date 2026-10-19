@@ -9,7 +9,7 @@ public:
     static constexpr unsigned CHANNEL_SAMPLES = 16384;
     FLASHMEM LillaReverb();
     FLASHMEM void Setup(int16_t *left, int16_t *right); // Caller supplies disjoint CHANNEL_SAMPLES buffers with audio interrupts disabled.
-    FLASHMEM void Set_parameters(int level, int decay, int damping); // 0..100 percent, 2..50 tenths of a second, 0..100 percent; audio interrupts disabled.
+    FLASHMEM void Set_parameters(int level, int decay, int damping); // 0..100 percent, 0..50 tenths of a second, 0..100 percent; audio interrupts disabled.
     FLASHMEM void Reset(); // Clear the tail with audio interrupts disabled; preserve requested parameters.
     void Suspend(bool value); // Stop tail processing during Panic buffer clearing.
     void update() override;
@@ -36,6 +36,6 @@ private:
     float level_target = 0.0f;
     float damping = 0.45f;
     float damping_target = 0.45f;
-    int decay_setting = 0;
+    int decay_setting = -1;
     bool suspended = false;
 };

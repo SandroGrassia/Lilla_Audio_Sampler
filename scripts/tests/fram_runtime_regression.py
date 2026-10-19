@@ -87,6 +87,7 @@ int main()
         i.root_key = 60 + index;
         i.to_note = 127;
         i.Filter.frequency_time = 19;
+        i.Filter.pivot = index == 0 ? 128 : 167; // Exact shared LPF endpoints survive FRAM and SD round trips.
     }
     Delay_data_struct delay{99, -10, 0xA5, 2, 39, 90, 359, 5};
     delay.lpf_cutoff = 20;
@@ -105,6 +106,12 @@ int main()
     assert(actual.modulation_source == delay.modulation_source && actual.modulation_depth == delay.modulation_depth && actual.modulation_frequency == delay.modulation_frequency && actual.modulation_phase_LR == delay.modulation_phase_LR);
     assert(actual.loop_gain == delay.loop_gain && actual.lpf_cutoff == delay.lpf_cutoff && actual.compressor == delay.compressor); // Compare fields, not runtime-struct padding.
     assert(Equal_delay(actual, delay));
+    for (int decay = 0; decay <= 50; ++decay)
+    {
+        delay.reverb_decay = decay;
+        assert(archive.Save_Delay(199, delay) == 0);
+        assert(archive.Read_Delay(199, actual) == 0 && Equal_delay(actual, delay));
+    }
     ArchivingManager::FRAM_Patch_delay_struct old_delay{};
     old_delay.samples = 20;
     old_delay.loop_gain = 5;

@@ -101,7 +101,7 @@ struct Instrument_filter_data_struct
 {
     uint8_t use;            // yes/no
     uint8_t type;           // filter type 0 --> 3
-    uint8_t pivot;          // 0 --> 100 filter frequency/note frequency
+    uint8_t pivot;          // Legacy 0..100 exponential frequency; 128..167 selects the shared LPF table.
     uint8_t resonance;      // 0 --> 40
     uint8_t modulation;     // waveform 0 -> 3
     uint8_t index;          // 1 --> 20 modulation_index
