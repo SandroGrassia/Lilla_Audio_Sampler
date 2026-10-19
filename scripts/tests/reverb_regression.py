@@ -25,33 +25,56 @@ int main()
     p.Feed(12345, -23456);
     p.update();
     assert(p.output[0][0] == 12345 && p.output[1][0] == -23456);
-    // Zero decay works on first use and after a nonzero setting, with no recirculating tail.
+    // Zero comb decay retains only the short all-pass tail, with unity-energy diffusion.
     for (int previous : {0, 40})
     {
         LillaReverb zero;
         zero.Set_parameters(100, previous, 0);
         zero.Set_parameters(100, 0, 0);
         zero.Setup(memory_l + 1, memory_r + 1);
-        bool heard = false;
-        for (int block = 0; block < 50; ++block)
+        unsigned nonzero[2] = {};
+        double energy[2] = {};
+        for (int block = 0; block < 100; ++block)
         {
             zero.Clear_output();
             zero.Feed(0, 0);
             if (block == 0)
             {
-                zero.pending[0]->data[0] = 10000;
+                zero.pending[0]->data[0] = zero.pending[1]->data[0] = 10000;
             }
             zero.update();
-            for (int value : zero.output[0])
+            for (unsigned channel = 0; channel < 2; ++channel)
             {
-                heard = heard || value != 0;
-                if (block >= 20)
+                for (int value : zero.output[channel])
+                {
+                    nonzero[channel] += value != 0;
+                    energy[channel] += static_cast<double>(value) * value;
+                    if (block >= 80)
+                    {
+                        assert(value == 0);
+                    }
+                }
+            }
+        }
+        for (unsigned channel = 0; channel < 2; ++channel)
+        {
+            assert(nonzero[channel] > 100 && AudioStream::outstanding == 0);
+            assert(std::abs(energy[channel] / 100000000.0 - 1.0) < 0.005); // Four distinct 5000-amplitude comb echoes before diffusion.
+        }
+        zero.Reset();
+        for (int block = 0; block < 40; ++block)
+        {
+            zero.Clear_output();
+            zero.Feed(0, 0);
+            zero.update();
+            for (unsigned channel = 0; channel < 2; ++channel)
+            {
+                for (int value : zero.output[channel])
                 {
                     assert(value == 0);
                 }
             }
         }
-        assert(heard && AudioStream::outstanding == 0);
     }
     p.Set_parameters(100, 15, 50);
     p.Reset();
@@ -95,7 +118,7 @@ int main()
         {
             for (int value : p.output[channel])
             {
-                assert(value >= 0 && value < 32767);
+                assert(value > -32768 && value < 32767); // All-pass phase response can invert transient samples.
             }
         }
     }
@@ -107,19 +130,30 @@ int main()
     }
     assert(p.output[0].back() == 12345 && p.output[1].back() == -23456);
     p.Suspend(true);
-    const int16_t before = memory_l[1];
+    const std::vector<int16_t> before_l(std::begin(memory_l), std::end(memory_l));
+    const std::vector<int16_t> before_r(std::begin(memory_r), std::end(memory_r));
     p.Feed(1000, -1000);
     p.update();
-    assert(memory_l[1] == before && p.output[0].back() == 1000);
+    assert(std::equal(before_l.begin(), before_l.end(), memory_l));
+    assert(std::equal(before_r.begin(), before_r.end(), memory_r));
+    assert(p.output[0].back() == 1000 && p.output[1].back() == -1000);
     p.Reset();
     p.Suspend(false);
     p.Set_parameters(100, 15, 50);
     p.Reset();
     for (unsigned mask = 0; mask < 4; ++mask)
     {
+        p.Clear_output();
         p.Feed(0, 0, 0, 0, mask);
         p.update();
         assert(AudioStream::outstanding == 0);
+        for (unsigned channel = 0; channel < 2; ++channel)
+        {
+            for (int value : p.output[channel])
+            {
+                assert(value == 0);
+            }
+        }
     }
     for (int failure : {0, 1})
     {
@@ -207,7 +241,7 @@ int main()
         assert(clipped == 0 && rms_db > -10.0);
         std::cout << "Decay 4s, damping 0, level " << mix << "%: RMS " << rms_db << " dB, clipped " << clipped << "\n";
     }
-    std::cout << "PASS: exact OFF, stereo crossfeed, decaying tail, full-scale stability, Panic suspension/reset, buffer guards, missing inputs and allocation failures\n";
+    std::cout << "PASS: unity-energy all-pass diffusion, exact OFF, stereo crossfeed, decaying tail, full-scale stability, Panic suspension/reset, buffer guards, missing inputs and allocation failures\n";
 }
 '''
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'

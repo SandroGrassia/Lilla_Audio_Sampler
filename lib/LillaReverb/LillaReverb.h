@@ -1,4 +1,4 @@
-/* LILLA Audio Sampler - coupled four-comb stereo reverb. */
+/* LILLA Audio Sampler - coupled four-comb stereo reverb with two all-pass diffusers per channel. */
 #pragma once
 #include <Arduino.h>
 #include <AudioStream.h>
@@ -15,10 +15,13 @@ public:
     void update() override;
 private:
     PROGMEM static const unsigned lengths[2][4];
+    PROGMEM static const unsigned allpass_lengths[2][2];
+    static constexpr float ALLPASS_GAIN = 0.5f;
     static constexpr float CROSS_FEEDBACK = 0.15f;
     audio_block_t *input_queue[2];
     int16_t *storage[2] = {};
     unsigned position[2][4] = {};
+    unsigned allpass_position[2][2] = {};
     float filtered[2][4] = {};
     float gain[2][4] = {};
     float gain_target[2][4] = {};

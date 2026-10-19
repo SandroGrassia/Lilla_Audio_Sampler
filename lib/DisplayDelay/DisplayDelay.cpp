@@ -79,7 +79,7 @@ void DisplayDelay::D_show_page()
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK[0]), display_coordinate_y(DELAY_column_row_FEEDBACK[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("REPEATS");
+    tft.print("ECHO REPEATS");
     D_feedback();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_COMPRESSOR[0]), display_coordinate_y(DELAY_column_row_COMPRESSOR[1]));
@@ -89,7 +89,7 @@ void DisplayDelay::D_show_page()
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_FEEDBACK_LPF[0]), display_coordinate_y(DELAY_column_row_FEEDBACK_LPF[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("FEEDBACK LPF");
+    tft.print("ECHO LPF");
     D_feedback_lpf();
 
     tft.setCursor(display_coordinate_x(DELAY_column_row_DELAY_TIME[0]), display_coordinate_y(DELAY_column_row_DELAY_TIME[1]));

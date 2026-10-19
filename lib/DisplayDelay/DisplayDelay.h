@@ -35,7 +35,7 @@ class DisplayDelay
 {
 private:
     static constexpr int DEL_ROW_SOUND = 5;
-    static constexpr int DEL_COL_REVERB = 28;
+    static constexpr int DEL_COL_REVERB = 30;
 
     static constexpr float DELAY_column_row_VOLUME[2] = {41, 0};
 
@@ -53,9 +53,9 @@ private:
     static constexpr float DELAY_column_row_REVERB_DAMPING[2] = {DEL_COL_REVERB, DELAY_column_row_REVERB_LEVEL[1] + 2};
 
     static constexpr float DELAY_column_row_sounds[2] = {8, DEL_ROW_SOUND};
-    static constexpr float DELAY_column_row_feedback[2] = {8, DEL_ROW_SOUND + 1.5};
+    static constexpr float DELAY_column_row_feedback[2] = {13, DEL_ROW_SOUND + 1.5};
     static constexpr float DELAY_column_row_compressor[2] = {11, DEL_ROW_SOUND + 3.5};
-    static constexpr float DELAY_column_row_feedback_lpf[2] = {13, DEL_ROW_SOUND + 2.5};
+    static constexpr float DELAY_column_row_feedback_lpf[2] = {9, DEL_ROW_SOUND + 2.5};
     static constexpr float DELAY_column_row_delay_time[2] = {10, DEL_ROW_SOUND + 4.5};
     static constexpr float DELAY_column_row_delay_time_LR[2] = {20, DEL_ROW_SOUND + 5.5};
     static constexpr float DELAY_column_row_modulation_source[2] = {DELAY_column_row_MODULATION_SOURCE[0] + 11, DELAY_column_row_MODULATION_SOURCE[1]};

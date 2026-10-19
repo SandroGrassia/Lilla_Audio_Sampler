@@ -1,13 +1,14 @@
-/* LILLA Audio Sampler - two four-comb networks with bounded stereo feedback. */
+/* LILLA Audio Sampler - two four-comb networks with stereo feedback and all-pass diffusion. */
 #include "LillaReverb.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 
 PROGMEM const unsigned LillaReverb::lengths[2][4] = {{1493, 1601, 1867, 2081}, {1559, 1699, 1999, 2203}};
+PROGMEM const unsigned LillaReverb::allpass_lengths[2][2] = {{211, 337}, {223, 349}};
 static_assert(sizeof(float) == 2 * sizeof(int16_t));
-static_assert(1493 + 1601 + 1867 + 2081 <= LillaReverb::CHANNEL_SAMPLES / 2);
-static_assert(1559 + 1699 + 1999 + 2203 <= LillaReverb::CHANNEL_SAMPLES / 2);
+static_assert(1493 + 1601 + 1867 + 2081 + 211 + 337 <= LillaReverb::CHANNEL_SAMPLES / 2);
+static_assert(1559 + 1699 + 1999 + 2203 + 223 + 349 <= LillaReverb::CHANNEL_SAMPLES / 2);
 
 FLASHMEM LillaReverb::LillaReverb() : AudioStream(2, input_queue)
 {
@@ -45,6 +46,7 @@ FLASHMEM void LillaReverb::Reset()
     for (unsigned channel = 0; channel < 2; ++channel)
     {
         std::fill(storage[channel], storage[channel] + CHANNEL_SAMPLES, 0);
+        std::fill(std::begin(allpass_position[channel]), std::end(allpass_position[channel]), 0u);
         for (unsigned comb = 0; comb < 4; ++comb)
         {
             position[channel][comb] = 0;
@@ -107,6 +109,23 @@ void LillaReverb::update()
                         position[channel][comb] = 0;
                     }
                     offset[channel] += lengths[channel][comb];
+                }
+            }
+            // Schroeder all-pass sections use the free tail of each existing float buffer.
+            for (unsigned stage = 0; stage < 2; ++stage)
+            {
+                for (unsigned channel = 0; channel < 2; ++channel)
+                {
+                    const unsigned index = offset[channel] + allpass_position[channel][stage];
+                    const float input = wet[channel];
+                    const float delayed = Read_sample(storage[channel], index);
+                    wet[channel] = delayed - ALLPASS_GAIN * input;
+                    Write_sample(storage[channel], index, input + ALLPASS_GAIN * wet[channel]);
+                    if (++allpass_position[channel][stage] == allpass_lengths[channel][stage])
+                    {
+                        allpass_position[channel][stage] = 0;
+                    }
+                    offset[channel] += allpass_lengths[channel][stage];
                 }
             }
         }
