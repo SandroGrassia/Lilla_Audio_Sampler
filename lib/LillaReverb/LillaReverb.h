@@ -6,11 +6,12 @@
 class LillaReverb : public AudioStream
 {
 public:
-    static constexpr unsigned CHANNEL_SAMPLES = 16384;
+    static constexpr unsigned CHANNEL_BYTES = 128 * 1024;
+    static constexpr unsigned CHANNEL_SAMPLES = CHANNEL_BYTES / sizeof(int16_t); // Reserved int16 storage slots; each float history sample occupies two slots.
     FLASHMEM LillaReverb();
     FLASHMEM void Setup(int16_t *left, int16_t *right); // Caller supplies disjoint CHANNEL_SAMPLES buffers with audio interrupts disabled.
     FLASHMEM void Set_parameters(int level, int decay, int damping); // 0..100 percent, 0..50 tenths of a second, 0..100 percent; audio interrupts disabled.
-    FLASHMEM void Reset(); // Clear the tail with audio interrupts disabled; preserve requested parameters.
+    FLASHMEM void Reset(); // Clear only the used histories with audio interrupts disabled; preserve requested parameters and unused storage.
     void Suspend(bool value); // Stop tail processing during Panic buffer clearing.
     void update() override;
 private:

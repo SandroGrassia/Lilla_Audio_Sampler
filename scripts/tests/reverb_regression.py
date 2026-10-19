@@ -17,11 +17,25 @@ int main()
 {
     int16_t memory_l[LillaReverb::CHANNEL_SAMPLES + 2] = {};
     int16_t memory_r[LillaReverb::CHANNEL_SAMPLES + 2] = {};
+    std::fill(std::begin(memory_l), std::end(memory_l), 2345);
+    std::fill(std::begin(memory_r), std::end(memory_r), 2345);
+    const auto check_unused_storage = [&]()
+    {
+        for (unsigned i = 1 + 2 * (1493 + 1601 + 1867 + 2081 + 211 + 337); i <= LillaReverb::CHANNEL_SAMPLES; ++i)
+        {
+            assert(memory_l[i] == 2345);
+        }
+        for (unsigned i = 1 + 2 * (1559 + 1699 + 1999 + 2203 + 223 + 349); i <= LillaReverb::CHANNEL_SAMPLES; ++i)
+        {
+            assert(memory_r[i] == 2345);
+        }
+    };
     memory_l[0] = memory_r[0] = 1234;
     memory_l[LillaReverb::CHANNEL_SAMPLES + 1] = memory_r[LillaReverb::CHANNEL_SAMPLES + 1] = 5678;
     LillaReverb p;
     p.Set_parameters(0, 15, 50);
     p.Setup(memory_l + 1, memory_r + 1);
+    check_unused_storage();
     p.Feed(12345, -23456);
     p.update();
     assert(p.output[0][0] == 12345 && p.output[1][0] == -23456);
@@ -277,7 +291,8 @@ int main()
         assert(clipped == 0 && rms_db > -10.0);
         std::cout << "Decay 4s, damping 0, level " << mix << "%: RMS " << rms_db << " dB, clipped " << clipped << "\n";
     }
-    std::cout << "PASS: damped first reflections, unity-energy all-pass diffusion, exact OFF, stereo crossfeed, decaying tail, full-scale stability, Panic suspension/reset, buffer guards, missing inputs and allocation failures\n";
+    check_unused_storage();
+    std::cout << "PASS: damped first reflections, unity-energy all-pass diffusion, exact OFF, stereo crossfeed, decaying tail, full-scale stability, Panic suspension/reset, buffer guards, untouched reserve, missing inputs and allocation failures\n";
 }
 '''
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'

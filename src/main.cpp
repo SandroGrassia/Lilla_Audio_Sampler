@@ -527,6 +527,7 @@ bool S_Fill_all_tables(void);                                         // Prepare
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete table bank while preserving previous presets if preparation fails.
 bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
 FLASHMEM void Print_player_read_diagnostics(void);                             // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
+FLASHMEM void Print_reverb_cost(bool reset); // Serial r resets the measurement window; v reports native audio CPU counters.
 void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
 void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
 void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
@@ -563,6 +564,11 @@ FLASHMEM byte CC_Save_settings(void);       // Persist Control Change settings a
 FLASHMEM byte CC_Read_all_Sound_gain(void); // Load instrument Sound gains for the Control Change page and return the FRAM status.
 
 // >>>>>>> DELAY
+static constexpr int DELAY_REVERB_OFFSET_SAMPLES = DELAY_CACHE_ACTIVE_SAMPLES; // All layout offsets count int16 slots within each existing Delay allocation.
+static constexpr int DELAY_RESERVE_OFFSET_SAMPLES = DELAY_REVERB_OFFSET_SAMPLES + LillaReverb::CHANNEL_SAMPLES;
+static constexpr int DELAY_RESERVE_SAMPLES = DELAY_CACHE_CHANNEL_SAMPLES - DELAY_RESERVE_OFFSET_SAMPLES;
+static_assert(DELAY_RESERVE_OFFSET_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES); // Active Delay, reserved reverb and remaining reserve are disjoint.
+static_assert((DELAY_REVERB_OFFSET_SAMPLES * sizeof(int16_t)) % alignof(float) == 0);
 EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the left delay channel.
 EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the right delay channel.
 
@@ -1000,6 +1006,15 @@ void loop()
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
     P_Service_patch_cache();
+
+    if (Serial.available() > 0)
+    {
+        const int command = Serial.read();
+        if (command == 'r' || command == 'v')
+        {
+            Print_reverb_cost(command == 'r');
+        }
+    }
 
     /*
     if (Serial.available() > 0)
@@ -15581,8 +15596,7 @@ void Reload_system_state(void)
     // Delay objects setup
     Delay_L.DELAY_fifo = DELAY_fifo_L;
     Delay_R.DELAY_fifo = DELAY_fifo_R;
-    static_assert(DELAY_CACHE_ACTIVE_SAMPLES + LillaReverb::CHANNEL_SAMPLES <= DELAY_CACHE_CHANNEL_SAMPLES);
-    D_Reverb.Setup(DELAY_fifo_L + DELAY_CACHE_ACTIVE_SAMPLES, DELAY_fifo_R + DELAY_CACHE_ACTIVE_SAMPLES);
+    D_Reverb.Setup(DELAY_fifo_L + DELAY_REVERB_OFFSET_SAMPLES, DELAY_fifo_R + DELAY_REVERB_OFFSET_SAMPLES);
 
     // |||||||||||||||||        TOOLS         |||||||||||||||||||
     if (false)
@@ -15849,6 +15863,56 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
         Players_Manager.Refresh_cache_sources(); // Promote current and queued matching voices atomically to the completed PSRAM source.
     }
     AudioInterrupts(); // Restore audio processing
+}
+
+FLASHMEM
+void Print_reverb_cost(bool reset)
+{
+    static uint32_t window_started_ms = 0;
+    AudioStream *const streams[] = {&D_Reverb, &D_Compressor, &Delay_L, &Delay_R, &D_lpf_L, &D_lpf_R, &mixer_L, &mixer_R, &biquad_L, &biquad_R, &audio_out};
+    const char *const names[] = {"reverb", "compressor", "delay_L", "delay_R", "feedback_lpf_L", "feedback_lpf_R", "mixer_L", "mixer_R", "output_lpf_L", "output_lpf_R", "i2s"};
+    uint16_t current[11], peak[11];
+    unsigned voices = 0;
+    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+
+    AudioNoInterrupts();
+    if (reset)
+    {
+        for (AudioStream *stream : streams)
+        {
+            stream->processorUsageMaxReset();
+        }
+        AudioProcessorUsageMaxReset();
+        AudioMemoryUsageMaxReset();
+        window_started_ms = millis();
+    }
+    for (unsigned i = 0; i < 11; ++i)
+    {
+        current[i] = streams[i]->cpu_cycles;
+        peak[i] = streams[i]->cpu_cycles_max;
+    }
+    for (unsigned i = 0; i < PLAYERS; ++i)
+    {
+        voices += Player[i].isPlaying();
+    }
+    const uint16_t total = AudioStream::cpu_cycles_total;
+    const uint16_t total_peak = AudioStream::cpu_cycles_total_max;
+    const unsigned memory = AudioMemoryUsage();
+    const unsigned memory_peak = AudioMemoryUsageMax();
+    const auto parameters = Delay_data;
+    if (audio_enabled)
+    {
+        AudioInterrupts();
+    }
+
+    const float unit_us = 64.0f * 1000000.0f / F_CPU_ACTUAL;
+    const float block_us = 1000000.0f * AUDIO_BLOCK_SAMPLES / AUDIO_SAMPLE_RATE_EXACT;
+    Serial.printf("REVERB_COST,%s,window_ms=%lu,block_us=%.3f,cpu_hz=%lu,voices=%u,level=%u,decay=%u,damping=%u,patch=%d\n", reset ? "reset" : "report", static_cast<unsigned long>(millis() - window_started_ms), block_us, static_cast<unsigned long>(F_CPU_ACTUAL), voices, parameters.reverb_level, parameters.reverb_decay, parameters.reverb_damping, Patch_id);
+    for (unsigned i = 0; i < 11; ++i)
+    {
+        Serial.printf("AUDIO_COST,%s,current_us=%.3f,peak_us=%.3f,current_pct=%.3f,peak_pct=%.3f\n", names[i], current[i] * unit_us, peak[i] * unit_us, current[i] * unit_us * 100.0f / block_us, peak[i] * unit_us * 100.0f / block_us);
+    }
+    Serial.printf("AUDIO_COST,total,current_us=%.3f,peak_us=%.3f,current_pct=%.3f,peak_pct=%.3f,headroom_us=%.3f,blocks=%u,blocks_peak=%u\n", total * unit_us, total_peak * unit_us, total * unit_us * 100.0f / block_us, total_peak * unit_us * 100.0f / block_us, block_us - total_peak * unit_us, memory, memory_peak);
 }
 
 FLASHMEM

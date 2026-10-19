@@ -1,0 +1,7449 @@
+{
+  "port": "COM8",
+  "duration_seconds": 45.0,
+  "note": "Median describes foreground polls, not all audio blocks. Peaks are native per-block maxima since reset; individual peaks need not coincide.",
+  "summary": {
+    "reverb": {
+      "median_polled_current_us": 333.49350000000004,
+      "window_peak_us": 415.68,
+      "window_peak_pct": 14.321
+    },
+    "compressor": {
+      "median_polled_current_us": 62.293499999999995,
+      "window_peak_us": 111.893,
+      "window_peak_pct": 3.855
+    },
+    "delay_L": {
+      "median_polled_current_us": 25.92,
+      "window_peak_us": 74.24,
+      "window_peak_pct": 2.558
+    },
+    "delay_R": {
+      "median_polled_current_us": 26.347,
+      "window_peak_us": 78.293,
+      "window_peak_pct": 2.697
+    },
+    "feedback_lpf_L": {
+      "median_polled_current_us": 2.773,
+      "window_peak_us": 47.573,
+      "window_peak_pct": 1.639
+    },
+    "feedback_lpf_R": {
+      "median_polled_current_us": 2.667,
+      "window_peak_us": 48.533,
+      "window_peak_pct": 1.672
+    },
+    "mixer_L": {
+      "median_polled_current_us": 0.853,
+      "window_peak_us": 47.04,
+      "window_peak_pct": 1.621
+    },
+    "mixer_R": {
+      "median_polled_current_us": 0.747,
+      "window_peak_us": 47.253,
+      "window_peak_pct": 1.628
+    },
+    "output_lpf_L": {
+      "median_polled_current_us": 2.667,
+      "window_peak_us": 52.053,
+      "window_peak_pct": 1.793
+    },
+    "output_lpf_R": {
+      "median_polled_current_us": 2.667,
+      "window_peak_us": 49.493,
+      "window_peak_pct": 1.705
+    },
+    "i2s": {
+      "median_polled_current_us": 0.107,
+      "window_peak_us": 43.307,
+      "window_peak_pct": 1.492
+    },
+    "total": {
+      "median_polled_current_us": 1395.84,
+      "window_peak_us": 1789.76,
+      "window_peak_pct": 61.663
+    }
+  },
+  "reports": [
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 538.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 329.173,
+          "peak_us": 370.347,
+          "current_pct": 11.341,
+          "peak_pct": 12.76
+        },
+        "compressor": {
+          "current_us": 60.267,
+          "peak_us": 60.693,
+          "current_pct": 2.076,
+          "peak_pct": 2.091
+        },
+        "delay_L": {
+          "current_us": 24.747,
+          "peak_us": 33.6,
+          "current_pct": 0.853,
+          "peak_pct": 1.158
+        },
+        "delay_R": {
+          "current_us": 30.933,
+          "peak_us": 32.96,
+          "current_pct": 1.066,
+          "peak_pct": 1.136
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.773,
+          "current_pct": 0.092,
+          "peak_pct": 0.096
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 3.413,
+          "current_pct": 0.026,
+          "peak_pct": 0.118
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 3.733,
+          "current_pct": 0.026,
+          "peak_pct": 0.129
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 501.333,
+          "peak_us": 537.92,
+          "current_pct": 17.273,
+          "peak_pct": 18.533,
+          "headroom_us": 2364.574,
+          "blocks": 10.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 1084.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 339.733,
+          "peak_us": 372.587,
+          "current_pct": 11.705,
+          "peak_pct": 12.837
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.12,
+          "current_pct": 2.032,
+          "peak_pct": 2.106
+        },
+        "delay_L": {
+          "current_us": 25.92,
+          "peak_us": 34.667,
+          "current_pct": 0.893,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 29.12,
+          "peak_us": 34.453,
+          "current_pct": 1.003,
+          "peak_pct": 1.187
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.773,
+          "current_pct": 0.092,
+          "peak_pct": 0.096
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.413,
+          "current_pct": 0.029,
+          "peak_pct": 0.118
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 3.733,
+          "current_pct": 0.022,
+          "peak_pct": 0.129
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 510.08,
+          "peak_us": 537.92,
+          "current_pct": 17.574,
+          "peak_pct": 18.533,
+          "headroom_us": 2364.574,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 1639.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 336.32,
+          "peak_us": 372.587,
+          "current_pct": 11.587,
+          "peak_pct": 12.837
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.12,
+          "current_pct": 2.032,
+          "peak_pct": 2.106
+        },
+        "delay_L": {
+          "current_us": 26.133,
+          "peak_us": 34.667,
+          "current_pct": 0.9,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 26.347,
+          "peak_us": 37.333,
+          "current_pct": 0.908,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.773,
+          "current_pct": 0.092,
+          "peak_pct": 0.096
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.413,
+          "current_pct": 0.029,
+          "peak_pct": 0.118
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 4.16,
+          "current_pct": 0.026,
+          "peak_pct": 0.143
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 504.213,
+          "peak_us": 539.733,
+          "current_pct": 17.372,
+          "peak_pct": 18.595,
+          "headroom_us": 2362.761,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 2191.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 309.76,
+          "peak_us": 374.613,
+          "current_pct": 10.672,
+          "peak_pct": 12.907
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.12,
+          "current_pct": 2.032,
+          "peak_pct": 2.106
+        },
+        "delay_L": {
+          "current_us": 25.173,
+          "peak_us": 34.667,
+          "current_pct": 0.867,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 26.24,
+          "peak_us": 37.333,
+          "current_pct": 0.904,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.773,
+          "current_pct": 0.092,
+          "peak_pct": 0.096
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 3.52,
+          "current_pct": 0.033,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 4.16,
+          "current_pct": 0.022,
+          "peak_pct": 0.143
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 476.267,
+          "peak_us": 539.733,
+          "current_pct": 16.409,
+          "peak_pct": 18.595,
+          "headroom_us": 2362.761,
+          "blocks": 10.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 2747.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 351.573,
+          "peak_us": 374.613,
+          "current_pct": 12.113,
+          "peak_pct": 12.907
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.333,
+          "current_pct": 2.032,
+          "peak_pct": 2.113
+        },
+        "delay_L": {
+          "current_us": 24.533,
+          "peak_us": 34.667,
+          "current_pct": 0.845,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 26.347,
+          "peak_us": 37.333,
+          "current_pct": 0.908,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.773,
+          "current_pct": 0.092,
+          "peak_pct": 0.096
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.52,
+          "current_pct": 0.029,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.44,
+          "current_pct": 0.026,
+          "peak_pct": 0.187
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 517.547,
+          "peak_us": 539.733,
+          "current_pct": 17.831,
+          "peak_pct": 18.595,
+          "headroom_us": 2362.761,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 3303.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 321.28,
+          "peak_us": 374.613,
+          "current_pct": 11.069,
+          "peak_pct": 12.907
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 25.28,
+          "peak_us": 34.667,
+          "current_pct": 0.871,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 31.893,
+          "peak_us": 37.333,
+          "current_pct": 1.099,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.773,
+          "current_pct": 0.088,
+          "peak_pct": 0.096
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.52,
+          "current_pct": 0.029,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.44,
+          "current_pct": 0.026,
+          "peak_pct": 0.187
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 493.76,
+          "peak_us": 539.733,
+          "current_pct": 17.012,
+          "peak_pct": 18.595,
+          "headroom_us": 2362.761,
+          "blocks": 10.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 3841.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 331.84,
+          "peak_us": 374.613,
+          "current_pct": 11.433,
+          "peak_pct": 12.907
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 26.133,
+          "peak_us": 34.667,
+          "current_pct": 0.9,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 30.933,
+          "peak_us": 37.333,
+          "current_pct": 1.066,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 3.52,
+          "current_pct": 0.026,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.44,
+          "current_pct": 0.022,
+          "peak_pct": 0.187
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 504.32,
+          "peak_us": 542.293,
+          "current_pct": 17.375,
+          "peak_pct": 18.684,
+          "headroom_us": 2360.201,
+          "blocks": 10.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 4379.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 310.933,
+          "peak_us": 374.613,
+          "current_pct": 10.713,
+          "peak_pct": 12.907
+        },
+        "compressor": {
+          "current_us": 59.52,
+          "peak_us": 61.44,
+          "current_pct": 2.051,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 28.267,
+          "peak_us": 34.667,
+          "current_pct": 0.974,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 24.213,
+          "peak_us": 37.333,
+          "current_pct": 0.834,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 3.52,
+          "current_pct": 0.026,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 479.147,
+          "peak_us": 542.293,
+          "current_pct": 16.508,
+          "peak_pct": 18.684,
+          "headroom_us": 2360.201,
+          "blocks": 12.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 4923.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 333.44,
+          "peak_us": 397.653,
+          "current_pct": 11.488,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 60.693,
+          "peak_us": 61.44,
+          "current_pct": 2.091,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 24.533,
+          "peak_us": 34.667,
+          "current_pct": 0.845,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 30.187,
+          "peak_us": 37.333,
+          "current_pct": 1.04,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 3.52,
+          "current_pct": 0.026,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 505.173,
+          "peak_us": 562.347,
+          "current_pct": 17.405,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 10.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 5468.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 329.707,
+          "peak_us": 397.653,
+          "current_pct": 11.359,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 21.013,
+          "peak_us": 34.667,
+          "current_pct": 0.724,
+          "peak_pct": 1.194
+        },
+        "delay_R": {
+          "current_us": 27.52,
+          "peak_us": 37.333,
+          "current_pct": 0.948,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.52,
+          "current_pct": 0.029,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 493.227,
+          "peak_us": 562.347,
+          "current_pct": 16.993,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 12.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 6016.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 314.667,
+          "peak_us": 397.653,
+          "current_pct": 10.841,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 28.693,
+          "peak_us": 34.88,
+          "current_pct": 0.989,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 27.413,
+          "peak_us": 37.333,
+          "current_pct": 0.944,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 3.52,
+          "current_pct": 0.026,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.653,
+          "current_pct": 0.026,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 486.187,
+          "peak_us": 562.347,
+          "current_pct": 16.751,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 6571.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 307.2,
+          "peak_us": 397.653,
+          "current_pct": 10.584,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 60.16,
+          "peak_us": 61.44,
+          "current_pct": 2.073,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 24.96,
+          "peak_us": 34.88,
+          "current_pct": 0.86,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 24.853,
+          "peak_us": 37.333,
+          "current_pct": 0.856,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 3.52,
+          "current_pct": 0.033,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 473.387,
+          "peak_us": 562.347,
+          "current_pct": 16.31,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 12.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 7127.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 354.347,
+          "peak_us": 397.653,
+          "current_pct": 12.208,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 24.747,
+          "peak_us": 34.88,
+          "current_pct": 0.853,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 25.173,
+          "peak_us": 37.333,
+          "current_pct": 0.867,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.52,
+          "current_pct": 0.029,
+          "peak_pct": 0.121
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 519.253,
+          "peak_us": 562.347,
+          "current_pct": 17.89,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 7679.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 339.093,
+          "peak_us": 397.653,
+          "current_pct": 11.683,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 59.52,
+          "peak_us": 61.44,
+          "current_pct": 2.051,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 29.867,
+          "peak_us": 34.88,
+          "current_pct": 1.029,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 26.133,
+          "peak_us": 37.333,
+          "current_pct": 0.9,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 3.733,
+          "current_pct": 0.029,
+          "peak_pct": 0.129
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.653,
+          "current_pct": 0.026,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 510.827,
+          "peak_us": 562.347,
+          "current_pct": 17.6,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 12.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 8228.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 316.373,
+          "peak_us": 397.653,
+          "current_pct": 10.9,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 23.467,
+          "peak_us": 34.88,
+          "current_pct": 0.808,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 31.36,
+          "peak_us": 37.333,
+          "current_pct": 1.08,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 4.16,
+          "current_pct": 0.026,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 486.08,
+          "peak_us": 562.347,
+          "current_pct": 16.747,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 8785.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 12.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 308.693,
+          "peak_us": 397.653,
+          "current_pct": 10.635,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 30.72,
+          "peak_us": 34.88,
+          "current_pct": 1.058,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 28.053,
+          "peak_us": 37.333,
+          "current_pct": 0.967,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 4.16,
+          "current_pct": 0.026,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 482.56,
+          "peak_us": 562.347,
+          "current_pct": 16.626,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 9321.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 14.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 345.707,
+          "peak_us": 397.653,
+          "current_pct": 11.911,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 60.693,
+          "peak_us": 61.44,
+          "current_pct": 2.091,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 25.92,
+          "peak_us": 34.88,
+          "current_pct": 0.893,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 25.6,
+          "peak_us": 37.333,
+          "current_pct": 0.882,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 2.88,
+          "current_pct": 0.096,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 4.16,
+          "current_pct": 0.026,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.653,
+          "current_pct": 0.026,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 514.027,
+          "peak_us": 562.347,
+          "current_pct": 17.71,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 9875.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 17.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 345.493,
+          "peak_us": 397.653,
+          "current_pct": 11.903,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 61.44,
+          "current_pct": 2.032,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 25.28,
+          "peak_us": 34.88,
+          "current_pct": 0.871,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 25.493,
+          "peak_us": 37.333,
+          "current_pct": 0.878,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 4.16,
+          "current_pct": 0.029,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.653,
+          "current_pct": 0.026,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 511.253,
+          "peak_us": 562.347,
+          "current_pct": 17.614,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 12.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 10419.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 22.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 333.547,
+          "peak_us": 397.653,
+          "current_pct": 11.492,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 59.733,
+          "peak_us": 61.44,
+          "current_pct": 2.058,
+          "peak_pct": 2.117
+        },
+        "delay_L": {
+          "current_us": 24.427,
+          "peak_us": 34.88,
+          "current_pct": 0.842,
+          "peak_pct": 1.202
+        },
+        "delay_R": {
+          "current_us": 29.973,
+          "peak_us": 37.333,
+          "current_pct": 1.033,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.88,
+          "current_pct": 0.092,
+          "peak_pct": 0.099
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 2.88,
+          "current_pct": 0.088,
+          "peak_pct": 0.099
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 4.16,
+          "current_pct": 0.029,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 5.653,
+          "current_pct": 0.029,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 545.813,
+          "peak_us": 562.347,
+          "current_pct": 18.805,
+          "peak_pct": 19.375,
+          "headroom_us": 2340.148,
+          "blocks": 14.0,
+          "blocks_peak": 18.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 10958.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 26.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 321.92,
+          "peak_us": 397.653,
+          "current_pct": 11.091,
+          "peak_pct": 13.7
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 68.053,
+          "peak_us": 68.693,
+          "current_pct": 2.345,
+          "peak_pct": 2.367
+        },
+        "delay_R": {
+          "current_us": 18.027,
+          "peak_us": 37.333,
+          "current_pct": 0.621,
+          "peak_pct": 1.286
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 4.16,
+          "current_pct": 0.026,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 522.987,
+          "peak_us": 580.053,
+          "current_pct": 18.019,
+          "peak_pct": 19.985,
+          "headroom_us": 2322.441,
+          "blocks": 12.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 11524.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 28.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 367.893,
+          "peak_us": 404.587,
+          "current_pct": 12.675,
+          "peak_pct": 13.939
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 28.8,
+          "peak_us": 74.24,
+          "current_pct": 0.992,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.16,
+          "peak_us": 78.293,
+          "current_pct": 0.97,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 4.16,
+          "current_pct": 0.029,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 5.653,
+          "current_pct": 0.022,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 540.267,
+          "peak_us": 584.107,
+          "current_pct": 18.614,
+          "peak_pct": 20.124,
+          "headroom_us": 2318.388,
+          "blocks": 12.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 12077.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 30.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 380.587,
+          "peak_us": 404.587,
+          "current_pct": 13.112,
+          "peak_pct": 13.939
+        },
+        "compressor": {
+          "current_us": 59.627,
+          "peak_us": 106.987,
+          "current_pct": 2.054,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 28.587,
+          "peak_us": 74.24,
+          "current_pct": 0.985,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.88,
+          "peak_us": 78.293,
+          "current_pct": 0.926,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 4.16,
+          "current_pct": 0.026,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.653,
+          "current_pct": 0.026,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 551.893,
+          "peak_us": 584.107,
+          "current_pct": 19.014,
+          "peak_pct": 20.124,
+          "headroom_us": 2318.388,
+          "blocks": 12.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 12632.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 35.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 370.027,
+          "peak_us": 415.68,
+          "current_pct": 12.749,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 28.8,
+          "peak_us": 74.24,
+          "current_pct": 0.992,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 27.413,
+          "peak_us": 78.293,
+          "current_pct": 0.944,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 4.16,
+          "current_pct": 0.029,
+          "peak_pct": 0.143
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 5.653,
+          "current_pct": 0.026,
+          "peak_pct": 0.195
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 2.667,
+          "current_pct": 0.092,
+          "peak_pct": 0.092
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 0.107,
+          "current_pct": 0.004,
+          "peak_pct": 0.004
+        },
+        "total": {
+          "current_us": 541.44,
+          "peak_us": 587.413,
+          "current_pct": 18.654,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 12.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 13183.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 39.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 314.453,
+          "peak_us": 415.68,
+          "current_pct": 10.834,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 60.053,
+          "peak_us": 106.987,
+          "current_pct": 2.069,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 23.787,
+          "peak_us": 74.24,
+          "current_pct": 0.82,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 30.613,
+          "peak_us": 78.293,
+          "current_pct": 1.055,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 485.013,
+          "peak_us": 587.413,
+          "current_pct": 16.71,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 10.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 13722.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 42.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 332.8,
+          "peak_us": 415.68,
+          "current_pct": 11.466,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 24.853,
+          "peak_us": 74.24,
+          "current_pct": 0.856,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 29.653,
+          "peak_us": 78.293,
+          "current_pct": 1.022,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 502.613,
+          "peak_us": 587.413,
+          "current_pct": 17.317,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 12.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 14260.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 45.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 352.213,
+          "peak_us": 415.68,
+          "current_pct": 12.135,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.24,
+          "peak_us": 74.24,
+          "current_pct": 0.904,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 32.213,
+          "peak_us": 78.293,
+          "current_pct": 1.11,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 525.867,
+          "peak_us": 587.413,
+          "current_pct": 18.118,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 10.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 14799.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 47.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 330.027,
+          "peak_us": 415.68,
+          "current_pct": 11.37,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 31.68,
+          "peak_us": 74.24,
+          "current_pct": 1.091,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.347,
+          "peak_us": 78.293,
+          "current_pct": 0.908,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 503.147,
+          "peak_us": 587.413,
+          "current_pct": 17.335,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 14.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 15347.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 327.467,
+          "peak_us": 415.68,
+          "current_pct": 11.282,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 24.853,
+          "peak_us": 74.24,
+          "current_pct": 0.856,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 24.96,
+          "peak_us": 78.293,
+          "current_pct": 0.86,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 492.48,
+          "peak_us": 587.413,
+          "current_pct": 16.967,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 14.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 15898.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 304.0,
+          "peak_us": 415.68,
+          "current_pct": 10.474,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 59.947,
+          "peak_us": 106.987,
+          "current_pct": 2.065,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 24.64,
+          "peak_us": 74.24,
+          "current_pct": 0.849,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.347,
+          "peak_us": 78.293,
+          "current_pct": 0.908,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 471.04,
+          "peak_us": 587.413,
+          "current_pct": 16.229,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 10.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 16451.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 316.373,
+          "peak_us": 415.68,
+          "current_pct": 10.9,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 29.44,
+          "peak_us": 74.24,
+          "current_pct": 1.014,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 19.84,
+          "peak_us": 78.293,
+          "current_pct": 0.684,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.56,
+          "peak_us": 48.533,
+          "current_pct": 0.088,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 480.64,
+          "peak_us": 587.413,
+          "current_pct": 16.56,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 10.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 17008.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 325.973,
+          "peak_us": 415.68,
+          "current_pct": 11.231,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.88,
+          "peak_us": 74.24,
+          "current_pct": 0.926,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 27.093,
+          "peak_us": 78.293,
+          "current_pct": 0.933,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 495.147,
+          "peak_us": 587.413,
+          "current_pct": 17.059,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 10.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 17559.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 324.907,
+          "peak_us": 415.68,
+          "current_pct": 11.194,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 58.987,
+          "peak_us": 106.987,
+          "current_pct": 2.032,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 27.413,
+          "peak_us": 74.24,
+          "current_pct": 0.944,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 24.747,
+          "peak_us": 78.293,
+          "current_pct": 0.853,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 492.373,
+          "peak_us": 587.413,
+          "current_pct": 16.964,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 14.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 18113.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 0.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 326.293,
+          "peak_us": 415.68,
+          "current_pct": 11.242,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 59.627,
+          "peak_us": 106.987,
+          "current_pct": 2.054,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 27.627,
+          "peak_us": 74.24,
+          "current_pct": 0.952,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 29.12,
+          "peak_us": 78.293,
+          "current_pct": 1.003,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 499.093,
+          "peak_us": 587.413,
+          "current_pct": 17.195,
+          "peak_pct": 20.238,
+          "headroom_us": 2315.081,
+          "blocks": 14.0,
+          "blocks_peak": 20.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 18666.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 12.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 343.36,
+          "peak_us": 415.68,
+          "current_pct": 11.83,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.4,
+          "peak_us": 106.987,
+          "current_pct": 2.15,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 25.6,
+          "peak_us": 74.24,
+          "current_pct": 0.882,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 27.84,
+          "peak_us": 78.293,
+          "current_pct": 0.959,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 1.28,
+          "peak_us": 47.253,
+          "current_pct": 0.044,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1204.373,
+          "peak_us": 1218.987,
+          "current_pct": 41.494,
+          "peak_pct": 41.998,
+          "headroom_us": 1683.508,
+          "blocks": 12.0,
+          "blocks_peak": 37.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 19223.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 12.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 350.613,
+          "peak_us": 415.68,
+          "current_pct": 12.08,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.36,
+          "peak_us": 106.987,
+          "current_pct": 2.183,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 23.147,
+          "peak_us": 74.24,
+          "current_pct": 0.797,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 22.187,
+          "peak_us": 78.293,
+          "current_pct": 0.764,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1159.36,
+          "peak_us": 1322.88,
+          "current_pct": 39.944,
+          "peak_pct": 45.577,
+          "headroom_us": 1579.614,
+          "blocks": 12.0,
+          "blocks_peak": 37.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 19761.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 12.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 318.187,
+          "peak_us": 415.68,
+          "current_pct": 10.963,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.613,
+          "peak_us": 106.987,
+          "current_pct": 2.157,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 28.053,
+          "peak_us": 74.24,
+          "current_pct": 0.967,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.28,
+          "peak_us": 78.293,
+          "current_pct": 0.871,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1203.093,
+          "peak_us": 1322.88,
+          "current_pct": 41.45,
+          "peak_pct": 45.577,
+          "headroom_us": 1579.614,
+          "blocks": 10.0,
+          "blocks_peak": 37.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 20311.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 12.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 328.853,
+          "peak_us": 415.68,
+          "current_pct": 11.33,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.933,
+          "peak_us": 106.987,
+          "current_pct": 2.168,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 27.307,
+          "peak_us": 74.24,
+          "current_pct": 0.941,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.053,
+          "peak_us": 78.293,
+          "current_pct": 0.967,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1206.72,
+          "peak_us": 1322.88,
+          "current_pct": 41.575,
+          "peak_pct": 45.577,
+          "headroom_us": 1579.614,
+          "blocks": 12.0,
+          "blocks_peak": 37.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 20851.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 12.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 342.933,
+          "peak_us": 415.68,
+          "current_pct": 11.815,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 60.907,
+          "peak_us": 106.987,
+          "current_pct": 2.098,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 25.173,
+          "peak_us": 74.24,
+          "current_pct": 0.867,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 27.733,
+          "peak_us": 78.293,
+          "current_pct": 0.955,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1225.493,
+          "peak_us": 1322.88,
+          "current_pct": 42.222,
+          "peak_pct": 45.577,
+          "headroom_us": 1579.614,
+          "blocks": 12.0,
+          "blocks_peak": 37.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 21397.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 12.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 351.787,
+          "peak_us": 415.68,
+          "current_pct": 12.12,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.827,
+          "peak_us": 106.987,
+          "current_pct": 2.165,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.24,
+          "peak_us": 74.24,
+          "current_pct": 0.904,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.16,
+          "peak_us": 78.293,
+          "current_pct": 0.97,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1232.427,
+          "peak_us": 1322.88,
+          "current_pct": 42.461,
+          "peak_pct": 45.577,
+          "headroom_us": 1579.614,
+          "blocks": 12.0,
+          "blocks_peak": 37.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 21948.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 338.987,
+          "peak_us": 415.68,
+          "current_pct": 11.679,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.68,
+          "peak_us": 106.987,
+          "current_pct": 2.194,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 21.12,
+          "peak_us": 74.24,
+          "current_pct": 0.728,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 20.267,
+          "peak_us": 78.293,
+          "current_pct": 0.698,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1504.107,
+          "peak_us": 1582.4,
+          "current_pct": 51.821,
+          "peak_pct": 54.519,
+          "headroom_us": 1320.094,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 22500.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 350.827,
+          "peak_us": 415.68,
+          "current_pct": 12.087,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.107,
+          "peak_us": 106.987,
+          "current_pct": 2.209,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.88,
+          "peak_us": 74.24,
+          "current_pct": 0.926,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 29.12,
+          "peak_us": 78.293,
+          "current_pct": 1.003,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1520.747,
+          "peak_us": 1634.667,
+          "current_pct": 52.394,
+          "peak_pct": 56.319,
+          "headroom_us": 1267.828,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 23051.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 332.48,
+          "peak_us": 415.68,
+          "current_pct": 11.455,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.4,
+          "peak_us": 106.987,
+          "current_pct": 2.15,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 29.333,
+          "peak_us": 74.24,
+          "current_pct": 1.011,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.92,
+          "peak_us": 78.293,
+          "current_pct": 0.893,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1546.24,
+          "peak_us": 1665.6,
+          "current_pct": 53.273,
+          "peak_pct": 57.385,
+          "headroom_us": 1236.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 23606.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 333.867,
+          "peak_us": 415.68,
+          "current_pct": 11.503,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.507,
+          "peak_us": 106.987,
+          "current_pct": 2.154,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 29.12,
+          "peak_us": 74.24,
+          "current_pct": 1.003,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 31.04,
+          "peak_us": 78.293,
+          "current_pct": 1.069,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1526.827,
+          "peak_us": 1665.6,
+          "current_pct": 52.604,
+          "peak_pct": 57.385,
+          "headroom_us": 1236.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 24160.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 334.187,
+          "peak_us": 415.68,
+          "current_pct": 11.514,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.827,
+          "peak_us": 106.987,
+          "current_pct": 2.165,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 24.427,
+          "peak_us": 74.24,
+          "current_pct": 0.842,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.24,
+          "peak_us": 78.293,
+          "current_pct": 0.904,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1506.24,
+          "peak_us": 1665.6,
+          "current_pct": 51.895,
+          "peak_pct": 57.385,
+          "headroom_us": 1236.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 24695.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 321.813,
+          "peak_us": 415.68,
+          "current_pct": 11.087,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 65.813,
+          "peak_us": 106.987,
+          "current_pct": 2.267,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 25.493,
+          "peak_us": 74.24,
+          "current_pct": 0.878,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 17.6,
+          "peak_us": 78.293,
+          "current_pct": 0.606,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1413.547,
+          "peak_us": 1670.72,
+          "current_pct": 48.701,
+          "peak_pct": 57.562,
+          "headroom_us": 1231.774,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 25237.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 332.16,
+          "peak_us": 415.68,
+          "current_pct": 11.444,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.72,
+          "peak_us": 106.987,
+          "current_pct": 2.161,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 25.067,
+          "peak_us": 74.24,
+          "current_pct": 0.864,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.027,
+          "peak_us": 78.293,
+          "current_pct": 0.897,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1411.733,
+          "peak_us": 1670.72,
+          "current_pct": 48.639,
+          "peak_pct": 57.562,
+          "headroom_us": 1231.774,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 25794.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 349.653,
+          "peak_us": 415.68,
+          "current_pct": 12.047,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.36,
+          "peak_us": 106.987,
+          "current_pct": 2.183,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 27.093,
+          "peak_us": 74.24,
+          "current_pct": 0.933,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 24.213,
+          "peak_us": 78.293,
+          "current_pct": 0.834,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1491.947,
+          "peak_us": 1670.72,
+          "current_pct": 51.402,
+          "peak_pct": 57.562,
+          "headroom_us": 1231.774,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 26351.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 324.8,
+          "peak_us": 415.68,
+          "current_pct": 11.19,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.467,
+          "peak_us": 106.987,
+          "current_pct": 2.187,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.24,
+          "peak_us": 74.24,
+          "current_pct": 0.904,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 24.64,
+          "peak_us": 78.293,
+          "current_pct": 0.849,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1414.827,
+          "peak_us": 1689.6,
+          "current_pct": 48.745,
+          "peak_pct": 58.212,
+          "headroom_us": 1212.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 26906.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 318.827,
+          "peak_us": 415.68,
+          "current_pct": 10.985,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.107,
+          "peak_us": 106.987,
+          "current_pct": 2.209,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.347,
+          "peak_us": 74.24,
+          "current_pct": 0.908,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.48,
+          "peak_us": 78.293,
+          "current_pct": 0.981,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1454.613,
+          "peak_us": 1689.6,
+          "current_pct": 50.116,
+          "peak_pct": 58.212,
+          "headroom_us": 1212.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 27441.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 334.827,
+          "peak_us": 415.68,
+          "current_pct": 11.536,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.107,
+          "peak_us": 106.987,
+          "current_pct": 2.209,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 21.333,
+          "peak_us": 74.24,
+          "current_pct": 0.735,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 23.36,
+          "peak_us": 78.293,
+          "current_pct": 0.805,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 2.24,
+          "peak_us": 47.04,
+          "current_pct": 0.077,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1493.973,
+          "peak_us": 1689.6,
+          "current_pct": 51.472,
+          "peak_pct": 58.212,
+          "headroom_us": 1212.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 27992.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 328.32,
+          "peak_us": 415.68,
+          "current_pct": 11.312,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 61.653,
+          "peak_us": 106.987,
+          "current_pct": 2.124,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 27.52,
+          "peak_us": 74.24,
+          "current_pct": 0.948,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.133,
+          "peak_us": 78.293,
+          "current_pct": 0.9,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1389.12,
+          "peak_us": 1689.6,
+          "current_pct": 47.86,
+          "peak_pct": 58.212,
+          "headroom_us": 1212.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 28537.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 322.453,
+          "peak_us": 415.68,
+          "current_pct": 11.11,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.467,
+          "peak_us": 106.987,
+          "current_pct": 2.187,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 24.747,
+          "peak_us": 74.24,
+          "current_pct": 0.853,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 24.747,
+          "peak_us": 78.293,
+          "current_pct": 0.853,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1460.373,
+          "peak_us": 1689.6,
+          "current_pct": 50.314,
+          "peak_pct": 58.212,
+          "headroom_us": 1212.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 29097.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 329.6,
+          "peak_us": 415.68,
+          "current_pct": 11.356,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.68,
+          "peak_us": 106.987,
+          "current_pct": 2.194,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 24.213,
+          "peak_us": 74.24,
+          "current_pct": 0.834,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 27.093,
+          "peak_us": 78.293,
+          "current_pct": 0.933,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1620.587,
+          "peak_us": 1689.6,
+          "current_pct": 55.834,
+          "peak_pct": 58.212,
+          "headroom_us": 1212.894,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 29652.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 329.6,
+          "peak_us": 415.68,
+          "current_pct": 11.356,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.36,
+          "peak_us": 106.987,
+          "current_pct": 2.183,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 26.133,
+          "peak_us": 74.24,
+          "current_pct": 0.9,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.133,
+          "peak_us": 78.293,
+          "current_pct": 0.9,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 3.947,
+          "peak_us": 47.573,
+          "current_pct": 0.136,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1456.32,
+          "peak_us": 1709.227,
+          "current_pct": 50.175,
+          "peak_pct": 58.888,
+          "headroom_us": 1193.268,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 30200.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 351.36,
+          "peak_us": 415.68,
+          "current_pct": 12.105,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.613,
+          "peak_us": 106.987,
+          "current_pct": 2.157,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 19.947,
+          "peak_us": 74.24,
+          "current_pct": 0.687,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 21.333,
+          "peak_us": 78.293,
+          "current_pct": 0.735,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1575.147,
+          "peak_us": 1764.267,
+          "current_pct": 54.269,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 30752.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 331.84,
+          "peak_us": 415.68,
+          "current_pct": 11.433,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 65.173,
+          "peak_us": 106.987,
+          "current_pct": 2.245,
+          "peak_pct": 3.686
+        },
+        "delay_L": {
+          "current_us": 25.387,
+          "peak_us": 74.24,
+          "current_pct": 0.875,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.133,
+          "peak_us": 78.293,
+          "current_pct": 0.9,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1565.973,
+          "peak_us": 1764.267,
+          "current_pct": 53.953,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 45.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 31297.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 319.36,
+          "peak_us": 415.68,
+          "current_pct": 11.003,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.787,
+          "peak_us": 111.893,
+          "current_pct": 2.198,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 63.893,
+          "peak_us": 74.24,
+          "current_pct": 2.201,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.493,
+          "peak_us": 78.293,
+          "current_pct": 0.878,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1435.84,
+          "peak_us": 1764.267,
+          "current_pct": 49.469,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 31843.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 371.413,
+          "peak_us": 415.68,
+          "current_pct": 12.796,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.507,
+          "peak_us": 111.893,
+          "current_pct": 2.154,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 28.8,
+          "peak_us": 74.24,
+          "current_pct": 0.992,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.053,
+          "peak_us": 78.293,
+          "current_pct": 0.967,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1426.347,
+          "peak_us": 1764.267,
+          "current_pct": 49.142,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 32395.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 371.84,
+          "peak_us": 415.68,
+          "current_pct": 12.811,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.827,
+          "peak_us": 111.893,
+          "current_pct": 2.165,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 30.4,
+          "peak_us": 74.24,
+          "current_pct": 1.047,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.813,
+          "peak_us": 78.293,
+          "current_pct": 0.889,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1546.88,
+          "peak_us": 1764.267,
+          "current_pct": 53.295,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 32937.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 383.787,
+          "peak_us": 415.68,
+          "current_pct": 13.223,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.32,
+          "peak_us": 111.893,
+          "current_pct": 2.216,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 20.373,
+          "peak_us": 74.24,
+          "current_pct": 0.702,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 20.373,
+          "peak_us": 78.293,
+          "current_pct": 0.702,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1464.853,
+          "peak_us": 1764.267,
+          "current_pct": 50.469,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 33483.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 365.653,
+          "peak_us": 415.68,
+          "current_pct": 12.598,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 65.28,
+          "peak_us": 111.893,
+          "current_pct": 2.249,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 24.96,
+          "peak_us": 74.24,
+          "current_pct": 0.86,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 30.187,
+          "peak_us": 78.293,
+          "current_pct": 1.04,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1614.827,
+          "peak_us": 1764.267,
+          "current_pct": 55.636,
+          "peak_pct": 60.785,
+          "headroom_us": 1138.228,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 34029.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 346.667,
+          "peak_us": 415.68,
+          "current_pct": 11.944,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 67.947,
+          "peak_us": 111.893,
+          "current_pct": 2.341,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 27.52,
+          "peak_us": 74.24,
+          "current_pct": 0.948,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.493,
+          "peak_us": 78.293,
+          "current_pct": 0.878,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 11.2,
+          "peak_us": 52.053,
+          "current_pct": 0.386,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1568.64,
+          "peak_us": 1768.533,
+          "current_pct": 54.045,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 32937.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 383.787,
+          "peak_us": 415.68,
+          "current_pct": 13.223,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.32,
+          "peak_us": 111.893,
+          "current_pct": 2.216,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 20.373,
+          "peak_us": 74.24,
+          "current_pct": 0.702,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 20.373,
+          "peak_us": 78.293,
+          "current_pct": 0.702,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1521.92,
+          "peak_us": 1768.533,
+          "current_pct": 52.435,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 10.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 35138.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 328.213,
+          "peak_us": 415.68,
+          "current_pct": 11.308,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.36,
+          "peak_us": 111.893,
+          "current_pct": 2.183,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 28.373,
+          "peak_us": 74.24,
+          "current_pct": 0.978,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 30.08,
+          "peak_us": 78.293,
+          "current_pct": 1.036,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1445.44,
+          "peak_us": 1768.533,
+          "current_pct": 49.8,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 10.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 35690.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 343.787,
+          "peak_us": 415.68,
+          "current_pct": 11.845,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.187,
+          "peak_us": 111.893,
+          "current_pct": 2.143,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 21.547,
+          "peak_us": 74.24,
+          "current_pct": 0.742,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.053,
+          "peak_us": 78.293,
+          "current_pct": 0.967,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 2.133,
+          "peak_us": 47.253,
+          "current_pct": 0.073,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1476.16,
+          "peak_us": 1768.533,
+          "current_pct": 50.858,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 10.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 36221.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 333.653,
+          "peak_us": 415.68,
+          "current_pct": 11.495,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.853,
+          "peak_us": 111.893,
+          "current_pct": 2.234,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 24.533,
+          "peak_us": 74.24,
+          "current_pct": 0.845,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.92,
+          "peak_us": 78.293,
+          "current_pct": 0.893,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.88,
+          "peak_us": 48.533,
+          "current_pct": 0.099,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1506.133,
+          "peak_us": 1768.533,
+          "current_pct": 51.891,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 10.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 36751.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 362.667,
+          "peak_us": 415.68,
+          "current_pct": 12.495,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.467,
+          "peak_us": 111.893,
+          "current_pct": 2.187,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 24.64,
+          "peak_us": 74.24,
+          "current_pct": 0.849,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.387,
+          "peak_us": 78.293,
+          "current_pct": 0.875,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 2.24,
+          "peak_us": 47.253,
+          "current_pct": 0.077,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1524.693,
+          "peak_us": 1768.533,
+          "current_pct": 52.53,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 37297.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 342.4,
+          "peak_us": 415.68,
+          "current_pct": 11.797,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.32,
+          "peak_us": 111.893,
+          "current_pct": 2.216,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 29.333,
+          "peak_us": 74.24,
+          "current_pct": 1.011,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.373,
+          "peak_us": 78.293,
+          "current_pct": 0.978,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.96,
+          "peak_us": 47.04,
+          "current_pct": 0.033,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1532.16,
+          "peak_us": 1768.533,
+          "current_pct": 52.788,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 37845.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 327.68,
+          "peak_us": 415.68,
+          "current_pct": 11.29,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.613,
+          "peak_us": 111.893,
+          "current_pct": 2.157,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 28.16,
+          "peak_us": 74.24,
+          "current_pct": 0.97,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.693,
+          "peak_us": 78.293,
+          "current_pct": 0.989,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1349.013,
+          "peak_us": 1768.533,
+          "current_pct": 46.478,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 38400.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 329.173,
+          "peak_us": 415.68,
+          "current_pct": 11.341,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.107,
+          "peak_us": 111.893,
+          "current_pct": 2.209,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 18.88,
+          "peak_us": 74.24,
+          "current_pct": 0.65,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 21.12,
+          "peak_us": 78.293,
+          "current_pct": 0.728,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 1.28,
+          "peak_us": 47.253,
+          "current_pct": 0.044,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1402.56,
+          "peak_us": 1768.533,
+          "current_pct": 48.323,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 38957.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 332.16,
+          "peak_us": 415.68,
+          "current_pct": 11.444,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 61.227,
+          "peak_us": 111.893,
+          "current_pct": 2.109,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 27.84,
+          "peak_us": 74.24,
+          "current_pct": 0.959,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.88,
+          "peak_us": 78.293,
+          "current_pct": 0.926,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1524.907,
+          "peak_us": 1768.533,
+          "current_pct": 52.538,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 39503.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 331.093,
+          "peak_us": 415.68,
+          "current_pct": 11.407,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.04,
+          "peak_us": 111.893,
+          "current_pct": 2.172,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 25.92,
+          "peak_us": 74.24,
+          "current_pct": 0.893,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 28.693,
+          "peak_us": 78.293,
+          "current_pct": 0.989,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1535.893,
+          "peak_us": 1768.533,
+          "current_pct": 52.916,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 40034.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 335.467,
+          "peak_us": 415.68,
+          "current_pct": 11.558,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 61.653,
+          "peak_us": 111.893,
+          "current_pct": 2.124,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 24.853,
+          "peak_us": 74.24,
+          "current_pct": 0.856,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.347,
+          "peak_us": 78.293,
+          "current_pct": 0.908,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.853,
+          "peak_us": 47.253,
+          "current_pct": 0.029,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1531.52,
+          "peak_us": 1768.533,
+          "current_pct": 52.766,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 40565.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 354.667,
+          "peak_us": 415.68,
+          "current_pct": 12.219,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 61.973,
+          "peak_us": 111.893,
+          "current_pct": 2.135,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 25.813,
+          "peak_us": 74.24,
+          "current_pct": 0.889,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.56,
+          "peak_us": 78.293,
+          "current_pct": 0.915,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1550.72,
+          "peak_us": 1768.533,
+          "current_pct": 53.427,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 41105.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 346.027,
+          "peak_us": 415.68,
+          "current_pct": 11.922,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 61.547,
+          "peak_us": 111.893,
+          "current_pct": 2.12,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 18.133,
+          "peak_us": 74.24,
+          "current_pct": 0.625,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.88,
+          "peak_us": 78.293,
+          "current_pct": 0.926,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 47.573,
+          "current_pct": 0.092,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1547.52,
+          "peak_us": 1768.533,
+          "current_pct": 53.317,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 41654.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 318.08,
+          "peak_us": 415.68,
+          "current_pct": 10.959,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 60.693,
+          "peak_us": 111.893,
+          "current_pct": 2.091,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 26.56,
+          "peak_us": 74.24,
+          "current_pct": 0.915,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 24.64,
+          "peak_us": 78.293,
+          "current_pct": 0.849,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 8.0,
+          "peak_us": 47.04,
+          "current_pct": 0.276,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1482.667,
+          "peak_us": 1768.533,
+          "current_pct": 51.083,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 42208.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 333.547,
+          "peak_us": 415.68,
+          "current_pct": 11.492,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.64,
+          "peak_us": 111.893,
+          "current_pct": 2.227,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 23.787,
+          "peak_us": 74.24,
+          "current_pct": 0.82,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 26.987,
+          "peak_us": 78.293,
+          "current_pct": 0.93,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 4.373,
+          "peak_us": 47.573,
+          "current_pct": 0.151,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1458.56,
+          "peak_us": 1768.533,
+          "current_pct": 50.252,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 42762.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 348.8,
+          "peak_us": 415.68,
+          "current_pct": 12.017,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.427,
+          "peak_us": 111.893,
+          "current_pct": 2.22,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 29.653,
+          "peak_us": 74.24,
+          "current_pct": 1.022,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.173,
+          "peak_us": 78.293,
+          "current_pct": 0.867,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.987,
+          "peak_us": 47.573,
+          "current_pct": 0.103,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 48.533,
+          "current_pct": 0.092,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.747,
+          "peak_us": 47.04,
+          "current_pct": 0.026,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1455.04,
+          "peak_us": 1768.533,
+          "current_pct": 50.131,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 43308.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 338.347,
+          "peak_us": 415.68,
+          "current_pct": 11.657,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 63.147,
+          "peak_us": 111.893,
+          "current_pct": 2.176,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 25.813,
+          "peak_us": 74.24,
+          "current_pct": 0.889,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 30.613,
+          "peak_us": 78.293,
+          "current_pct": 1.055,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1538.667,
+          "peak_us": 1768.533,
+          "current_pct": 53.012,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 43848.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 340.907,
+          "peak_us": 415.68,
+          "current_pct": 11.745,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.64,
+          "peak_us": 111.893,
+          "current_pct": 2.227,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 22.293,
+          "peak_us": 74.24,
+          "current_pct": 0.768,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.387,
+          "peak_us": 78.293,
+          "current_pct": 0.875,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1589.333,
+          "peak_us": 1768.533,
+          "current_pct": 54.758,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 44382.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 339.947,
+          "peak_us": 415.68,
+          "current_pct": 11.712,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 64.32,
+          "peak_us": 111.893,
+          "current_pct": 2.216,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 25.92,
+          "peak_us": 74.24,
+          "current_pct": 0.893,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 25.067,
+          "peak_us": 78.293,
+          "current_pct": 0.864,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.88,
+          "peak_us": 47.573,
+          "current_pct": 0.099,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.747,
+          "peak_us": 47.253,
+          "current_pct": 0.026,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1592.213,
+          "peak_us": 1768.533,
+          "current_pct": 54.857,
+          "peak_pct": 60.931,
+          "headroom_us": 1133.961,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    },
+    {
+      "kind": "report",
+      "settings": {
+        "window_ms": 44942.0,
+        "block_us": 2902.494,
+        "cpu_hz": 600000000.0,
+        "voices": 16.0,
+        "level": 65.0,
+        "decay": 50.0,
+        "damping": 80.0,
+        "patch": 0.0
+      },
+      "streams": {
+        "reverb": {
+          "current_us": 320.853,
+          "peak_us": 415.68,
+          "current_pct": 11.054,
+          "peak_pct": 14.321
+        },
+        "compressor": {
+          "current_us": 62.4,
+          "peak_us": 111.893,
+          "current_pct": 2.15,
+          "peak_pct": 3.855
+        },
+        "delay_L": {
+          "current_us": 28.587,
+          "peak_us": 74.24,
+          "current_pct": 0.985,
+          "peak_pct": 2.558
+        },
+        "delay_R": {
+          "current_us": 18.987,
+          "peak_us": 78.293,
+          "current_pct": 0.654,
+          "peak_pct": 2.697
+        },
+        "feedback_lpf_L": {
+          "current_us": 2.773,
+          "peak_us": 47.573,
+          "current_pct": 0.096,
+          "peak_pct": 1.639
+        },
+        "feedback_lpf_R": {
+          "current_us": 2.773,
+          "peak_us": 48.533,
+          "current_pct": 0.096,
+          "peak_pct": 1.672
+        },
+        "mixer_L": {
+          "current_us": 0.853,
+          "peak_us": 47.04,
+          "current_pct": 0.029,
+          "peak_pct": 1.621
+        },
+        "mixer_R": {
+          "current_us": 0.64,
+          "peak_us": 47.253,
+          "current_pct": 0.022,
+          "peak_pct": 1.628
+        },
+        "output_lpf_L": {
+          "current_us": 2.667,
+          "peak_us": 52.053,
+          "current_pct": 0.092,
+          "peak_pct": 1.793
+        },
+        "output_lpf_R": {
+          "current_us": 2.667,
+          "peak_us": 49.493,
+          "current_pct": 0.092,
+          "peak_pct": 1.705
+        },
+        "i2s": {
+          "current_us": 0.107,
+          "peak_us": 43.307,
+          "current_pct": 0.004,
+          "peak_pct": 1.492
+        },
+        "total": {
+          "current_us": 1540.693,
+          "peak_us": 1789.76,
+          "current_pct": 53.082,
+          "peak_pct": 61.663,
+          "headroom_us": 1112.734,
+          "blocks": 12.0,
+          "blocks_peak": 47.0
+        }
+      }
+    }
+  ]
+}

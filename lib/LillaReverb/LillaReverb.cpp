@@ -45,7 +45,16 @@ FLASHMEM void LillaReverb::Reset()
 {
     for (unsigned channel = 0; channel < 2; ++channel)
     {
-        std::fill(storage[channel], storage[channel] + CHANNEL_SAMPLES, 0);
+        unsigned used_samples = 0;
+        for (unsigned length : lengths[channel])
+        {
+            used_samples += length;
+        }
+        for (unsigned length : allpass_lengths[channel])
+        {
+            used_samples += length;
+        }
+        std::fill(storage[channel], storage[channel] + 2 * used_samples, 0); // Reset work follows the DSP histories, not the reserved capacity.
         std::fill(std::begin(allpass_position[channel]), std::end(allpass_position[channel]), 0u);
         for (unsigned comb = 0; comb < 4; ++comb)
         {
