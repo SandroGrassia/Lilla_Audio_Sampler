@@ -47,7 +47,6 @@ private:
 public:
     AudioADSR(void) {}
     void Set_identity(const int id);
-    int Get_identity(void);
     void Setup(const float &attack, const float &decay, const float &sustain, const float &release, const uint8_t &attack_type);
     void Set_parametrs(void);
     float Get_gain(void);

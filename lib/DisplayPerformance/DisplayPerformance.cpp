@@ -8,11 +8,6 @@
 #include "GlobalDisplayCommon.h"
 #include "SharedMixer.h"
 
-void DisplayPerformance::P_show_delete_Instrument_frame(float line, bool show)
-{
-    Frame_by_pixels(display_coordinate_x(P_column_Instrument_frame), P_Instrument_pixels_y(line) - 4, P_chars_width_Instrument_frame, show);
-}
-
 void DisplayPerformance::Led_PERFORMANCE_instrument(int instrument_id, bool on)
 {
     if (on)
@@ -121,7 +116,6 @@ void DisplayPerformance::P_show_Instruments_header(void)
 FLASHMEM
 void DisplayPerformance::P_show_Instrument_description(int patch_id, int instrument_id, bool editing)
 {
-    // P_delete_instrument_by_position(position);
     P_show_Sound_number(instrument_id, editing);
     P_show_Tone_value(patch_id, instrument_id, editing);
     P_show_Precedence_value(patch_id, instrument_id, editing);
@@ -343,12 +337,6 @@ void DisplayPerformance::P_show_gain_TuningTone(int patch_id)
     Cancel_text_reset_cursor(display_coordinate_x(TT_Instrument_INDENT_X0 + 8 * TT_Instrument_SPACE_X + 35), P_Instrument_pixels_y(position), 4);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(tuning_tone_volume / 20.0f, 2);
-}
-
-FLASHMEM
-void DisplayPerformance::P_delete_instrument_by_position(int position)
-{
-    tft.fillRect(5, P_Instrument_pixels_y(position), 307, 7, ILI9341_BLACK);
 }
 
 FLASHMEM

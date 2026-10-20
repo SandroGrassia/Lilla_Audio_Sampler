@@ -12,7 +12,7 @@ from file_registry_fixture import REGISTRY_FIXTURE
 
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / 'src/ZeroRaw.cpp').read_text(encoding='utf-8')
-initializer = re.search(r'const int16_t zeroraw\[43996\] PROGMEM = \{([^}]+)\};', source).group(1)
+initializer = re.search(r'PROGMEM const int16_t zeroraw\[43996\] = \{([^}]+)\};', source).group(1)
 samples = [int(value) for value in initializer.split(',')]
 assert len(samples) == 43996
 import math
@@ -23,7 +23,7 @@ assert abs(1200 * math.log2((261 * 44100 / 43995) / (440 * 2 ** (-9 / 12)))) < 0
 main = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
 parsers = main[main.index('static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES'):main.index('FLASHMEM\nbool SET_Copy_audio_files_from_SD_to_Flash')]
 method = re.search(r'^bool SET_Copy_audio_files_from_SD_to_Flash\(bool &flash_changed\)\n\{.*?^\}', main, re.M | re.S).group(0)
-case_start = re.search(r'^            case \d+: // import RAW files from SD', main, re.M).start()
+case_start = re.search(r'^            case \d+: // import audio files from SD', main, re.M).start()
 case_end = main.index('            case ', case_start + len('            case '))
 menu_case = re.sub(r'case \d+:', 'case 4:', main[case_start:case_end], count=1)
 
@@ -54,9 +54,17 @@ tests = tests.replace('    SerialFlash.capacity = 87000;\n    run_menu_case();',
 fixture = fixture.replace('void VFS_Make_VFS() { assert(SerialFlash.files.count("0.raw")); }', 'void VFS_Make_VFS() {}')
 fixture = REGISTRY_FIXTURE + fixture
 fixture += '\nconstexpr int ILI9341_WHITE = 1, ILI9341_RED = 2;\nvoid Show_popup_text(const char *, int, int, int) {}\n'
-tests = tests.replace('void reset()\n{', 'void reset()\n{\n    reset_registry();')
+tests = tests.replace('void reset()\n{', 'void reset()\n{\n    reset_registry();\n    proceed_import = true;')
 tests = tests.replace('SD.fail_open_at = 2;', 'SD.fail_open_at = 3;')
 fixture += r"""
+bool proceed_import = true;
+bool Read_encoder(int, int &value, int, int, int)
+{
+    const int selected = proceed_import ? 1 : 0;
+    const bool changed = value != selected;
+    value = selected;
+    return changed;
+}
 struct CaptureAudio { const void *psram_ptr = nullptr; };
 struct CaptureStub { CaptureAudio audio; } Capture_sources[1];
 void LS_Capture_collect() {}
@@ -64,6 +72,12 @@ void LS_Capture_notice(const char *) {}
 """
 tests = tests.replace('int main()\n{', """int main()
 {
+    reset();
+    proceed_import = false;
+    run_menu_case();
+    assert(SerialFlash.erases == 0 && SerialFlash.writes == 0);
+    assert(tables_rebuilt == 0 && reloaded == 0);
+    assert(Trigger.Is_running() && Midi_reader.Is_running());
     reset();
     Capture_sources[0].audio.psram_ptr = zeroraw;
     bool capture_changed = true;

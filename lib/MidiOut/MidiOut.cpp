@@ -33,13 +33,3 @@ void MidiOut::PitchBend(const int &value, const int &channel) // -8192 <= value 
 {
     MIDI.sendPitchBend(value, channel);
 }
-
-void MidiOut::PolyPressure(const int &note, const int &pressure, const int &channel)
-{
-    MIDI.sendPolyPressure(note, pressure, channel);
-}
-
-void MidiOut::AfterTouch(const int &pressure, const int &channel)
-{
-    MIDI.sendAfterTouch(pressure, channel);
-}

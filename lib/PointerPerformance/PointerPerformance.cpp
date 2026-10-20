@@ -195,16 +195,3 @@ void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
         Display_Performance.P_show_pointer_frame(pointer, true);
     }
 }
-
-FLASHMEM
-void PointerPerformance::Print_pointer_and_field_desciption(void)
-{
-    Serial.print("PointerPerformance:: field_description[P_pointer].field_name: ");
-    Serial.print(pointer.field_name);
-    Serial.print(" pointer.element: ");
-    Serial.print(pointer.element);
-    Serial.print(" pointer.instrument_line: ");
-    Serial.print(pointer.instrument_line);
-    Serial.print(" pointer.instrument_id: ");
-    Serial.println(pointer.instrument_id);
-}

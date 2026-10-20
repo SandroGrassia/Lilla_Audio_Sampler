@@ -28,5 +28,4 @@ public:
 
     void Reset(void);
     void Write(void);
-    bool Read_state(void);
 };

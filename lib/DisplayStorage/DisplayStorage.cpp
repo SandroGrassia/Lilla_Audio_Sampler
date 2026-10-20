@@ -39,51 +39,25 @@ void DisplayStorage::VFS_show_packets(void)
 FLASHMEM
 void DisplayStorage::Import_raw_files_frame(uint8_t value)
 {
-    Frame_by_col_row(0, 1, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    Frame_by_col_row(5, 1, 6, false);
-
-    switch (value)
-    {
-    case 0: // EXIT
-        Frame_by_col_row(0, 1, 4, true);
-        break;
-    case 1: // IMPORT
-        Frame_by_col_row(5, 1, 6, true);
-        break;
-    default:
-        break;
-    }
+    const int left = Centered_element_left(8 * 6);
+    const int top = Centered_element_top(display_coordinate_y(Import_popup_lines)) + 5 + 15 * (Import_popup_lines - 1);
+    Confirm_frame_on_RED(left, top, 2, value == 0);
+    Confirm_frame_on_RED(left + 5 * 6, top, 3, value == 1);
 }
 
 FLASHMEM
 void DisplayStorage::Confirm_config_import_popup(void)
 {
-    L_POPUP = display_coordinate_x(46);
-    H_POPUP = display_coordinate_y(5.2);
-    Y_POPUP = Centered_element_top(H_POPUP);
-    X_POPUP = Centered_element_left(L_POPUP);
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED);
+    const char *lines[Restore_popup_lines] = {"PLEASE COPY THE CHOSEN BACKUP'S CONTENTS", "INTO SD /LILLABACKUP FIRST", "", "- WARNING -", "RESTORE CONFIGURATION DELETES PATCHES AND", "AUDIO RECORDING. AUDIO FILES IN FLASH ARE KEPT", "", "DO YOU WANT TO PROCEED?", "CANCEL    GO"};
+    Show_popup_text(lines, Restore_popup_lines, ILI9341_WHITE, ILI9341_RED);
+}
 
-    Y_POPUP_TXT = 10; // Prima riga testo
-    Y_POPUP_OPT = Y_POPUP_TXT + 50;
-    X_POPUP_OPT = display_coordinate_x(19); // Colonna prima opzione, generalmente NO
-
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //       ("01234567890123456789012345678901234567891098765"); // 45 char
-    tft.print(F("    RESTORE CONFIGURATION + RECORDING AUDIO"));
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 15);
-    tft.print(F(" WILL DELETE PATCHES, SOUNDS AND RECORDINGS!")); // 43
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 30);
-
-    //       ("01234567890123456789012345678901234567891098765"); // 45 char
-    tft.print(F("        DO YOU REALLY WANT TO PROCEED?"));
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.setCursor(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT);
-    tft.print("NO");
-    tft.setCursor(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT);
-    tft.print("YES");
+FLASHMEM void DisplayStorage::Confirm_config_restore_frame(uint8_t value)
+{
+    const int left = Centered_element_left(12 * 6);
+    const int top = Centered_element_top(display_coordinate_y(Restore_popup_lines)) + 5 + 15 * (Restore_popup_lines - 1);
+    Confirm_frame_on_RED(left, top, 6, value == 0);
+    Confirm_frame_on_RED(left + 10 * 6, top, 2, value == 1);
 }
 
 FLASHMEM
@@ -125,20 +99,6 @@ void DisplayStorage::SD_missing(uint16_t color)
     tft.print(F("  SD NOT PRESENT"));
 }
 
-FLASHMEM
-void DisplayStorage::FRAM_io_error_popup(void)
-{
-    tft.fillScreen(ILI9341_BLACK);
-    tft.setTextSize(1);
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.setCursor(10, 70);
-    tft.println(F("FRAM ACCESS FAILED - OPERATION STOPPED"));
-    tft.setCursor(10, 100);
-    tft.println(F("Data may not have been saved."));
-    tft.setCursor(10, 130);
-    tft.println(F("Check FRAM connections and restart."));
-}
-
 void DisplayStorage::FRAM_recovery_popup(void)
 {
     tft.fillScreen(ILI9341_BLACK);
@@ -171,68 +131,27 @@ void DisplayStorage::Config_import_FILE_error_popup(void)
 }
 
 FLASHMEM
-void DisplayStorage::Config_import_REBOOT_popup(void)
+void DisplayStorage::Confirm_factory_reset_frame(uint8_t value)
 {
-    L_POPUP = display_coordinate_x(38);
-    H_POPUP = display_coordinate_y(3);
-    Y_POPUP = Centered_element_top(H_POPUP);
-    X_POPUP = Centered_element_left(L_POPUP);
-    Y_POPUP_TXT = 20; // Prima riga testo
-
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_BLACK);
-    tft.setCursor(X_POPUP + display_coordinate_x(0), Y_POPUP + Y_POPUP_TXT);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //           ("01234567890123456789012345678901234567");
-    tft.print(F(" RESTORING CONFIGURATION AND AUDIO"));
-}
-
-FLASHMEM
-void DisplayStorage::Confirm_config_import_frame(uint8_t value)
-{
-    Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, false);
-
-    switch (value)
-    {
-    case 0: // NO
-        Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT, 2, true);
-        break;
-    case 1: // YES
-        Confirm_frame_on_RED(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT, 3, true);
-        break;
-    default:
-        break;
-    }
+    const int left = Centered_element_left(8 * 6);
+    const int top = Centered_element_top(display_coordinate_y(Factory_reset_popup_lines)) + 5 + 15 * (Factory_reset_popup_lines - 1);
+    Confirm_frame_on_RED(left, top, 2, value == 0);
+    Confirm_frame_on_RED(left + 5 * 6, top, 3, value == 1);
 }
 
 FLASHMEM
 void DisplayStorage::Confirm_config_export_popup(void)
 {
-    L_POPUP = display_coordinate_x(51);
-    H_POPUP = display_coordinate_y(5.2);
-    Y_POPUP = Centered_element_top(H_POPUP);
-    X_POPUP = Centered_element_left(L_POPUP);
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED);
+    const char *lines[Backup_popup_lines] = {"SAVE CONFIGURATION AND RECORDING AUDIO", "TO A NEW NUMBERED FOLDER /LILLABACKUP IN SD", "(PREVIOUS BACKUPS ARE KEPT)", "- NOTICE -", "AUDIO LIBRARIES AND MIDI LOOPS ARE", "NOT INCLUDED IN BACKUP", "CANCEL    GO"};
+    Show_popup_text(lines, Backup_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
+}
 
-    Y_POPUP_TXT = 10; // Prima riga testo
-    Y_POPUP_OPT = Y_POPUP_TXT + 50;
-    X_POPUP_OPT = display_coordinate_x(19);
-
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //         ("012345678901234567890123456789012345678901234567890");
-    tft.print(F("       SAVE CONFIGURATION + RECORDING AUDIO"));
-    tft.setCursor(X_POPUP, Y_POPUP + Y_POPUP_TXT + 15);
-    tft.print(F("       PREVIOUS BACKUPS WILL NOT BE DELETED"));
-    tft.setCursor(X_POPUP, Y_POPUP + Y_POPUP_TXT + 30);
-    tft.print(F("        DO YOU REALLY WANT TO PROCEED?"));
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.setCursor(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT);
-    tft.print("NO");
-    tft.setCursor(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT);
-    tft.print("YES");
+FLASHMEM void DisplayStorage::Confirm_config_export_frame(uint8_t value)
+{
+    const int left = Centered_element_left(12 * 6);
+    const int top = Centered_element_top(display_coordinate_y(Backup_popup_lines)) + 5 + 15 * (Backup_popup_lines - 1);
+    Confirm_frame_on_GREEN(left, top, 6, value == 0, ILI9341_BLACK);
+    Confirm_frame_on_GREEN(left + 10 * 6, top, 2, value == 1, ILI9341_BLACK);
 }
 
 FLASHMEM
@@ -255,67 +174,14 @@ void DisplayStorage::Config_export_SD_error_popup(void)
 FLASHMEM
 void DisplayStorage::Config_export_save_popup(void)
 {
-    L_POPUP = display_coordinate_x(50);
-    H_POPUP = display_coordinate_y(3);
-    Y_POPUP = Centered_element_top(H_POPUP);
-    X_POPUP = Centered_element_left(L_POPUP);
-    Y_POPUP_TXT = 20; // Prima riga testo
-
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_BLACK);
-    tft.setCursor(X_POPUP, Y_POPUP + Y_POPUP_TXT);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //       ("01234567890123456789012345678901234567890123456789");
-    tft.print(F(" NUMBERED BACKUP SAVED IN /LILLABACKUP"));
+    Show_popup_text("NUMBERED BACKUP SAVED IN /LILLABACKUP", ILI9341_WHITE, ILI9341_BLACK);
 }
 
 FLASHMEM
 void DisplayStorage::Confirm_factory_reset_popup(void)
 {
-    L_POPUP = display_coordinate_x(49);
-    H_POPUP = display_coordinate_y(5.2);
-    Y_POPUP = Centered_element_top(H_POPUP);
-    X_POPUP = Centered_element_left(L_POPUP);
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED);
-
-    Y_POPUP_TXT = 15; // Prima riga testo
-    Y_POPUP_OPT = Y_POPUP_TXT + 50;
-    X_POPUP_OPT = display_coordinate_x(19);
-
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //       ("0123456789012345678901234567890123456789012345678");
-    tft.print(F("      WARNING: FACTORY RESET WILL DELETE"));
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 15);
-    tft.print(F("      ALL PATCHES, SOUNDS AND RECORDINGS!"));
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 30);
-    tft.print(F("        DO YOU REALLY WANT TO PROCEED?"));
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.setCursor(X_POPUP + X_POPUP_OPT, Y_POPUP + Y_POPUP_OPT);
-    tft.print("NO");
-    tft.setCursor(X_POPUP + X_POPUP_OPT + display_coordinate_x(4), Y_POPUP + Y_POPUP_OPT);
-    tft.print("YES");
-}
-
-FLASHMEM
-void DisplayStorage::Config_reset_popup(void)
-{
-    L_POPUP = display_coordinate_x(49);
-    H_POPUP = display_coordinate_y(5.2);
-    Y_POPUP = Centered_element_top(H_POPUP);
-    X_POPUP = Centered_element_left(L_POPUP);
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED);
-
-    Y_POPUP_TXT = 10; // Prima riga testo
-    Y_POPUP_OPT = Y_POPUP_TXT + 50;
-    X_POPUP_OPT = display_coordinate_x(19);
-
-    tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT + 15);
-    tft.setTextColor(ILI9341_WHITE);
-
-    //       ("0123456789012345678901234567890123456789012345678");
-    tft.print(F("   PLEASE WAIT. LILLA WILL RESTART AFTER RESET")); // 43
+    const char *lines[Factory_reset_popup_lines] = {"- WARNING -", "RESTORE FACTORY SETTINGS", "DELETES ALL PATCHES AND AUDIO RECORDINGS", "ONLY IMPORTED AUDIO FILES ARE KEPT", "", "DO YOU WANT TO PROCEED?", "NO   YES"};
+    Show_popup_text(lines, Factory_reset_popup_lines, ILI9341_WHITE, ILI9341_RED);
 }
 
 FLASHMEM
@@ -467,7 +333,14 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 }
 
 FLASHMEM
-void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasing_time_ms)
+void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(void)
+{
+    const char *lines[Import_popup_lines] = {"IMPORT AUDIO FROM SD /FLASH_AUDIO", "TO LILLA 64MB FLASH MEMORY.", "FILES LONGER THAN 33 SECONDS ARE TRUNCATED", "- WARNING -", "ALL EXISTING FLASH AUDIO AND RECORDINGS ARE DELETED", "NO   YES"};
+    Show_popup_text(lines, Import_popup_lines, ILI9341_WHITE, ILI9341_RED);
+}
+
+FLASHMEM
+void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_time_ms)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
     tft.setTextColor(TEXT_COLOR);
@@ -477,19 +350,6 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(float erasin
     tft.print(erasing_time_ms / 60000, 1);
     Show_measure_unit("min", 3);
 
-    // display SD->Flash menu
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(1));
-    tft.setTextColor(MENU_COLOR);
-    tft.print("EXIT IMPORT");
-    
-    //            "012345678901234567890 234 X 432 98765432109876543210";
-    //                                                                 "012345678901234567890 234 X 432 98765432109876543210");
-    Show_popup_text("IMPORT DELETES LILLA AUDIO FILES AND RECORDINGS", "AUDIO FILES LONGER THAN 33 SECONDS WILL BE TRUNCATED", ILI9341_WHITE, ILI9341_RED, 75);
-}
-
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(void)
-{
     // Start erasing flash chip
     tft.fillRect(0, display_coordinate_y(11), 320, 240, ILI9341_BLACK);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(12) - 5);

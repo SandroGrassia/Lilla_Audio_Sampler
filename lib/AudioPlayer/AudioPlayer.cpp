@@ -2772,13 +2772,6 @@ bool AudioPlayer::isPoweredOn(void)
     return power_on;
 }
 
-void AudioPlayer::set_file(int file_id_in)
-{
-    source_wait = {};
-    source_wait.file_id = file_id_in;
-    file_id_wait = file_id_in;
-}
-
 void AudioPlayer::Set_source(const AudioFileSource &source)
 {
     source_wait = source;
@@ -3350,11 +3343,6 @@ int AudioPlayer::Read_patch_wait(void)
     return patch_id_wait;
 }
 
-int AudioPlayer::Read_local_patch(void)
-{
-    return local_patch;
-}
-
 bool AudioPlayer::Read_precedence(void)
 {
     return precedence;
@@ -3398,11 +3386,6 @@ int AudioPlayer::State(void)
 int AudioPlayer::Read_update_time(void)
 {
     return update_time;
-}
-
-void AudioPlayer::Write_update_time(uint16_t value)
-{
-    update_time = value;
 }
 
 void AudioPlayer::Write_midi_channel(int value)

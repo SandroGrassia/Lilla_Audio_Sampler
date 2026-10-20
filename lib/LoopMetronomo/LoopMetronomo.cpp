@@ -36,12 +36,6 @@ void LoopMetronomo::Led_ON(int led)
     }
 }
 
-void LoopMetronomo::Set_beat(int value)
-{
-    beat = value;
-    Leds_off();
-}
-
 void LoopMetronomo::Update(bool with_led)
 {
     if (beat == (LOOP_metro_leds - 1))
@@ -64,11 +58,6 @@ void LoopMetronomo::Update(bool with_led)
 
         ++beat;
     }
-}
-
-int LoopMetronomo::Read_beat(void)
-{
-    return beat;
 }
 
 int LoopMetronomo::Read_metro_delta_ms(void)

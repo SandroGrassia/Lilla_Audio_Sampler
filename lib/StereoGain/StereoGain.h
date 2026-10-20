@@ -43,6 +43,4 @@ public:
 
     virtual void update(void);
     void Set_gain(float value);
-    void set_gain_L(float value);
-    void set_gain_R(float value);
 };

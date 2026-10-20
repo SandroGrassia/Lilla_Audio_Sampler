@@ -114,30 +114,6 @@ void WaveLFO::Set_amplitude(int max_value) // sinus wave
     magnitude = 2 * max_value; // peak to peak amplitude
 }
 
-void WaveLFO::Update_amplitude(float max_value) // sinus wave
-{
-    if (max_value < 0)
-    {
-        max_value = 0;
-    }
-    else if (max_value > 32767)
-    {
-        max_value = 32767;
-    }
-
-    int delta_magnitude = (2 * max_value) - magnitude;
-
-    if (abs(delta_magnitude) >= 1)
-    {
-        step_magnitude = (delta_magnitude > 0);
-        J_counter = abs(delta_magnitude);
-    }
-    else // if running, stop amplitude change
-    {
-        J_counter = 0;
-    }
-}
-
 void WaveLFO::Setup_aperiodic_wave(float seconds, float max_value, int waveform) // aperiodic wave - period: seconds  n: waveform
 {
     periodic = false;

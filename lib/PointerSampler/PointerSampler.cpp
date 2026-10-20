@@ -124,15 +124,6 @@ void PointerSampler::Print_pointer()
     Serial.println(pointer.value_element);
 }
 
-FLASHMEM
-void PointerSampler::Restore_pointer(void)
-{
-    if (pointer.field_name == field_DS_Menu)
-    {
-        pointer.menu_element = static_cast<DS_menu_element_name>(element_Menu_DS[0]);
-    }
-}
-
 void PointerSampler::Show_pointer(const bool show)
 {
     Display_Sampler.DS_show_pointer_frame(pointer, show);

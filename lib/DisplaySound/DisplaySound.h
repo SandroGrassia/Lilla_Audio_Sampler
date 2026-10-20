@@ -77,7 +77,6 @@ private:
         S_chars_PlayMode,
         S_chars_NoClick};
 
-    void Delete_all_menu_frame(void); // Clears every SOUND menu highlight frame.
 
 public:
     void Led_SOUND_EDIT_instrument(int instrument_id, bool on);

@@ -33,12 +33,6 @@ void DisplayDiagnostics::Midi_monitor_page(void)
 }
 
 FLASHMEM
-void DisplayDiagnostics::Midi_monitor_frame(void)
-{
-    Frame_by_col_row(0, 1, 6, true);
-}
-
-FLASHMEM
 void DisplayDiagnostics::Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number)
 {
     const char message_name[12][20] = {{"NoteOn"}, {"NoteOff"}, {"PitchBend"}, {"AfterTouchPoly"}, {"ControlChange"}, {"ProgramChange"}, {"AfterTouchChange"}, {"SystemExclusive"}, {"Unknown"}};

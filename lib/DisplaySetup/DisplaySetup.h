@@ -12,6 +12,8 @@
 class DisplaySetup
 {
 private:
+    static constexpr int Convert_popup_lines = 5;
+    static constexpr int Import_info_popup_lines = 4;
     static constexpr int Setup_Control_change_X = 13; // Character column.
 
 public:
@@ -21,6 +23,10 @@ public:
     void SETUP_show_Key_step_value(void);
     void SETUP_show_First_octave_value(void);
     void SETUP_show_frame(int8_t value);
+    FLASHMEM void SETUP_show_convert_popup(void);
+    FLASHMEM void SETUP_show_import_info_popup(void);
+    FLASHMEM void SETUP_show_import_info_frame(int value);
+    FLASHMEM void SETUP_show_convert_frame(int value);
     void CC_show_ControlChange_page(void);
     void CC_show_all_sound_gains(void);
     void CC_show_sound_gain(int value);

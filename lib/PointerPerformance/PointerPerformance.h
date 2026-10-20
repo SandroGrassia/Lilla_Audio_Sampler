@@ -49,7 +49,6 @@ private:
     static constexpr int instrument_inside_elements = 8;
     P_field_description_struct pointer;
     int last_instrument_element = value_P_Tone; // Remember the edited field across instrument changes.
-    void Print_pointer_and_field_desciption(void);
 
 public:
     PointerPerformance() {}

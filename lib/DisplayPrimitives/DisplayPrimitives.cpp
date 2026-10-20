@@ -61,26 +61,33 @@ void Show_popup_text(const char *text, uint16_t text_color, uint16_t filler_colo
 
 void Show_popup_text(const char *first_line, const char *second_line, uint16_t text_color, uint16_t filler_color, int y_offset)
 {
-    const size_t first_length = strlen(first_line);
-    const size_t second_length = strlen(second_line);
-    const bool two_lines = second_length > 0;
-    const size_t longest_line = first_length > second_length ? first_length : second_length;
+    const char *lines[] = {first_line, second_line};
+    Show_popup_text(lines, second_line[0] != '\0' ? 2 : 1, text_color, filler_color, y_offset);
+}
 
-    const int L_POPUP = display_coordinate_x(longest_line + 2);
-    const int H_POPUP = display_coordinate_y(1) + (two_lines ? 15 : 0);
-
-    const int X_POPUP = Centered_element_left(L_POPUP);
-    const int Y_POPUP = Centered_element_top(H_POPUP) + y_offset;
-
-    tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, filler_color);
-    tft.setTextColor(text_color);
-    tft.setCursor(X_POPUP + (L_POPUP - 6 * static_cast<int>(first_length)) / 2, Y_POPUP + 5);
-    tft.print(first_line);
-
-    if (two_lines)
+void Show_popup_text(const char *const *lines, size_t line_count, uint16_t text_color, uint16_t filler_color, int y_offset)
+{
+    size_t longest_line = 0;
+    for (size_t line = 0; line < line_count; ++line)
     {
-        tft.setCursor(X_POPUP + (L_POPUP - 6 * static_cast<int>(second_length)) / 2, Y_POPUP + 20);
-        tft.print(second_line);
+        const size_t length = strlen(lines[line]);
+        if (length > longest_line)
+        {
+            longest_line = length;
+        }
+    }
+
+    const int requested_width = display_coordinate_x(longest_line + 2);
+    const int width = requested_width > 320 ? 320 : requested_width;
+    const int height = display_coordinate_y(line_count);
+    const int left = Centered_element_left(width);
+    const int top = Centered_element_top(height) + y_offset;
+    tft.fillRoundRect(left, top, width, height, 4, filler_color);
+    tft.setTextColor(text_color);
+    for (size_t line = 0; line < line_count; ++line)
+    {
+        tft.setCursor(left + (width - 6 * static_cast<int>(strlen(lines[line]))) / 2, top + 5 + 15 * line);
+        tft.print(lines[line]);
     }
 }
 
@@ -133,8 +140,7 @@ void Confirm_frame_on_RED(int X, int Y, int chars, bool print)
     Frame_by_pixels_on_RED(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
 }
 
-void Confirm_frame(int X, int Y, int chars, bool print)
+void Confirm_frame_on_GREEN(int X, int Y, int chars, bool print, uint16_t frame_color)
 {
-    Frame_by_pixels(X, Y, chars, print); // Frame_by_pixels(X, Y, (6 * chars) + 7, print);
+    tft.drawRect(X - 4, Y - 4, (6 * chars) + 7, Frame_heigh, print ? frame_color : ILI9341_GREEN);
 }
-

@@ -43,22 +43,6 @@ void DisplayStartup::Lilla_cover_slow(void)
 }
 
 FLASHMEM
-void DisplayStartup::Lilla_cover_saturate(void)
-{
-    for (auto i = 0; i <= 20; ++i)
-    {
-        tft.fillScreen(Calc_color(ILI9341_WHITE, static_cast<float>(i) / 20.0f));
-        Cover_text(1);
-        Logo(1);
-        delay(50);
-    }
-
-    // all black
-    tft.fillScreen(ILI9341_BLACK);
-    delay(200);
-}
-
-FLASHMEM
 void DisplayStartup::Logo(float light)
 {
     tft.drawBitmap(0 + Logo_position_DX, 42 + Logo_position_DY, LOGO_0, 168, 49, Calc_color(ILI9341_YELLOW, light));

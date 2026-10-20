@@ -27,7 +27,7 @@ using byte = uint8_t;
 constexpr int PACKET_DIM = 65536, VFS_PACKETS_MAX = 512, BUILTIN_SDCARD = 0;
 constexpr int O_WRONLY = 1, O_CREAT = 2, O_EXCL = 4;
 #define F(x) x
-struct Entry { int first_packet, packets, bytes; bool stereo; };
+struct Entry { int first_packet, packets; uint32_t bytes; bool stereo; };
 Entry Recording[1];
 int recording = 0;
 constexpr int SOUNDS_MAX = 0;
@@ -153,7 +153,7 @@ void reset(int bytes, bool stereo)
     fail_open = fail_read = fail_write = -1;
     opens = reads = writes = 0;
     Sound[0] = Sound[1] = {0, static_cast<uint32_t>(bytes / 2 - 1)};
-    Recording[0] = {3, (bytes + PACKET_DIM - 1) / PACKET_DIM, bytes, stereo};
+    Recording[0] = {3, (bytes + PACKET_DIM - 1) / PACKET_DIM, static_cast<uint32_t>(bytes), stereo};
     for (int i = 0; i < 512; ++i)
     {
         packet_names[i] = std::to_string(i);

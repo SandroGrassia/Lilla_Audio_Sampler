@@ -37,10 +37,6 @@ void StereoLiveSampler::Stop(void)
     book_stop_flag = true;
 }
 
-void StereoLiveSampler::Set_cancel_beyond(bool value)
-{
-    cancel_beyond = value;
-}
 void StereoLiveSampler::update(void)
 {
     // only update if we're writing

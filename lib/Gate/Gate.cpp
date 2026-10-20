@@ -26,8 +26,3 @@ void GateOut::Write(void)
     digitalWrite(GATE_OUT_pin, HIGH);
     state = true;
 }
-
-bool GateOut::Read_state(void)
-{
-    return state;
-}

@@ -1,14 +1,16 @@
 """Exercise production restore-menu recovery and final audio/control publication."""
 from pathlib import Path
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[2]
 source = (root / 'src/main.cpp').read_text(encoding='utf-8')
-menu = source.split('            case 5: // Restore configuration', 1)[1].split('            case 6:', 1)[0]
-menu = 'case 4: //' + menu
+case_start = re.search(r'^            case \d+: // Restore configuration', source, re.M).start()
+case_end = source.index('            case ', case_start + len('            case '))
+menu = re.sub(r'case \d+:', 'case 4:', source[case_start:case_end], count=1)
 reload = source.split('void Reload_system_state(void)\n{', 1)[1].split('\n}\n', 1)[0]
 tail = reload[reload.index('    // ****************    DEFINE STARTUP MODE'):]
 
@@ -34,7 +36,7 @@ struct SDStub {
 } SD;
 struct DisplayStub {
     void Confirm_config_import_popup() {}
-    void Confirm_config_import_frame(int) {}
+    void Confirm_config_restore_frame(int) {}
     void SETUP_show_SETUP_page() {}
     void SETUP_show_frame(int) {}
     void Config_import_FILE_error_popup() {}

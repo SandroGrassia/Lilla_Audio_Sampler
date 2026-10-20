@@ -11,11 +11,6 @@ void AudioADSR::Set_identity(const int id)
     identity = id;
 }
 
-int AudioADSR::Get_identity(void)
-{
-    return identity;
-}
-
 uint8_t AudioADSR::Get_phase(void)
 {
     return phase;

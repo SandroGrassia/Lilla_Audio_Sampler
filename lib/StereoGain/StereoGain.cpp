@@ -64,26 +64,6 @@ void StereoGain::Set_gain(float value)
     }
 }
 
-void StereoGain::set_gain_L(float value)
-{
-    if (abs(value - gain_L) > 0.0001)
-    {
-        gain_flag_L = true;
-        gain_delta_L = (value - gain_L) / SAMPLES_VOLUME;
-        gain_step_L = SAMPLES_VOLUME - 1;
-    }
-}
-
-void StereoGain::set_gain_R(float value)
-{
-    if (abs(value - gain_R) > 0.0001)
-    {
-        gain_flag_R = true;
-        gain_delta_R = (value - gain_R) / SAMPLES_VOLUME;
-        gain_step_R = SAMPLES_VOLUME - 1;
-    }
-}
-
 void StereoGain::UPDATE_gain(void)
 {
     if (gain_flag_L)

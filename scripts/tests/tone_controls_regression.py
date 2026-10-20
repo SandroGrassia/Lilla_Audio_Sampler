@@ -9,7 +9,7 @@ import tempfile
 root = Path(__file__).resolve().parents[2]
 main = (root / 'src/main.cpp').read_text(encoding='utf-8')
 display = (root / 'lib/DisplayPerformance/DisplayPerformance.cpp').read_text(encoding='utf-8')
-encoder = re.search(r'template <class T>\nbool Read_encoder\(.*?^\}', main, re.M | re.S).group(0)
+encoder = re.search(r'template <class T>\nbool Read_encoder\([^;{}]*\)\n\{.*?^\}', main, re.M | re.S).group(0)
 start = main.index('            case value_P_Tone:')
 end = main.index('            case value_P_Precedence:', start)
 handler = main[start:end]

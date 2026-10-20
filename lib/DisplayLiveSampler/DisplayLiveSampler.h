@@ -149,7 +149,6 @@ public:
     void Menu(void);
 
     // Draws a highlight frame around the menu item at the given display position.
-    void Menu_frame(const int position);
 
     // Renders the waveform canvas for the given sound channel (min/max envelope, colour gradient by buffer age, X/Y markers, REC LED, stereo label), then blits the canvas to the TFT.
     void Show_wave(const int sound_id);

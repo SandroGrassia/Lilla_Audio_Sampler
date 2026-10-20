@@ -219,9 +219,8 @@ void DisplayLiveSampler::Step(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_step[0]), display_coordinate_y(LS_column_row_step[1]), LS_chars_step);
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(LS_X_step);
-    tft.setTextColor(ILI9341_ORANGE);
-    tft.print("samples");
+    tft.print(static_cast<float>(LS_X_step)/44100.0, 1);
+    Show_measure_unit("sec", 3);
 }
 
 FLASHMEM
@@ -337,13 +336,6 @@ void DisplayLiveSampler::Menu(void)
             ++position;
         }
     }
-}
-
-FLASHMEM
-void DisplayLiveSampler::Menu_frame(const int position)
-{
-    Delete_menu_frames();
-    Frame_by_col_row(X_position_Menu_LS[position], 1, dimension_voice_Menu_LS[element_Menu_LS[position]], true);
 }
 
 FLASHMEM

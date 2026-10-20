@@ -132,7 +132,6 @@ public:
     void DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export);
 
     // Draws the SD export options panel showing source file names and available targets.
-    void DS_export_options(int file_L_RAW, int file_R_RAW, int DS_export);
 
     // Draws the recording description and LED space; update_header allows refreshing the header volume.
     void DS_Recording_description(int recording, bool led, bool update_header = true);
@@ -141,10 +140,8 @@ public:
     void DS_recording_seconds(void);
 
     // Redraws only the elapsed-seconds value during an active recording.
-    void DS_update_recording_seconds(float value);
 
     // Draws the VOLUME label and value at the row that matches the current recording layout.
-    void DS_volume(void);
 
     // Redraws only the volume value in the header row. adj=true uses yellow (being edited), false uses white.
     void DS_update_volume(bool adj = true);
@@ -156,7 +153,6 @@ public:
     void DS_menu(void);
 
     // Erases the previous menu frame and draws a new one at the given position, updating choice_DS_menu.
-    void DS_frame_menu(int position);
 
     // Draws the 'STOP SAMPLING?' confirmation popup.
     void DS_confirm_EXIT_from_DS(void);

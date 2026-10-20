@@ -24,5 +24,4 @@ public:
     DisplayStartup() {}
 
     FLASHMEM void Lilla_cover_slow(void);
-    FLASHMEM void Lilla_cover_saturate(void);
 };

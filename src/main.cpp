@@ -545,7 +545,7 @@ uint8_t Line_out_level;                         // Hardware line-output level se
 void SET_Prepare_user_audio(void);                               // Suspend playback, import user audio and restore the previous audio/MIDI state.
 bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
 float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
-FLASHMEM void SET_Ask_if_IMPORT_EXPORT_setup(void);                       // Present the setup import/export choices and handle the selected operation.
+FLASHMEM void SET_Ask_if_IMPORT_EXPORT_setup(bool exporting = false);                       // Present the setup import/export choices and handle the selected operation.
 FLASHMEM void SET_Ask_if_FACTORY_RESET(void);                             // Request confirmation before restoring factory settings.
 
 // CC Control Change
@@ -7495,7 +7495,7 @@ void loop()
         }
 
         // Set Key Step
-        if (SET_menu == 0 && Read_encoder_inverse(EN_PB_Value, key_step, 3, 0, 1))
+        if (SET_menu == 2 && Read_encoder_inverse(EN_PB_Value, key_step, 3, 0, 1))
         {
             Display_Setup.SETUP_show_Key_step_value();
             Calc_pitch_from_note(key_step);
@@ -7503,7 +7503,7 @@ void loop()
         }
 
         // Set Prima ottava
-        if (SET_menu == 1 && Read_encoder(EN_PB_Value, first_octave, 0, -2, 1))
+        if (SET_menu == 3 && Read_encoder(EN_PB_Value, first_octave, 0, -2, 1))
         {
             Display_Setup.SETUP_show_First_octave_value();
         }
@@ -7523,12 +7523,33 @@ void loop()
         {
             switch (SET_menu)
             {
-            case 3:
-                SET_Prepare_user_audio();
+            case 0:
+            {
+                int action = 0;
+                Display_Setup.SETUP_show_convert_popup();
+                Clear_UI_events();
+                while (true)
+                {
+                    Shifters_manager.Update();
+                    if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
+                    {
+                        Display_Setup.SETUP_show_convert_frame(action);
+                    }
+                    if (Read_pushbutton(EN_PB_Select))
+                    {
+                        break;
+                    }
+                }
+                Clear_UI_events();
+                if (action == 1)
+                {
+                    SET_Prepare_user_audio();
+                }
                 Display_Setup.SETUP_show_SETUP_page();
                 Display_Setup.SETUP_show_frame(SET_menu);
                 break;
-            case 2: // switch to CC Settings
+            }
+            case 4: // switch to CC Settings
                 Lilla_state = CC_SETTINGS;
 
                 display_wait = false;
@@ -7553,8 +7574,30 @@ void loop()
                 // case 2: // USB access to SD card - funzionalita' MTP
                 // break;
 
-            case 4: // import RAW files from SD
+            case 1: // import audio files from SD
             {
+                int action = 0;
+                Display_Setup.SETUP_show_import_info_popup();
+                Clear_UI_events();
+                while (true)
+                {
+                    Shifters_manager.Update();
+                    if (Read_encoder(EN_PB_Select, action, 1, 0, 1))
+                    {
+                        Display_Setup.SETUP_show_import_info_frame(action);
+                    }
+                    if (Read_pushbutton(EN_PB_Select))
+                    {
+                        break;
+                    }
+                }
+                Clear_UI_events();
+                Display_Setup.SETUP_show_SETUP_page();
+                Display_Setup.SETUP_show_frame(SET_menu);
+                if (action == 0)
+                {
+                    break;
+                }
                 const bool resume_controls = Trigger.Is_running();
                 if (!P_Quiesce_audio_players())
                 {
@@ -7598,9 +7641,9 @@ void loop()
                 break;
             }
 
-            case 5: // Restore configuration and Recording audio from the backup root.
+            case 6: // Restore configuration and Recording audio from the backup root.
                 Display_Storage.Confirm_config_import_popup();
-                Display_Storage.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_config_restore_frame(0);
                 SET_Ask_if_IMPORT_EXPORT_setup();
                 if (result == 0)
                 {
@@ -7670,10 +7713,10 @@ void loop()
                 }
                 break;
 
-            case 6: // Create a new numbered backup with Recording audio.
+            case 5: // Create a new numbered backup with Recording audio.
                 Display_Storage.Confirm_config_export_popup();
-                Display_Storage.Confirm_config_import_frame(0);
-                SET_Ask_if_IMPORT_EXPORT_setup();
+                Display_Storage.Confirm_config_export_frame(0);
+                SET_Ask_if_IMPORT_EXPORT_setup(true);
                 if (result == 0)
                 {
                     Display_Setup.SETUP_show_SETUP_page();
@@ -7710,7 +7753,7 @@ void loop()
 
             case 7: // Factory reset
                 Display_Storage.Confirm_factory_reset_popup();
-                Display_Storage.Confirm_config_import_frame(0);
+                Display_Storage.Confirm_factory_reset_frame(0);
 
                 SET_Ask_if_FACTORY_RESET();
                 if (result == 0)
@@ -13956,7 +13999,7 @@ byte CC_Save_settings(void)
 }
 
 FLASHMEM
-void SET_Ask_if_IMPORT_EXPORT_setup(void)
+void SET_Ask_if_IMPORT_EXPORT_setup(bool exporting)
 {
     confirmation = false;
     result = 0;
@@ -13968,7 +14011,14 @@ void SET_Ask_if_IMPORT_EXPORT_setup(void)
 
         if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
-            Display_Storage.Confirm_config_import_frame(result);
+            if (exporting)
+            {
+                Display_Storage.Confirm_config_export_frame(result);
+            }
+            else
+            {
+                Display_Storage.Confirm_config_restore_frame(result);
+            }
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -13992,7 +14042,7 @@ void SET_Ask_if_FACTORY_RESET(void)
 
         if (Read_encoder(EN_PB_Select, result, 1, 0, 1))
         {
-            Display_Storage.Confirm_config_import_frame(result);
+            Display_Storage.Confirm_factory_reset_frame(result);
         }
         if (Read_pushbutton(EN_PB_Select))
         {
@@ -14387,7 +14437,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
 
     float erasing_time_ms = Get_flash_size() / SET_eraseBytesPerSecond(id) * 1000;
     const uint32_t erasing_time_ms_step = static_cast<uint32_t>(erasing_time_ms / 100.0f);
-    Display_Storage.Copy_audio_files_SD_to_Flash_chip_last_warning(erasing_time_ms);
+    Display_Storage.Copy_audio_files_SD_to_Flash_chip_last_warning();
 
     // Confirmation
     bool confirm = false;
@@ -14429,6 +14479,9 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         return false;
     }
 
+    Display_Storage.Copy_audio_files_SD_to_Flash_chip_titolo();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_report(SD_raw_volume, SD_raw_files, Get_raw_files_volume(), Get_raw_files());
+
     // Stage and commit every accepted name before erasing audio. Missing names retain their IDs.
     rootdir = SD.open("/FLASH_AUDIO");
     bool registry_ok = rootdir && rootdir.isDirectory();
@@ -14469,7 +14522,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     }
 
     // Start erasing flash chip
-    Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_start();
+    Display_Storage.Copy_raw_files_SD_to_Flash_chip_job_start(erasing_time_ms);
 
     flash_changed = true;
     SerialFlash.eraseAll(); // uint32_t size = Get_flash_size(); // SerialFlash.capacity(id);

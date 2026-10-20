@@ -1172,17 +1172,6 @@ void PlayersManager::Update_Preset_pan(int patch_id, int instrument_id)
     Preset[instrument_id].pan = Sound[Get_sound_id(patch_id, instrument_id)].pan;
 }
 
-void PlayersManager::Update_Preset_sound_id(int patch_id, int instrument_id)
-{
-    Preset[instrument_id].sound_id = Get_sound_id(patch_id, instrument_id);
-}
-
-void PlayersManager::Update_Preset_file(int patch_id, int instrument_id)
-{
-    Preset[instrument_id].file = Sound[Get_sound_id(patch_id, instrument_id)].file;
-    Preset[instrument_id].source = Cache_manager_ptr->Get_source(Preset[instrument_id].file);
-}
-
 void PlayersManager::Update_Preset_midi_channel(int patch_id, int instrument_id)
 {
     Preset[instrument_id].midi_channel = Get_midi_channel(patch_id, instrument_id);
@@ -1196,18 +1185,6 @@ void PlayersManager::Update_Preset_pitch(int patch_id, int instrument_id)
 void PlayersManager::Update_Preset_mode(int patch_id, int instrument_id)
 {
     Preset[instrument_id].mode = Sound[Get_sound_id(patch_id, instrument_id)].mode;
-}
-
-void PlayersManager::Update_Preset_A_B_Wavetable(int patch_id, int instrument_id)
-{
-    Preset[instrument_id].A = Sound[Get_sound_id(patch_id, instrument_id)].A;
-    Preset[instrument_id].B = Sound[Get_sound_id(patch_id, instrument_id)].B;
-    Preset[instrument_id].use_Wavetable = (Preset[instrument_id].B - Preset[instrument_id].A + 1) <= BLOCK_MIN;
-}
-
-void PlayersManager::Update_Preset_Noclick(int patch_id, int instrument_id)
-{
-    Preset[instrument_id].Noclick = Sound[Get_sound_id(patch_id, instrument_id)].Noclick;
 }
 
 void PlayersManager::Update_Preset_attack_type(int patch_id, int instrument_id)
@@ -1346,11 +1323,6 @@ void PlayersManager::Update_Preset_IF_resonance(int patch_id, int instrument_id)
     Preset[instrument_id].Filter.resonance = (5.0f + Patch[patch_id].Instrument[instrument_id].Filter.resonance) / 5.0f; // 0 --> 40
 }
 
-void PlayersManager::Update_Preset_IF_filter_type(int patch_id, int instrument_id)
-{
-    Preset[instrument_id].Filter.type = Patch[patch_id].Instrument[instrument_id].Filter.type; // 0 -> 3
-}
-
 void PlayersManager::Update_Preset_IF_modulation(int patch_id, int instrument_id)
 {
     Preset[instrument_id].Filter.modulation = Patch[patch_id].Instrument[instrument_id].Filter.modulation; // 0 -> 4
@@ -1406,35 +1378,6 @@ void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrumen
     }
 }
 
-bool PlayersManager::Get_use_Wavetable(int sound_id)
-{
-    return ((Sound[sound_id].B - Sound[sound_id].A + 1) <= BLOCK_MIN); // BLOCK_MIN is defined in Lilla_player.h
-}
-
-int8_t PlayersManager::Find_oldest_player(int instrument_id, bool power_on, bool playing)
-{
-    unsigned long time_min = 0;
-    int8_t result = 0;
-    for (auto player_ext = 0; player_ext < PLAYERS; ++player_ext)
-    {
-        if ((Player_ptr[player_ext].Read_instrument() == instrument_id) && (Player_ptr[player_ext].isPoweredOn() == power_on) && (Player_ptr[player_ext].isPlaying() == playing))
-        {
-            time_min = Player_ptr[player_ext].Read_time_stamp();
-            result = player_ext;
-            for (auto player = 0; player < PLAYERS; ++player) // look for the player playing for the longest time
-            {
-                if (((Player_ptr + player)->Read_instrument() == instrument_id) && ((Player_ptr + player)->isPoweredOn() == power_on) && ((Player_ptr + player)->isPlaying() == playing) && ((Player_ptr + player)->Read_time_stamp() < time_min))
-                {
-                    time_min = (Player_ptr + player)->Read_time_stamp();
-                    result = player;
-                }
-            }
-            return result;
-        }
-    }
-    return -1;
-}
-
 void PlayersManager::Release_player(int player, int track) // after receiving a NoteOff command
 {
     (Player_ptr + player)->Release_note();
@@ -1471,14 +1414,6 @@ void PlayersManager::Release_all_players_for_instrument_solo(int instrument_id)
             }
         }
         // S_Map_one_Instrument_for_all_notes(instrument_id); // E' PALESEMENTE UN ERRORE!!!
-    }
-}
-
-void PlayersManager::Release_all_players(void)
-{
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        Release_player(player);
     }
 }
 
@@ -1565,18 +1500,6 @@ int PlayersManager::Get_span_for_all_cross_mix(void)
     return available > 0.0f ? static_cast<int>(available) : 0;
 }
 
-void PlayersManager::Multicast_reset_pitch_bend_effects(int instrument_id)
-{
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Player_ptr[player].Read_instrument() == instrument_id)
-        {
-            Player_ptr[player].Set_pitch_bend(1.0);
-            Player_ptr[player].Set_effects(16.0, 0);
-        }
-    }
-}
-
 void PlayersManager::Broadcast_pitch_bend(int midi_channel, float value)
 {
     for (auto player = 0; player < PLAYERS; ++player)
@@ -1584,18 +1507,6 @@ void PlayersManager::Broadcast_pitch_bend(int midi_channel, float value)
         if (Player_ptr[player].isPlaying() && Preset[Player_ptr[player].Assigned_instrument()].midi_channel == midi_channel) // if(!bitRead(Patch[patch_id].Instrument[Player_ptr[player].instrument_id].info, 1) && (Get_midi_channel(patch_id, Player_ptr[player].instrument_id) == midi_channel))
         {
             Player_ptr[player].Set_pitch_bend(value);
-        }
-    }
-}
-
-void PlayersManager::Broadcast_restore_pitch_bend_and_effects(int midi_channel, float value)
-{
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Preset[Player_ptr[player].Read_instrument()].midi_channel == midi_channel) // if(!bitRead(Patch[patch_id].Instrument[Player_ptr[player].instrument_id].info, 1))
-        {
-            Player_ptr[player].Set_pitch_bend(value);
-            Player_ptr[player].Set_effects(resolution_value[resolution], downsampling);
         }
     }
 }
@@ -1636,21 +1547,6 @@ void PlayersManager::Update_players_stistics(void)
         }
     }
     players_playing = players_using_Wavetable + players_using_Flash + players_using_Psram;
-}
-
-int PlayersManager::Get_players_playing(void)
-{
-    return players_playing;
-}
-
-int PlayersManager::Get_players_using_Flash(void)
-{
-    return players_using_Flash;
-}
-
-int PlayersManager::Get_players_using_Wavetable(void)
-{
-    return players_using_Wavetable;
 }
 
 void PlayersManager::Calculate_and_set_mix_samples(void)
@@ -1728,22 +1624,6 @@ void PlayersManager::Reset_players_to_restart(void)
     players_to_restart = 0;
 }
 
-int PlayersManager::Get_players_to_restart(void)
-{
-    return players_to_restart;
-}
-
-void PlayersManager::Multicast_update_vibrato(int midi_channel, bool vibrato_active)
-{
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        if (Player_ptr[player].Read_midi_channel() == midi_channel)
-        {
-            Player_ptr[player].Set_vibrato_flag(vibrato_active);
-        }
-    }
-}
-
 void PlayersManager::Multicast_all_notes_off(int midi_channel)
 {
     for (auto player = 0; player < PLAYERS; ++player)
@@ -1803,11 +1683,6 @@ uint8_t PlayersManager::Refresh_audio_table_references(void)
         referenced_banks |= Player_ptr[player_id].Get_tables_reference_mask();
     }
     return referenced_banks;
-}
-
-int PlayersManager::Get_players_using_Psram(void)
-{
-    return players_using_Psram;
 }
 
 void PlayersManager::Refresh_cache_sources(void)

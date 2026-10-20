@@ -35,11 +35,8 @@ public:
     PerformanceLedSet* Performance_led_set_ptr = nullptr; 
 
     void Reset_total_Players_per_instrument(void);
-    int Read_total_Players_per_instrument(int instrument_id);
     void Inc_total_Players_per_instrument(int instrument_id);
     void Dec_total_Players_per_instrument(int instrument_id);
-    void Set_total_Players_per_instrument_old(int instrument_id, int value);
-    int Read_total_Players_per_instrument_old(int instrument_id);
 
     void Reset_total_Players_per_track_instrument(void);
     void Inc_total_Players_per_track_instrument(const int& track, const int& instrument_id);

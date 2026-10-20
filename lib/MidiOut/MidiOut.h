@@ -26,6 +26,4 @@ public:
     void ProgramChange(const int &programNumber, const int &channel);
     void ControlChange(const int &controlNumber, const int &controlValue, const int &channel);
     void PitchBend(const int &value, const int &channel); // -8192 <= value <= 8191
-    void PolyPressure(const int &note, const int &pressure, const int &channel);
-    void AfterTouch(const int &pressure, const int &channel);
 };

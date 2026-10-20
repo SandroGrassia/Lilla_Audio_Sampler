@@ -150,14 +150,6 @@ void DisplayCommon::Lowpass_filter(void)
 }
 
 FLASHMEM
-void DisplayCommon::Patch_volume_color(bool change_patch, bool change_vol)
-{
-    P_show_Patch_number(change_patch);
-    P_Patch_VOLUME(change_vol);
-    P_Patch_volume_value(change_vol);
-}
-
-FLASHMEM
 void DisplayCommon::Confirm_no_yes_popup_frame(int value)
 {
     const int popup_x = Centered_element_left(106);

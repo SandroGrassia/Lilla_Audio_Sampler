@@ -78,8 +78,6 @@ public:
     void P_show_ToKey_value(int patch_id, int instrument_id, bool editing);
     void P_show_Pan_value(int patch_id, int instrument_id, bool editing);
     void P_show_Gain_value(int patch_id, int instrument_id, bool editing);
-    void P_delete_instrument_by_position(int position);
-    void P_show_delete_Instrument_frame(float line, bool show);
     void P_show_TuningTone_instrument(int patch_id);
     void P_show_gain_TuningTone(int patch_id);
 };

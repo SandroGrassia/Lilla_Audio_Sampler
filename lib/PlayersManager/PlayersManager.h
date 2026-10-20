@@ -186,19 +186,13 @@ public:
     void MX_multicast_change_routing(int instrument_id);
     void Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track);
 
-    int Get_players_to_restart(void);
     void Calculate_and_set_mix_samples(void);
     void Multicast_stop_players_for_NoteOff(int midi_channel, int note_number, int track);
     void Broadcast_pitch_bend(int midi_channel, float value);
     void Multicast_all_notes_off(int midi_channel);
-    void Multicast_update_vibrato(int midi_channel, bool vibrato_active);
     void Multicast_stop_players_for_loop_track(int track);
 
     void Update_players_stistics(void); // Count Wavetable, Flash and PSRAM readers separately.
-    int Get_players_playing(void);
-    int Get_players_using_Flash(void);
-    int Get_players_using_Wavetable(void); // Return the number of voices reading wavetables.
-    int Get_players_using_Psram(void); // Return the number of voices reading cached or live PSRAM samples.
     void Refresh_cache_sources(void); // Publish ready sources and promote identical current data; call with audio interrupts disabled.
     uint16_t Get_cache_reference_mask(void); // Combine current and queued player references; call with audio interrupts disabled.
     uint16_t Fast_stop_players_using_cache(uint16_t mask); // Fade only readers of the cache selected for reclamation.
@@ -217,13 +211,10 @@ public:
     void Change_from_key(int patch_id, int instrument_id, int from_key_new);
     void Change_to_key(int patch_id, int instrument_id, int to_key_new);
     void Multicast_change_players_notes(int patch_id, int instrument_id);
-    bool Get_use_Wavetable(int sound_id);
-    int8_t Find_oldest_player(int instrument_id, bool power_on, bool playing);
 
     void Release_player(int player);
     void Release_all_players_for_instrument(int instrument_id);
     void Release_all_players_for_instrument_solo(int instrument_id);
-    void Release_all_players(void);
     void Release_softly_all_players(int patch_id); // Stop outgoing patch voices within QUICK_RELEASE_TIME, including existing release tails.
     void Stop_all_players(void); // BROADCAST_stop_all_Players()
     uint16_t Fast_stop_players_using_tables(uint8_t banks_mask); // Return a player bitmask identifying newly requested stops. Call from the audio IRQ or with audio interrupts disabled.
@@ -243,8 +234,6 @@ public:
     void Broadcast_reset_effect(float resolution, uint8_t downsampling, int effect);
 
     void Multicast_main_settings_editing(int patch_id, int instrument_id);
-    void Multicast_reset_pitch_bend_effects(int instrument_id);
-    void Broadcast_restore_pitch_bend_and_effects(int midi_channel, float value);
 
     void Update_all_Preset(int patch_id, float volume_patch); // Publish the active instruments and refresh their pinned cache sources.
     void Update_all_Preset_volume(int patch_id, float volume_patch);
@@ -256,13 +245,9 @@ public:
     void Update_Preset(int patch_id, int instrument_id, float volume_patch);
     void Update_Preset_volume(int patch_id, int instrument_id, float volume_patch); // chiamata da main e MidiReader
     void Update_Preset_pan(int patch_id, int instrument_id);
-    void Update_Preset_sound_id(int patch_id, int instrument_id);
-    void Update_Preset_file(int patch_id, int instrument_id);
     void Update_Preset_midi_channel(int patch_id, int instrument_id);
     void Update_Preset_pitch(int patch_id, int instrument_id);
     void Update_Preset_mode(int patch_id, int instrument_id);
-    void Update_Preset_A_B_Wavetable(int patch_id, int instrument_id);
-    void Update_Preset_Noclick(int patch_id, int instrument_id);
     void Update_Preset_attack_type(int patch_id, int instrument_id);
     void Update_Preset_attack(int patch_id, int instrument_id);
     void Update_Preset_decay(int patch_id, int instrument_id);
@@ -279,7 +264,6 @@ public:
     void Multicast_IF_index(int instrument_id, float value); // chiamata da main e MidiReader
     void Update_Preset_IF(int patch_id, int instrument_id);
     void Update_Preset_IF_resonance(int patch_id, int instrument_id);
-    void Update_Preset_IF_filter_type(int patch_id, int instrument_id);
     void Update_Preset_IF_modulation(int patch_id, int instrument_id);
     void Update_Preset_IF_index(int patch_id, int instrument_id);
 

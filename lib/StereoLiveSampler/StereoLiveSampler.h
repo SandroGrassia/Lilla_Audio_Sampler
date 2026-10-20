@@ -41,7 +41,6 @@ public:
     void Start(bool stereo_in);
     void Stop(void);
     bool Is_writing(void);
-    void Set_cancel_beyond(bool value);
 
     bool first_write_flag = true;
     int Q_sample;

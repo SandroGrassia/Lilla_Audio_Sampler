@@ -58,11 +58,6 @@ void PlayersStatistics::Reset_total_Players_per_instrument(void)
     }
 }
 
-int PlayersStatistics::Read_total_Players_per_instrument(int instrument_id)
-{
-    return total_Players_per_instrument[instrument_id];
-}
-
 void PlayersStatistics::Inc_total_Players_per_instrument(int instrument_id)
 {
     ++total_Players_per_instrument[instrument_id];
@@ -106,14 +101,4 @@ void PlayersStatistics::Dec_total_Players_per_instrument(int instrument_id)
         }
         Serial.println();
     }
-}
-
-void PlayersStatistics::Set_total_Players_per_instrument_old(int instrument_id, int value)
-{
-    total_Players_per_instrument_old[instrument_id] = value;
-}
-
-int PlayersStatistics::Read_total_Players_per_instrument_old(int instrument_id)
-{
-    return total_Players_per_instrument_old[instrument_id];
 }

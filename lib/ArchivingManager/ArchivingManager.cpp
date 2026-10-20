@@ -555,16 +555,6 @@ uint32_t ArchivingManager::FRAM_Get_instrument_address(uint8_t patch_id, uint8_t
     return FRAM_Get_patch_address(patch_id) + offsetof(FRAM_Patch_struct, Instrument) + static_cast<uint32_t>(instrument_id) * sizeof(FRAM_Instrument_struct);
 }
 
-uint32_t ArchivingManager::FRAM_Get_filter_address(uint8_t patch_id, uint8_t instrument_id)
-{
-    return FRAM_Get_instrument_address(patch_id, instrument_id) + offsetof(FRAM_Instrument_struct, Filter);
-}
-
-uint32_t ArchivingManager::FRAM_Get_delay_address(uint8_t patch_id)
-{
-    return FRAM_Get_patch_address(patch_id) + offsetof(FRAM_Patch_struct, Delay);
-}
-
 uint32_t ArchivingManager::FRAM_Get_sound_address(uint16_t sound_id)
 {
     return FRAM_SOUND_ADDRESS + static_cast<uint32_t>(sound_id) * sizeof(FRAM_Sound_struct);
@@ -573,11 +563,6 @@ uint32_t ArchivingManager::FRAM_Get_sound_address(uint16_t sound_id)
 uint32_t ArchivingManager::FRAM_Get_recording_address(uint8_t recording_id)
 {
     return FRAM_RECORDING_ADDRESS + static_cast<uint32_t>(recording_id) * sizeof(FRAM_Recording_struct);
-}
-
-uint32_t ArchivingManager::FRAM_Get_CC_settings_address()
-{
-    return FRAM_SYSTEM_ADDRESS + offsetof(FRAM_System_struct, CC_settings);
 }
 
 byte ArchivingManager::FRAM_Write_patch(uint8_t patch_id, const FRAM_Patch_struct &source)

@@ -74,6 +74,5 @@ public:
     void Set_phase(int angle);
     void Set_frequency(float freq);  // sinus wave
     void Set_amplitude(int max_value); // sinus wave
-    void Update_amplitude(float max_value); // sinus wave
     void Setup_aperiodic_wave(float seconds, float max_value, int waveform); // aperiodic wave - period: seconds  n: waveform
 };

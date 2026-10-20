@@ -174,24 +174,6 @@ void DisplaySound::Show_SOUND_menu(void)
 }
 
 FLASHMEM
-void DisplaySound::Delete_all_menu_frame(void)
-{
-    int position;
-
-    for (auto element = 0; element < S_menu_elements; ++element)
-    {
-        if (S_Menu[element])
-        {
-            position = S_position_menu[element];
-            if (S_column_menu_element[position] != 255)
-            {
-                Frame_by_col_row(S_column_menu_element[position], 1, S_dimension_voice_menu[element], false);
-            }
-        }
-    }
-}
-
-FLASHMEM
 void DisplaySound::Show_Attack_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Attack][0]), display_coordinate_y(S_column_row_value_element[value_S_Attack][1]), S_chars_Attack);

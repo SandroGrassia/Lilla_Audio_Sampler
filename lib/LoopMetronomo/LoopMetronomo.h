@@ -34,8 +34,6 @@ public:
     void Setup(const int LOOP_time);
     void Leds_off(void); // spegne tutti i led
     void Led_ON(int led); // accende il led e assegna beat
-    void Set_beat(int value); // assegna il beat attuale
-    int Read_beat(void); // legge il beat attuale  
     int Read_metro_delta_ms(void); // delta_t per il prossimo beat
 
     unsigned long metro_time; // (ms) istante di esecuzione del prossimo evento da eseguire rispetto a LOOP_Clock

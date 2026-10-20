@@ -385,7 +385,6 @@ public:
     int Assigned_instrument(void) const { return Has_pending_note() ? instrument_id_wait : instrument_id; }
     int Assigned_patch(void) const { return Has_pending_note() ? patch_id_wait : local_patch; }
     void Set_modulation(uint8_t value);
-    void set_file(int file_id_in);                             // Select a Flash or Live Sampler file for the next note.
     void Set_source(const AudioFileSource &source);            // Attach the prepared source before configuring the next note.
     void Refresh_cached_source(const AudioFileSource &source); // Promote identical data and refresh current/pending pitch limits; call with audio interrupts disabled.
     bool Uses_flash(void) const;                               // Reserve Flash capacity for current playback and queued starts or edits.
@@ -403,7 +402,6 @@ public:
     void Update_pan(float pan_int_value);
     void Set_vibrato_pointers(float *p_vibrato_array_in, uint8_t *p_vibrato_array_last_element_in);
     void Set_vibrato_flag(bool value);
-    void Write_update_time(uint16_t value);
     void Set_mix_samples(uint8_t value);
 
     void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);         // Prepare the next start from precomputed preset parameters and table references.
@@ -421,7 +419,6 @@ public:
     int Read_update_time(void);
     bool Read_precedence(void);
     int Read_patch_wait(void);
-    int Read_local_patch(void);
     int Read_midi_channel(void);
     int Read_instrument(void);
     int Read_sound_id(void);

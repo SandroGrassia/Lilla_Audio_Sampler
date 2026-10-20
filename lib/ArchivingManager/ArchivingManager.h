@@ -221,11 +221,8 @@ private:
 
     uint32_t FRAM_Get_patch_address(uint8_t patch_id);
     uint32_t FRAM_Get_instrument_address(uint8_t patch_id, uint8_t instrument_id);
-    uint32_t FRAM_Get_filter_address(uint8_t patch_id, uint8_t instrument_id);
-    uint32_t FRAM_Get_delay_address(uint8_t patch_id);
     uint32_t FRAM_Get_sound_address(uint16_t sound_id);
     uint32_t FRAM_Get_recording_address(uint8_t recording_id);
-    uint32_t FRAM_Get_CC_settings_address();
 
 public:
     ArchivingManager(void) {}
