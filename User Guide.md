@@ -1,14 +1,12 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.3**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.4**
 
-Guide edition: **17 October 2026**
+Guide edition: **20 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.3](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.4](User%20Guide.pdf).
 
-<img src="doc/assets/images/0.jpg" alt="LILLA startup screen with firmware version and memory information" width="37%">
-
-*Welcome screen. The photographs in this guide show a working instrument; patch numbers, file names and values are examples.*
+*The photographs in this guide show a working instrument; patch numbers, file names and values are examples.*
 
 LILLA brings sample playback, line-input recording, live sampling and MIDI looping into one instrument. This guide takes you from your first playable patch to creating your own sounds and preserving a complete session.
 
@@ -227,7 +225,7 @@ The file-name table supports 260 RAW identities, including the fallback source, 
 
 ## Performance
 
-<img src="doc/assets/images/1.jpg" alt="Performance page showing a seven-sound keyboard mapping" width="37%">
+<img src="doc/assets/images/1.jpg" alt="Performance page showing a seven-sound keyboard mapping" width="55%">
 
 *An example patch spread across seven sound slots. Each row has its own root key, range and gain.*
 
@@ -322,7 +320,7 @@ A green `PATCH UPLOADING` popup indicates that patch audio is being transferred 
 
 ## Editing a sound
 
-<img src="doc/assets/images/2.jpg" alt="Sound Edit page with envelope, playback mode and sample waveform" width="37%">
+<img src="doc/assets/images/2.jpg" alt="Sound Edit page with envelope, playback mode and sample waveform" width="55%">
 
 *The waveform belongs to the selected source. `FROM`, `TO` and `TOT` describe the playable region; `TRIM STEP` controls the editing increment.*
 
@@ -439,7 +437,7 @@ This workflow keeps audio on SD and preserves the existing Flash library and rec
 
 1. Put source RAW, WAV, AIFF/AIF or MP3 files directly in `/EXTERNAL_AUDIO` at the card root. Use distinct basenames.
 2. Insert the card and open **Tools > Setup**.
-3. Select `CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO`. Processing starts immediately, without a confirmation prompt.
+3. Select `CONVERT SD AUDIO FILES`. Read the green confirmation dialog and choose `GO` to begin or `CANCEL` to return. The dialog identifies `/EXTERNAL_AUDIO` as the source and `/LILLA_AUDIO` as the mono RAW destination.
 4. Wait while `FILE IMPORT IN PROGRESS` is displayed. Audio and MIDI pause during conversion; do not power off or remove the card.
 5. Open Sound Edit and choose `BROWSE_SD` to audition and save a portion, then save the patch in Performance.
 
@@ -451,9 +449,7 @@ SD conversion processes complete files without the Flash import limit of 3 MiB. 
 
 > **Import replaces the audio library.** Confirming import erases the previous Flash audio files and Sampler recordings. Create a backup and keep your source audio on your computer before proceeding.
 
-<img src="doc/assets/images/12.jpg" alt="Audio import page showing source files, Flash capacity and the erase warning" width="37%">
-
-*Check both the source report and destination capacity before importing. This photograph says 35 seconds; the current firmware limit is 3 MiB of decoded mono PCM, approximately 35.7 seconds.*
+Check both the source report and destination capacity before importing. Confirming the erase warning replaces all existing Flash audio and recordings.
 
 ### Prepare the microSD card
 
@@ -491,9 +487,9 @@ Each imported file is limited to 3 MiB of decoded mono PCM, approximately 35.7 s
 
 1. Insert the prepared microSD card.
 2. Open **Tools > Setup**.
-3. Select `IMPORT AUDIO FILES FROM SD /FLASH_AUDIO` and press Select.
-4. Review the import report and final erase warning.
-5. Confirm only when you are ready to replace the current library and recordings.
+3. Select `IMPORT AUDIO FILES FROM SD` and press Select. The green dialog identifies WAV/AIFF/MP3/RAW files in `/FLASH_AUDIO` and LILLA's permanent Flash memory. Choose `GO` to continue or `CANCEL` to return.
+4. Review the import report and red erase warning.
+5. Choose `YES` only when you are ready to replace the current library and all Sampler recordings; choose `NO` to cancel.
 6. Wait for copying, memory configuration and restart to complete.
 7. Open Sound Edit and select the imported source you want to use.
 
@@ -507,7 +503,7 @@ The import screen reports invalid files, duplicates and Flash capacity problems.
 
 Sampler records the line input into Flash and lets you audition, convert or export the result.
 
-<img src="doc/assets/images/6.jpg" alt="Sampler in PAUSE+REC with left and right input meters" width="37%">
+<img src="doc/assets/images/5.jpg" alt="Sampler in PAUSE+REC with left and right input meters" width="55%">
 
 *The input meters let you set recording gain before starting. Free recording time and free audio-file space are shown separately.*
 
@@ -589,9 +585,9 @@ WAV export is useful when you want to edit a take on a computer, share a recordi
 
 ## Live Sampler
 
-<img src="doc/assets/images/4.jpg" alt="Live Sampler before recording, with playback and buffer controls" width="37%">
+<img src="doc/assets/images/4.jpg" alt="Live Sampler recording with adjustable feedback compressor and waveform" width="55%">
 
-*The empty-buffer view shows capacity, input gain, playback mode, feedback and start-point controls.*
+*The revised layout groups input gain, feedback and its compressor above the playback controls. This photograph shows STEP in samples; firmware 7.2.4 displays that editing increment in seconds.*
 
 Live Sampler records into a circular PSRAM buffer. It offers approximately 40 seconds in mono or 20 seconds in stereo. As recording continues, new audio replaces older buffer content.
 
@@ -609,10 +605,6 @@ The live buffer is temporary and is lost at power-off. Use the capture-to-patch 
 
 ### Read and navigate the live waveform
 
-<img src="doc/assets/images/5.jpg" alt="Live Sampler with a recorded waveform and a selected loop" width="37%">
-
-*Here the display window is 1.3 seconds, while the selected loop is 0.46 seconds. Zooming the view and changing the loop length are separate operations.*
-
 | Field | Meaning |
 | --- | --- |
 | `BUFFER` | Total live recording capacity for the selected mono/stereo layout. |
@@ -622,7 +614,8 @@ The live buffer is temporary and is lost at power-off. Use the capture-to-patch 
 | `WINDOW` | Amount of audio time visible in the waveform view. |
 | `START POINT` | Start-position behavior and its displayed position or relationship to recording. |
 | `LOOP` | Duration of the selected repeating region. |
-| `STEP` | Increment used to move the region controls. |
+| `STEP` | Increment used to move the region controls, displayed in seconds. |
+| `FEEDBACK COMPRESSOR` | Compression threshold from -24 to -3 dB, or OFF. |
 
 A smaller Window helps inspect a transient or a short loop. It does not automatically shorten the selected audio. Use **To** to adjust the loop length, and **From** to move its start.
 
@@ -642,9 +635,11 @@ During the first fill, reaching audio that has not yet been recorded still fades
 
 ### Stereo recording compressor
 
-On the Live Sampler page, turn **Select** to highlight the yellow `ON`/`OFF` value beside `COMPRESSOR`, then press **Select** to toggle it. The control is on the `FEEDBACK` row, aligned with `LOOP`. It starts **off** at power-on; its setting is retained during the current session but is not saved in a patch. All sound buttons, **S1-S8**, remain available for capture into the corresponding patch slots.
+On the Live Sampler page, turn **Select** to highlight `FEEDBACK COMPRESSOR`, then turn **Value** to choose a threshold from **-24 to -3 dB**, in 1 dB steps. **OFF** is the position beyond -3 dB. A lower threshold makes compression act earlier; OFF disables gain reduction. The threshold starts at **-6 dB** at power-on and is retained during the current session, but is not saved in a patch. All sound buttons, **S1-S8**, remain available for capture into the corresponding patch slots.
 
-The compressor acts on the sum of line input and feedback before writing to the live buffer. Audio processing runs only while Live Sampler is recording, including when its Mixer or Delay page is open; otherwise the block drains its inputs without allocating output blocks. The ON/OFF setting is retained, and lookahead history is cleared when recording resumes. Left and right share the same gain reduction, including when recording a mono mix. It begins reducing gain around -6 dBFS and limits sample peaks to approximately -1 dBFS once fully enabled. It does not repair clipping that has already occurred at the input or elsewhere in the feedback path, and does not process material already recorded.
+The compressor acts on the sum of line input and feedback before writing to the live buffer. Left and right share the same gain reduction, including when recording a mono mix. Once fully enabled it limits sample peaks to approximately -1 dBFS, without boosting quiet signals. It operates only during live recording and does not process material already recorded. It cannot repair clipping that has already occurred at the input or elsewhere in the feedback path.
+
+Threshold changes are smoothed over approximately 50 ms. Start with -6 dB and adjust while listening to the incoming audio and feedback.
 
 A 32-sample lookahead adds approximately 0.73 ms to the recording path, including when the compressor is off. Switching uses a gradual 10 ms transition between equally delayed signals, so the recording timeline does not jump. Gain recovery takes approximately 100 ms per time constant. Strong compression can still change the sound and feedback behavior. During bypass or the transition to/from bypass, full peak protection is not guaranteed.
 
@@ -702,10 +697,6 @@ You are not being asked to save patch 200. The warning protects edits to the pre
 
 ## MIDI Loop
 
-<img src="doc/assets/images/8.jpg" alt="MIDI Loop page with four tracks, level, shift and transposition" width="37%">
-
-*The four columns are MIDI tracks. The lower sound indicators show activity associated with the patch's sounds.*
-
 MIDI Loop records MIDI events into four tracks and plays them through the current patch. Track 1 is the master track and establishes the loop duration.
 
 ### Record your first loop
@@ -759,9 +750,9 @@ Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving
 
 ### Mixer
 
-<img src="doc/assets/images/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="37%">
+<img src="doc/assets/images/7.jpg" alt="Mixer page with sound sources, line input and separate output routes" width="55%">
 
-*The highlighted column is the selected source. The photograph uses the older MONITOR label; firmware 7.2.3 calls this route PRE_LIST.*
+*The highlighted column is the selected source. LINEOUT and PRE_LIST select the main and pre-listening routes independently.*
 
 Open **Tools > Mixer** to adjust the eight Sound sources and `L_IN`. Turn Select to choose a source column, then press it to enter the fields. Turn Select through `MUTE`, `GAIN`, `PAN`, `LINEOUT` and `PRE_LIST`; press Select to return to source selection. MUTE and GAIN have separate selection frames.
 
@@ -781,19 +772,19 @@ Use the separate LINEOUT and PRE_LIST routes to decide what your audience hears 
 
 ### Delay
 
-<img src="doc/assets/images/9.jpg" alt="Delay page with sound routing, feedback, time and stereo modulation" width="37%">
+<img src="doc/assets/images/8.jpg" alt="Delay page with sound routing, feedback, time and stereo modulation" width="55%">
 
-*The ROUTING row selects which sound slots feed the delay. This photograph predates the FEED LPF and FEED COMPRESSOR controls; use the field order described below. The example values are not recommended defaults.*
+*The ROUTING row selects which sound slots feed the delay. Echo and compressor controls occupy the left column; modulation controls are grouped on the right. The example values are not recommended defaults.*
 
-Open **Tools > Delay** to adjust feedback, feedback low-pass filtering, stereo compression, delay time, the left/right time relationship and modulation. The left column is ordered **FEEDBACK**, **FEED LPF**, **FEED COMPRESSOR**, **DELAY TIME**, **DELAY TIME L/R**. When opened from Live Sampler, enabled routing is labeled **LIVE SAMPLER**.
+Open **Tools > Delay** to adjust echo repeats, echo low-pass filtering, stereo compression, echo time, the left/right time relationship and modulation. The left column is ordered **ECHO REPEATS**, **ECHO LPF**, **COMPRESSOR**, **ECHO TIME**, **ECHO TIME DELTA L/R**. When opened from Live Sampler, enabled routing is labeled **LIVE SAMPLER**.
 
-**New in firmware 7.2.3: stereo compression in the Delay feedback path.** Select `FEED COMPRESSOR`, then turn or press Value to choose ON or OFF. It controls peaks in the sum of routed audio and feedback before that sum is written into the delay buffers. Left and right share the same attenuation, preserving stereo balance. The setting is saved with the patch; existing patches start with it OFF.
+Select `COMPRESSOR`, then turn **Value** to choose a threshold from **-24 to -3 dB** in 1 dB steps, or **OFF** beyond -3 dB. A lower threshold makes compression intervene earlier. The compressor controls peaks in the sum of routed audio and feedback before that sum is written into the delay buffers. Both channels share the same attenuation to preserve stereo balance. **Save the patch to retain the threshold.**
 
-The compressor starts reducing gain around -6 dBFS and limits sample peaks to approximately -1 dBFS once fully enabled, without boosting low-level signals. Its 32-sample lookahead adds about 0.73 ms to the configured delay, including in bypass. ON/OFF transitions are gradual, and gain recovery uses a 100 ms time constant. Compression can change the sound of accumulating echoes; it cannot undo clipping earlier in the signal path. During bypass or switching, full peak protection is not guaranteed.
+Once fully enabled, the compressor limits sample peaks to approximately -1 dBFS without boosting low-level signals. Its 32-sample lookahead adds about 0.73 ms to the configured delay, including in OFF. Threshold changes are smoothed over approximately 50 ms, bypass transitions take approximately 10 ms, and gain recovery uses a 100 ms time constant. Compression can change the sound of accumulating echoes; it cannot undo clipping earlier in the signal path. OFF disables compression, not the echo effect.
 
-`DELAY TIME L/R`: turn Value clockwise to delay the right channel, or counterclockwise to delay the left channel. The offset is limited by the available delay range; at the maximum delay time of 2 seconds, no additional offset is available.
+`ECHO TIME DELTA L/R`: turn Value clockwise to delay the right channel, or counterclockwise to delay the left channel. The offset reaches 10 ms in either direction when the base delay permits it. At the maximum displayed echo time of 2.0 seconds, the base is 1990 ms, leaving room for the full 10 ms stereo offset.
 
-`FEED LPF` darkens successive repeats. Its frequency is displayed in integer Hz, from 40Hz to 20000Hz, and is saved with the patch. Older patches start at 20000Hz.
+`ECHO LPF` darkens successive repeats. Its frequency is displayed in integer Hz, from 40Hz to 20000Hz, and is saved with the patch.
 
 Start with low feedback, then increase it while listening. Check the instrument's delay routing if you hear no delayed signal. Save the patch to retain its delay settings.
 
@@ -803,7 +794,7 @@ Modulation varies the delay over time. Introduce depth gradually, then adjust it
 
 ### Filters and sound character
 
-<img src="doc/assets/images/3.jpg" alt="Instrument VCF page with low-pass filtering and LFO modulation" width="37%">
+<img src="doc/assets/images/3.jpg" alt="Instrument VCF page with low-pass filtering and LFO modulation" width="55%">
 
 *The individual VCF shapes one instrument. The common LPF cutoff remains visible above it.*
 
@@ -823,32 +814,38 @@ Resonance emphasizes the filter's response around its characteristic frequency. 
 
 The common **Cutoff** control changes the low-pass filter, using the same 40 frequency settings as the echo filter, displayed in integer Hz from 40Hz to 20000Hz. Press it to restore maximum cutoff. **Resolution** and **Downsampling** add digital coloration.
 
-The instrument VCF page provides filter type, cutoff, resonance and modulation settings. Adjust these while playing the selected sound so you can hear how they interact with its sample and envelope.
+The instrument VCF page provides filter type, `TUNED LPF`, resonance and modulation settings. Select `NONE` with Value to bypass the filter. `TUNED LPF` uses 40 frequency settings from 40 to 20000 Hz and displays `Hz x pitch`: the selected frequency is scaled with playback pitch. Adjust these while playing the selected sound so you can hear how they interact with its sample and envelope.
 
 CUTOFF changes also reach notes already playing, with or without LFO, through a short transition of about 29 ms. TONE is a separate pitch-dependent timbre correction; it does not lock pitch bend, resolution or downsampling.
 
 ## Setup and MIDI controls
 
-<img src="doc/assets/images/10.jpg" alt="Setup page with tuning conventions, MIDI assignment and storage operations" width="37%">
+<img src="doc/assets/images/9.jpg" alt="Setup page with tuning conventions, MIDI assignment and storage operations" width="55%">
 
 *Setup combines global playing preferences with audio-library and backup operations.*
 
-Open **Tools > Setup** for:
+Open **Tools > Setup** for these entries, in display order:
 
-- `KEY STEP`: pitch mapping increments of one semitone, half a semitone, quarter or eighth of a semitone.
+- `CONVERT SD AUDIO FILES`: prepare mono RAW files in `/LILLA_AUDIO` from `/EXTERNAL_AUDIO`, keeping originals and skipping existing destination files.
+- `IMPORT AUDIO FILES FROM SD`: replace the Flash audio library using files in `/FLASH_AUDIO`.
+- `KEYBOARD STEP`: pitch mapping increments of one semitone, half a semitone, quarter or eighth of a semitone.
 - `FIRST OCTAVE`: the octave-number convention used for note display.
 - `CONTROL CHANGE ASSIGNMENT`: MIDI CC assignments for gains of Sound 1-8 and the low-pass cutoff.
-- Audio import, backup, restore and factory reset.
+- `CONFIGURATION BACKUP`: save configuration and recording audio in a new numbered backup folder.
+- `RESTORE CONFIGURATION FROM BACKUP`: restore the backup placed directly in `/LILLABACKUP`.
+- `FACTORY RESET`: delete patches and recordings while keeping imported audio files.
+
+Confirmation dialogs identify the relevant folders and explain what will be kept, replaced or excluded. Green dialogs introduce conversion, import and backup; red dialogs warn before destructive operations. Turn Select to choose an action and press it to confirm. `CANCEL`/`GO` is used for conversion, initial import, backup and restore; the final Flash erase warning and factory reset use `NO`/`YES`.
 
 ### Pitch steps and note names
 
-With `KEY STEP` at one semitone, adjacent MIDI notes use the normal chromatic pitch spacing. Smaller steps spread a smaller pitch interval over each keyboard step, allowing half-, quarter- or eighth-semitone playing. Return to one semitone when checking a conventional keyboard mapping.
+With `KEYBOARD STEP` at one semitone, adjacent MIDI notes use the normal chromatic pitch spacing. Smaller steps spread a smaller pitch interval over each keyboard step, allowing half-, quarter- or eighth-semitone playing. Return to one semitone when checking a conventional keyboard mapping.
 
 `FIRST OCTAVE` changes the octave numbering used in the display. It helps match your controller's naming convention; it should not be used as a substitute for setting the instrument's root key.
 
 ### Assign a controller knob
 
-<img src="doc/assets/images/11.jpg" alt="Control Change Assignment page for eight sound gains and LPF cutoff" width="37%">
+<img src="doc/assets/images/10.jpg" alt="Control Change Assignment page for eight sound gains and LPF cutoff" width="55%">
 
 *Each destination can have a CC assignment. A dash means no assignment.*
 
@@ -863,7 +860,7 @@ Use a dash to leave a destination unassigned. Check both the controller number a
 
 ### Check incoming MIDI
 
-<img src="doc/assets/images/15.jpg" alt="MIDI monitor displaying a NoteOn message, channel, note and velocity" width="37%">
+<img src="doc/assets/images/11.jpg" alt="MIDI monitor displaying a NoteOn message, channel, note and velocity" width="55%">
 
 *This example confirms reception of a NoteOn on channel 1. The note name follows the current octave-display convention.*
 
@@ -896,25 +893,23 @@ For a Live Sampler capture, this firmware's Sampler WAV-export command does not 
 1. Save your current patch edits.
 2. Insert a microSD card with sufficient free space.
 3. Open Tools > Setup.
-4. Select `NEW NUMBERED BACKUP IN /LILLABACKUP` and confirm.
+4. Select `CONFIGURATION BACKUP`. Read the green dialog: configuration and recording audio are included; audio libraries and MIDI loops are excluded. Choose `GO` to save or `CANCEL` to return.
 5. Wait for the backup success message.
 6. Copy the backup folder to your computer for safekeeping.
 
-Backups are created in numbered directories such as `/LILLABACKUP/000001`. They contain configuration and Sampler recording audio.
+Backups are created in numbered directories such as `/LILLABACKUP/000001`. They contain configuration and Sampler recording audio. Previous numbered backups are kept.
 
 Keep your imported source library separately. The backup operation does not copy the entire imported RAW library, the temporary live buffer or the MIDI-loop directory. Copy `/LILLALOOP` separately and retain your import files. Save live captures into a patch before archiving their settings, and account for the RAW-audio limitation described above.
 
 ### Restore a backup
 
-<img src="doc/assets/images/13.jpg" alt="Restore confirmation warning that patches, sounds and recordings will be replaced" width="37%">
-
-*Choose YES only after preparing the intended backup in the card's backup root.*
+Choose GO only after preparing the intended backup in the card's backup root.
 
 1. On your computer, choose the numbered backup you want to restore.
 2. Copy **the contents** of that directory into `/LILLABACKUP` on the card, keeping its configuration and recording files together.
 3. Check that `/LILLABACKUP/LILLA_CONFIG.fram` exists. Leaving it only inside `000001`, for example, is not enough.
 4. Insert the card and open Tools > Setup.
-5. Select `RESTORE CONFIG + AUDIO FROM /LILLABACKUP ROOT` and confirm.
+5. Select `RESTORE CONFIGURATION FROM BACKUP`. Read the instructions and warning, then choose `GO` to restore or `CANCEL` to return.
 6. Wait for restoration and any requested restart to finish.
 7. Check the restored patches and recordings, and that their imported source files are available.
 
@@ -929,15 +924,13 @@ microSD root/
 
 The bracketed line above is a description, not a filename to create. Copy the actual recording files together with the configuration; do not mix files from different numbered backups.
 
-Restoration replaces configuration and restores recording audio. Back up the current state before restoring a different one. Keep the original backup intact: invalid or missing recording audio can prevent a recording from being recovered.
+Restoration replaces configuration and restores recording audio; audio-library files already in Flash are kept. Back up the current state before restoring a different one. Keep the original backup intact: invalid or missing recording audio can prevent a recording from being recovered.
 
 ### Factory reset
 
-<img src="doc/assets/images/14.jpg" alt="Factory reset confirmation on the Setup page" width="37%">
+Factory reset is a destructive configuration operation. Its red confirmation dialog offers NO and YES.
 
-*Factory reset is a destructive configuration operation, not a way to leave an editing page.*
-
-`FACTORY RESET` deletes patches, sounds and recordings. Make a backup before confirming. Wait for the reset and restart to complete.
+`FACTORY RESET` deletes patches, sounds and recordings; imported audio files are kept. Make a backup before choosing `YES`. Choose `NO` to cancel. Wait for the reset and restart to complete.
 
 ## Updating the firmware on Windows
 
@@ -977,7 +970,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.3. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.4. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1031,7 +1024,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.3.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.4.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1143,8 +1136,8 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Record temporary live audio | Live Sampler > CAPTURE > STOP. |
 | Preserve a live loop | Stop live recording > loop mode > S1-S8 > set root key > save patch. |
 | Record a MIDI loop | MIDI Loop > Rec 1 > play > Rec 1 again. |
-| Back up configuration and recordings | Tools > Setup > new numbered backup. |
-| Restore a numbered backup | Copy its contents to SD `/LILLABACKUP` > Tools > Setup > restore. |
+| Back up configuration and recordings | Tools > Setup > CONFIGURATION BACKUP. |
+| Restore a numbered backup | Copy its contents to SD `/LILLABACKUP` > Tools > Setup > RESTORE CONFIGURATION FROM BACKUP. |
 
 ## Glossary
 
@@ -1171,6 +1164,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 17 October 2026*
+*LILLA User Guide - English edition - 20 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

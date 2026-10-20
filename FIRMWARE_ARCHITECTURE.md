@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.3 17/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.4 20/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -87,13 +87,13 @@ Per-voice processing is implemented by [AudioPlayer](lib/AudioPlayer/AudioPlayer
 
 Each feedback path has its own `AudioFilterBiquad` (`D_lpf_L` and `D_lpf_R`), connected between the delay output and feedback gain. Both use the same cutoff and Q of 0.7071, with independent filter history. `DelayManager` smooths cutoff changes over 30 audio blocks. The common output LPF and echo LPF share the 40-entry `lowpass_value` table (40-20000 Hz), displayed as integer Hz; the pitch-dependent Player TONE filter uses its separate endpoint mapping.
 
-`DELAY TIME L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, with a maximum base delay of 1990 ms (displayed as `2.0sec`) retaining the full 10 ms offset in either direction within the 2-second per-channel capacity.
+`ECHO TIME DELTA L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, with a maximum base delay of 1990 ms (displayed as `2.0sec`) retaining the full 10 ms offset in either direction within the 2-second per-channel capacity.
 
 `D_Compressor`, an instance of [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) with `Profile::Delay`, replaces the two saturating input/feedback mixers. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed `mixer_L/R` input 0 directly. The routed dry branch bypasses the Delay processing. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
 
-The compressor uses a 258-entry soft-knee gain table, a -6.02 dBFS threshold, an approximately -1 dBFS ceiling, 32 samples of lookahead (about 0.73 ms), and a 100 ms exponential release. The lookahead is retained in bypass and is additional to the configured cache delay; ON/OFF uses a 10 ms smooth crossfade. The Delay page lists `FEEDBACK`, `FEED LPF`, `FEED COMPRESSOR`, `DELAY TIME` and `DELAY TIME L/R` in that order. `FEED COMPRESSOR` is editable with the value encoder or its pushbutton; Live Sampler routing is labeled `LIVE SAMPLER`.
+The compressor offers thresholds from -24 to -3 dBFS in 1 dB steps, plus `THRESHOLD_OFF`. It uses 22 immutable 258-entry soft-knee gain tables in `PROGMEM`, an approximately -1 dBFS ceiling, 32 samples of lookahead (about 0.73 ms), and a 100 ms exponential release. Adjacent threshold curves are interpolated during 50 ms threshold transitions. Both bypass and compression retain the lookahead; bypass transitions use a 10 ms smooth crossfade, preserving timing. The Delay page lists `ECHO REPEATS`, `ECHO LPF`, `COMPRESSOR`, `ECHO TIME` and `ECHO TIME DELTA L/R`. Select chooses the field and Value adjusts the threshold or selects OFF; Live Sampler routing is labeled `LIVE SAMPLER`.
 
-The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one; zero selects 20000 Hz for older patches. `reserved[2]` stores compressor OFF/ON as 0/1; older patches remain bypassed. Invalid encoded cutoff or compressor values are rejected when loading.
+The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one. `reserved[2]` retains the historical boolean field; runtime compression is controlled by the threshold encoded in `reserved[3]` as `threshold + 25` (1-22 for -24 through -3, 23 for OFF). An unset threshold byte selects -6 dBFS. Invalid encoded cutoff, boolean or threshold values are rejected when loading.
 
 ### Delay layout and storage
 
@@ -163,13 +163,13 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 ### Sampler
 
-[StereoSampler](lib/StereoSampler/StereoSampler.h) receives the amplified line input and writes mono or stereo recording data through the Flash packet/storage layer. The foreground checks its storage-error status even after the user leaves the Sampler page. Conversion into playable RAW material and WAV export are coordinated by the application workflows.
+[StereoSampler](lib/StereoSampler/StereoSampler.h) receives the amplified line input and writes mono or stereo recording data through the Flash packet/storage layer. The foreground checks its storage-error status even after the user leaves the Sampler page. Conversion into playable RAW material and WAV export are coordinated by the application workflows. Before capture, an incomplete-recording marker is written to FRAM and read back for verification. Packet progress stays in RAM during capture; the foreground verifies final metadata after recording stops, keeping FRAM writes outside audio capture.
 
 ### Live Sampler
 
 [StereoLiveSampler](lib/StereoLiveSampler/StereoLiveSampler.h) records into circular PSRAM storage. Playback can refer to this live source while recording continues. Read/write positioning, wrap behavior and the initial partially filled buffer must remain consistent when changing playback logic.
 
-`LS_Compressor` uses the same [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) class with `Profile::LiveSampler` and combines the input and feedback paths using wider intermediate values and linked stereo dynamics. Like the Delay profile, this profile uses 32 samples of lookahead (about 0.73 ms) and a ceiling of approximately -1 dBFS. The two instances share the immutable gain table and DSP implementation, while maintaining independent histories, envelopes and enable states. It is connected before the live recorder.
+`LS_Compressor` uses the same [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) class with `Profile::LiveSampler` and combines the input and feedback paths using wider intermediate values and linked stereo dynamics. Like the Delay profile, this profile uses 32 samples of lookahead (about 0.73 ms) and a ceiling of approximately -1 dBFS. The two instances share the immutable gain tables and DSP implementation, while maintaining independent histories, envelopes and thresholds. Live Sampler starts at -6 dBFS; its threshold is session state, not patch data. The `FEEDBACK COMPRESSOR` field is adjusted with Value across -24 to -3 dBFS and OFF. It is connected before the live recorder. Processing is skipped when recording is inactive.
 
 [CaptureSources](lib/CaptureSources/CaptureSources.h) represents captured regions with ordinary RAW identifiers while their audio backing is still temporary. Saving a captured patch persists the required audio to Flash. A captured region available for playback in PSRAM is therefore not, by itself, a durable recording.
 
@@ -191,9 +191,11 @@ Saving a loop stores MIDI events rather than rendered audio. Reproducing a sessi
 
 The control path starts with the SPI-connected control expanders and the encoder, pushbutton and switch managers. The foreground interprets those events according to the current page.
 
-`Pointer*` classes represent page selection/navigation behavior; `Display*` classes render page content. `Shared*` modules carry the associated values and state. `main.cpp` connects these pieces to audio and archive operations. When adding a field, review its navigation, drawing, parameter mapping, audio publication and persistence together.
+`Pointer*` classes represent page selection/navigation behavior; `Display*` classes render page content. SETUP uses `SET_menu` and foreground encoder handling directly, with `DisplaySetup::SETUP_show_frame()` rendering its selection; there is no `PointerSetup` class. `Shared*` modules carry the associated values and state. `main.cpp` connects these pieces to audio and archive operations. When adding a field, review its navigation, drawing, parameter mapping, audio publication and persistence together.
 
 For text popups and red-button confirmation, reuse `Show_popup_text` and `Confirm_frame_on_RED` where applicable. The [User Guide](User%20Guide.md) documents the resulting user-visible behavior.
+
+SETUP conversion and Flash import begin with CANCEL/GO dialogs before audio is suspended. The final Flash erase confirmation remains separate. Backup and restore have their own selection frames. `Show_popup_text()` accepts an array of lines, centers each line, sizes the popup to its content and limits its width to the display. Destructive confirmations use white on red; informational confirmations use black on green. Menu coordinates, value clearing and frame dimensions must be updated together.
 
 ## 9. Maintenance guide
 
@@ -218,3 +220,7 @@ This document describes source-level behavior. Timing margins and hardware perfo
 TONE enables source-domain anti-aliasing above unity and a post-resampling LPF for targeted upward-pitch timbre correction. The LPF moves from 20 kHz at pitch 1 to the selected 3.0-8.0 kHz endpoint at +11 semitones. Low-pitch anti-imaging remains independent of TONE, including OFF. See [TONE processing](docs/player-tone-filter.md) for signal order, smoothing and legacy setting migration.
 
 The VCF + LFO page offers NONE before LOWPASS, HIGHPASS, BANDPASS and NOTCH, using the existing filter bypass flag and retaining pushbutton bypass. TUNED LPF uses the shared 40-entry LPF table (40-20000 Hz), displays `Hz x pitch`, and mirrors edits to both Live Sampler channels. New cutoff selections use byte values 128-167; legacy values retain their original exponential frequency until edited, without changing the patch record size. Manual VCF cutoff edits reach active voices over 40 quarter-block steps (about 29 ms), with and without LFO. Cutoff and LFO index ramps advance independently; AudioVCF reloads coefficients at quarter-block boundaries while preserving its sample history. Outside manual cutoff ramps, the VCF retains its established pitch reference.
+
+### Building the printable guide
+
+Run `python scripts/build_user_guide.py` with ReportLab and Pillow installed to regenerate `User Guide.pdf` from `User Guide.md`. The script reads the firmware version from `config.h`, embeds display photographs and fonts, and creates linked headings and a PDF outline. It uses Arial on Windows or DejaVu Sans on Linux. Render the PDF and inspect its pages before publishing.
