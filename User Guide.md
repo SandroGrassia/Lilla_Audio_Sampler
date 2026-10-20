@@ -8,13 +8,13 @@ Guide edition: **20 October 2026**
 
 Printable edition: [User Guide PDF for firmware 7.2.4](User%20Guide.pdf).
 
-*The photographs in this guide show a working instrument; patch numbers, file names and values are examples.*
+
 
 LILLA brings sample playback, line-input recording, live sampling and MIDI looping into one instrument. This guide takes you from your first playable patch to creating your own sounds and preserving a complete session.
 
 Start with **Getting started** if you want to play immediately. Read **Files, sounds and patches** before building a library: understanding what each Save operation preserves will make the rest of the instrument easier to use.
 
-**How to read this guide:** bold names such as **Select** refer to physical controls; `UPPERCASE` text refers to screen labels or messages. **Tools > Setup** means set the Tools selector to Setup, then press Tools. A numbered procedure describes the order of operations. Photographs illustrate the page layout; the accompanying instructions describe the repository firmware, including changes made after a photograph was taken.
+**How to read this guide:** bold names such as **Select** refer to physical controls; `UPPERCASE` text refers to screen labels or messages. Tools > Setup means set the Tools selector to **Setup** then press **Tools** button. A numbered procedure describes the order of operations. Photographs illustrate the page layout; the accompanying instructions describe the repository firmware, including changes made after a photograph was taken.
 
 Procedures have been reviewed against the firmware and supplied display photographs. A complete walkthrough on the physical instrument remains to be performed.
 
@@ -75,9 +75,9 @@ Use Sampler for a take you intend to audition, convert or export. Use Live Sampl
 ### Your first edit
 
 1. Press **S1** if Sound 1 is active, or press another active sound's button.
-2. Turn Select to highlight `GAIN`, then turn Value a small amount.
+2. Turn **Select** to highlight `GAIN`, then turn **Value** a small amount.
 3. Play a few notes and listen to the change.
-4. Select `RETURN` and press Select.
+4. Select `RETURN` and press **Select**.
 5. In Performance, choose `SAVE` when it is available.
 
 This introduces the normal editing cycle: **open a sound → adjust it → return to Performance → save the patch**. Returning from a page keeps your working edits, but does not replace the Save step.
@@ -114,7 +114,7 @@ If there is no suitable audio loaded, follow [Importing audio](#importing-audio)
 
 The white selection frame identifies the field or command that will respond to the navigation controls. In the supplied photographs, labels are generally cyan, editable values and commands yellow, and page headings red.
 
-**Turning and pressing an encoder are separate actions.** For example, turning Value edits a highlighted parameter, while pressing Value can reset or toggle that parameter on particular pages.
+**Turning and pressing an encoder are separate actions.** For example, turning **Value** edits a highlighted parameter, while pressing **Value** can reset or toggle that parameter on particular pages.
 
 The same controls perform different tasks depending on the active page. Follow the highlighted field and the options currently visible on the screen.
 
@@ -137,7 +137,7 @@ The same controls perform different tasks depending on the active page. Follow t
 | Loop / Tempo | Select and control MIDI loops and their playback timing. |
 | Track 1-4 / Rec 1-4 | Control individual MIDI-loop tracks and their recording. |
 
-To open a tool, set the Tools selector to the required position and press **Tools**. Test opens the MIDI monitor. Use the Tools button to return from a tool where supported, or select the required operating mode.
+To open a tool, set the Tools selector to the required position and press **Tools**. Test opens the MIDI monitor. Use the **Tools** button to return from a tool where supported, or select the required operating mode.
 
 In confirmation dialogs, turn **Select** to choose an option and press it to confirm. Read the dialog before confirming: save, discard, erase and restore have different consequences.
 
@@ -184,7 +184,7 @@ Use the last shortcut when you need to stop sounding notes quickly. In MIDI Loop
 
 The firmware provides storage for up to 200 patches and 800 sound records. These are storage capacities; the instrument has up to 16 simultaneous playback voices. Available polyphony also depends on playback workload.
 
-Flash holds the imported audio library and Sampler recordings. PSRAM holds live audio. The microSD card also holds indexed audio sources in `/LILLA_AUDIO`, and is used for import, WAV export, backups and MIDI-loop files. SD source portions are loaded into PSRAM before playback.
+Flash memory holds the imported audio library and Sampler recordings. PSRAM holds live audio. The microSD card also holds indexed audio sources in `/LILLA_AUDIO`, and is used for import, WAV export, backups and MIDI-loop files. Selected portions of SD audio files are loaded into PSRAM before playback; playback does not stream audio from the SD card.
 
 ### Follow the sound from source to keyboard
 
@@ -219,11 +219,11 @@ The first successful Live Sampler sound capture creates a normal patch using the
 
 ### File names matter
 
-The Sound header displays only the first eight characters of the source basename and omits `.raw`. Two files with similar names may therefore look alike in that small field. Choose short, distinctive beginnings such as `BassDry` and `BassFX`.
+The Sound header displays only the first ten characters of the source basename and omits `.raw`. Two files with similar names may therefore look alike in that small field. Choose short, distinctive beginnings such as `BassDry` and `BassFX`.
 
 LILLA retains a file's identity when the audio is missing. Reimporting the same basename can reconnect sounds that refer to it. Renaming a file creates a different identity; treat library names as part of your project.
 
-The file-name table supports 260 RAW identities, including the fallback source, generated files and retained missing references. Free audio memory and free file identities are separate resources.
+The registry for RAW audio files stored in Flash memory holds 260 entries, including the reserved 0.raw fallback. Imported and generated RAW files share the remaining 259 entries; retained names of missing files also occupy entries. Available Flash storage and free registry entries are separate limits. SD audio sources use a separate registry.
 
 ## Performance
 
@@ -250,7 +250,7 @@ When the current patch has changes, LILLA asks what to do before switching. You 
 | Field | Purpose |
 | --- | --- |
 | `SOUND` | Sound slot in the patch, numbered 1-8. |
-| `TONE` | Pitch-dependent timbre correction: OFF or 3.0-8.0 kHz, in 0.1 kHz steps. Replaces the former LOCK/HIFI field. |
+| `TONE` | Pitch-dependent timbre correction: OFF or 3.0-8.0 kHz, in 0.1 kHz steps. |
 | `P` | Playback precedence: gives the sound priority in voice allocation. It does not guarantee unlimited voices. |
 | `MIDI` | Receiving MIDI channel, displayed as 1-16. |
 | `ROOT K` | Reference key used for the sound's pitch mapping. |
@@ -258,7 +258,7 @@ When the current patch has changes, LILLA asks what to do before switching. You 
 | `PAN` | Stereo position; press Value on this field to centre it. |
 | `GAIN` | Sound level. |
 
-In the Instrument area of Performance (the SESSION page), turn **Select** through `TONE`, `P`, `MIDI`, `ROOT K`, `FROM K`, `TO K`, `PAN`, `GAIN`. After `GAIN`, the cursor moves to `TONE` of the next active Instrument; after the last Instrument it wraps to the first. Turning backwards from `TONE` moves to `GAIN` of the previous Instrument. Rotation stays inside the Instrument fields. Press **Select** to leave the fields and select the whole current Instrument. The last field is remembered when you enter an Instrument again; the initial field is `TONE`.
+In the Instrument area of Performance, turn **Select** through `TONE`, `P`, `MIDI`, `ROOT K`, `FROM K`, `TO K`, `PAN`, `GAIN`. After `GAIN`, the cursor moves to `TONE` of the next active Instrument. Rotation stays inside the Instrument fields. Press **Select** to leave the fields and select the whole current Instrument.
 
 ### TONE: consistent timbre when transposing upwards
 
@@ -318,7 +318,7 @@ Use `CLONE` when you want a second patch to develop from an existing one. Use `S
 
 **Before moving into a sampling workflow, save the patch you were editing.** Live Sampler can keep the previous Performance patch in memory, but creating a new captured patch requires that previous patch to have no pending edits.
 
-A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. Wait for the load to finish before playing the new patch.
+A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. With Flash sources, you can start playing immediately: LILLA optimizes playback within the Flash memory’s read-speed limits while loading audio into PSRAM in the background. Once loading is complete, active notes automatically switch to PSRAM without restarting playback.
 
 ## Editing a sound
 
@@ -334,7 +334,7 @@ The FILE field shows the first 10 characters of the source name, without its ext
 
 Choose `BROWSE_FLASH` or `BROWSE_SD` in Sound Edit to browse the corresponding library alphabetically; commands appear when that library contains audio. SD browsing uses the index created by the Setup conversion command described under **Importing audio**.
 
-Selecting an SD file loads a window limited by the available per-source PSRAM cache for MIDI audition, without continuous SD reads during notes. Adjust From, To and Step to choose the portion; the display uses `SAVE FROM` during preview. Gain, pitch, MIDI channel, resolution, downsampling and LPF remain editable. Pan, envelope, playback mode and Noclick are fixed during preview and become editable after SAVE.
+Selecting an SD file loads a window limited by the available per-source PSRAM cache for MIDI audition, without continuous SD reads during notes. Adjust From, To and Step to choose the portion; the display uses `SAVE FROM` and `TO` during preview. Gain, pitch, MIDI channel, resolution, downsampling and LPF remain editable. Pan, envelope, playback mode and Noclick are fixed during preview and become editable after SAVE.
 
 Choose `SAVE` to retain the selected portion and its persistent SD source reference, then save the patch in Performance. No audio is written to Flash by this operation. Keep the RAW files and hidden `/LILLA_AUDIO/.lilla-sources` directory together: both are needed to reload saved Sounds after startup. `RETURN` without SAVE restores the previous Sound.
 
