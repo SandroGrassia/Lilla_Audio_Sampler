@@ -16,11 +16,20 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.3
+## New in firmware 7.2.4
 
-**Stereo compression in the Delay feedback path** helps contain peaks as echoes accumulate. Enable **FEED COMPRESSOR** on the Delay page; its ON/OFF setting is saved with the patch. Both channels share the same attenuation to preserve stereo balance.
+**Adjustable compressors in Delay and Live Sampler.** Set the compression threshold from -24 to -3 dB in 1 dB steps, or select OFF. This gives you control over how early compression acts on the combined input and feedback. The Delay threshold is saved with the patch; the Live Sampler setting is retained during the session.
 
-Delay and Live Sampler now use the same compressor class with a short 32-sample lookahead (about 0.73 ms). See the [7.2.3 release notes](docs/release-notes-7.2.3.md) and the [User Guide](User%20Guide.md#delay).
+**Clearer SETUP and guided operations.** The reorganized menu and confirmation dialogs explain audio conversion and import destinations, what a backup includes, and what restore or reset will replace. Conversion and import begin with a CANCEL/GO choice.
+
+The Delay and Live Sampler pages also have revised layouts that group their controls more clearly.
+
+<p align="center">
+    <img width="45%" alt="Delay page with adjustable compressor threshold" src="doc/assets/images/8.jpg">
+    <img width="45%" alt="Reorganized SETUP menu" src="doc/assets/images/9.jpg">
+</p>
+
+See the [7.2.4 release notes](docs/release-notes-7.2.4.md) and the updated illustrated [User Guide](User%20Guide.md).
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -75,7 +84,7 @@ Start-point behavior determines the relationship between playback and recording.
 
 **Feedback** mixes the returning playback signal with the new input before recording, so earlier material can be recaptured and progressively transformed. Its level controls how strongly previous passes contribute to the next one.
 
-A stereo-linked recording compressor controls the combined input and feedback level; toggle **COMPRESSOR ON/OFF** with Select.
+A stereo-linked recording compressor controls the combined input and feedback level. Select **FEEDBACK COMPRESSOR**, then turn Value to choose a threshold from -24 to -3 dB or OFF.
 
 To keep a region, stop recording, choose a loop mode, refine its boundaries and press **S1-S8** to select the destination slot. A MIDI key sets the captured sound's root key. Stereo captures can use adjacent slots for their left and right channels. Return to Performance to review the new patch and save it, which writes the captured audio to Flash. The live buffer itself is temporary and does not survive power-off. See [Live Sampler](User%20Guide.md#live-sampler).
 
@@ -138,7 +147,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.3 (17 October 2026)**: download [Lilla_v7_2_3.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.3/Lilla_v7_2_3.hex) from [release v7.2.3](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.3). See the [7.2.3 release notes](docs/release-notes-7.2.3.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.4 (20 October 2026)**: download [Lilla_v7_2_4.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.4/Lilla_v7_2_4.hex) from [release v7.2.4](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.4). See the [7.2.4 release notes](docs/release-notes-7.2.4.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

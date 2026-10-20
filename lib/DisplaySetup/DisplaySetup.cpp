@@ -23,7 +23,7 @@ void DisplaySetup::SETUP_show_SETUP_page(void)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.print(F("IMPORT AUDIO FILES FROM SD"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
-    tft.print(F("KEY STEP"));
+    tft.print(F("KEYBOARD STEP"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
     tft.print(F("FIRST OCTAVE"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
@@ -42,29 +42,28 @@ void DisplaySetup::SETUP_show_SETUP_page(void)
 FLASHMEM
 void DisplaySetup::SETUP_show_Key_step_value(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(9), display_coordinate_y(5), 5);
+    Cancel_text_reset_cursor(display_coordinate_x(14), display_coordinate_y(5), 12);
     tft.setTextColor(ILI9341_YELLOW);
 
     switch (key_step)
     {
     case 0:
-        tft.print(" 1st");
+        tft.print("1 semitone");
         break;
 
     case 1:
-        tft.print("1/2st");
+        tft.print("1/2 semitone");
         break;
 
     case 2:
-        tft.print("1/4st");
+        tft.print("1/4 semitone");
         break;
 
     case 3:
-        tft.print("1/8st");
+        tft.print("1/8 semitone");
         break;
 
     default:
-        tft.print(" 1st");
         break;
     }
 }
@@ -82,7 +81,7 @@ void DisplaySetup::SETUP_show_frame(int8_t value)
 {
     Frame_by_col_row(0, 2, 22, false);
     Frame_by_col_row(0, 3, 26, false);
-    Frame_by_col_row(9, 5, 5, false);
+    Frame_by_col_row(14, 5, 12, false);
     Frame_by_col_row(13, 6, 2, false);
     Frame_by_col_row(0, 7, 25, false);
     Frame_by_col_row(0, 9, 20, false);
@@ -98,7 +97,7 @@ void DisplaySetup::SETUP_show_frame(int8_t value)
         Frame_by_col_row(0, 3, 26, true);
         break;
     case 2:
-        Frame_by_col_row(9, 5, 5, true);
+        Frame_by_col_row(14, 5, 12, true);
         break;
     case 3:
         Frame_by_col_row(13, 6, 2, true);

@@ -1,6 +1,6 @@
-# User audio preparation on SD (firmware 7.2.0)
+# User audio preparation on SD (firmware 7.2.4)
 
-This feature adds **CONVERT AUDIO FILES STORED IN SD /EXTERNAL_AUDIO** to SETUP. Put source files directly in `/EXTERNAL_AUDIO`, insert the SD, select the command. Preparation starts immediately without confirmation. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
+Select **CONVERT SD AUDIO FILES** in SETUP after putting source files directly in `/EXTERNAL_AUDIO` and inserting the SD. The green confirmation identifies the source and destination folders and explains that originals are retained and existing destination files are skipped. Choose GO to start or CANCEL to return. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
 
 MIDI and Trigger are stopped, active Players are drained, and audio processing is suspended until preparation ends. The previous audio/MIDI state is restored afterwards. The Serial terminal lists each source and destination, successful copies/conversions, skipped files, errors, and the index result.
 
@@ -34,7 +34,7 @@ Sorting uses two temporary files on SD and merges progressively longer sorted ru
 
 ## Verification
 
-Host tests cover mono/stereo WAV and AIFF, actual MP3 conversion at 44.1/48/22.05 kHz, complete RAW copies larger than 3 MiB, duplicate skipping, read/write/rename failures, preservation of originals, alphabetic metadata, 4,096 entries and overflow. Index tests enumerate files in reverse order, reject large nothrow array allocations, cover empty/single/odd-sized catalogs and verify recovery after failed sorting or publication. They also exercise immediate startup without confirmation, initial/final indexing, suspension during preparation, failed Player draining and restoration of the original audio/MIDI state. Physical SD timing, display appearance and removal during operation still need hardware verification.
+Host tests cover mono/stereo WAV and AIFF, actual MP3 conversion at 44.1/48/22.05 kHz, complete RAW copies larger than 3 MiB, duplicate skipping, read/write/rename failures, preservation of originals, alphabetic metadata, 4,096 entries and overflow. Index tests enumerate files in reverse order, reject large nothrow array allocations, cover empty/single/odd-sized catalogs and verify recovery after failed sorting or publication. They also exercise the preparation workflow, initial/final indexing, suspension during preparation, failed Player draining and restoration of the original audio/MIDI state. Physical SD timing, display appearance and removal during operation still need hardware verification.
 
 ## Browsing and playing SD sounds
 
@@ -50,4 +50,4 @@ Missing audio follows the Flash behavior: the Sound retains its reference and pa
 
 If the SD is removed while browsing, attempting to select another file displays `INSERT SD` for two seconds, then redraws the previous selection. The failed selection leaves its source reference, trim and cached audio unchanged.
 
-For direct import into Flash, use SETUP ? `IMPORT AUDIO FILES FROM SD /FLASH_AUDIO` and place source files in `/FLASH_AUDIO`. SD library preparation instead reads `/EXTERNAL_AUDIO` and writes converted RAW files plus the index to `/LILLA_AUDIO`.
+For direct import into Flash, use SETUP > `IMPORT AUDIO FILES FROM SD` and place source files in `/FLASH_AUDIO`. SD library preparation instead reads `/EXTERNAL_AUDIO` and writes converted RAW files plus the index to `/LILLA_AUDIO`.
