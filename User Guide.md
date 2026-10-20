@@ -1,5 +1,7 @@
 # LILLA User Guide
 
+<img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
+
 For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.4**
 
 Guide edition: **20 October 2026**
