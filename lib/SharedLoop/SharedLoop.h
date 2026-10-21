@@ -12,7 +12,8 @@
 static constexpr int NEW_LOOP = -1;
 static constexpr int NO_TRACK = -1; // track virtuale per note suonate da tastiera nello stato MIDI_LOOP
 static constexpr int MASTER_TRACK = 0;
-static constexpr uint32_t LOOP_EVENTS = 100; // Capacity per track; counts and SD v1 remain 32-bit when increased.
+static constexpr uint32_t LOOP_EVENTS = 1000; // Note On and Note Off each occupy one event.
+static constexpr uint32_t LOOP_MAX_DURATION_MS = 120000;
 static constexpr int LOOP_UI_A = 1;    // primo encoder prima fila
 static constexpr int LOOP_UI_B = 9;    // primo encoder seconda fila
 static constexpr int LOOP_UI_C = 17;   // primo encoder terza fila
@@ -40,7 +41,7 @@ extern bool LOOP_track_run[TRACKS]; // se "true" il track e' in esecuzione
 extern uint32_t LOOP_play_event[TRACKS]; // indice del prossimo evento da eseguire
 extern uint32_t LOOP_play_time[TRACKS]; // (ms) istante di esecuzione del prossimo evento da eseguire rispetto a LOOP_Clock
 extern float LOOP_volume[TRACKS];
-extern uint16_t LOOP_time; // (ms) durata del track master (0) comune a tutti i track
+extern uint32_t LOOP_time; // (ms) durata del track master (0) comune a tutti i track
 
 // LOOP learn
 extern int LOOP_learning_track;

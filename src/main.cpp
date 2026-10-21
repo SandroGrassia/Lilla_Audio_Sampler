@@ -6907,7 +6907,7 @@ void loop()
                         if (LOOP_learning_track == MASTER_TRACK)
                         {
                             // Setup di LOOP_time (durata di tutti i loop)
-                            LOOP_time = LOOP_learn_clock;
+                            LOOP_time = min(static_cast<uint32_t>(LOOP_learn_clock), LOOP_MAX_DURATION_MS);
 
                             // Restart clock
                             LOOP_restart_clock();
@@ -11420,8 +11420,8 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     Serial.println(loop_id);
     Serial.println();
 
-    // uint16_t LOOP_time;
-    Serial.print("uint16_t LOOP_time: ");
+    // uint32_t LOOP_time;
+    Serial.print("uint32_t LOOP_time: ");
     Serial.println(LOOP_time);
 
     // uint32_t LOOP_events[TRACKS]
@@ -11486,10 +11486,11 @@ void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])
     snprintf(path, sizeof(path), "/LILLALOOP/%s", filename);
 }
 
-// Loop SD v1: magic line, uint32_t track count, uint16_t duration, uint32_t event counts,
+// Loop SD v2: magic line, uint32_t track count, uint32_t duration, uint32_t event counts,
 // int32_t slides/pitches/stretch, then 8-byte events. Little-endian bytes, one decimal byte per line.
+// SD v1 uses a uint16_t duration.
 // Legacy files omit magic/track count and use uint8_t event counts; malformed 24-byte arrays are rejected.
-static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 1\r\n"; // Header identifying the versioned MIDI Loop SD format.
+static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 2\r\n"; // Header identifying the versioned MIDI Loop SD format.
 static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
 
 FLASHMEM
@@ -11539,11 +11540,17 @@ FLASHMEM
 bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 {
     const bool versioned = file.peek() == 'L';
+    uint8_t version = 0;
     if (versioned)
     {
         for (size_t i = 0; i < sizeof(LOOP_SD_MAGIC) - 1; ++i)
         {
-            if (file.read() != LOOP_SD_MAGIC[i])
+            const int value = file.read();
+            if (i == sizeof("LILLALOOP ") - 1 && (value == '1' || value == '2'))
+            {
+                version = value - '0';
+            }
+            else if (value != LOOP_SD_MAGIC[i])
             {
                 return false;
             }
@@ -11554,10 +11561,10 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
             return false;
         }
     }
-    uint16_t duration = 0;
+    uint32_t duration = 0;
     uint32_t counts[TRACKS] = {};
     int slides[TRACKS], pitches[TRACKS], stretch;
-    if (!LOOP_Read_bytes(file, &duration, sizeof(duration)))
+    if (!LOOP_Read_bytes(file, &duration, version >= 2 ? sizeof(uint32_t) : sizeof(uint16_t)))
     {
         return false;
     }
@@ -11575,13 +11582,13 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
     }
     if (!load)
     {
-        if (duration == 0 || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
+        if (duration == 0 || duration > LOOP_MAX_DURATION_MS || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
         {
             return false;
         }
         for (int track = 0; track < TRACKS; ++track)
         {
-            if (slides[track] < 0 || slides[track] >= duration || pitches[track] < -24 || pitches[track] > 24)
+            if (slides[track] < 0 || static_cast<uint32_t>(slides[track]) >= duration || pitches[track] < -24 || pitches[track] > 24)
             {
                 return false;
             }
@@ -11598,7 +11605,7 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
             }
             int time;
             memcpy(&time, bytes, sizeof(time));
-            if (!load && (time < 0 || time > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
+            if (!load && (time < 0 || static_cast<uint32_t>(time) > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
             {
                 return false;
             }
