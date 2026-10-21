@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.5**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.6**
 
 Guide edition: **21 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.5](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.6](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -716,6 +716,8 @@ MIDI Loop records MIDI events NoteOn and NoteOff into four tracks and plays them
 
 Recording into an occupied track replaces its events. **Recording Track 1 again also clears the other tracks**, because it creates a new master loop. Save an existing loop before replacing its master track.
 
+Each track holds up to **1,000 MIDI events**. Note On and Note Off count separately, so a complete note normally uses two events. Track 1 sets the original loop duration, up to **120 seconds** from the first note. Recording stops automatically when the duration or event limit is reached. Other tracks are limited to the master duration and their own event capacity. Tempo adjustment can extend playback beyond the original 120-second maximum.
+
 A recording armed without any events is cancelled after approximately 20 seconds.
 
 ### Add parts without replacing the master
@@ -748,6 +750,8 @@ Turning Tempo changes the timing of the MIDI sequence. It does not rewrite a sam
 ### Save loops
 
 Use `SAVE` to update a saved loop and `SAVE_AS_NEW` to keep another version. `NEW` starts a new loop; `DELETE` removes a saved loop.
+
+Firmware 7.2.6 can load loops saved by earlier firmware. Loops saved with 7.2.6 use a new format and require 7.2.6 or later to load.
 
 Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving your work. Loop files contain MIDI data, so preserve the required patch and source audio as well.
 
@@ -968,7 +972,7 @@ Save your current patch and any MIDI loops, and complete pending recording or ex
 
 Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the computer with the data cable. Keep power and USB connected throughout programming.
 
-> **Upgrading to 7.2.5:** the internal recording area uses new file names. Before using Sampler recordings with this firmware, recreate the Flash audio and recording area through audio import. Import erases the previous Flash audio and recordings; export any recordings you want to keep and retain your source audio files. Deleting individual recordings does not recreate the recording area.
+> **Upgrading from firmware older than 7.2.5:** the internal recording area uses new file names. Before using Sampler recordings with this firmware, recreate the Flash audio and recording area through audio import. Import erases the previous Flash audio and recordings; export any recordings you want to keep and retain your source audio files. Deleting individual recordings does not recreate the recording area.
 
 ### Upload and restart
 
@@ -977,7 +981,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.5. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.6. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1031,7 +1035,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.5.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.6.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 

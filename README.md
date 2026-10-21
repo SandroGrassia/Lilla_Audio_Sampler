@@ -16,11 +16,11 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.5
+## New in firmware 7.2.6
 
-**Import complete audio files into Flash.** Files are no longer truncated at 3 MiB (approximately 35.7 seconds). RAW, WAV, AIFF and MP3 imports retain the complete decoded mono audio, within Flash capacity. In Sound Edit, move the playable window along the full file to select the passage you want; its maximum length is determined by the per-source PSRAM capacity.
+**Longer MIDI loops and more events.** Record loops up to 120 seconds long, with up to 1,000 MIDI events on each of the four tracks. Note On and Note Off each count as one event. Recording stops automatically when the duration or event limit is reached.
 
-See the [7.2.5 release notes](docs/release-notes-7.2.5.md) and the updated illustrated [User Guide](User%20Guide.md).
+See the [7.2.6 release notes](docs/release-notes-7.2.6.md) and the updated illustrated [User Guide](User%20Guide.md).
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -81,7 +81,7 @@ To keep a region, stop recording, choose a loop mode, refine its boundaries and 
 
 ### MIDI Loop
 
-MIDI Loop records note events into **four tracks** and plays them through the current patch. It stores the performance as MIDI data, so changing the patch's sounds, filters or keyboard mapping can change the arrangement without recording the notes again.
+MIDI Loop records note events into **four tracks**, with up to **1,000 events per track** and a maximum original loop duration of **120 seconds**, and plays them through the current patch. It stores the performance as MIDI data, so changing the patch's sounds, filters or keyboard mapping can change the arrangement without recording the notes again.
 
 Track 1 is the master and establishes the loop duration. Record the first phrase with **Rec 1**, close it by pressing Rec 1 again, then add parts using Rec 2, Rec 3 and Rec 4. Recording over an occupied track replaces its events; recording Track 1 again also clears the other tracks because it defines a new master loop.
 
@@ -138,7 +138,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.5 (21 October 2026)**: download [Lilla_v7_2_5.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.5/Lilla_v7_2_5.hex) from [release v7.2.5](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.5). See the [7.2.5 release notes](docs/release-notes-7.2.5.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.6 (21 October 2026)**: download [Lilla_v7_2_6.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.6/Lilla_v7_2_6.hex) from [release v7.2.6](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.6). See the [7.2.6 release notes](docs/release-notes-7.2.6.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 
