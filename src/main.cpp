@@ -1980,6 +1980,19 @@ void loop()
     {
         static Sound_struct before_sd_preview;
         static int preview_sound = -1;
+        auto preserve_trim = [&]() FLASHMEM
+        {
+            const uint32_t samples = Get_samples_in_raw_file(Sound[Sound_id].file);
+            if (samples == 0)
+            {
+                Sound[Sound_id].A = 0;
+                Sound[Sound_id].B = 0;
+                return;
+            }
+            const uint32_t length = min(Sound[Sound_id].B - Sound[Sound_id].A + 1, min(samples, PATCH_CACHE_ARRAY_SAMPLES));
+            Sound[Sound_id].A = min(static_cast<uint32_t>(Sound[Sound_id].A), samples - length);
+            Sound[Sound_id].B = Sound[Sound_id].A + length - 1;
+        };
         auto redraw_browser = [&]() FLASHMEM
         {
             samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
@@ -2018,8 +2031,7 @@ void loop()
             }
             S_sd_index = index;
             Sound[Sound_id].file = SdSoundSource::PREVIEW;
-            Sound[Sound_id].A = 0;
-            Sound[Sound_id].B = SdSoundSource::Samples(SdSoundSource::PREVIEW) - 1;
+            preserve_trim();
             Sound[Sound_id].pitch = 0;
             Sound[Sound_id].pan = 0;
             Sound[Sound_id].data |= 1;
@@ -2051,8 +2063,7 @@ void loop()
             }
             const Sound_struct previous = Sound[Sound_id];
             Sound[Sound_id].file = S_flash_first;
-            Sound[Sound_id].A = 0;
-            Sound[Sound_id].B = Get_samples_in_raw_file(S_flash_first) - 1;
+            preserve_trim();
             Sound[Sound_id].pitch = 0;
             Sound[Sound_id].Noclick = 0;
 
@@ -2377,8 +2388,7 @@ void loop()
                         Sound[Sound_id].file = S_file_change;
                         samples_in_file = Get_samples_in_raw_file(Sound[Sound_id].file);
                         Sound[Sound_id].pitch = 0;
-                        Sound[Sound_id].A = 0;
-                        Sound[Sound_id].B = (samples_in_file > 0 ? samples_in_file - 1 : 0);
+                        preserve_trim();
                         if (!slicing_mode)
                         {
                             S_slicing_window = Sound[Sound_id].B - Sound[Sound_id].A + 1;
@@ -3034,6 +3044,11 @@ void loop()
                 }
             }
 
+            if (Lilla_state_0 != DIRECT_SAMPLING && slicing_mode && Sound[Sound_id].B - So_A_change + 1 > PATCH_CACHE_ARRAY_SAMPLES)
+            {
+                So_A_change = Sound[Sound_id].B + 1 - PATCH_CACHE_ARRAY_SAMPLES;
+            }
+
             if (So_A_change != Sound[Sound_id].A)
             {
                 Sound[Sound_id].A = So_A_change;
@@ -3042,6 +3057,10 @@ void loop()
                 if (!slicing_mode) // slicing A-Samples
                 {
                     Sound[Sound_id].B = Sound[Sound_id].A + S_slicing_window - 1;
+                }
+                else if (Lilla_state_0 != DIRECT_SAMPLING && Sound[Sound_id].B - Sound[Sound_id].A + 1 > PATCH_CACHE_ARRAY_SAMPLES)
+                {
+                    Sound[Sound_id].B = Sound[Sound_id].A + PATCH_CACHE_ARRAY_SAMPLES - 1;
                 }
                 if (trim_speed == 5)
                 {
@@ -3094,6 +3113,10 @@ void loop()
                 if (!slicing_mode) // slicing A-Samples
                 {
                     Sound[Sound_id].B = Sound[Sound_id].A + S_slicing_window - 1;
+                }
+                else if (Lilla_state_0 != DIRECT_SAMPLING && Sound[Sound_id].B - Sound[Sound_id].A + 1 > PATCH_CACHE_ARRAY_SAMPLES)
+                {
+                    Sound[Sound_id].B = Sound[Sound_id].A + PATCH_CACHE_ARRAY_SAMPLES - 1;
                 }
                 if (trim_speed == 5)
                 {
@@ -3162,6 +3185,11 @@ void loop()
                 {
                     So_B_change = Sound[Sound_id].A + minimum_snippet - 1;
                 }
+            }
+
+            if (Lilla_state_0 != DIRECT_SAMPLING && So_B_change - Sound[Sound_id].A + 1 > PATCH_CACHE_ARRAY_SAMPLES)
+            {
+                So_B_change = Sound[Sound_id].A + PATCH_CACHE_ARRAY_SAMPLES - 1;
             }
 
             if (So_B_change != Sound[Sound_id].B)
@@ -9033,8 +9061,8 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
         yield();
     }
 
-    const AudioFileSource source = PatchCache_Manager.Get_source(sound.file);
-    if (source.samples <= sound.B)
+    const AudioFileSource source = PatchCache_Manager.Get_source(sound.file, sound.A, sound.B);
+    if (source.first_sample + source.samples <= sound.B)
     {
         return "AUTO-TUNE: SOURCE UNAVAILABLE";
     }
@@ -9065,7 +9093,7 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
         {
             if (source.storage == Psram && source.psram_ptr != nullptr)
             {
-                memcpy(short_loop, source.psram_ptr + sound.A, length * sizeof(int16_t));
+                memcpy(short_loop, source.psram_ptr + (sound.A - source.first_sample), length * sizeof(int16_t));
             }
             else if (!LillaSerialFlashFile::Read_audio_samples(sound.file, short_loop, sound.A, length))
             {
@@ -9131,7 +9159,7 @@ FLASHMEM const char *S_Auto_tune_pitch(int sound_id)
         }
         else if (source.storage == Psram && source.psram_ptr != nullptr)
         {
-            memcpy(window, source.psram_ptr + first, sizeof(window));
+            memcpy(window, source.psram_ptr + (first - source.first_sample), sizeof(window));
         }
         else if (!LillaSerialFlashFile::Read_audio_samples(sound.file, window, first, 1024))
         {
@@ -14066,8 +14094,6 @@ byte CC_Read_all_Sound_gain()
 // ****************************   COPY RAW FILES FROM SD/FLASH_AUDIO TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
-static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES = 3U * 1024U * 1024U; // Maximum decoded audio size accepted by the user-audio importer.
-
 enum class SET_Audio_format : uint8_t
 {
     Raw,
@@ -14250,12 +14276,16 @@ static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &da
 {
     data_offset = 0;
     const uint64_t file_length = file.size();
-    data_length = file_length < SET_AUDIO_MAX_RAW_BYTES ? static_cast<uint32_t>(file_length) : SET_AUDIO_MAX_RAW_BYTES;
+    if (file_length > UINT32_MAX)
+    {
+        return false;
+    }
+    data_length = static_cast<uint32_t>(file_length);
     channels = 1;
     if (format == SET_Audio_format::Mp3)
     {
         Mp3Import mp3;
-        return mp3.Open(file, data_length, channels, SET_AUDIO_MAX_RAW_BYTES);
+        return mp3.Open(file, data_length, channels);
     }
     if (format == SET_Audio_format::Wav && !SET_WAV_raw_data(file, data_offset, data_length, channels))
     {
@@ -14265,11 +14295,7 @@ static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &da
     {
         return false;
     }
-    // Apply the same mono output limit to the summary, Flash allocation and copy loop.
-    if (data_length > SET_AUDIO_MAX_RAW_BYTES)
-    {
-        data_length = SET_AUDIO_MAX_RAW_BYTES;
-    }
+
     return true;
 }
 
@@ -14375,6 +14401,13 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
             uint16_t channels = 1;
             if (SET_Audio_raw_data(f, format, offset, length, channels))
             {
+                if (length > Get_flash_size() || SD_raw_volume > Get_flash_size() - length)
+                {
+                    f.close();
+                    rootdir.close();
+                    Show_popup_text("AUDIO EXCEEDS FLASH CAPACITY", ILI9341_WHITE, ILI9341_RED, 75);
+                    return false;
+                }
                 SD_raw_volume += length;
                 ++SD_raw_files;
             }
@@ -14574,7 +14607,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
         uint32_t offset = 0;
         uint32_t length = f.size();
         uint16_t channels = 1;
-        if (!(format == SET_Audio_format::Mp3 ? mp3.Open(f, length, channels, SET_AUDIO_MAX_RAW_BYTES) : SET_Audio_raw_data(f, format, offset, length, channels)))
+        if (!(format == SET_Audio_format::Mp3 ? mp3.Open(f, length, channels) : SET_Audio_raw_data(f, format, offset, length, channels)))
         {
             ++row;
             if (row > 14)

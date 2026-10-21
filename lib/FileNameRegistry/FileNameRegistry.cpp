@@ -1,5 +1,6 @@
 #include "FileNameRegistry.h"
 #include "GlobalFRAM.h"
+#include "SharedVFS.h"
 #include <cstring>
 #include <cstdio>
 
@@ -63,7 +64,8 @@ bool FileNameRegistry::Valid_name(const char *filename)
     {
         return false;
     }
-    bool packet = filename[0] == 'P' && length > 5;
+    constexpr size_t prefix_length = sizeof(RECORDING_PACKET_PREFIX) - 1;
+    bool packet = length > prefix_length + 4 && strncmp(filename, RECORDING_PACKET_PREFIX, prefix_length) == 0;
     for (size_t i = 0; i < length - 4; ++i)
     {
         const unsigned char ch = filename[i];
@@ -71,12 +73,12 @@ bool FileNameRegistry::Valid_name(const char *filename)
         {
             return false;
         }
-        if (i > 0 && (ch < '0' || ch > '9'))
+        if (i >= prefix_length && (ch < '0' || ch > '9'))
         {
             packet = false;
         }
     }
-    return !packet; // P<number>.raw belongs to the recording packet namespace.
+    return !packet; // LillaR<number>.raw belongs to the recording packet namespace.
 }
 
 FLASHMEM

@@ -213,6 +213,7 @@ struct AudioFileSource
     const int16_t *psram_ptr = nullptr;
     uint32_t samples = 0;
     int8_t cache_id = -1;
+    uint32_t first_sample = 0; // Absolute file offset of the first cached sample.
 };
 
 // PERFORMANCE

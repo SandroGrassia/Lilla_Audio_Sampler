@@ -1055,12 +1055,16 @@ Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, floa
     Preset_struct result = {};
     result.active = true;
     const uint16_t sound_id = Get_sound_id(patch_id, instrument_id);
+    if (Sound[sound_id].file < FIRST_RECORDING_FILE && Sound[sound_id].B - Sound[sound_id].A + 1 > PATCH_CACHE_ARRAY_SAMPLES)
+    {
+        Sound[sound_id].B = Sound[sound_id].A + PATCH_CACHE_ARRAY_SAMPLES - 1;
+    }
 
     result.volume = MX_mute[instrument_id] ? 0.0f : volume_patch * Volume_float[Sound[sound_id].gain];
     result.pan = Sound[sound_id].pan;
     result.sound_id = sound_id;
     result.file = Sound[sound_id].file;
-    result.source = Cache_manager_ptr->Get_source(result.file);
+    result.source = Cache_manager_ptr->Get_source(result.file, Sound[sound_id].A, Sound[sound_id].B);
     result.midi_channel = Get_midi_channel(patch_id, instrument_id);
     result.pitch = Calc_pitch(Sound[sound_id].pitch);
     result.mode = Sound[sound_id].mode;
@@ -1693,7 +1697,7 @@ void PlayersManager::Refresh_cache_sources(void)
         {
             continue;
         }
-        preset.source = Cache_manager_ptr->Get_source(preset.file);
+        preset.source = Cache_manager_ptr->Get_source(preset.file, preset.A, preset.B);
         if (preset.source.storage != Psram)
         {
             continue;

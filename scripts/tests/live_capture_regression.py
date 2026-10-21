@@ -26,12 +26,12 @@ constexpr int INSTRUMENTS=8, SOUNDS_MAX=40, PATCHES_MAX=4, PLAYERS=2, FIRST_RECO
 constexpr uint32_t PATCH_CACHE_ARRAY_SAMPLES=1024;
 constexpr int EMPTY=0, REC=1, PLAYONLY=2, LOOP_FWD=2, EN_PB_Select=0, ILI9341_RED=0, ILI9341_WHITE=1;
 enum AudioFileStorage { Flash, Psram };
-struct AudioFileSource { int16_t file_id=-1; AudioFileStorage storage=Flash; const int16_t *psram_ptr=nullptr; uint32_t samples=0; int8_t cache_id=-1; };
+struct AudioFileSource { int16_t file_id=-1; AudioFileStorage storage=Flash; const int16_t *psram_ptr=nullptr; uint32_t samples=0; int8_t cache_id=-1; uint32_t first_sample=0; };
 struct Delay_data_struct { int samples=0; };
 struct Instrument { bool used=false; int sound_id=0, from_note=0,root_key=0,to_note=0,Filter=0; bool operator==(const Instrument &) const = default; };
 struct Patch_struct { bool used=false; int instruments=0; ::Instrument Instrument[8]; };
 struct Sound_struct { bool used=false; int file=0,A=0,B=0,mode=2,Noclick=0,pan=0; bool operator==(const Sound_struct &) const = default; };
-struct Preset_struct { bool active=false; int file=0; };
+struct Preset_struct { bool active=false; int file=0; uint32_t A=0,B=0; };
 struct RecordingData { bool consistent=false; int bytes=0; } Recording[1];
 Patch_struct Patch[PATCHES_MAX+1], Patch_cache_P;
 Sound_struct Sound[SOUNDS_MAX+2], S_Sound_cache_P[SOUNDS_MAX];
@@ -243,6 +243,57 @@ int main()
     const auto sd_source=PatchCache_Manager.Get_source(SdSoundSource::FIRST);
     assert(PatchCache_Manager.Sd_sources_ready(1) && sd_source.storage==Psram && sd_source.samples==4);
     assert(sd_source.psram_ptr[0]==100 && sd_source.psram_ptr[3]==103 && SdSoundSource::bound==sd_source.psram_ptr);
+
+    // Two independently movable windows of the same long file must never alias.
+    for (auto &capture : Capture_sources)
+    {
+        capture = {};
+    }
+    PatchCacheManager windows;
+    for (int i = 0; i < 8; ++i)
+    {
+        windows.Set_cache_pointer(i, cache[i]);
+    }
+    flash[name_file[1]].resize(8192);
+    for (int i = 0; i < 4096; ++i)
+    {
+        const int16_t value = i;
+        memcpy(flash[name_file[1]].data() + i * 2, &value, 2);
+    }
+    Preset_struct ranges[INSTRUMENTS] = {};
+    ranges[0] = {true, 1, 1100, 2123};
+    ranges[1] = {true, 1, 2500, 3011};
+    windows.Set_required_files(ranges);
+    PatchCacheManager::CopyJob job;
+    while (windows.Prepare_copy(job))
+    {
+        memcpy(job.destination, flash[name_file[job.file_id]].data() + job.first_sample * 2, job.samples * 2);
+        windows.Complete_copy(job, true);
+    }
+    const auto first = windows.Get_source(1, 1100, 2123);
+    const auto second = windows.Get_source(1, 2500, 3011);
+    assert(first.storage == Psram && second.storage == Psram && first.cache_id != second.cache_id);
+    assert(first.first_sample == 1100 && first.samples == 1024 && first.psram_ptr[1023] == 2123);
+    assert(second.first_sample == 2500 && second.psram_ptr[511] == 3011);
+    assert(windows.Get_source(1, 0, 1023).storage == Flash);
+    ranges[0] = {true, 1, 3072, 4095};
+    windows.Set_required_files(ranges);
+    assert(windows.Get_source(1, 3072, 4095).storage == Flash);
+    assert(first.psram_ptr[0] == 1100); // Retired audio remains immutable for existing voices.
+    assert(windows.Prepare_copy(job));
+    const auto stale = job;
+    ranges[0] = {true, 1, 0, 1023};
+    windows.Set_required_files(ranges);
+    assert(!windows.Complete_copy(stale, true));
+    while (windows.Prepare_copy(job))
+    {
+        memcpy(job.destination, flash[name_file[job.file_id]].data() + job.first_sample * 2, job.samples * 2);
+        windows.Complete_copy(job, true);
+    }
+    assert(!windows.Has_pending_copy());
+    const auto moved = windows.Get_source(1, 0, 1023);
+    assert(moved.storage == Psram && moved.psram_ptr[1023] == 1023);
+    assert(windows.Get_source(1, 2500, 3011).cache_id == second.cache_id);
     std::cout << "PASS: normal IDs, root, cancel, circular capture, cache pinning, deferred save, retry, capacity and verification\n";
 }
 '''

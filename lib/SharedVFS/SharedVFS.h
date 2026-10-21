@@ -30,7 +30,8 @@ extern int DS_VFS_packets; // Exclusive upper bound of the Direct Sampling packe
 int VFS_Get_packets_free(void); // Count available packets in the Direct Sampling area.
 
 // Packet filenames used by Direct Sampling.
-static constexpr int NAME_PACKET_SIZE = 10;
+static constexpr char RECORDING_PACKET_PREFIX[] = "LillaR";
+static constexpr int NAME_PACKET_SIZE = sizeof(RECORDING_PACKET_PREFIX) - 1 + 5 + sizeof(".raw"); // Prefix, uint16_t decimal ID, extension and terminator.
 
 // Requires a valid packet ID; the returned pointer belongs to the caller buffer.
 const char *Get_packet_name(uint16_t packet_id, char (&name)[NAME_PACKET_SIZE]);

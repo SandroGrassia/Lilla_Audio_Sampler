@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.4 20/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.5 21/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -139,7 +139,7 @@ Do not allocate new PSRAM buffers on the assumption that the full chip capacity 
 
 ### Cache publication and lifetime
 
-[PatchCacheManager](lib/PatchCacheManager/PatchCacheManager.h) tracks cache states `Free`, `Loading`, `Ready` and `Retiring`. A requested file remains backed by Flash until a complete, valid cache is ready.
+[PatchCacheManager](lib/PatchCacheManager/PatchCacheManager.h) tracks cache states `Free`, `Loading`, `Ready` and `Retiring`. A requested file region remains backed by Flash until a complete, valid cache is ready. For RAW files larger than `PATCH_CACHE_ARRAY_SAMPLES`, requests identify the file, absolute first sample and selected sample count. Different Sounds can cache different regions of the same file. `AudioFileSource::first_sample` maps absolute playback and auto-tune coordinates into the cache; existing readers retain immutable retired regions while new regions load.
 
 `P_Service_patch_cache()` in `main.cpp` attempts at most one bounded copy per audio cycle and skips attempts that start too late. It registers SPI usage, transfers outside the audio critical section, then publishes completion and refreshes matching player sources atomically. Loading is withheld when direct sampling owns Flash for recording or conversion.
 
@@ -153,7 +153,7 @@ A patch change does not make the previous buffers immediately reusable. Outgoing
 
 ### SD audio library and source references
 
-[UserAudioImport](lib/UserAudioImport/UserAudioImport.h) prepares complete mono RAW files from `/EXTERNAL_AUDIO` into `/LILLA_AUDIO`. Direct Flash import uses `/FLASH_AUDIO`. Preparation suspends audio and MIDI; existing destination files are preserved. The alphabetical catalog `/LILLA_AUDIO/.lilla-index` supports up to 4096 entries. The version-1 format is unchanged: a 24-byte header and 264-byte records, with a filename of up to 255 bytes. Existing smaller catalogs remain readable.
+[UserAudioImport](lib/UserAudioImport/UserAudioImport.h) prepares complete mono RAW files from `/EXTERNAL_AUDIO` into `/LILLA_AUDIO`. Direct Flash import uses `/FLASH_AUDIO` and stores complete decoded mono files, without the former 3 MiB truncation. The capacity preflight counts complete output sizes before erasure. MP3 decoding counts the complete stream before allocation. Sound Edit limits the selected span to the per-source PSRAM capacity while allowing absolute trim offsets throughout the file. Changing sources preserves the trim, shifting it back or shortening it only to fit the new source. Preparation suspends audio and MIDI; existing destination files are preserved. The alphabetical catalog `/LILLA_AUDIO/.lilla-index` supports up to 4096 entries. The version-1 format is unchanged: a 24-byte header and 264-byte records, with a filename of up to 255 bytes. Existing smaller catalogs remain readable.
 
 Index construction uses merge sorting through temporary files on SD with only two current records in RAM. Increasing capacity therefore increases SD storage and sorting work, without allocating a full catalog in RAM. Exceeding 4096 valid files reports an index error. Catalog counts, offsets and browser positions use 32-bit values.
 

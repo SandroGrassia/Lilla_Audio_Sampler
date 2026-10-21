@@ -95,7 +95,7 @@ struct HostFFT
 } AutoTune_fft;
 void deliver(const audio_block_t *block) { AutoTune_fft.pending.insert(AutoTune_fft.pending.end(), block->data, block->data + 128); }
 enum Storage { Flash, Psram };
-struct AudioFileSource { Storage storage = Psram; const int16_t *psram_ptr = nullptr; uint32_t samples = 0; };
+struct AudioFileSource { Storage storage = Psram; const int16_t *psram_ptr = nullptr; uint32_t samples = 0; uint32_t first_sample = 0; };
 struct SoundData { int mode = LOOP_FWD, file = 0, pitch = 0; uint32_t A = 0, B = 0; } Sound[1];
 struct PresetData { bool use_Wavetable = false; int Noclick = 0; } Preset[1];
 int Instrument_id = 0;
@@ -105,7 +105,7 @@ std::vector<int16_t> noclick;
 AudioFileSource selected_source;
 bool table_ok = true, flash_ok = true;
 int flash_reads = 0;
-struct Cache { AudioFileSource Get_source(int) { return selected_source; } } PatchCache_Manager;
+struct Cache { AudioFileSource Get_source(int, uint32_t, uint32_t) { return selected_source; } } PatchCache_Manager;
 struct AudioTables
 {
     struct Pointers { int16_t *wavetable = nullptr; int16_t *noclick = nullptr; };
@@ -183,6 +183,14 @@ int main()
         const double frequency = 44100.0 / length * std::pow(2.0, Sound[0].pitch / 192.0);
         const double midi = 69 + 12 * std::log2(frequency / 440);
         assert(std::abs(midi - std::round(midi)) * 100 <= 3.126);
+    }
+    for (unsigned int length : {100u, 4410u})
+    {
+        configure(length);
+        Sound[0].A += 50000;
+        Sound[0].B += 50000;
+        selected_source.first_sample = 50000;
+        assert(S_Auto_tune_pitch(0) == nullptr); // Cached windows retain absolute file coordinates.
     }
     configure(100, 12, true);
     assert(S_Auto_tune_pitch(0) == nullptr); // Quiet but periodic audio is usable.

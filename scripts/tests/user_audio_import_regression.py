@@ -97,7 +97,7 @@ File File::openNextFile()
 }
 // MP3_IMPLEMENTATION
 '''
-mp3 = 'struct Mp3Import { bool Open(File &,uint32_t &,uint16_t &,uint32_t) {return false;} bool Read(int16_t *,uint32_t) {return false;} };'
+mp3 = 'struct Mp3Import { bool Open(File &,uint32_t &,uint16_t &) {return false;} bool Read(int16_t *,uint32_t) {return false;} };'
 if '--mp3' in sys.argv:
     mp3 = re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'include/Mp3Import.h').read_text(),flags=re.M)
     mp3 += (ROOT/'src/Mp3Import.cpp').read_text().replace('#include "Mp3Import.h"','')
@@ -404,7 +404,7 @@ int main()
         File file=SD.open("/EXTERNAL_AUDIO/source.mp3");
         Mp3Import decoder;
         uint32_t bytes=0; uint16_t channels=0;
-        assert(decoder.Open(file,bytes,channels,0xFFFFFFFEu));
+        assert(decoder.Open(file,bytes,channels));
         std::vector<int16_t> decoded(bytes/2*channels);
         assert(decoder.Read(decoded.data(),bytes/2));
         std::vector<int16_t> expected(bytes/2);
