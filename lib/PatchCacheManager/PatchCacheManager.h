@@ -53,7 +53,7 @@ private:
 public:
     PatchCacheManager() = default; // Initialize metadata without accessing external RAM during static construction.
     bool Sd_sources_ready(int patch_id) const;
-    void Load_sd_sources(int patch_id); // Foreground only, after all players have drained and Begin has reset caches.
+    FLASHMEM void Load_sd_sources(int patch_id); // Foreground only, after all players have drained and Begin has reset caches.
     void Set_cache_pointer(uint8_t cache_id, int16_t *pointer); // Attach an allocated PSRAM buffer during setup.
     void Begin(void); // Invalidate all caches after players have been drained; call with audio interrupts disabled.
     int16_t *Reserve_capture(uint8_t slot, int16_t file_id, uint32_t samples); // Caller drains all players and cache readers first.

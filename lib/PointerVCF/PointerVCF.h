@@ -24,7 +24,7 @@ public:
     PointerVCF() {}
 
     void Set_pointer_to_FilterType(void);
-    bool Move_pointer(const int value);
+    FLASHMEM bool Move_pointer(const int value);
     void Display_pointer(void);
     VCF_value_name Get_VCF_value_name(void);
 };

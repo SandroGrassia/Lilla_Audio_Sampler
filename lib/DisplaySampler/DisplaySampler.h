@@ -90,72 +90,72 @@ private:
     uint16_t DS_calc_bar_color(float value);
 
 public:
-    void DS_confirm_raw_conversion_popup(void);
-    void DS_confirm_raw_conversion_frame(uint8_t value);
+    FLASHMEM void DS_confirm_raw_conversion_popup(void);
+    FLASHMEM void DS_confirm_raw_conversion_frame(uint8_t value);
 
     void Led_DIRECT_SAMPLING(bool on);
     DisplaySampler() {}
 
     // Clears the upper area and draws the title and volume; callers restore the menu and pointer.
-    void DS_page_upper(void);
+    FLASHMEM void DS_page_upper(void);
 
     // Draws memory, recording and IO information without touching the upper area.
-    void DS_page_lower(int recording);
+    FLASHMEM void DS_page_lower(int recording);
 
     // Shows recording controls only during input monitoring and recording.
-    void DS_set_recording_controls(bool visible);
+    FLASHMEM void DS_set_recording_controls(bool visible);
     bool DS_has_recording_controls(void) const { return DS_recording_controls_visible; }
-    void DS_sampler_IO(void);
+    FLASHMEM void DS_sampler_IO(void);
 
     // Incrementally redraws one VU-meter bar channel. channel: 0 = L, 1 = R. value: 0 – BAR_ELEMENTS.
     void DS_bar(int channel, int value);
 
     // Draws the RECORDING label in red (blinking) or dim red (off).
-    void DS_sampler_txt(bool color);
+    FLASHMEM void DS_sampler_txt(bool color);
 
     // Redraws the free-recording-memory value (seconds available for new recordings).
-    void DS_available_memory(void);
+    FLASHMEM void DS_available_memory(void);
 
     // Redraws the free-raw-file-memory value (seconds available for RAW files).
-    void DS_raw_available_memory(void);
+    FLASHMEM void DS_raw_available_memory(void);
 
     // Clears the recording description area on screen.
-    void DS_hide_recording(void);
+    FLASHMEM void DS_hide_recording(void);
 
     // Shows or hides the centered green deletion popup with black text.
-    void DS_advice_delete(bool value);
+    FLASHMEM void DS_advice_delete(bool value);
 
     // Shows or hides the 'UNABLE TO CREATE RAW FILE' advice with the reason (DS_export: 0 = no space, -1 = no name).
-    void DS_advice_no_conversion(int DS_export, bool value);
+    FLASHMEM void DS_advice_no_conversion(int DS_export, bool value);
 
     // Draws the conversion-to-RAW options panel showing source and destination file names.
-    void DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export);
+    FLASHMEM void DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export);
 
     // Draws the SD export options panel showing source file names and available targets.
 
     // Draws the recording description and LED space; update_header allows refreshing the header volume.
-    void DS_Recording_description(int recording, bool led, bool update_header = true);
+    FLASHMEM void DS_Recording_description(int recording, bool led, bool update_header = true);
 
     // Draws the static LENGTH label and value for the current recording.
-    void DS_recording_seconds(void);
+    FLASHMEM void DS_recording_seconds(void);
 
     // Redraws only the elapsed-seconds value during an active recording.
 
     // Draws the VOLUME label and value at the row that matches the current recording layout.
 
     // Redraws only the volume value in the header row. adj=true uses yellow (being edited), false uses white.
-    void DS_update_volume(bool adj = true);
+    FLASHMEM void DS_update_volume(bool adj = true);
 
     // Redraws the LINE-IN gain value.
-    void DS_show_gain(void);
+    FLASHMEM void DS_show_gain(void);
 
     // Redraws the dynamic menu row, recalculating positions from the active Menu_DS[] entries.
-    void DS_menu(void);
+    FLASHMEM void DS_menu(void);
 
     // Erases the previous menu frame and draws a new one at the given position, updating choice_DS_menu.
 
     // Draws the 'STOP SAMPLING?' confirmation popup.
-    void DS_confirm_EXIT_from_DS(void);
+    FLASHMEM void DS_confirm_EXIT_from_DS(void);
 
     // Pointer
     void DS_show_pointer_frame(const DS_pointer_struct pointer, const bool show);

@@ -30,7 +30,7 @@ public:
 
     // Moves the pointer by +1 or -1 steps along the navigation sequence. Crossing the boundary between field_LS_Menu and field_LS_Value is
     // handled automatically. Erases the previous frame and draws the new one.
-    void Move_pointer(const int value);
+    FLASHMEM void Move_pointer(const int value);
 
     // Shows or hides the pointer frame at the current position.
     void Show_pointer(const bool show);

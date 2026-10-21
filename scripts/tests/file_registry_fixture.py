@@ -39,7 +39,7 @@ struct LillaFRAM_2x512
 '''
 REGISTRY_FIXTURE += re.search(r'^static constexpr char RECORDING_PACKET_PREFIX[^\n]+', (ROOT / "lib/SharedVFS/SharedVFS.h").read_text(), re.M).group(0) + '\n'
 for path in ("lib/FileNameRegistry/FileNameRegistry.h", "lib/FileNameRegistry/FileNameRegistry.cpp"):
-    source = (ROOT / path).read_text(encoding="utf-8")
+    source = (ROOT / path).read_text(encoding="utf-8").replace('#include <Arduino.h>\n', '')
     REGISTRY_FIXTURE += re.sub(r'^#(?:include "|pragma)[^\n]*\n', '', source, flags=re.M)
 
 REGISTRY_FIXTURE += r'''

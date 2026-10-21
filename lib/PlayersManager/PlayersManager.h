@@ -27,8 +27,9 @@ public:
         uint32_t cycle = 0; // Audio cycle in which the allocation was made.
         bool valid = false; // False when the collector has no matching scheduling pass.
         float reserved_us = 0.0f; // Current/pending full-block reservation used by the allocator.
-        float read_headroom_us = 0.0f; // Read limit minus reserved time, before crossfade allocation.
-        float deadline_headroom_us = 0.0f; // Deadline minus elapsed preparation, reservation and the existing 700 us processing allowance.
+        float forecast_us = 0.0f; // Next-block forecast used for crossfade allocation.
+        float read_headroom_us = 0.0f; // Read limit minus forecast time, before crossfade allocation.
+        float deadline_headroom_us = 0.0f; // Deadline minus elapsed preparation, forecast and the existing 700 us processing allowance.
         float scheduler_elapsed_us = 0.0f; // Elapsed block time at the deadline check.
         float pre_players_us = 0.0f; // Elapsed block time after scheduling, immediately before returning to the audio clock.
         float available_us = 0.0f; // Actual initial crossfade pool after clamping and integer rounding.

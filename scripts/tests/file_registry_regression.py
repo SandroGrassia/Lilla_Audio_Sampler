@@ -25,7 +25,7 @@ int main()
     char name[R::FILENAME_BYTES];
     assert(strcmp(R::Filename(7, name), "7.raw") == 0);
     assert(strcmp(R::Filename(kick, name), "kick.raw") == 0);
-    assert(!R::Valid_name("P10.raw") && !R::Valid_name("../kick.raw"));
+    assert(!R::Valid_name("LillaR10.raw") && !R::Valid_name("../kick.raw"));
     assert(!R::Valid_name(".raw") && !R::Valid_name("kick.wav"));
     assert(R::Add("1234567890123456789012345678901.raw") == 3);
     assert(R::Add("12345678901234567890123456789012.raw") == -1);

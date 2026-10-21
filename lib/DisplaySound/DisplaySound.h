@@ -82,23 +82,23 @@ public:
     void Led_SOUND_EDIT_instrument(int instrument_id, bool on);
     DisplaySound() {}
 
-    void Show_SOUND_page(int patch_id, int instrument_id);                      // Draws the complete SOUND page for the selected instrument.
-    void Show_pointer_frame(S_field_description_struct description, bool show); // Shows or hides the selection frame requested by PointerSound.
-    void Show_SOUND_menu(void);                                                 // Rebuilds the SOUND menu row using the currently enabled entries.
+    FLASHMEM void Show_SOUND_page(int patch_id, int instrument_id);                      // Draws the complete SOUND page for the selected instrument.
+    FLASHMEM void Show_pointer_frame(S_field_description_struct description, bool show); // Shows or hides the selection frame requested by PointerSound.
+    FLASHMEM void Show_SOUND_menu(void);                                                 // Rebuilds the SOUND menu row using the currently enabled entries.
     void Show_wave(int instrument_id);                                          // Renders the waveform preview and trim information.
 
-    void Show_Attack_value(int instrument_id);  // Prints attack mode and time.
-    void Show_Decay_value(int instrument_id);   // Prints decay time.
-    void Show_Sustain_value(int instrument_id); // Prints sustain level as a percentage.
-    void Show_Release_value(int instrument_id); // Prints release time.
+    FLASHMEM void Show_Attack_value(int instrument_id);  // Prints attack mode and time.
+    FLASHMEM void Show_Decay_value(int instrument_id);   // Prints decay time.
+    FLASHMEM void Show_Sustain_value(int instrument_id); // Prints sustain level as a percentage.
+    FLASHMEM void Show_Release_value(int instrument_id); // Prints release time.
 
-    void Show_File_value(int instrument_id);                // Prints the File name assigned to the instrument.
-    void Show_Midi_channel_value(int instrument_id);        // Prints the MIDI channel.
-    void Show_Pitch_value(int instrument_id);               // Prints pitch transposition.
-    void Show_Gain_value(int patch_id, int instrument_id);  // Prints playback gain for the routed sound.
-    void Show_Pan_value(int instrument_id);                 // Prints pan direction and amount.
-    void Show_Play_mode_value(int instrument_id);           // Prints loop/playback mode.
-    void Show_Noclick_value(int instrument_id, bool value); // Prints the no-click smoothing amount.
-    void Show_Trim_step_value(void);                        // Prints the current trim encoder step.
-    void Show_players_Pitch_max_value(int instrument_id);   // Prints max pitch and available voices for the selected media.
+    FLASHMEM void Show_File_value(int instrument_id);                // Prints the File name assigned to the instrument.
+    FLASHMEM void Show_Midi_channel_value(int instrument_id);        // Prints the MIDI channel.
+    FLASHMEM void Show_Pitch_value(int instrument_id);               // Prints pitch transposition.
+    FLASHMEM void Show_Gain_value(int patch_id, int instrument_id);  // Prints playback gain for the routed sound.
+    FLASHMEM void Show_Pan_value(int instrument_id);                 // Prints pan direction and amount.
+    FLASHMEM void Show_Play_mode_value(int instrument_id);           // Prints loop/playback mode.
+    FLASHMEM void Show_Noclick_value(int instrument_id, bool value); // Prints the no-click smoothing amount.
+    FLASHMEM void Show_Trim_step_value(void);                        // Prints the current trim encoder step.
+    FLASHMEM void Show_players_Pitch_max_value(int instrument_id);   // Prints max pitch and available voices for the selected media.
 };

@@ -589,7 +589,8 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         return; // All eligible voices are occupied or reserved; never overwrite a different pending note.
     }
 
-    const float incoming_pitch = pitch_from_note[note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key]; // Same transposition used by Get_ready_to_play.
+    const int pitch_index = note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key;
+    const float incoming_pitch = pitch_from_note[pitch_index < 0 ? 0 : (pitch_index >= NOTE_NUMBERS ? NOTE_NUMBERS - 1 : pitch_index)]; // Clamp transposition to the available pitch table.
     if (!Admit_read_budget(id_player, instrument_id, PlayerReadBudget::Estimate(New_read_plan(instrument_id, incoming_pitch), AUDIO_BLOCK_SAMPLES)))
     {
         return;
@@ -671,7 +672,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     idle = false
     (se interrogato Player[player].is_playing == true);
     */
-    Player_ptr[id_player].Get_ready_to_play(pitch_from_note[note_number + 60 - Patch[Patch_id].Instrument[instrument_id].root_key], velocity_float, Patch_id, instrument_id, Preset[instrument_id].sound_id, note_number);
+    Player_ptr[id_player].Get_ready_to_play(incoming_pitch, velocity_float, Patch_id, instrument_id, Preset[instrument_id].sound_id, note_number);
 
     // Gestione del Delay
     // configura su Router_L e Router_R input/output le routing_table
@@ -933,7 +934,8 @@ void PlayersManager::Multicast_change_players_notes(int patch_id, int instrument
     {
         if (Player_ptr[player].isPoweredOn() && Player_ptr[player].Read_instrument() == instrument_id)
         {
-            Player_ptr[player].Set_note(pitch_from_note[Player_ptr[player].Read_note() + 60 - Patch[patch_id].Instrument[instrument_id].root_key]);
+            const int pitch_index = Player_ptr[player].Read_note() + 60 - Patch[patch_id].Instrument[instrument_id].root_key;
+            Player_ptr[player].Set_note(pitch_from_note[pitch_index < 0 ? 0 : (pitch_index >= NOTE_NUMBERS ? NOTE_NUMBERS - 1 : pitch_index)]);
         }
     }
 }
@@ -1489,14 +1491,20 @@ float PlayersManager::Get_cross_mix_time(int player, int mix_samples)
 
 int PlayersManager::Get_span_for_all_cross_mix(void)
 {
-    const float reserved = Reserved_read_us(); // Current/pending maxima already cover zero-mix sequential restarts.
-    const float read_headroom = PlayerReadBudget::Limit_us - reserved; // Spare read allowance before the first transition.
+    const float reserved = Reserved_read_us(); // Admission retains maximum bend and vibrato.
+    float forecast = 0.0f;
+    for (int player = 0; player < PLAYERS; ++player)
+    {
+        forecast += Player_ptr[player].Next_block_read_us();
+    }
+    const float read_headroom = PlayerReadBudget::Limit_us - forecast; // Spend only the next block forecast plus crossfades.
     const float elapsed = midi_batch_active ? static_cast<float>(audio_update_time_micros) : 0.0f; // Sample once so diagnostics describe the exact deadline decision.
-    const float deadline_headroom = midi_batch_active ? AUDIO_PLAYER_DEADLINE_US - elapsed - reserved - 700.0f : INFINITY; // Keep the existing processing allowance and main-loop behavior.
+    const float deadline_headroom = midi_batch_active ? AUDIO_PLAYER_DEADLINE_US - elapsed - forecast - 700.0f : INFINITY; // Keep the existing processing allowance and main-loop behavior.
     const float available = fminf(read_headroom, deadline_headroom); // The tighter constraint determines the crossfade pool.
     if (read_diagnostics_enabled)
     {
         read_budget_diagnostics.reserved_us = reserved;
+        read_budget_diagnostics.forecast_us = forecast;
         read_budget_diagnostics.read_headroom_us = read_headroom;
         read_budget_diagnostics.deadline_headroom_us = deadline_headroom;
         read_budget_diagnostics.scheduler_elapsed_us = elapsed;
@@ -1587,7 +1595,7 @@ void PlayersManager::Calculate_and_set_mix_samples(void)
         uint8_t chosen = 0; // A zero-mix restart uses separate blocks and never needs two source harvests.
         for (const uint8_t samples : {64, 48, 32, 24, 16}) // Longest affordable outgoing fade.
         {
-            const float cost = Get_cross_mix_time(player, samples); // Actual outgoing source at maximum modulation.
+            const float cost = Get_cross_mix_time(player, samples); // Outgoing source with current/queued bend and bounded vibrato.
             if (cost <= available)
             {
                 chosen = samples;

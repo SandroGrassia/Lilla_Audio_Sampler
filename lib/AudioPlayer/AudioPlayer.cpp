@@ -10,7 +10,7 @@
 int16_t AudioPlayer::samples_basket[BASKET_DIM];
 float AudioPlayer::resampled_basket[AUDIO_BLOCK_SAMPLES];
 
-PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) const
+PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, bool reserve_modulation) const
 {
     PlayerReadBudget::Plan plan;                                                                      // One geometry snapshot; source promotion is reflected immediately.
     const bool wavetable = edited ? use_Wavetable_E : (pending ? use_Wavetable_wait : use_Wavetable); // RAM tables bypass the file reader.
@@ -32,7 +32,8 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited) con
     const float tune = pending ? pitch_tune_wait : (pitch_tune_flag && !Has_pending_note() ? fmaxf(pitch_tune, pitch_tune_wait) : pitch_tune); // A staged replacement tune must not be applied to the old voice.
     const float note_pitch = pending ? pitch_note_wait : pitch_note;                                                                           // Pitch before bend and vibrato.
     const float ceiling = file == SdSoundSource::PREVIEW ? 8.0f : (edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit));       // Actual reader ceiling, including pending edits.
-    plan.pitch = constrain(note_pitch * tune * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);
+    const float modulation = reserve_modulation ? PlayerReadBudget::Maximum_modulation : fmaxf(pitch_bend, pitch_bend_wait) * fmaxf(1.01f, pitch_vibrato); // Cover queued bend and the next vibrato phase without reserving unused maximum bend.
+    plan.pitch = constrain(note_pitch * tune * modulation, MIN_PITCH, ceiling);
     if (!pending && !edited)
     {
         plan.pitch = fmaxf(plan.pitch, pitch); // The outgoing crossfade runs before Update_pitch and may still use the previous block's higher pitch.
@@ -60,7 +61,25 @@ float AudioPlayer::Reserved_read_us(void) const
 
 float AudioPlayer::Current_read_us(uint32_t output_samples) const
 {
-    return state == IDLE ? 0.0f : PlayerReadBudget::Estimate(Get_read_plan(), output_samples);
+    return state == IDLE ? 0.0f : PlayerReadBudget::Estimate(Get_read_plan(false, false, false), output_samples);
+}
+
+float AudioPlayer::Next_block_read_us(void) const
+{
+    if (state == IDLE)
+    {
+        return 0.0f;
+    }
+    float cost = PlayerReadBudget::Estimate(Get_read_plan(false, false, false), AUDIO_BLOCK_SAMPLES);
+    if (Has_pending_note())
+    {
+        cost = fmaxf(cost, PlayerReadBudget::Estimate(Get_read_plan(true, false, false), AUDIO_BLOCK_SAMPLES));
+    }
+    if (main_settings_editing_flag)
+    {
+        cost = fmaxf(cost, PlayerReadBudget::Estimate(Get_read_plan(false, true, false), AUDIO_BLOCK_SAMPLES));
+    }
+    return cost;
 }
 
 void AudioPlayer::Set_edit_mix_samples(uint8_t value)

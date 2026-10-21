@@ -29,7 +29,7 @@ struct LOOP_struct // verificata 8 byte
 };
 static constexpr int LOOP_struct_bytes = sizeof(LOOP_struct);
 
-extern LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS];
+DMAMEM extern LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS];
 extern uint32_t LOOP_events[TRACKS];
 extern int LOOP_slide[TRACKS]; // slittamento temporale in ms
 extern int LOOP_pitch_int[TRACKS]; // pitch shift in semitones, -24 through +24

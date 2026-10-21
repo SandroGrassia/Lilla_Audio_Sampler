@@ -340,8 +340,9 @@ public:
 
     static void Enable_read_diagnostics(bool enabled) { read_diagnostics_enabled = enabled; }
     const PlayerReadDiagnostics &Get_read_diagnostics(void) const { return read_diagnostics; } // Read from audio IRQ or with audio IRQ disabled.
-    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false) const;     // Capture source geometry without reading samples; caller owns the audio IRQ.
+    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false, bool reserve_modulation = true) const;     // Capture source geometry without reading samples; caller owns the audio IRQ.
     float Reserved_read_us(void) const;                                                        // Maximum current/pending/edited full-block cost, with idle voices excluded.
+    float Next_block_read_us(void) const; // Current/queued bend with bounded vibrato; admission keeps the full modulation reserve.
     float Current_read_us(uint32_t output_samples) const;                                      // Cost of an outgoing crossfade segment.
     void Retire_for_read_budget(void);                                                         // Release source ownership now and fade previously computed audio without further source reads.
     void Set_edit_mix_samples(uint8_t value);                                                  // Override only a pending edit crossfade before its next render.

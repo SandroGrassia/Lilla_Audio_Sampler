@@ -37,38 +37,38 @@ private:
 public:
     DisplayStorage() {}
 
-    void VFS_show_packets(void);
-    void VFS_Make_presentation(void);
-    void VFS_Make_assignments(void);
-    void VFS_Make_restart(void);
-    void VFS_Make_not_enough_memory_for_sampler(void);
-    void Import_raw_files_frame(uint8_t value);
-    void Confirm_config_import_popup(void);
+    FLASHMEM void VFS_show_packets(void);
+    FLASHMEM void VFS_Make_presentation(void);
+    FLASHMEM void VFS_Make_assignments(void);
+    FLASHMEM void VFS_Make_restart(void);
+    FLASHMEM void VFS_Make_not_enough_memory_for_sampler(void);
+    FLASHMEM void Import_raw_files_frame(uint8_t value);
+    FLASHMEM void Confirm_config_import_popup(void);
     FLASHMEM void Confirm_config_restore_frame(uint8_t value);
-    void SD_missing(uint16_t color);
+    FLASHMEM void SD_missing(uint16_t color);
     void Config_import_FILE_error_popup(void);
     void FRAM_recovery_popup(void);
-    void Confirm_factory_reset_frame(uint8_t value);
-    void Confirm_config_export_popup(void);
+    FLASHMEM void Confirm_factory_reset_frame(uint8_t value);
+    FLASHMEM void Confirm_config_export_popup(void);
     FLASHMEM void Confirm_config_export_frame(uint8_t value);
-    void Config_export_SD_error_popup(void);
-    void Config_export_save_popup(void);
-    void Confirm_factory_reset_popup(void);
-    void Factory_reset_wait_popup(void);
-    void Copy_audio_files_SD_to_Flash_chip_titolo(void);           // importa i file audio dalla scheda SD
-    void Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void);   // attesa 10sec scheda SD
-    void Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void); // manca /FLASH_AUDIO
-    void Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int flash_raw_volume, int flash_raw_files);
-    void Copy_audio_files_SD_to_Flash_chip_last_warning(void);
-    void Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_time_ms); // inizia la cancellazione (erasing) della Flash memory
-    void Update_raw_copy_progress(int barcount);
-    void Copy_raw_files_SD_to_Flash_chip_popup_landscape(void); // black panel
-    void Copy_raw_files_SD_to_Flash_chip_list_landscape(void);
-    void Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, const char *filename, unsigned long length);
-    void Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, const char *filename);
-    void Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const char *filename);
-    void Copy_raw_files_SD_to_Flash_chip_flash_error(void);      // Flash memory error!
-    void Copy_raw_files_SD_to_Flash_chip_flash_full_error(void); // Flash memory full!
-    void Copy_raw_files_SD_to_Flash_chip_job_done(void);
-    void Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const char *filename, uint32_t filesize);
+    FLASHMEM void Config_export_SD_error_popup(void);
+    FLASHMEM void Config_export_save_popup(void);
+    FLASHMEM void Confirm_factory_reset_popup(void);
+    FLASHMEM void Factory_reset_wait_popup(void);
+    FLASHMEM void Copy_audio_files_SD_to_Flash_chip_titolo(void);           // importa i file audio dalla scheda SD
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void);   // attesa 10sec scheda SD
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void); // manca /FLASH_AUDIO
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int flash_raw_volume, int flash_raw_files);
+    FLASHMEM void Copy_audio_files_SD_to_Flash_chip_last_warning(void);
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_time_ms); // inizia la cancellazione (erasing) della Flash memory
+    FLASHMEM void Update_raw_copy_progress(int barcount);
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_popup_landscape(void); // black panel
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_list_landscape(void);
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, const char *filename, unsigned long length);
+    FLASHMEM void Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, const char *filename);
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const char *filename);
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_flash_error(void);      // Flash memory error!
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_flash_full_error(void); // Flash memory full!
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_job_done(void);
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const char *filename, uint32_t filesize);
 };

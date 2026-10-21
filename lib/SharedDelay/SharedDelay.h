@@ -92,8 +92,8 @@ int Calc_delay_samples_LR(int value);
 int Calc_delay_samples_LR_limit(int time); // Largest whole-millisecond offset within the base time and remaining per-channel buffer capacity.
 float Calc_delay_depth (int value);
 float Calc_delay_frequency(int value);
-void Print_Delay_data(const Delay_data_struct &data);
-void Print_Delay_values(Delay_values_struct Delay_values);
+FLASHMEM void Print_Delay_data(const Delay_data_struct &data);
+FLASHMEM void Print_Delay_values(Delay_values_struct Delay_values);
 
 // Pointer
 static constexpr int DELAY_element_names = 9;
