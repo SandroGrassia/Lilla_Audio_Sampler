@@ -11645,10 +11645,6 @@ bool LOOP_Compile_midi_loop_file(FsFile &file)
     }
     for (int track = 0; track < TRACKS; ++track)
     {
-        if (LOOP_events[track] > LOOP_EVENTS)
-        {
-            return false;
-        }
         for (uint32_t event = 0; event < LOOP_events[track]; ++event)
         {
             if (!LOOP_Write_bytes(file, &LOOP_element[track][event], sizeof(LOOP_struct)))

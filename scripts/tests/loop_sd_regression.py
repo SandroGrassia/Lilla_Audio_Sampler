@@ -172,7 +172,7 @@ reader = (ROOT / 'lib/MidiReader/MidiReader.cpp').read_text(encoding='utf-8')
 production += 'constexpr int MIDI_LOOP = 1; int Lilla_state = MIDI_LOOP; unsigned long LOOP_Clock() { return 123; }\n'
 timeout = re.search(r'    if \(LOOP_learn_flag && Lilla_state == MIDI_LOOP.*?\n    \}', reader, re.S).group(0)
 production += 'void Check_recording_timeout()\n{\n' + timeout + '\n}\n'
-for name, condition in [('Learn_on', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements < LOOP_EVENTS)'), ('Learn_off', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0 && LOOP_elements < LOOP_EVENTS)')]:
+for name, condition in [('Learn_on', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag)'), ('Learn_off', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0)')]:
     start = reader.index(condition)
     position = reader.index('{', start)
     depth = 1
@@ -501,7 +501,7 @@ int main()
         }
     }
     assert(LOOP_elements == LOOP_EVENTS && LOOP_last_event == LOOP_EVENTS - 1 && !LOOP_learn_flag);
-    LOOP_learn_flag = true; // Even an inconsistent flag cannot cause an out-of-bounds append.
+    // Completion disables recording before any subsequent MIDI event arrives.
     Learn_on(0, 61, 100);
     Learn_off(0, 61, 0);
     assert(LOOP_elements == LOOP_EVENTS && LOOP_element[0][LOOP_EVENTS - 1].note_number == 60);

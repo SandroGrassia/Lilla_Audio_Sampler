@@ -127,7 +127,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
         */
 
         // Loop learning
-        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements < LOOP_EVENTS)
+        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag)
         {
             // Solo in caso di NoteOn
             if (LOOP_elements == 0)
@@ -220,7 +220,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
         velocity = message.data2;
 
         // Loop learning
-        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0 && LOOP_elements < LOOP_EVENTS)
+        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0)
         {
             // Aggiorna il conteggio degli elementi
             ++LOOP_elements;
