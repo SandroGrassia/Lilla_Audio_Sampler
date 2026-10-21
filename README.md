@@ -16,20 +16,11 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.4
+## New in firmware 7.2.5
 
-**Adjustable compressors in Delay and Live Sampler.** Set the compression threshold from -24 to -3 dB in 1 dB steps, or select OFF. This gives you control over how early compression acts on the combined input and feedback. The Delay threshold is saved with the patch; the Live Sampler setting is retained during the session.
+**Import complete audio files into Flash.** Files are no longer truncated at 3 MiB (approximately 35.7 seconds). RAW, WAV, AIFF and MP3 imports retain the complete decoded mono audio, within Flash capacity. In Sound Edit, move the playable window along the full file to select the passage you want; its maximum length is determined by the per-source PSRAM capacity.
 
-**Clearer SETUP and guided operations.** The reorganized menu and confirmation dialogs explain audio conversion and import destinations, what a backup includes, and what restore or reset will replace. Conversion and import begin with a CANCEL/GO choice.
-
-The Delay and Live Sampler pages also have revised layouts that group their controls more clearly.
-
-<p align="center">
-    <img width="45%" alt="Delay page with adjustable compressor threshold" src="doc/assets/images/8.jpg">
-    <img width="45%" alt="Reorganized SETUP menu" src="doc/assets/images/9.jpg">
-</p>
-
-See the [7.2.4 release notes](docs/release-notes-7.2.4.md) and the updated illustrated [User Guide](User%20Guide.md).
+See the [7.2.5 release notes](docs/release-notes-7.2.5.md) and the updated illustrated [User Guide](User%20Guide.md).
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -102,7 +93,7 @@ Save an arrangement or save a new variation to microSD in `/LILLALOOP`. Preserve
 
 - Internal audio format: signed 16-bit PCM at 44.1 kHz.
 - Import from microSD: mono RAW, mono/stereo 16-bit PCM WAV and AIFF at 44.1 kHz, and MP3 with conversion to 44.1 kHz. See [MP3 import](docs/mp3-import.md) for supported rates and implementation details.
-- Import duration limit: approximately 35.7 seconds per source file; longer files are truncated.
+- Flash imports preserve complete files, within Flash capacity. The playable region can move along the full file and is limited by the per-source PSRAM capacity.
 - Flash stores imported audio and Sampler recordings; PSRAM provides live recording and playback caches; FRAM stores patch and configuration data.
 - Configuration and recording backup/restore are available through microSD. A complete archive also requires separate copies of the imported audio library and MIDI-loop files; see [Backup and restore](User%20Guide.md#backup-and-restore).
 
@@ -147,7 +138,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.4 (20 October 2026)**: download [Lilla_v7_2_4.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.4/Lilla_v7_2_4.hex) from [release v7.2.4](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.4). See the [7.2.4 release notes](docs/release-notes-7.2.4.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.5 (21 October 2026)**: download [Lilla_v7_2_5.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.5/Lilla_v7_2_5.hex) from [release v7.2.5](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.5). See the [7.2.5 release notes](docs/release-notes-7.2.5.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

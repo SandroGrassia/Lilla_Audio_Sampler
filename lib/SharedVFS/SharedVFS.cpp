@@ -18,14 +18,15 @@ const char *Get_packet_name(uint16_t packet_id, char (&name)[NAME_PACKET_SIZE])
         packet_id /= 10;
     } while (packet_id != 0);
 
-    name[0] = 'P';
+    constexpr size_t prefix_length = sizeof(RECORDING_PACKET_PREFIX) - 1;
+    memcpy(name, RECORDING_PACKET_PREFIX, prefix_length);
 
     for (uint8_t index = 0; index < length; ++index)
     {
-        name[index + 1] = digits[length - index - 1];
+        name[index + prefix_length] = digits[length - index - 1];
     }
 
-    memcpy(name + length + 1, ".raw", 5);
+    memcpy(name + length + prefix_length, ".raw", 5);
     return name;
 }
 

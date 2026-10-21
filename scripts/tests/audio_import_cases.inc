@@ -143,7 +143,7 @@ void test_audio_import()
         }
     }
 
-    // Verify the output limit before, at and after 3 MiB for all import formats.
+    // Verify complete output before, at and after the former 3 MiB limit for all import formats.
     constexpr uint32_t max_bytes = 3 * 1024 * 1024;
     for (int kind : {0, 1, 2})
     {
@@ -160,7 +160,7 @@ void test_audio_import()
                 auto input = add(name, 0);
                 input->data = kind == 0 ? audio_samples(frames, channels, false) : audio_file(kind == 2, frames, channels);
                 assert(SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);
-                const uint32_t saved_frames = std::min(frames, max_bytes / 2);
+                const uint32_t saved_frames = frames;
                 assert(SerialFlash.files.at("limit.raw") == audio_samples(saved_frames, channels, false, true));
                 assert(Display_Storage.reported_bytes == saved_frames * 2);
                 const uint32_t header = kind == 0 ? 0 : kind == 1 ? 44 : 54;
@@ -226,5 +226,5 @@ void test_audio_import()
         assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);
         assert(SerialFlash.files.count("0.raw") == 0 && Display_Storage.completed == 0);
     }
-    std::puts("PASS: AIFF/WAV mono/stereo PCM, byte order, chunk order/padding/offset, malformed input, 3 MiB cap, summary, duplicates and I/O failures");
+    std::puts("PASS: AIFF/WAV mono/stereo PCM, byte order, chunk order/padding/offset, malformed input, complete files beyond 3 MiB, summary, duplicates and I/O failures");
 }

@@ -41,15 +41,15 @@ struct DisplayPerformance
 };
 struct PatchCacheManager
 {
-    struct Request { int file_id; uint32_t samples; bool failed; } required[3] = {{4, 100, false}, {7, 200, false}, {9, 0, true}};
-    struct Cache { bool valid; int file_id; uint32_t samples; } cache[3] = {};
+    struct Request { int file_id; uint32_t samples; bool failed; uint32_t first_sample=0; } required[3] = {{4, 100, false}, {7, 200, false}, {9, 0, true}};
+    struct Cache { bool valid; int file_id; uint32_t samples; uint32_t first_sample=0; } cache[3] = {};
     static constexpr int PATCH_CACHE_ARRAY_COUNT = 3;
     uint8_t required_count = 0;
-    int Find_complete(int16_t file_id, uint32_t samples) const;
+    int Find_complete(int16_t file_id, uint32_t first_sample, uint32_t samples) const;
     bool Has_pending_copy(void) const;
 };
 """
-code += method('lib/PatchCacheManager/PatchCacheManager.cpp', 'int PatchCacheManager::Find_complete(int16_t file_id, uint32_t samples) const')
+code += method('lib/PatchCacheManager/PatchCacheManager.cpp', 'int PatchCacheManager::Find_complete(int16_t file_id, uint32_t first_sample, uint32_t samples) const')
 code += '\n' + method('lib/PatchCacheManager/PatchCacheManager.cpp', 'bool PatchCacheManager::Has_pending_copy(void) const')
 code += '\n' + method('lib/DisplayPerformance/DisplayPerformance.cpp', 'bool DisplayPerformance::P_update_upload_popup(bool loading, P_field_description_struct pointer)')
 code += r"""

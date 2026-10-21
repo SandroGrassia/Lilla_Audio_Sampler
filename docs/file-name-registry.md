@@ -2,7 +2,9 @@
 
 `Sound.file` remains a 16-bit ID. RAW IDs are 0..259; recording and live-sampler IDs retain their existing ranges. ID 0 is permanently associated with `0.raw`.
 
-The registry stores one basename per RAW ID in FRAM. Names are case-sensitive, contain up to 31 bytes before `.raw`, and never contain path separators. Import normalizes the extension to `.raw`; names such as `P12.raw` are reserved for recording packets. Changing the basename creates a different identity.
+The registry stores one basename per RAW ID in FRAM. Names are case-sensitive, contain up to 31 bytes before `.raw`, and never contain path separators. Import normalizes the extension to `.raw`; `LillaR` followed by one or more decimal digits, such as `LillaR12.raw`, is reserved for recording packets. `P12.raw` is allowed. Changing the basename creates a different identity.
+
+Recording packets now use `LillaR<number>.raw`. Legacy `P<number>.raw` packets are not recognized or migrated; rebuild Flash through audio import before using the new firmware with an existing recording area. This erases the previous Flash audio and recordings. Deleting individual recordings does not rename or recreate the packet files.
 
 ## Storage and recovery
 

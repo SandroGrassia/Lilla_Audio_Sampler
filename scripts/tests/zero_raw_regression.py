@@ -21,7 +21,7 @@ assert all(value == round(32767 * math.sin(2 * math.pi * 261 * index / 43995)) f
 assert abs(1200 * math.log2((261 * 44100 / 43995) / (440 * 2 ** (-9 / 12)))) < 0.02
 
 main = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
-parsers = main[main.index('static constexpr uint32_t SET_AUDIO_MAX_RAW_BYTES'):main.index('FLASHMEM\nbool SET_Copy_audio_files_from_SD_to_Flash')]
+parsers = main[main.index('enum class SET_Audio_format : uint8_t\n{'):main.index('FLASHMEM\nbool SET_Copy_audio_files_from_SD_to_Flash')]
 method = re.search(r'^bool SET_Copy_audio_files_from_SD_to_Flash\(bool &flash_changed\)\n\{.*?^\}', main, re.M | re.S).group(0)
 case_start = re.search(r'^            case \d+: // import audio files from SD', main, re.M).start()
 case_end = main.index('            case ', case_start + len('            case '))
@@ -48,9 +48,12 @@ tests = tests[:obsolete_start] + tests[obsolete_end:]
 tests = tests.replace('    const auto &data = SerialFlash.files.at("0.raw");\n    assert(data.size() == 87992);\n    assert(std::memcmp(data.data(), zeroraw, sizeof(zeroraw)) == 0);', '    assert(SerialFlash.files.count("0.raw") == 0);')
 tests = tests.replace('({"0.raw", "7.raw"})', '({"7.raw"})')
 tests = tests.replace('SerialFlash.capacity = 87992;', 'SerialFlash.capacity = 255;')
+tests = tests.replace('add("7.raw", 256);\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);', 'add("7.raw", 256);\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && !changed && SerialFlash.erases == 0);')
 tests = tests.replace('    SerialFlash.capacity = 87000;\n    assert(!SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    assert(Display_Storage.completed == 0);', '    SerialFlash.capacity = 87000;\n    assert(SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);\n    assert(SerialFlash.files.empty() && SerialFlash.writes == 0 && Display_Storage.completed == 1);')
 tests = tests.replace('    SerialFlash.fail_write_at = 87808;', '    add("0.raw", 87992);\n    SerialFlash.fail_write_at = 87808;')
 tests = tests.replace('    SerialFlash.capacity = 87000;\n    run_menu_case();', '    SerialFlash.capacity = 87000;\n    add("7.raw", 100000);\n    run_menu_case();')
+tests = tests.replace('tables_rebuilt == 0 && reloaded == 0 && !Trigger.Is_running() && !Midi_reader.Is_running()', 'tables_rebuilt == 1 && reloaded == 0 && Trigger.Is_running() && Midi_reader.Is_running() && SerialFlash.erases == 0')
+tests = tests.replace('tables_rebuilt == 0 && !Trigger.Is_running()', 'tables_rebuilt == 2 && Trigger.Is_running()')
 fixture = fixture.replace('void VFS_Make_VFS() { assert(SerialFlash.files.count("0.raw")); }', 'void VFS_Make_VFS() {}')
 fixture = REGISTRY_FIXTURE + fixture
 fixture += '\nconstexpr int ILI9341_WHITE = 1, ILI9341_RED = 2;\nvoid Show_popup_text(const char *, int, int, int) {}\n'
@@ -125,7 +128,7 @@ tests = tests.replace('    bool changed = false;', r'''
     add("kick.raw", 256);
     assert(SET_Copy_audio_files_from_SD_to_Flash(registry_changed));
     assert(FileNameRegistry::Load() && FileNameRegistry::Find("kick.raw") == kick_id);
-    for (const char *invalid : {"P10.raw", "12345678901234567890123456789012.raw"})
+    for (const char *invalid : {"LillaR10.raw", "12345678901234567890123456789012.raw"})
     {
         reset();
         add(invalid, 256);

@@ -126,11 +126,11 @@ FLASHMEM void PatchCacheManager::Load_sd_sources(int patch_id)
     }
 }
 
-int PatchCacheManager::Find_required(int16_t file_id) const
+int PatchCacheManager::Find_required(int16_t file_id, uint32_t first_sample, uint32_t samples) const
 {
     for (uint8_t i = 0; i < required_count; ++i)
     {
-        if (required[i].file_id == file_id)
+        if (required[i].file_id == file_id && required[i].first_sample == first_sample && required[i].samples == samples)
         {
             return i;
         }
@@ -138,11 +138,11 @@ int PatchCacheManager::Find_required(int16_t file_id) const
     return -1;
 }
 
-int PatchCacheManager::Find_complete(int16_t file_id, uint32_t samples) const
+int PatchCacheManager::Find_complete(int16_t file_id, uint32_t first_sample, uint32_t samples) const
 {
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        if (cache[i].valid && cache[i].file_id == file_id && cache[i].samples == samples)
+        if (cache[i].valid && cache[i].file_id == file_id && cache[i].first_sample == first_sample && cache[i].samples == samples)
         {
             return i;
         }
@@ -173,17 +173,26 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
 
     for (const auto &preset : presets)
     {
-        if (!preset.active || (preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file)) || Find_required(preset.file) >= 0)
+        if (!preset.active || (preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file)))
         {
             continue;
         }
         Request request;
         request.file_id = preset.file;
         request.samples = File_samples(preset.file);
+        if (preset.file < FIRST_RECORDING_FILE && request.samples > PATCH_CACHE_ARRAY_SAMPLES)
+        {
+            request.first_sample = preset.A;
+            request.samples = preset.B - preset.A + 1;
+        }
+        if (Find_required(request.file_id, request.first_sample, request.samples) >= 0)
+        {
+            continue;
+        }
         request.failed = request.samples == 0 || request.samples > PATCH_CACHE_ARRAY_SAMPLES;
         for (uint8_t i = 0; i < previous; ++i)
         {
-            if (old_required[i].file_id == request.file_id && old_required[i].samples == request.samples)
+            if (old_required[i].file_id == request.file_id && old_required[i].samples == request.samples && old_required[i].first_sample == request.first_sample)
             {
                 request.failed |= old_required[i].failed;
             }
@@ -198,7 +207,7 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
             continue; // Unsaved sources must survive sampler and patch changes.
         }
 
-        const int request = Find_required(cache[i].file_id);
+        const int request = Find_required(cache[i].file_id, cache[i].first_sample, cache[i].samples);
         const bool keep = request >= 0 && !required[request].failed && required[request].samples == cache[i].samples;
         
         if (!keep)
@@ -221,7 +230,7 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
             continue;
         }
 
-        const int ready = Find_complete(required[i].file_id, required[i].samples);
+        const int ready = Find_complete(required[i].file_id, required[i].first_sample, required[i].samples);
         if (ready >= 0)
         {
             cache[ready].state = Ready;
@@ -229,7 +238,7 @@ void PatchCacheManager::Set_required_files(const Preset_struct (&presets)[INSTRU
     }
 }
 
-AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
+AudioFileSource PatchCacheManager::Get_source(int16_t file_id, uint32_t first_sample, uint32_t last_sample) const
 {
     const auto *capture = Capture_find(file_id);
     if (capture != nullptr)
@@ -243,11 +252,12 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id) const
 
     for (uint8_t i = 0; i < PATCH_CACHE_ARRAY_COUNT; ++i)
     {
-        if (cache[i].state == Ready && cache[i].valid && cache[i].file_id == file_id)
+        if (cache[i].state == Ready && cache[i].valid && cache[i].file_id == file_id && first_sample >= cache[i].first_sample && last_sample < cache[i].first_sample + cache[i].samples)
         {
             result.storage = Psram;
             result.psram_ptr = cache_pointer[i];
             result.samples = cache[i].samples;
+            result.first_sample = cache[i].first_sample;
             result.cache_id = i;
             break;
         }
@@ -259,7 +269,7 @@ bool PatchCacheManager::Has_pending_copy(void) const
 {
     for (uint8_t i = 0; i < required_count; ++i)
     {
-        if (!required[i].failed && Find_complete(required[i].file_id, required[i].samples) < 0)
+        if (!required[i].failed && Find_complete(required[i].file_id, required[i].first_sample, required[i].samples) < 0)
         {
             return true;
         }
@@ -284,7 +294,7 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
     {
         for (uint8_t request = 0; request < required_count; ++request)
         {
-            if (required[request].failed || Find_complete(required[request].file_id, required[request].samples) >= 0)
+            if (required[request].failed || Find_complete(required[request].file_id, required[request].first_sample, required[request].samples) >= 0)
             {
                 continue;
             }
@@ -297,6 +307,7 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
                     cache[i].state = Loading;
                     cache[i].file_id = required[request].file_id;
                     cache[i].samples = required[request].samples;
+                    cache[i].first_sample = required[request].first_sample;
                     break;
                 }
             }
@@ -312,7 +323,7 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
     const auto &item = cache[selected];
     job.cache_id = selected;
     job.file_id = item.file_id;
-    job.first_sample = item.copied;
+    job.first_sample = item.first_sample + item.copied;
     const uint32_t remaining = item.samples - item.copied;
     job.samples = remaining < 512u ? remaining : 512u;
     job.destination = cache_pointer[selected] + item.copied;
@@ -322,14 +333,14 @@ bool PatchCacheManager::Prepare_copy(CopyJob &job)
 bool PatchCacheManager::Complete_copy(const CopyJob &job, bool success)
 {
     auto &item = cache[job.cache_id];
-    if (item.state != Loading || item.file_id != job.file_id || item.copied != job.first_sample)
+    if (item.state != Loading || item.file_id != job.file_id || item.first_sample + item.copied != job.first_sample)
     {
         return false;
     }
 
     if (!success)
     {
-        const int request = Find_required(item.file_id);
+        const int request = Find_required(item.file_id, item.first_sample, item.samples);
         if (request >= 0)
         {
             required[request].failed = true;
@@ -353,7 +364,7 @@ uint16_t PatchCacheManager::Get_reclaim_mask(void) const
     bool missing = false;
     for (uint8_t i = 0; i < required_count; ++i)
     {
-        missing |= !required[i].failed && Find_complete(required[i].file_id, required[i].samples) < 0;
+        missing |= !required[i].failed && Find_complete(required[i].file_id, required[i].first_sample, required[i].samples) < 0;
     }
     if (!missing)
     {
@@ -395,11 +406,13 @@ void PatchCacheManager::Invalidate_file(int16_t file_id)
         }
     }
     
-    const int request = Find_required(file_id);
-    if (request >= 0)
+    for (auto &request : required)
     {
-        required[request].samples = 0;
-        required[request].failed = true;
+        if (request.file_id == file_id)
+        {
+            request.samples = 0;
+            request.failed = true;
+        }
     }
 }
 

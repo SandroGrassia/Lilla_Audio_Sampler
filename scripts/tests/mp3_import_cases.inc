@@ -21,7 +21,6 @@ void test_mp3_import()
         drmp3_uint64 frames = 0;
         int16_t *reference = drmp3_open_memory_and_read_pcm_frames_s16(encoded.data(), encoded.size(), &config, &frames, nullptr);
         assert(reference != nullptr && config.sampleRate == 44100);
-        frames = std::min<drmp3_uint64>(frames, SET_AUDIO_MAX_RAW_BYTES / 2);
         assert(actual.size() == frames * 2);
         assert(std::any_of(actual.begin(), actual.end(), [](uint8_t value) { return value != 0; }));
         for (size_t index = 0; index < frames; ++index)
@@ -34,7 +33,7 @@ void test_mp3_import()
         drmp3_free(reference, nullptr);
         if (strcmp(name, "long") == 0)
         {
-            assert(actual.size() == SET_AUDIO_MAX_RAW_BYTES);
+            assert(actual.size() > 3U * 1024U * 1024U);
         }
     }
     for (uint32_t rate : {8000u, 11025u, 12000u, 16000u, 22050u, 24000u, 32000u, 48000u})
@@ -73,7 +72,7 @@ void test_mp3_import()
             Mp3Import importer;
             uint32_t bytes = 0;
             uint16_t output_channels = 0;
-            assert(importer.Open(source, bytes, output_channels, SET_AUDIO_MAX_RAW_BYTES));
+            assert(importer.Open(source, bytes, output_channels));
             assert(output_channels == 1 && bytes == actual.size());
             for (uint32_t offset = 0; offset < bytes;)
             {
@@ -88,7 +87,7 @@ void test_mp3_import()
     reset();
     add("7.mp3", 0)->data = mp3_fixture("long48000");
     assert(SET_Copy_audio_files_from_SD_to_Flash(changed));
-    assert(SerialFlash.files.at("7.raw").size() == SET_AUDIO_MAX_RAW_BYTES);
+    assert(SerialFlash.files.at("7.raw").size() > 3U * 1024U * 1024U);
     // Measure the filter response independently of the MP3 encoder's own low-pass filter.
     Mp3ImportDecoder filter_state{};
     filter_state.mp3.sampleRate = 48000;
@@ -133,5 +132,5 @@ void test_mp3_import()
     add("0.raw", 2);
     assert(!SET_Copy_audio_files_from_SD_to_Flash(changed));
     assert(SerialFlash.files.count("7.raw") == 0 && Display_Storage.completed == 0);
-    std::puts("PASS: MP3 mono/stereo, CBR/VBR, ID3, all standard sample rates, FFmpeg reference, block continuity, anti-alias filter, 3 MiB cap and I/O failures");
+    std::puts("PASS: MP3 mono/stereo, CBR/VBR, ID3, all standard sample rates, FFmpeg reference, block continuity, anti-alias filter, complete files beyond 3 MiB and I/O failures");
 }

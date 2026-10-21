@@ -1,14 +1,12 @@
 # LILLA User Guide
 
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.5**
+
+Guide edition: **21 October 2026**
+
+Printable edition: [User Guide PDF for firmware 7.2.5](User%20Guide.pdf).
+
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
-
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.4**
-
-Guide edition: **20 October 2026**
-
-Printable edition: [User Guide PDF for firmware 7.2.4](User%20Guide.pdf).
-
-
 
 LILLA brings sample playback, line-input recording, live sampling and MIDI looping into one instrument. This guide takes you from your first playable patch to creating your own sounds and preserving a complete session.
 
@@ -61,7 +59,7 @@ Use Sampler for a take you intend to audition, convert or export. Use Live Sampl
 
 1. Connect a MIDI controller to LILLA's MIDI input.
 2. Connect the stereo line output to your mixer, amplifier or audio interface. Start with low listening levels.
-3. Power on LILLA and wait for startup to finish.
+3. Connect a good-quality 5 V power supply, power on LILLA and wait for startup to finish.
 4. Set the Modes selector to **Performance**.
 5. Turn **Select** to highlight the patch number, then turn **Value** to choose an existing patch.
 6. Set your controller to the MIDI channel shown for a sound in the patch.
@@ -71,6 +69,8 @@ Use Sampler for a take you intend to audition, convert or export. Use Live Sampl
 **What you should see:** the Performance page shows a patch number and its active sound rows. The MIDI channel and keyboard range on each row determine which notes can trigger that sound. An eight-slot patch does not have to use every slot.
 
 **What you should hear:** a sound when you play a note inside an active row's range on its assigned MIDI channel. If you hear nothing, start with the channel and range before changing the sample or its envelope.
+
+> **Power supply quality matters.** Use a good-quality 5 V power supply. A cheap mobile-phone charger is often not ideal for audio use and can introduce hiss or other noise at the outputs. If you hear background noise, try a better-quality 5 V supply before changing sound settings.
 
 ### Your first edit
 
@@ -348,7 +348,7 @@ Choose `SAVE` to retain the selected portion and its persistent SD source refere
 4. Turn **From** and **To** to adjust the playback region.
 5. Turn **Step** to select a suitable trimming increment: use larger steps to find the region, then smaller steps to refine it.
 
-Changing the source file resets the trim region to the new file's full length and resets its pitch adjustment. Recheck the boundaries after changing files.
+Changing the source file preserves the trim start and end when they fit the new file; pitch adjustment is reset. If the region extends beyond the new file, LILLA shifts it towards the beginning while keeping its duration. It shortens the region only when the new file is shorter than that region. This applies when browsing Flash and SD sources.
 
 ### Work from a rough cut to a precise region
 
@@ -356,7 +356,9 @@ Start with a large trim step to remove long silences or locate a phrase. Reduce 
 
 Pressing **From** returns the start to the source beginning. Pressing **To** switches between editing an endpoint and working with a slice. In slice behavior, moving From can move the region while retaining its length; watch the region display as you move it.
 
-A short region is useful for a repeating texture. A longer region may preserve the natural attack and decay of an instrument. If you change the source afterward, repeat the trimming process because the source change resets its boundaries.
+For Flash sources, the full imported file remains available. The playable region is limited to the per-source PSRAM capacity. Press **To** to select slice behavior, then turn **From** to move that window along the file without changing its length. You can reach later passages without importing the file again.
+
+A short region is useful for a repeating texture. A longer region may preserve the natural attack and decay of an instrument.
 
 ### Shape playback
 
@@ -416,7 +418,7 @@ Save the patch after finishing. Removing a sound slot is different from deleting
 
 ### Pre-listen routing and solo
 
-Use `ONLY_PRE_LISTEN` to unmute the selected Sound, enable its exclusive PRE_LIST route and disable its LINEOUT route. `TO_LINE_OUT` enables LINEOUT and unmutes the Sound while preserving its PRE_LIST setting. These commands reflect the same routes shown in **Tools > Mixer**.
+Use `ONLY_PRE_LISTEN` to unmute the selected Sound, enable its exclusive PRE_LIST (Pre listen) route and disable its LINEOUT route. `TO_LINE_OUT` enables LINEOUT and unmutes the Sound while preserving its PRE_LIST setting. These commands reflect the same routes shown in **Tools > Mixer**.
 
 | Current Sound routes | Available routing commands |
 | --- | --- |
@@ -426,9 +428,9 @@ Use `ONLY_PRE_LISTEN` to unmute the selected Sound, enable its exclusive PRE_LIS
 
 Moving PRE_LIST to another source disables only the previous source's PRE_LIST route. If that previous Sound had no LINEOUT route, it remains silent on both outputs and both Sound Edit commands become available. Returning to Sound Edit always reflects the current Mixer routing. These routing commands are not offered while editing a Sampler recording.
 
-Choose `SOLO` to audition the selected Sound across the keyboard; the menu changes to `RESET_SOLO`, which restores normal Instrument note mapping. SOLO unmutes the Sound and remains active when opening Mixer from Sound Edit in Performance. Use the menu for SOLO; pressing Select or Value on GAIN does not toggle it. The waveform area indicates when SOLO is active. SOLO controls note mapping; PRE_LIST and LINEOUT control the audio destinations.
+Choose `SOLO` to audition the selected Sound across the keyboard; the menu changes to `RESET_SOLO`, which restores normal Instrument note mapping. SOLO unmutes the Sound and remains active when opening Mixer from Sound Edit in Performance. Use the menu for SOLO; pressing **Select** or **Value** on GAIN does not toggle it. The waveform area indicates when SOLO is active. SOLO controls note mapping; PRE_LIST and LINEOUT control the audio destinations.
 
-Turn Select to reach all enabled menu commands. If a long menu does not fit on one line, the visible commands follow the cursor.
+Turn **Select** to reach all enabled menu commands. If a long menu does not fit on one line, the visible commands follow the cursor.
 
 
 ## Importing audio
@@ -445,7 +447,7 @@ This workflow keeps audio on SD and preserves the existing Flash library and rec
 
 Converted mono RAW files are stored in `/LILLA_AUDIO` at 44.1 kHz, signed 16-bit little-endian PCM. The input format requirements are listed below. Original files are retained and existing destination files are skipped. Files sharing a basename target the same RAW file; use unique names to retain every source. Subdirectories are not processed.
 
-SD conversion processes complete files without the Flash import limit of 3 MiB. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 4,096 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_AUDIO` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
+SD conversion and Flash import both process complete files. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 4,096 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_AUDIO` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
 
 ### Replace the Flash audio library
 
@@ -479,11 +481,10 @@ microSD root/
     Texture.raw
 ```
 
-Put the files directly in that folder. Keep their basenames distinct and no longer than 31 bytes. Plain ASCII names are an easy way to stay within that limit. Avoid names reserved for recording data, such as `P12.raw`.
+Put the files directly in that folder. Keep their basenames distinct and no longer than 31 bytes. Plain ASCII names are an easy way to stay within that limit. Names consisting of `LillaR` followed only by digits, such as `LillaR12.raw`, are reserved for recording data and cannot be imported. Names are case-sensitive; `P12.raw` is allowed.
 
 A compressed MP3 may be small on your computer but much larger after conversion. Judge Flash requirements from the import report, which accounts for the decoded audio.
 
-Each imported file is limited to 3 MiB of decoded mono PCM, approximately 35.7 seconds. Longer files are truncated. MP3 decoding and rate conversion can take longer than PCM import.
 
 ### Import the files
 
@@ -494,6 +495,8 @@ Each imported file is limited to 3 MiB of decoded mono PCM, approximately 35.7 s
 5. Choose `YES` only when you are ready to replace the current library and all Sampler recordings; choose `NO` to cancel.
 6. Wait for copying, memory configuration and restart to complete.
 7. Open Sound Edit and select the imported source you want to use.
+
+Flash import preserves each file's complete decoded mono audio; the former 3 MiB limit no longer applies. The complete library must fit in Flash. Sound Edit limits the playable region to the per-source PSRAM capacity, but you can move that region along the entire imported file. MP3 decoding and rate conversion can take longer than PCM import.
 
 After import, audition a few sources in Sound Edit before rebuilding an entire patch. Confirm the attack, endpoint and pitch, especially for a long or converted source.
 
@@ -589,7 +592,7 @@ WAV export is useful when you want to edit a take on a computer, share a recordi
 
 <img src="doc/assets/images/4.jpg" alt="Live Sampler recording with adjustable feedback compressor and waveform" width="55%">
 
-*The revised layout groups input gain, feedback and its compressor above the playback controls. This photograph shows STEP in samples; firmware 7.2.4 displays that editing increment in seconds.*
+*The revised layout groups input gain, feedback and its compressor above the playback controls.*
 
 Live Sampler records into a circular PSRAM buffer. It offers approximately 40 seconds in mono or 20 seconds in stereo. As recording continues, new audio replaces older buffer content.
 
@@ -612,11 +615,11 @@ The live buffer is temporary and is lost at power-off. Use the capture-to-patch 
 | `BUFFER` | Total live recording capacity for the selected mono/stereo layout. |
 | `LINE IN GAIN` | Gain applied to the incoming recording signal. |
 | `PLAY MODE` | Direction and looping behavior. Live capture into a sound requires a loop mode. |
-| `FEEDBACK` | Amount of previous material fed back during live recording. |
+| `FEEDBACK` | Amount of previous material fed back into the circular buffer during live recording. |
 | `WINDOW` | Amount of audio time visible in the waveform view. |
 | `START POINT` | Start-position behavior and its displayed position or relationship to recording. |
 | `LOOP` | Duration of the selected repeating region. |
-| `STEP` | Increment used to move the region controls, displayed in seconds. |
+| `STEP` | Increment used to move the region controls. |
 | `FEEDBACK COMPRESSOR` | Compression threshold from -24 to -3 dB, or OFF. |
 
 A smaller Window helps inspect a transient or a short loop. It does not automatically shorten the selected audio. Use **To** to adjust the loop length, and **From** to move its start.
@@ -631,13 +634,13 @@ For your first capture, stop recording and work on a fixed region. Once you are 
 
 ### Continuous FWD playback while recording
 
-While Live Sampler is recording, held notes in **FWD** continue around the circular buffer instead of stopping after one buffer length. This applies to **SYNC**, relative start positions and **FIXED**, in mono and stereo. Lower notes can therefore remain active beyond 40 seconds in mono (80 seconds at half speed). Note-off and the sound envelope still control the voice.
+While Live Sampler is recording, held notes in **LOOP FWD** continue around the circular buffer instead of stopping after one buffer length. This applies to **SYNC**, relative start positions and **FIXED**, in mono and stereo. Lower notes can therefore remain active beyond 40 seconds in mono (80 seconds at half speed). Note-off and the sound envelope still control the voice.
 
 During the first fill, reaching audio that has not yet been recorded still fades and stops the voice. Once recording stops, FWD resumes its normal one-shot behavior from the current playback position. Reverse and loop modes are unchanged.
 
 ### Stereo recording compressor
 
-On the Live Sampler page, turn **Select** to highlight `FEEDBACK COMPRESSOR`, then turn **Value** to choose a threshold from **-24 to -3 dB**, in 1 dB steps. **OFF** is the position beyond -3 dB. A lower threshold makes compression act earlier; OFF disables gain reduction. The threshold starts at **-6 dB** at power-on and is retained during the current session, but is not saved in a patch. All sound buttons, **S1-S8**, remain available for capture into the corresponding patch slots.
+On the Live Sampler page, turn **Select** to highlight `FEEDBACK COMPRESSOR`, then turn **Value** to choose a threshold from **-24 to -3 dB**, in 1 dB steps. **OFF** is the position beyond -3 dB. A lower threshold makes compression act earlier; OFF disables gain reduction. All sound buttons, **S1-S8**, remain available for capture into the corresponding patch slots.
 
 The compressor acts on the sum of line input and feedback before writing to the live buffer. Left and right share the same gain reduction, including when recording a mono mix. Once fully enabled it limits sample peaks to approximately -1 dBFS, without boosting quiet signals. It operates only during live recording and does not process material already recorded. It cannot repair clipping that has already occurred at the input or elsewhere in the feedback path.
 
@@ -699,7 +702,7 @@ You are not being asked to save patch 200. The warning protects edits to the pre
 
 ## MIDI Loop
 
-MIDI Loop records MIDI events into four tracks and plays them through the current patch. Track 1 is the master track and establishes the loop duration.
+MIDI Loop records MIDI events NoteOn and NoteOff into four tracks and plays them through the current patch. Track 1 is the master track and establishes the loop duration.
 
 ### Record your first loop
 
@@ -965,6 +968,8 @@ Save your current patch and any MIDI loops, and complete pending recording or ex
 
 Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the computer with the data cable. Keep power and USB connected throughout programming.
 
+> **Upgrading to 7.2.5:** the internal recording area uses new file names. Before using Sampler recordings with this firmware, recreate the Flash audio and recording area through audio import. Import erases the previous Flash audio and recordings; export any recordings you want to keep and retain your source audio files. Deleting individual recordings does not recreate the recording area.
+
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
@@ -972,7 +977,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.4. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.5. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -980,7 +985,7 @@ The manual controls above follow the [PJRC Windows loader instructions](https://
 
 | Symptom | What to check |
 | --- | --- |
-| The loader does not detect LILLA | Press and release the Firmware_upload mode button after connecting USB. Try a known data cable and another computer USB port. |
+| The loader does not detect LILLA | **Check that the USB cable supports data: a charge-only cable can power LILLA but cannot upload firmware.** Try a known data cable, press and release Firmware_upload mode, then try another computer USB port. |
 | The HEX file cannot be opened | Download the raw `.hex` file again. Check that you did not save the GitHub web page or a source archive. |
 | Programming finishes but LILLA does not start | Choose Operations > Reboot after Download Complete. If necessary, reconnect and repeat with the correct LILLA firmware. |
 | The welcome screen shows the old version | Check which HEX file is open in the loader and repeat Program, followed by Reboot. |
@@ -1026,7 +1031,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.4.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.5.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1035,11 +1040,15 @@ These controls are described in the [PJRC Mac loader instructions](https://www.p
 | Symptom | What to check |
 | --- | --- |
 | Teensy Loader will not open | Check the download source, macOS permission prompt and the loader's system requirements. |
-| LILLA is not detected | Reconnect USB, allow the accessory if prompted, and briefly press Firmware_upload mode. Try another data cable, port or adapter. |
+| LILLA is not detected | **Use a USB data cable: charge-only cables cannot upload firmware, even when LILLA receives power.** Reconnect USB, allow the accessory if prompted, briefly press Firmware_upload mode, and try another port or adapter. |
 | The HEX cannot be opened | Download the raw HEX from main again and check its extension in Finder. |
 | Programming completes but LILLA does not restart | Choose Operations > Reboot after Download Complete. |
 
 ## Troubleshooting
+
+### Hiss or background noise at the audio outputs
+
+**First check the power supply. Use a good-quality 5 V supply.** An inexpensive mobile-phone charger is often not the ideal supply for audio equipment and can introduce noise. Try a better-quality 5 V supply with the same audio connections and listening level, then compare the result.
 
 ### Diagnose silence in a useful order
 
@@ -1057,13 +1066,14 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | No sound from the controller | MIDI connection, instrument MIDI channel, keyboard range, source availability, gain, patch volume and Mixer output routing. |
 | A slot will not open for editing | The slot may be unused. Edit an active slot or clone an existing instrument into a free one. |
 | Sample sounds too high or too low | Root key, sound pitch, controller pitch bend and Setup key step. |
+| Hiss or background noise at the outputs | Try a good-quality 5 V power supply. A cheap mobile-phone charger can introduce audio noise. |
 | Audio clips or distorts | Reduce recording input gain or playback gain. Check Mixer levels, resolution and downsampling. |
 | Clicks at a loop boundary | Refine From/To and adjust Noclick where available. |
 | Fewer notes play than expected | LILLA has up to 16 voices; layers consume multiple voices and heavier playback can reduce availability. Review precedence and arrangement density. |
 | SD import cannot find files | Check the card and the exact `/FLASH_AUDIO` folder at its root. |
 | Import rejects a WAV or AIFF | Use uncompressed 16-bit PCM at 44.1 kHz with one or two channels. |
 | Import reports duplicate files | Give each source a distinct basename, including files in different formats. |
-| An imported sample ends early | Check the approximately 35.7-second import limit. |
+| An imported sample ends early | Check the Sound Edit trim region. Flash retains the complete imported file; move the playable window to reach later passages. Files imported with older firmware may need to be re-imported from their complete originals. |
 | RAW conversion fails | Check free RAW-file memory and available filenames. |
 | WAV export fails | Check that the SD card is present, writable and has free space. |
 | Live audio disappears | The live buffer is temporary. Capture the desired loop into a patch and save it before power-off. |
@@ -1166,6 +1176,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 20 October 2026*
+*LILLA User Guide - English edition - 21 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

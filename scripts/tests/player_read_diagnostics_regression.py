@@ -48,7 +48,7 @@ const char *Get_packet_name(uint16_t id, char (&name)[NAME_PACKET_SIZE])
 }
 
 enum Storage { Flash, Psram };
-struct Source { Storage storage = Flash; uint32_t samples = 0; const int16_t *psram_ptr = nullptr; };
+struct Source { Storage storage = Flash; uint32_t samples = 0; const int16_t *psram_ptr = nullptr; uint32_t first_sample = 0; };
 struct File
 {
     std::vector<byte> data = std::vector<byte>(131072);
@@ -150,6 +150,12 @@ int main()
     assert(p.read_diagnostics.sources[1].operations == 1 && p.read_diagnostics.sources[1].samples == 6);
     assert(p.read_diagnostics.flags & PlayerReadDiagnostics::PaddedRead);
     p.Read_samples(output, 6, 4); assert(output[0] == 16 && output[1] == 17 && output[2] == 0);
+    p.source_now.first_sample = 10000;
+    p.Read_samples(output, 10002, 4);
+    assert(output[0] == 12 && output[3] == 15);
+    p.Read_samples(output, 9998, 4);
+    assert(output[0] == 0 && output[1] == 0 && output[2] == 10 && output[3] == 11);
+    p.source_now.first_sample = 0;
     p.read_diagnostics = {}; p.source_now.storage = Flash; p.LS_flag = true; p.FIFO = source;
     p.Read_samples(output, 6, 4);
     assert(output[0] == 16 && output[1] == 17 && output[2] == 10 && output[3] == 11);

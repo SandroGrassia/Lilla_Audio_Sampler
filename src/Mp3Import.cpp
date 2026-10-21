@@ -130,7 +130,7 @@ Mp3Import::~Mp3Import()
     }
 }
 
-bool Mp3Import::Open(File &file, uint32_t &bytes, uint16_t &channels, uint32_t maximum_bytes)
+bool Mp3Import::Open(File &file, uint32_t &bytes, uint16_t &channels)
 {
     Mp3ImportDecoder *state = new (std::nothrow) Mp3ImportDecoder;
     if (state == nullptr)
@@ -149,16 +149,13 @@ bool Mp3Import::Open(File &file, uint32_t &bytes, uint16_t &channels, uint32_t m
     {
         return false;
     }
-    // Count actual decoded frames up to the import cap, including files without a VBR length tag.
-    const uint32_t maximum_frames = maximum_bytes / sizeof(int16_t);
+    // Count the complete decoded stream, including files without a VBR length tag.
     const bool resample = mp3->sampleRate != MP3_OUTPUT_RATE;
-    const uint32_t input_limit = resample ? static_cast<uint32_t>((static_cast<uint64_t>(maximum_frames) * mp3->sampleRate + MP3_OUTPUT_RATE - 1) / MP3_OUTPUT_RATE) + MP3_FILTER_TAPS / 2 : maximum_frames;
-    uint32_t frames = 0;
+    uint64_t frames = 0;
     int16_t buffer[256];
-    while (frames < input_limit)
+    while (true)
     {
-        const uint32_t remaining = input_limit - frames;
-        const uint32_t request = remaining < 128 ? remaining : 128;
+        const uint32_t request = 128;
         const uint32_t count = drmp3_read_pcm_frames_s16(mp3, request, buffer);
         frames += count;
         if (count != request)
@@ -166,9 +163,17 @@ bool Mp3Import::Open(File &file, uint32_t &bytes, uint16_t &channels, uint32_t m
             break;
         }
     }
+    if (frames > INT32_MAX)
+    {
+        return false;
+    }
     state->input_frames = frames;
     const uint64_t output_frames = (static_cast<uint64_t>(frames) * MP3_OUTPUT_RATE + mp3->sampleRate - 1) / mp3->sampleRate;
-    bytes = static_cast<uint32_t>(output_frames < maximum_frames ? output_frames : maximum_frames) * sizeof(int16_t);
+    if (output_frames > UINT32_MAX / sizeof(int16_t))
+    {
+        return false;
+    }
+    bytes = static_cast<uint32_t>(output_frames) * sizeof(int16_t);
     channels = resample ? 1 : mp3->channels;
     if (frames == 0 || state->read_failed || !drmp3_seek_to_pcm_frame(mp3, 0))
     {

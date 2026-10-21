@@ -53,7 +53,7 @@ FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Forma
     }
     else if (format == Format::Mp3)
     {
-        valid = mp3.Open(source, bytes, channels, 0xFFFFFFFEu);
+        valid = mp3.Open(source, bytes, channels);
     }
     if (!valid || bytes < 2 || (bytes & 1u) != 0 || (format != Format::Mp3 && !source.seek(offset)))
     {

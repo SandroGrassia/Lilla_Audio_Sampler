@@ -2790,7 +2790,7 @@ void AudioPlayer::Close_source(void)
 
 void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
 {
-    if (state != IDLE && source_now.storage == Flash && file_id == source.file_id)
+    if (state != IDLE && source_now.storage == Flash && file_id == source.file_id && A_Flash_sample >= static_cast<int>(source.first_sample) && B_Flash_sample < static_cast<int>(source.first_sample + source.samples) && (!main_settings_editing_flag || (A_Flash_sample_E >= static_cast<int>(source.first_sample) && B_Flash_sample_E < static_cast<int>(source.first_sample + source.samples))))
     {
         // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
@@ -2802,7 +2802,7 @@ void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
         }
         Update_pitch();
     }
-    if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id)
+    if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id && A_Flash_sample_wait >= static_cast<int>(source.first_sample) && B_Flash_sample_wait < static_cast<int>(source.first_sample + source.samples))
     {
         source_wait = source;
         pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, (file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id_wait)));
@@ -3198,6 +3198,7 @@ void AudioPlayer::Read_samples(int16_t *destination, int first_sample, int total
     }
     if (source_now.storage == Psram)
     {
+        first_sample -= static_cast<int>(source_now.first_sample);
         // The common reader preserves the existing forward, reverse and crossmix algorithms.
         const int first_valid = first_sample < 0 ? -first_sample : 0;
         const int available = static_cast<int>(source_now.samples) - first_sample;
@@ -3470,11 +3471,22 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
     // A restart consumes the wait parameters and can discard an edit queued for the old note.
     if ((warmup_for_play_again_flag || restart_flag) && patch_id_wait == patch && instrument_id_wait == instrument && file_id_wait == preset.file)
     {
+        Set_source(preset.source);
         Main_settings(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
     }
     if (state == IDLE || local_patch != patch || instrument_id != instrument || file_id != preset.file)
     {
         return false;
+    }
+    if (source_now.storage == Psram && file_id < FIRST_RECORDING_FILE && (preset.A < source_now.first_sample || preset.B >= source_now.first_sample + source_now.samples))
+    {
+        source_now = {};
+        source_now.file_id = file_id;
+        rawfile.fast_open(file_id);
+        AudioStartUsingSPI();
+        spi_in_use = true;
+        pitch_limit = Playback_pitch_limit(use_Wavetable, false, false);
+        Update_pitch();
     }
     Main_settings_editing(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
     return true;
