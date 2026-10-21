@@ -21,9 +21,9 @@ methods += shared[shared.index("// == overloads"):shared.index("enum AudioFileSt
 methods += implementation[implementation.index("byte ArchivingManager::Read_Delay"):implementation.index("byte ArchivingManager::Read_first_octave")]
 methods += implementation[implementation.index("byte ArchivingManager::Save_Sound"):implementation.index("byte ArchivingManager::Save_DS_Recording")]
 start = implementation.index("bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)")
-methods += implementation[start:implementation.index("bool ArchivingManager::Copy_Sound_from_RAM_to_SD", start)]
+methods += implementation[start:implementation.index("bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)", start)]
 start = implementation.index("bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)")
-methods += implementation[start:implementation.index("bool ArchivingManager::Copy_Sound_from_SD_to_RAM", start)]
+methods += implementation[start:implementation.index("bool ArchivingManager::Is_SD_inserted", start)]
 mock = backup["mock"].replace("    void close()", r"""
     int available() const { return position < size(); }
     int read()

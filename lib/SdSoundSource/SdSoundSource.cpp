@@ -36,7 +36,7 @@ FLASHMEM uint32_t SdSoundSource::Checksum(const Reference &reference)
 
 FLASHMEM void SdSoundSource::Reference_path(int file, char (&path)[64])
 {
-    snprintf(path, sizeof(path), "/LILLA_AUDIO/.lilla-sources/%05d.ref", file);
+    snprintf(path, sizeof(path), "/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources/%05d.ref", file);
 }
 
 FLASHMEM bool SdSoundSource::Read_header(File &index, UserAudioImport::Header &header)
@@ -165,8 +165,8 @@ FLASHMEM bool SdSoundSource::Load(int file, int16_t *destination)
         return false;
     }
     const auto &reference = item->reference;
-    char path[sizeof("/LILLA_AUDIO/") + 256];
-    snprintf(path, sizeof(path), "/LILLA_AUDIO/%s", reference.name);
+    char path[sizeof("/LILLA_PRIVATE/AUDIO_FILES/") + 256];
+    snprintf(path, sizeof(path), "/LILLA_PRIVATE/AUDIO_FILES/%s", reference.name);
     File input = SD.open(path);
     if (!input || input.size() != reference.original_bytes || !input.seek(reference.first * 2))
     {
@@ -218,7 +218,7 @@ FLASHMEM void SdSoundSource::Unbind_all()
 FLASHMEM int SdSoundSource::Save(uint32_t first, uint32_t last, bool (*identity_used)(int))
 {
     const auto *preview = Find(PREVIEW);
-    if (preview == nullptr || preview->data == nullptr || first > last || last >= preview->reference.samples || (!SD.exists("/LILLA_AUDIO/.lilla-sources") && !SD.mkdir("/LILLA_AUDIO/.lilla-sources")))
+    if (preview == nullptr || preview->data == nullptr || first > last || last >= preview->reference.samples || (!SD.exists("/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources") && !SD.mkdir("/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources")))
     {
         return -1;
     }
@@ -240,7 +240,7 @@ FLASHMEM int SdSoundSource::Save(uint32_t first, uint32_t last, bool (*identity_
     reference.first += first;
     reference.samples = last - first + 1;
     reference.checksum = Checksum(reference);
-    const char *temporary = "/LILLA_AUDIO/.lilla-sources/.new";
+    const char *temporary = "/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources/.new";
     if (SD.exists(temporary) && !SD.remove(temporary))
     {
         return -1;

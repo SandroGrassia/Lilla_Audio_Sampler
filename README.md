@@ -63,7 +63,7 @@ Sampler records the line input as a mono or stereo take in Flash. Use **PAUSE+RE
 
 **MAKE_RAW** converts recording material into the source format used by patches. **EXPORT_WAV_TO_SD** writes a 16-bit, 44.1 kHz WAV to microSD for editing, sharing or archiving on a computer. This makes Sampler useful for recording an instrument, voice, percussion hit or complete phrase before deciding how to map it to the keyboard.
 
-Recordings occupy persistent Flash storage, while WAV exports are written to `/LILLAWAV_EXPORT`. Keep an external copy before replacing the audio library or performing destructive storage operations. See [Recording with Sampler](User%20Guide.md#recording-with-sampler).
+Recordings occupy persistent Flash storage, while WAV exports are written to `/EXPORTED_AUDIO_FILES`. Keep an external copy before replacing the audio library or performing destructive storage operations. See [Recording with Sampler](User%20Guide.md#recording-with-sampler).
 
 ### Live Sampler
 
@@ -87,7 +87,7 @@ Track 1 is the master and establishes the loop duration. Record the first phrase
 
 Tracks can be started or stopped individually. Their **LEVEL**, **SHIFT** and **TRANSP** parameters adjust playback level, timing offset and note transposition. The Tempo control changes the timing of the MIDI sequence, while the Loop control selects saved loops and controls group playback. Tempo changes affect event timing rather than time-stretching sample audio.
 
-Save an arrangement or save a new variation to microSD in `/LILLALOOP`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
+Save an arrangement or save a new variation to microSD in `/LILLA_PRIVATE/MIDI_LOOPS`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
 
 ## Audio Files and Storage
 

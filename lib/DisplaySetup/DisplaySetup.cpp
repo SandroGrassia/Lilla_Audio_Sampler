@@ -216,7 +216,7 @@ void DisplaySetup::CC_show_frame_menu(int value)
 
 FLASHMEM void DisplaySetup::SETUP_show_convert_popup(void)
 {
-    const char *lines[Convert_popup_lines] = {"CONVERT WAV/AIFF/MP3/RAW", "FROM SD /EXTERNAL_AUDIO", "TO MONO RAW IN SD /LILLA_AUDIO", "ORIGINALS KEPT - EXISTING FILES SKIPPED", "CANCEL    GO"};
+    const char *lines[Convert_popup_lines] = {"CONVERT WAV/AIFF/MP3/RAW", "FROM SD /SD_AUDIO_FILES", "TO /LILLA_PRIVATE/AUDIO_FILES", "ORIGINALS KEPT - EXISTING FILES SKIPPED", "CANCEL    GO"};
     Show_popup_text(lines, Convert_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
     SETUP_show_convert_frame(0);
 }
@@ -231,7 +231,7 @@ FLASHMEM void DisplaySetup::SETUP_show_convert_frame(int value)
 
 FLASHMEM void DisplaySetup::SETUP_show_import_info_popup(void)
 {
-    const char *lines[Import_info_popup_lines] = {"IMPORT WAV/AIFF/MP3/RAW AUDIO FILES", "FROM SD /FLASH_AUDIO INTO LILLA", "PERMANENT FLASH MEMORY", "CANCEL   GO"};
+    const char *lines[Import_info_popup_lines] = {"IMPORT WAV/AIFF/MP3/RAW AUDIO FILES", "FROM SD /FLASH_AUDIO_FILES INTO LILLA", "PERMANENT FLASH MEMORY", "CANCEL   GO"};
     Show_popup_text(lines, Import_info_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
     SETUP_show_import_info_frame(0);
 }

@@ -184,7 +184,7 @@ Use the last shortcut when you need to stop sounding notes quickly. In MIDI Loop
 
 The firmware provides storage for up to 200 patches and 800 sound records. These are storage capacities; the instrument has up to 16 simultaneous playback voices. Available polyphony also depends on playback workload.
 
-Flash memory holds the imported audio library and Sampler recordings. PSRAM holds live audio. The microSD card also holds indexed audio sources in `/LILLA_AUDIO`, and is used for import, WAV export, backups and MIDI-loop files. Selected portions of SD audio files are loaded into PSRAM before playback; playback does not stream audio from the SD card.
+Flash memory holds the imported audio library and Sampler recordings. PSRAM holds live audio. The microSD card also holds indexed audio sources in `/LILLA_PRIVATE/AUDIO_FILES`, and is used for import, WAV export, backups and MIDI-loop files. Selected portions of SD audio files are loaded into PSRAM before playback; playback does not stream audio from the SD card.
 
 ### Follow the sound from source to keyboard
 
@@ -336,7 +336,7 @@ Choose `BROWSE_FLASH` or `BROWSE_SD` in Sound Edit to browse the corresponding l
 
 Selecting an SD file loads a window limited by the available per-source PSRAM cache for MIDI audition, without continuous SD reads during notes. Adjust From, To and Step to choose the portion; the display uses `SAVE FROM` and `TO` during preview. Gain, pitch, MIDI channel, resolution, downsampling and LPF remain editable. Pan, envelope, playback mode and Noclick are fixed during preview and become editable after SAVE.
 
-Choose `SAVE` to retain the selected portion and its persistent SD source reference, then save the patch in Performance. No audio is written to Flash by this operation. Keep the RAW files and hidden `/LILLA_AUDIO/.lilla-sources` directory together: both are needed to reload saved Sounds after startup. `RETURN` without SAVE restores the previous Sound.
+Choose `SAVE` to retain the selected portion and its persistent SD source reference, then save the patch in Performance. No audio is written to Flash by this operation. Keep the RAW files and hidden `/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources` directory together: both are needed to reload saved Sounds after startup. `RETURN` without SAVE restores the previous Sound.
 
 `AUDIO FILE UNAVAILABLE` indicates a missing source; audio already cached in PSRAM can continue playing after card removal. If selection fails after removing the card, `INSERT SD` appears and the previous selection is preserved.
 
@@ -439,15 +439,15 @@ Turn **Select** to reach all enabled menu commands. If a long menu does not fit 
 
 This workflow keeps audio on SD and preserves the existing Flash library and recordings.
 
-1. Put source RAW, WAV, AIFF/AIF or MP3 files directly in `/EXTERNAL_AUDIO` at the card root. Use distinct basenames.
+1. Put source RAW, WAV, AIFF/AIF or MP3 files directly in `/SD_AUDIO_FILES` at the card root. Use distinct basenames.
 2. Insert the card and open **Tools > Setup**.
-3. Select `CONVERT SD AUDIO FILES`. Read the green confirmation dialog and choose `GO` to begin or `CANCEL` to return. The dialog identifies `/EXTERNAL_AUDIO` as the source and `/LILLA_AUDIO` as the mono RAW destination.
+3. Select `CONVERT SD AUDIO FILES`. Read the green confirmation dialog and choose `GO` to begin or `CANCEL` to return. The dialog identifies `/SD_AUDIO_FILES` as the source and `/LILLA_PRIVATE/AUDIO_FILES` as the mono RAW destination.
 4. Wait while `FILE IMPORT IN PROGRESS` is displayed. Audio and MIDI pause during conversion; do not power off or remove the card.
 5. Open Sound Edit and choose `BROWSE_SD` to audition and save a portion, then save the patch in Performance.
 
-Converted mono RAW files are stored in `/LILLA_AUDIO` at 44.1 kHz, signed 16-bit little-endian PCM. The input format requirements are listed below. Original files are retained and existing destination files are skipped. Files sharing a basename target the same RAW file; use unique names to retain every source. Subdirectories are not processed.
+Converted mono RAW files are stored in `/LILLA_PRIVATE/AUDIO_FILES` at 44.1 kHz, signed 16-bit little-endian PCM. The input format requirements are listed below. Original files are retained and existing destination files are skipped. Files sharing a basename target the same RAW file; use unique names to retain every source. Subdirectories are not processed.
 
-SD conversion and Flash import both process complete files. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 4,096 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_AUDIO` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
+SD conversion and Flash import both process complete files. Preview is limited by the per-source PSRAM cache capacity. The alphabetical catalog holds up to 4,096 files. Conversion and index errors are reported on Serial. Preserve the complete `/LILLA_PRIVATE/AUDIO_FILES` directory, including hidden files, in a separate computer backup; the normal backup procedure does not archive this SD source library.
 
 ### Replace the Flash audio library
 
@@ -457,7 +457,7 @@ Check both the source report and destination capacity before importing. Confirmi
 
 ### Prepare the microSD card
 
-Create `/FLASH_AUDIO` at the card's root and put your audio files directly inside it.
+Create `/FLASH_AUDIO_FILES` at the card's root and put your audio files directly inside it.
 
 | Format | Import requirements |
 | --- | --- |
@@ -474,7 +474,7 @@ A simple card layout is:
 
 ```text
 microSD root/
-  FLASH_AUDIO/
+  FLASH_AUDIO_FILES/
     BassDry.wav
     Bell.aiff
     DrumLoop.mp3
@@ -490,7 +490,7 @@ A compressed MP3 may be small on your computer but much larger after conversion.
 
 1. Insert the prepared microSD card.
 2. Open **Tools > Setup**.
-3. Select `IMPORT AUDIO FILES FROM SD` and press Select. The green dialog identifies WAV/AIFF/MP3/RAW files in `/FLASH_AUDIO` and LILLA's permanent Flash memory. Choose `GO` to continue or `CANCEL` to return.
+3. Select `IMPORT AUDIO FILES FROM SD` and press Select. The green dialog identifies WAV/AIFF/MP3/RAW files in `/FLASH_AUDIO_FILES` and LILLA's permanent Flash memory. Choose `GO` to continue or `CANCEL` to return.
 4. Review the import report and red erase warning.
 5. Choose `YES` only when you are ready to replace the current library and all Sampler recordings; choose `NO` to cancel.
 6. Wait for copying, memory configuration and restart to complete.
@@ -578,7 +578,7 @@ Conversion copies the saved A/B region. After all requested RAW files are create
 
 Insert a microSD card, select a recording and choose `EXPORT_WAV_TO_SD`. The exported WAV contains its saved A/B region, preserves the recording's mono or stereo layout and uses 16-bit PCM at 44.1 kHz.
 
-Files are written to `/LILLAWAV_EXPORT`, with names such as `0M.wav` for mono or `0S.wav` for stereo. Wait for the success message before removing the card.
+Files are written to `/EXPORTED_AUDIO_FILES`, with names such as `0M.wav` for mono or `0S.wav` for stereo. Wait for the success message before removing the card.
 
 After a successful WAV export, LILLA deletes the original Sampler recording and frees its recording slot and Flash packets. If the export fails, the original recording is retained. To keep the recording in LILLA as well as an external copy, use backup instead.
 
@@ -753,7 +753,7 @@ Use `SAVE` to update a saved loop and `SAVE_AS_NEW` to keep another version. `NE
 
 Firmware 7.2.6 can load loops saved by earlier firmware. Loops saved with 7.2.6 use a new format and require 7.2.6 or later to load.
 
-Loop files are stored in `/LILLALOOP`. Keep a copy of this folder when archiving your work. Loop files contain MIDI data, so preserve the required patch and source audio as well.
+Loop files are stored in `/LILLA_PRIVATE/MIDI_LOOPS`. Keep a copy of this folder when archiving your work. Loop files contain MIDI data, so preserve the required patch and source audio as well.
 
 ## Mixer, delay and filters
 
@@ -835,13 +835,13 @@ CUTOFF changes also reach notes already playing, with or without LFO, through a 
 
 Open **Tools > Setup** for these entries, in display order:
 
-- `CONVERT SD AUDIO FILES`: prepare mono RAW files in `/LILLA_AUDIO` from `/EXTERNAL_AUDIO`, keeping originals and skipping existing destination files.
-- `IMPORT AUDIO FILES FROM SD`: replace the Flash audio library using files in `/FLASH_AUDIO`.
+- `CONVERT SD AUDIO FILES`: prepare mono RAW files in `/LILLA_PRIVATE/AUDIO_FILES` from `/SD_AUDIO_FILES`, keeping originals and skipping existing destination files.
+- `IMPORT AUDIO FILES FROM SD`: replace the Flash audio library using files in `/FLASH_AUDIO_FILES`.
 - `KEYBOARD STEP`: pitch mapping increments of one semitone, half a semitone, quarter or eighth of a semitone.
 - `FIRST OCTAVE`: the octave-number convention used for note display.
 - `CONTROL CHANGE ASSIGNMENT`: MIDI CC assignments for gains of Sound 1-8 and the low-pass cutoff.
 - `CONFIGURATION BACKUP`: save configuration and recording audio in a new numbered backup folder.
-- `RESTORE CONFIGURATION FROM BACKUP`: restore the backup placed directly in `/LILLABACKUP`.
+- `RESTORE CONFIGURATION FROM BACKUP`: restore the backup placed directly in `/RESTORE`.
 - `FACTORY RESET`: delete patches and recordings while keeping imported audio files.
 
 Confirmation dialogs identify the relevant folders and explain what will be kept, replaced or excluded. Green dialogs introduce conversion, import and backup; red dialogs warn before destructive operations. Turn Select to choose an action and press it to confirm. `CANCEL`/`GO` is used for conversion, initial import, backup and restore; the final Flash erase warning and factory reset use `NO`/`YES`.
@@ -879,6 +879,25 @@ If the monitor receives notes but Performance is silent, the connection is worki
 
 ## Backup and restore
 
+### SD folder layout
+
+```text
+microSD root/
+  SD_AUDIO_FILES/       Originals for conversion to the SD audio library
+  FLASH_AUDIO_FILES/    Originals for import into internal Flash
+  EXPORTED_AUDIO_FILES/ Sampler recordings exported as WAV
+  DATA_BACKUPS/         Numbered configuration and recording backups
+  RESTORE/              Contents of the selected backup to restore
+  LILLA_PRIVATE/
+    MIDI_LOOPS/         Saved MIDI loops
+    AUDIO_FILES/  Prepared RAW library, index and source references
+    PATCHES/            Patch parameter copies
+```
+
+Prepare the input folders and `/RESTORE` as needed. The firmware creates output folders when saving or converting. Keep all hidden files in `AUDIO_FILES` when copying the library.
+
+For an existing SD card, rename `/EXTERNAL_AUDIO` to `/SD_AUDIO_FILES`, `/FLASH_AUDIO` to `/FLASH_AUDIO_FILES`, `/LILLAWAV_EXPORT` to `/EXPORTED_AUDIO_FILES`, and `/LILLABACKUP` to `/DATA_BACKUPS`. Create `/LILLA_PRIVATE` and move `/LILLALOOP`, `/LILLA_AUDIO`, and `/LILLAPATCH` into it as `MIDI_LOOPS`, `AUDIO_FILES`, and `PATCHES`, respectively. File contents and formats do not change. The unused `/LILLASOUND` folder is no longer used. Migration is manual; the firmware reads the new paths.
+
 ### Plan a complete archive
 
 A configuration backup is one part of preserving a session. Keep the matching audio library and MIDI-loop files with it so the saved settings have the material they need.
@@ -890,9 +909,9 @@ A configuration backup is one part of preserving a session. Keep the matching au
 | Sampler recording audio | Included. | WAV export is also useful for computer access. |
 | Sampler recording A/B boundaries | Included in current backups. | Older backups without trim metadata restore the full recording region. |
 | Imported RAW library | Not included. | Retain the original import library separately. |
-| SD source library | Not included in the normal backup. | Copy the complete `/LILLA_AUDIO` directory, including hidden files, to your computer. |
+| SD source library | Not included in the normal backup. | Copy the complete `/LILLA_PRIVATE/AUDIO_FILES` directory, including hidden files, to your computer. |
 | RAW files generated from recordings or live captures | Not included as a complete RAW-library archive. | Keep an independent recoverable audio copy; saving to Flash alone is not an external backup. |
-| MIDI-loop directory | Not included. | Copy `/LILLALOOP` from the card. |
+| MIDI-loop directory | Not included. | Copy `/LILLA_PRIVATE/MIDI_LOOPS` from the card. |
 | Temporary live buffer | Not included. | Capture and save useful material before power-off. |
 
 For a Live Sampler capture, this firmware's Sampler WAV-export command does not provide a general RAW-library export. Do not assume that a numbered backup alone can restore every captured RAW source after that source is erased.
@@ -906,17 +925,17 @@ For a Live Sampler capture, this firmware's Sampler WAV-export command does not 
 5. Wait for the backup success message.
 6. Copy the backup folder to your computer for safekeeping.
 
-Backups are created in numbered directories such as `/LILLABACKUP/000001`. They contain configuration and Sampler recording audio. Previous numbered backups are kept.
+Backups are created in numbered directories such as `/DATA_BACKUPS/000001`. They contain configuration and Sampler recording audio. Previous numbered backups are kept.
 
-Keep your imported source library separately. The backup operation does not copy the entire imported RAW library, the temporary live buffer or the MIDI-loop directory. Copy `/LILLALOOP` separately and retain your import files. Save live captures into a patch before archiving their settings, and account for the RAW-audio limitation described above.
+Keep your imported source library separately. The backup operation does not copy the entire imported RAW library, the temporary live buffer or the MIDI-loop directory. Copy `/LILLA_PRIVATE/MIDI_LOOPS` separately and retain your import files. Save live captures into a patch before archiving their settings, and account for the RAW-audio limitation described above.
 
 ### Restore a backup
 
-Choose GO only after preparing the intended backup in the card's backup root.
+Choose GO only after preparing the intended backup in the card's `/RESTORE` folder.
 
 1. On your computer, choose the numbered backup you want to restore.
-2. Copy **the contents** of that directory into `/LILLABACKUP` on the card, keeping its configuration and recording files together.
-3. Check that `/LILLABACKUP/LILLA_CONFIG.fram` exists. Leaving it only inside `000001`, for example, is not enough.
+2. Copy **the contents** of that directory into `/RESTORE` on the card, keeping its configuration and recording files together.
+3. Check that `/RESTORE/LILLA_CONFIG.fram` exists. Leaving it only inside `000001`, for example, is not enough.
 4. Insert the card and open Tools > Setup.
 5. Select `RESTORE CONFIGURATION FROM BACKUP`. Read the instructions and warning, then choose `GO` to restore or `CANCEL` to return.
 6. Wait for restoration and any requested restart to finish.
@@ -926,7 +945,7 @@ The restore location should look like this:
 
 ```text
 microSD root/
-  LILLABACKUP/
+  RESTORE/
     LILLA_CONFIG.fram
     [matching recording-audio files from the chosen backup]
 ```
@@ -1074,7 +1093,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Audio clips or distorts | Reduce recording input gain or playback gain. Check Mixer levels, resolution and downsampling. |
 | Clicks at a loop boundary | Refine From/To and adjust Noclick where available. |
 | Fewer notes play than expected | LILLA has up to 16 voices; layers consume multiple voices and heavier playback can reduce availability. Review precedence and arrangement density. |
-| SD import cannot find files | Check the card and the exact `/FLASH_AUDIO` folder at its root. |
+| SD import cannot find files | Check the card and the exact `/FLASH_AUDIO_FILES` folder at its root. |
 | Import rejects a WAV or AIFF | Use uncompressed 16-bit PCM at 44.1 kHz with one or two channels. |
 | Import reports duplicate files | Give each source a distinct basename, including files in different formats. |
 | An imported sample ends early | Check the Sound Edit trim region. Flash retains the complete imported file; move the playable window to reach later passages. Files imported with older firmware may need to be re-imported from their complete originals. |
@@ -1084,7 +1103,7 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Live Sampler asks to open Performance and save | The previous normal patch has unsaved edits. Return to Performance, save it, then retry capture. |
 | Live capture is refused | Stop recording, select loop mode, shorten the region if necessary, and save existing patch changes. |
 | Tracks disappear after re-recording Track 1 | Track 1 establishes a new loop and clears the other tracks. |
-| Restore cannot find the backup | Place `LILLA_CONFIG.fram` and its matching recording files directly in `/LILLABACKUP`. |
+| Restore cannot find the backup | Place `LILLA_CONFIG.fram` and its matching recording files directly in `/RESTORE`. |
 | Restored patch cannot play its source | Restore or re-import the required source library; configuration backup does not include all imported audio. |
 
 ## Practical projects
@@ -1143,17 +1162,17 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Edit a sound | Performance > S1-S8 for an active slot. |
 | Add another instrument using an existing sound | Sound Edit > CLONE, then edit the new slot. |
 | Keep sound edits after power-off | Return to Performance > SAVE. |
-| Import computer audio | SD `/FLASH_AUDIO` > Tools > Setup > import. |
+| Import computer audio | SD `/FLASH_AUDIO_FILES` > Tools > Setup > import. |
 | Record line input | Sampler > PAUSE+REC > MONO_REC or STEREO_REC > STOP. |
 | Edit a recording while playing it from the keyboard | Sampler > completed recording > S1 (mono/left) or S2 (stereo right) > Sound Edit > RETURN. |
 | Keep recording trim points for playback and export | Adjust A/B in Sampler Sound Edit; saved automatically, with stereo channels linked. |
 | Turn a recording into a source | Sampler > MAKE_RAW. |
-| Export a recording | Sampler > EXPORT_WAV_TO_SD > SD `/LILLAWAV_EXPORT`. |
+| Export a recording | Sampler > EXPORT_WAV_TO_SD > SD `/EXPORTED_AUDIO_FILES`. |
 | Record temporary live audio | Live Sampler > CAPTURE > STOP. |
 | Preserve a live loop | Stop live recording > loop mode > S1-S8 > set root key > save patch. |
 | Record a MIDI loop | MIDI Loop > Rec 1 > play > Rec 1 again. |
 | Back up configuration and recordings | Tools > Setup > CONFIGURATION BACKUP. |
-| Restore a numbered backup | Copy its contents to SD `/LILLABACKUP` > Tools > Setup > RESTORE CONFIGURATION FROM BACKUP. |
+| Restore a numbered backup | Copy its contents to SD `/RESTORE` > Tools > Setup > RESTORE CONFIGURATION FROM BACKUP. |
 
 ## Glossary
 

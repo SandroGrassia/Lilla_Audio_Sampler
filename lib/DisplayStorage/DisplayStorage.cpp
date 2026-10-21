@@ -48,7 +48,7 @@ void DisplayStorage::Import_raw_files_frame(uint8_t value)
 FLASHMEM
 void DisplayStorage::Confirm_config_import_popup(void)
 {
-    const char *lines[Restore_popup_lines] = {"PLEASE COPY THE CHOSEN BACKUP'S CONTENTS", "INTO SD /LILLABACKUP FIRST", "", "- WARNING -", "RESTORE CONFIGURATION DELETES PATCHES AND", "AUDIO RECORDING. AUDIO FILES IN FLASH ARE KEPT", "", "DO YOU WANT TO PROCEED?", "CANCEL    GO"};
+    const char *lines[Restore_popup_lines] = {"PLEASE COPY THE CHOSEN BACKUP'S CONTENTS", "INTO SD /RESTORE FIRST", "", "- WARNING -", "RESTORE CONFIGURATION DELETES PATCHES AND", "AUDIO RECORDING. AUDIO FILES IN FLASH ARE KEPT", "", "DO YOU WANT TO PROCEED?", "CANCEL    GO"};
     Show_popup_text(lines, Restore_popup_lines, ILI9341_WHITE, ILI9341_RED);
 }
 
@@ -107,7 +107,7 @@ void DisplayStorage::FRAM_recovery_popup(void)
     tft.setCursor(10, 70);
     tft.println(F("ARCHIVE UNAVAILABLE - RESTORE REQUIRED"));
     tft.setCursor(10, 100);
-    tft.println(F("Put backup files in /LILLABACKUP root"));
+    tft.println(F("Put backup files in /RESTORE"));
     tft.setCursor(10, 130);
     tft.println(F("LILLA_CONFIG.fram + REC audio files"));
     tft.setCursor(10, 150);
@@ -142,7 +142,7 @@ void DisplayStorage::Confirm_factory_reset_frame(uint8_t value)
 FLASHMEM
 void DisplayStorage::Confirm_config_export_popup(void)
 {
-    const char *lines[Backup_popup_lines] = {"SAVE CONFIGURATION AND RECORDING AUDIO", "TO A NEW NUMBERED FOLDER /LILLABACKUP IN SD", "(PREVIOUS BACKUPS ARE KEPT)", "- NOTICE -", "AUDIO LIBRARIES AND MIDI LOOPS ARE", "NOT INCLUDED IN BACKUP", "CANCEL    GO"};
+    const char *lines[Backup_popup_lines] = {"SAVE CONFIGURATION AND RECORDING AUDIO", "TO A NEW NUMBERED FOLDER /DATA_BACKUPS IN SD", "(PREVIOUS BACKUPS ARE KEPT)", "- NOTICE -", "AUDIO LIBRARIES AND MIDI LOOPS ARE", "NOT INCLUDED IN BACKUP", "CANCEL    GO"};
     Show_popup_text(lines, Backup_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
 }
 
@@ -174,7 +174,7 @@ void DisplayStorage::Config_export_SD_error_popup(void)
 FLASHMEM
 void DisplayStorage::Config_export_save_popup(void)
 {
-    Show_popup_text("NUMBERED BACKUP SAVED IN /LILLABACKUP", ILI9341_WHITE, ILI9341_BLACK);
+    Show_popup_text("NUMBERED BACKUP SAVED IN /DATA_BACKUPS", ILI9341_WHITE, ILI9341_BLACK);
 }
 
 FLASHMEM
@@ -279,7 +279,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(ILI9341_YELLOW);
-    tft.print(F("NO FILES TO IMPORT: MISSING /FLASH_AUDIO DIRECTORY!"));
+    tft.print(F("MISSING SD /FLASH_AUDIO_FILES"));
 }
 
 FLASHMEM
@@ -287,7 +287,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(TEXT_COLOR);
-    tft.print(F("SOURCE: SD CARD /FLASH_AUDIO"));
+    tft.print(F("SOURCE: SD CARD /FLASH_AUDIO_FILES"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
     tft.print(F("- AUDIO FILES"));
     tft.setCursor(display_coordinate_x(14), display_coordinate_y(4));
@@ -335,7 +335,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
 FLASHMEM
 void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(void)
 {
-    const char *lines[Import_popup_lines] = {"IMPORT AUDIO FROM SD /FLASH_AUDIO", "TO LILLA 64MB FLASH MEMORY.", "FILES LONGER THAN 33 SECONDS ARE TRUNCATED", "- WARNING -", "ALL EXISTING FLASH AUDIO AND RECORDINGS ARE DELETED", "NO   YES"};
+    const char *lines[Import_popup_lines] = {"IMPORT AUDIO FROM SD /FLASH_AUDIO_FILES", "TO LILLA 64MB FLASH MEMORY.", "COMPLETE FILES ARE IMPORTED", "- WARNING -", "ALL EXISTING FLASH AUDIO AND RECORDINGS ARE DELETED", "NO   YES"};
     Show_popup_text(lines, Import_popup_lines, ILI9341_WHITE, ILI9341_RED);
 }
 
@@ -358,7 +358,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_tim
     //        "012345678901234567890 234 X 432 98765432109876543210"; // max 52 char
     tft.print(F("PLEASE WAIT: FLASH MEMORY ERASE IS RUNNING."));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(13) - 5);
-    tft.print(F("THEN AUDIO FILES WILL BE COPIED FROM SD/FLASH_AUDIO"));
+    tft.print(F("THEN IMPORT FROM SD /FLASH_AUDIO_FILES"));
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(14) - 5);
     tft.print("TO LILLA FLASH MEMORY");
 }

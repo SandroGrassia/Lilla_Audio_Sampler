@@ -23,14 +23,11 @@ private:
 #define AUDIO_BOARD_SDCARD 10
 
     FLASHMEM String Filename_Patch(const int patch_id);
-    FLASHMEM String Filename_Sound(const int patch_id, const int instrument_id);
 
-    static constexpr size_t PATCH_PATH_SIZE = 32;
+    static constexpr size_t PATCH_PATH_SIZE = sizeof("/LILLA_PRIVATE/PATCHES/-2147483648.bin.patch");
     FLASHMEM bool Is_SD_inserted(void);
     FLASHMEM bool Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
     FLASHMEM bool Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
-    FLASHMEM void Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file);
-    FLASHMEM void Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file);
 
     static constexpr uint16_t FILEHEADER_VERSION = 0;
 
@@ -252,8 +249,6 @@ public:
     FLASHMEM bool Copy_Patch_from_RAM_to_SD(const int patch_id);
     FLASHMEM bool Copy_Patch_from_SD_to_RAM(const int patch_id);
 
-    FLASHMEM bool Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id);
-    FLASHMEM bool Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id);
 
     FLASHMEM bool Save_Patch_from_RAM_to_SD(const int patch_id);
     FLASHMEM bool Resume_Patch_from_SD_to_RAM(const int patch_id);

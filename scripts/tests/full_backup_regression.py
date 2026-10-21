@@ -283,7 +283,7 @@ void select_backup(const std::string &folder)
     {
         if (name.rfind(folder + "/", 0) == 0)
         {
-            selected[std::string(BACKUP_ROOT) + name.substr(folder.size())] = std::make_shared<Node>(*node);
+            selected[std::string(RESTORE_ROOT) + name.substr(folder.size())] = std::make_shared<Node>(*node);
         }
     }
     for (const auto &[name, node] : selected)
@@ -322,29 +322,29 @@ int main()
     const auto original = flash;
     const auto config = LillaFram.memory;
     assert(BACKUP_Export());
-    const std::string first = "/LILLABACKUP/000001", second = "/LILLABACKUP/000002";
+    const std::string first = "/DATA_BACKUPS/000001", second = "/DATA_BACKUPS/000002";
     assert(SD.exists((first + "/LILLA_CONFIG.fram").c_str()));
     assert(SD.exists((first + "/REC_03_L.raw").c_str()) && SD.exists((first + "/REC_03_R.raw").c_str()));
     assert(SD.exists((first + "/REC_29_L.raw").c_str()) && !SD.exists((first + "/REC_29_R.raw").c_str()));
-    assert(!SD.exists("/LILLABACKUP/000001.tmp") && flash == original && LillaFram.memory == config);
+    assert(!SD.exists("/DATA_BACKUPS/000001.tmp") && flash == original && LillaFram.memory == config);
     const auto first_config = nodes.at(first + "/LILLA_CONFIG.fram")->bytes;
     assert(BACKUP_Export());
     assert(SD.exists(second.c_str()) && nodes.at(first + "/LILLA_CONFIG.fram")->bytes == first_config);
     // Subdirectories are not imported automatically; the user must select files in the root.
     rejected_without_changes();
     sd_write_budget = 300;
-    assert(!BACKUP_Export() && !SD.exists("/LILLABACKUP/000003"));
-    assert(SD.exists("/LILLABACKUP/000003.tmp") && nodes.at(first + "/LILLA_CONFIG.fram")->bytes == first_config);
+    assert(!BACKUP_Export() && !SD.exists("/DATA_BACKUPS/000003"));
+    assert(SD.exists("/DATA_BACKUPS/000003.tmp") && nodes.at(first + "/LILLA_CONFIG.fram")->bytes == first_config);
     clear_faults();
     fail_sync = true;
-    assert(!BACKUP_Export() && !SD.exists("/LILLABACKUP/000004"));
+    assert(!BACKUP_Export() && !SD.exists("/DATA_BACKUPS/000004"));
     clear_faults();
     fail_rename = true;
-    assert(!BACKUP_Export() && !SD.exists("/LILLABACKUP/000005"));
+    assert(!BACKUP_Export() && !SD.exists("/DATA_BACKUPS/000005"));
     clear_faults();
-    assert(BACKUP_Export() && SD.exists("/LILLABACKUP/000006")); // Never reuse incomplete numbers.
+    assert(BACKUP_Export() && SD.exists("/DATA_BACKUPS/000006")); // Never reuse incomplete numbers.
     select_backup(first);
-    const std::string root_config = "/LILLABACKUP/LILLA_CONFIG.fram", right = "/LILLABACKUP/REC_03_R.raw";
+    const std::string root_config = "/RESTORE/LILLA_CONFIG.fram", right = "/RESTORE/REC_03_R.raw";
     auto right_file = nodes.at(right);
     nodes.erase(right);
     restored_without_stereo(original[1]);
@@ -356,7 +356,7 @@ int main()
     restored_without_stereo(original[1]);
     // Capacity counts only surviving Recordings; a bad left channel also discards the right.
     select_backup(first);
-    nodes.erase("/LILLABACKUP/REC_03_L.raw");
+    nodes.erase("/RESTORE/REC_03_L.raw");
     physical_capacity = 2;
     restored_without_stereo(original[1]);
     physical_capacity = 12;
@@ -388,7 +388,7 @@ int main()
     assert(std::equal(config.begin() + 256, config.begin() + 0xFB00, LillaFram.memory.begin() + 256));
     // Fail after prevalidation while reading audio: READY must never be published.
     clear_faults();
-    read_failure_path = "/LILLABACKUP/REC_03_L.raw";
+    read_failure_path = "/RESTORE/REC_03_L.raw";
     read_budget = 2 * PACKET_DIM + 256; // One validation pass, then one restored page.
     assert(!BACKUP_Restore() && Archive.Check_FRAM_archive() != 0 && !audio_enabled);
     clear_faults();

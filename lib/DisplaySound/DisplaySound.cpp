@@ -368,7 +368,7 @@ void DisplaySound::Show_wave(int instrument_id)
         tft.writeRect(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.width(), canvas.height(), canvas.getBuffer());
         if (no_repository)
         {
-            Show_popup_text("OPEN SETUP: CONVERT AUDIO FILES", "STORED IN SD /EXTERNAL_AUDIO", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+            Show_popup_text("OPEN SETUP: CONVERT AUDIO FILES", "STORED IN SD /SD_AUDIO_FILES", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
         }
         else
         {
