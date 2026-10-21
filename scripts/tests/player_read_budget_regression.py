@@ -56,6 +56,7 @@ struct AudioPlayer
     int mode_player = 0, mode_player_wait = 0, mode_player_E = 0;
     int A_Flash_sample = 0, B_Flash_sample = 9999, A_Flash_sample_wait = 0, B_Flash_sample_wait = 9999, A_Flash_sample_E = 0, B_Flash_sample_E = 9999;
     int delta_Noclick = 0, delta_Noclick_wait = 0, delta_Noclick_E = 0;
+    float pitch_bend_wait = 1;
     float pitch_bend = 1, pitch_vibrato = 1, pitch_based_gain_correction = 1;
     void Update_pitch();
     float pitch = 1; // Already applied pitch can survive until an outgoing crossfade is harvested.
@@ -77,9 +78,10 @@ struct AudioPlayer
     void Close_source() { ++closed; }
     void My_LED(bool) {}
     bool Has_pending_note() const { return warmup_for_play_again_flag || restart_flag; }
-    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false) const;
+    PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false, bool reserve_modulation = true) const;
     float Reserved_read_us() const;
     float Current_read_us(uint32_t) const;
+    float Next_block_read_us() const;
     void Retire_for_read_budget();
 };
 '''
@@ -87,6 +89,7 @@ production = ''.join(method(player, signature) for signature in [
     'PlayerReadBudget::Plan AudioPlayer::Get_read_plan',
     'float AudioPlayer::Reserved_read_us',
     'float AudioPlayer::Current_read_us',
+    'float AudioPlayer::Next_block_read_us',
     'void AudioPlayer::Retire_for_read_budget',
     'void AudioPlayer::Update_pitch',
 ] )
@@ -97,11 +100,12 @@ production += 'void AudioPlayer::Render_budget_tail()\n{\n' + tail + '}\n}\n'
 production += r'''
 struct AudioPlayer
 {
-    float cost = 0, extra_per_sample = 0.5f;
+    float cost = 0, forecast = -1, extra_per_sample = 0.5f;
     bool playing = false, powered = true, protection = false, pending = false, editing = false;
     int instrument = 0, patch = 0, mix = 0;
     unsigned timestamp = 0, retired = 0;
     float Reserved_read_us() const { return playing ? cost : 0; }
+    float Next_block_read_us() const { return playing ? (forecast < 0 ? cost : forecast) : 0; }
     float Current_read_us(uint32_t samples) const { return playing ? extra_per_sample * samples : 0; }
     bool isPlaying() const { return playing; }
     bool isPoweredOn() const { return powered; }
@@ -254,6 +258,33 @@ int main()
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Psram);
     assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_PSRAM);
     Preset[0] = {};
+
+    // A lower next-block forecast grants fades without changing admission reservations.
+    RealVoice::AudioPlayer bounded;
+    const float admission = bounded.Reserved_read_us();
+    assert(bounded.Next_block_read_us() < admission);
+    bounded.pitch_bend_wait = 1.5f;
+    assert(std::abs(bounded.Next_block_read_us() - admission) < .001f);
+    bounded.pitch_bend_wait = 1;
+    bounded.pitch = 2.5f;
+    assert(bounded.Get_read_plan(false, false, false).pitch >= 2.5f);
+    bounded.warmup_for_play_again_flag = true;
+    bounded.pitch_note_wait = 2;
+    assert(bounded.Next_block_read_us() >= Estimate(bounded.Get_read_plan(true, false, false), 128));
+    bounded.main_settings_editing_flag = true;
+    bounded.mode_player_E = LOOP_FWD;
+    assert(bounded.Next_block_read_us() >= Estimate(bounded.Get_read_plan(false, true, false), 128));
+    bounded.state = RealVoice::AudioPlayer::IDLE;
+    assert(bounded.Next_block_read_us() == 0 && bounded.Current_read_us(64) == 0);
+    PlayersManager spare;
+    spare.voices[0].playing = spare.voices[1].playing = true;
+    spare.voices[0].cost = spare.voices[1].cost = 875;
+    spare.voices[0].forecast = spare.voices[1].forecast = 450;
+    spare.voices[0].pending = spare.voices[1].pending = true;
+    spare.Prepare_read_budget();
+    assert(spare.budget_reserved_us == 1750 && spare.read_budget_diagnostics.forecast_us == 900);
+    assert(spare.voices[0].mix == 64 && spare.voices[1].mix == 64);
+    assert(spare.budget_retired_players == 0 && spare.read_budget_diagnostics.read_headroom_us == 900);
 
     // Insufficient eligible budget rejects atomically: no partial voice theft.
     PlayersManager denied;

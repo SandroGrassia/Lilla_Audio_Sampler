@@ -422,14 +422,14 @@ bool patch_original;                                 // Whether the current patc
 bool patch_original_0;                               // Previous patch comparison result, used to detect menu changes.
 uint8_t patches_number;                              // Number of patch slots currently in use.
 int S_Get_Patch_id_free(void);                       // Return an unused patch slot, or -1 if all slots are occupied.
-void P_Delete_all_Patches_and_Sounds(void);          // Delete all patch and Sound metadata.
+FLASHMEM void P_Delete_all_Patches_and_Sounds(void);          // Delete all patch and Sound metadata.
 void P_Read_all_Patches(void);                       // Load patch metadata from FRAM.
 void P_Update_Patches_number(void);                  // Recount the patch slots currently in use.
 uint8_t P_Get_first_Patch_id_existing(void);         // Find the first patch slot in use.
 uint8_t P_Get_next_Patch_id_existing(void);          // Find the next existing patch relative to the current selection.
 uint8_t P_Get_previous_Patch_id_existing(void);      // Find the previous existing patch relative to the current selection.
-int P_Ask_if_change_Patch(void);                     // Show the patch-change dialog and return the selected action.
-bool P_Ask_if_delete_this_Patch(void);               // Ask whether to delete the current patch; return true if confirmed.
+FLASHMEM int P_Ask_if_change_Patch(void);                     // Show the patch-change dialog and return the selected action.
+FLASHMEM bool P_Ask_if_delete_this_Patch(void);               // Ask whether to delete the current patch; return true if confirmed.
 bool P_Verify_is_Patch_original(const int patch_id); // Compare a patch and its used instruments with the reference metadata.
 struct PatchEditSnapshot
 {
@@ -481,7 +481,7 @@ void Macro_VCF_modulation_none(void); // Disable filter modulation, updating bot
 // >>>>>>>>>>>>>>>>>>>>>>>  SOUND_EDIT
 // Menu
 int S_menu_max;                    // Upper navigation bound for the available Sound menu entries.
-void S_Select_menu_elements(void); // Enable Sound menu entries according to the selected Sound and editing state.
+FLASHMEM void S_Select_menu_elements(void); // Enable Sound menu entries according to the selected Sound and editing state.
 
 // Variables
 DMAMEM Sound_struct S_Sound_cache_P[SOUNDS_MAX]; // Reference metadata in RAM2.
@@ -507,13 +507,13 @@ void S_Copy_all_Sound_to_Sound_cache_P(void);                                   
 bool S_Pull_all_Sound_from_Sound_cache_P(PatchEditSnapshot *snapshot = nullptr);                                                                               // Restore Sound metadata from the reference, optionally using an edit snapshot.
 uint16_t S_Get_sounds_free(void);                                                                                                                              // Count unused Sound slots.
 bool S_Read_all_Sounds(PatchEditSnapshot *snapshot = nullptr);                                                                                                 // Load Sound metadata from FRAM, optionally preserving an edit snapshot.
-bool S_Save_all_Sounds_changed(void);                                                                                                                          // Save modified Sound metadata to FRAM; report whether the operation succeeded.
+FLASHMEM bool S_Save_all_Sounds_changed(void);                                                                                                                          // Save modified Sound metadata to FRAM; report whether the operation succeeded.
 int S_Get_sound_free(void);                                                                                                                                    // Return an unused Sound slot, or -1 when none is available.
 uint32_t S_Calc_trim_step(int value);                                                                                                                          // Calculate the sample increment for the selected trimming speed.
 uint8_t S_Get_midi_channel_from_Sound(int sound_id);                                                                                                           // Decode the MIDI channel stored in a Sound's packed metadata.
 void S_Set_midi_channel_for_Sound(int sound_id, int midi_channel);                                                                                             // Update the MIDI channel bits in a Sound's packed metadata.
 void S_Set_Sound_SOLO_OFF(void);                                                                                                                               // Disable Sound solo mode and restore normal instrument note routing.
-bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade = false); // Main only. Preserve the audio IRQ state; activate or cancel a successfully prepared bank. Retiring-bank fading requires global interrupts to be enabled by the caller.
+FLASHMEM bool P_Prepare_audio_tables(int patch_id, float patch_volume, Preset_struct (&presets)[INSTRUMENTS], uint16_t &tables_mask, bool allow_retiring_fade = false); // Main only. Preserve the audio IRQ state; activate or cancel a successfully prepared bank. Retiring-bank fading requires global interrupts to be enabled by the caller.
 
 // >>>>>>>>>>>>>>>>>>>>>>> AudioTables (Wavetable e NoClickCrossmix)
 // AudioTables publication is coordinated here, outside the audio objects.
@@ -542,9 +542,9 @@ uint8_t Line_in_gain = 8;                       // Shared hardware input gain; d
 uint8_t Line_out_level;                         // Hardware line-output level setting.
 
 // functions
-void SET_Prepare_user_audio(void);                               // Suspend playback, import user audio and restore the previous audio/MIDI state.
-bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
-float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
+FLASHMEM void SET_Prepare_user_audio(void);                               // Suspend playback, import user audio and restore the previous audio/MIDI state.
+FLASHMEM bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed); // Import audio files from SD and report whether Flash contents changed.
+FLASHMEM float SET_eraseBytesPerSecond(const unsigned char *id);          // Estimate the Flash erase rate from the chip identification bytes.
 FLASHMEM void SET_Ask_if_IMPORT_EXPORT_setup(bool exporting = false);                       // Present the setup import/export choices and handle the selected operation.
 FLASHMEM void SET_Ask_if_FACTORY_RESET(void);                             // Request confirmation before restoring factory settings.
 
@@ -597,11 +597,11 @@ int DS_Last_packet = 0;  // Last packet in the Direct Sampling Flash area.
 
 // functions
 bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void);              // Prepare the Direct Sampler model and tables with audio interrupts disabled.
-bool DS_export_wav_to_SD(void);                                    // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
+FLASHMEM bool DS_export_wav_to_SD(void);                                    // Export the selected Direct Sampler recording to one mono or stereo PCM WAV on SD.
 void DS_ask_if_EXIT_from_DS(void);                                 // Ask whether to stop recording and leave Direct Sampler; store the choice in action.
 bool DS_back_to_first_DS_Recording(void);                          // Prepare the first remaining recording before restoring the Direct Sampler page.
-bool DS_convert_file_L(int file_L_RAW);                            // Export the trimmed left recording channel to RAW.
-bool DS_convert_file_R(int file_R_RAW);                            // Export the trimmed right recording channel to RAW.
+FLASHMEM bool DS_convert_file_L(int file_L_RAW);                            // Export the trimmed left recording channel to RAW.
+FLASHMEM bool DS_convert_file_R(int file_R_RAW);                            // Export the trimmed right recording channel to RAW.
 FLASHMEM void DS_seed_all_Recordings(void);                                 // Initialize empty recording metadata and save it to FRAM.
 FLASHMEM void DS_update_recordings(void);                                   // Recount valid Direct Sampler recordings.
 FLASHMEM byte DS_read_all_Recordings(void);                                 // Load all recording metadata and stop at the first FRAM error.
@@ -612,7 +612,7 @@ int DS_get_next_Recording(int value);                              // Find the n
 int DS_get_last_Recording(void);                                   // Return the last valid recording, or -1 when none exists.
 int DS_get_previous_Recording(int value);                          // Find the previous valid recording relative to the supplied selection.
 void DS_define_menu(void);                                         // Enable Direct Sampler menu entries for the current recording state.
-void DS_set_DS_Sampling_Patch(void);                               // Configure the temporary patch and Sounds used to play Direct Sampler recordings.
+FLASHMEM void DS_set_DS_Sampling_Patch(void);                               // Configure the temporary patch and Sounds used to play Direct Sampler recordings.
 int DS_get_samples_in_Recording(int value);                        // Return the sample count for a Direct Sampler recording.
 FLASHMEM bool DS_convert_channel_to_raw(int file_id, int channel); // Export one trimmed recording channel to the requested RAW file ID.
 static Sound_struct DS_sound_before_edit[2];                       // Original channel metadata used to propagate stereo parameter edits.
@@ -625,21 +625,21 @@ FLASHMEM void P_Recording(int value);                                       // P
 // VFS VIRTUAL FILE SYSTEM
 FLASHMEM void VFS_Make_VFS(void);                                                    // Ask for the recording-area size and create the erasable Flash packet files.
 int VFS_Get_packets(void);                                                  // Count the VFS packet files present in Flash.
-void VFS_Print_allocation(void);                                            // Print the VFS and Direct Sampler packet allocation to Serial.
-bool VFS_Compile_FAT_table(void);                                           // Build the packet ownership table from recording metadata and validate it.
+FLASHMEM void VFS_Print_allocation(void);                                            // Print the VFS and Direct Sampler packet allocation to Serial.
+FLASHMEM bool VFS_Compile_FAT_table(void);                                           // Build the packet ownership table from recording metadata and validate it.
 void VFS_Reset_FAT_table(void);                                             // Clear the packet ownership entries in the configured Direct Sampling range.
 int VFS_Get_first_packet_free(void);                                        // Find the first available recording packet.
 FLASHMEM void VFS_Erase_all_packets(void);                                           // Erase all VFS packet files.
 FLASHMEM void VFS_Erase_all_packets_for_DS(void);                                    // Erase packets reserved for Direct Sampling.
-bool VFS_Erase_packet(int value);                                           // Erase one packet and report whether the operation succeeded.
-bool VFS_Clean_up_VFS(void);                                                // Clean invalid recording data and reclaim unused VFS storage.
-bool VFS_Clean_up_orphan_packets(void);                                     // Erase packets that are no longer referenced by valid recordings.
-bool VFS_Defragment(void);                                                  // Compact recording packets to consolidate free VFS storage.
-bool VFS_Shift_file(int to_packet, int recording_id);                       // Move a recording to the requested packet position and update its metadata.
-void Require_VFS(bool result);                                              // Stop further processing and report a failed VFS operation.
+FLASHMEM bool VFS_Erase_packet(int value);                                           // Erase one packet and report whether the operation succeeded.
+FLASHMEM bool VFS_Clean_up_VFS(void);                                                // Clean invalid recording data and reclaim unused VFS storage.
+FLASHMEM bool VFS_Clean_up_orphan_packets(void);                                     // Erase packets that are no longer referenced by valid recordings.
+FLASHMEM bool VFS_Defragment(void);                                                  // Compact recording packets to consolidate free VFS storage.
+FLASHMEM bool VFS_Shift_file(int to_packet, int recording_id);                       // Move a recording to the requested packet position and update its metadata.
+FLASHMEM void Require_VFS(bool result);                                              // Stop further processing and report a failed VFS operation.
 FLASHMEM void VFS_Print_FAT(void);                                                   // Print the packet ownership table to Serial.
-bool BACKUP_Export(void);                                                   // Export configuration and recording audio to an SD backup.
-bool BACKUP_Restore(bool *config_error = nullptr);                          // Restore an SD backup and optionally distinguish configuration errors from other failures.
+FLASHMEM bool BACKUP_Export(void);                                                   // Export configuration and recording audio to an SD backup.
+FLASHMEM bool BACKUP_Restore(bool *config_error = nullptr);                          // Restore an SD backup and optionally distinguish configuration errors from other failures.
 FLASHMEM bool VFS_Valid_span(const VFS_Recording &entry);                   // Check that a recording packet range fits in the configured VFS.
 FLASHMEM bool VFS_Wait_flash(void);                                         // Wait for Flash readiness with a bounded timeout.
 FLASHMEM bool VFS_Open_packet(int id, SerialFlashFile &file);               // Open a packet and validate its size and erase-block alignment.
@@ -657,8 +657,8 @@ struct VFS_Audio_guard // VFS operations run without audio callbacks, which coul
 };
 
 // STANDARD FILE SYSTEM
-int Get_next_raw_file_in_flash(int file);     // Find the next available RAW audio source after the supplied file ID.
-int Get_previous_raw_file_in_flash(int file); // Find the previous available RAW audio source before the supplied file ID.
+FLASHMEM int Get_next_raw_file_in_flash(int file);     // Find the next available RAW audio source after the supplied file ID.
+FLASHMEM int Get_previous_raw_file_in_flash(int file); // Find the previous available RAW audio source before the supplied file ID.
 int Get_samples_in_raw_file(int value);       // Return the sample count for a RAW file or Direct Sampler channel.
 FLASHMEM void Print_flash_file_list(void);             // Print Flash filenames, file sizes and storage totals to Serial.
 FLASHMEM int Get_raw_files(void);                      // Count stored RAW files in the ordinary audio-file ID range.
@@ -694,8 +694,8 @@ int LS_constrain_position(int value);                                           
 void LS_lock_X_sample(void);                                                        // Capture the current play point from the write position and lock it.
 void LS_update_both_X_Y_samples(void);                                              // Update the write position and both playback boundaries with audio interrupts disabled.
 void LS_update_Q_sample(void);                                                      // Snapshot the current recording write position with audio interrupts disabled.
-void LS_Reset_buffer(void);                                                         // Clear the Live Sampler storage, reconnect its views and reset recording positions.
-void LS_setup_LS_Patch(bool stereo);                                                // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
+FLASHMEM void LS_Reset_buffer(void);                                                         // Clear the Live Sampler storage, reconnect its views and reset recording positions.
+FLASHMEM void LS_setup_LS_Patch(bool stereo);                                                // Configure the temporary Live Sampler patch and its mono or stereo Sounds.
 FLASHMEM void LS_Capture_notice(const char *message, const char *second_line = ""); // Show a centered notice for two seconds and discard pending UI events.
 FLASHMEM bool LS_Capture_confirm(void);                                             // Ask whether to replace an existing capture; return true if confirmed.
 FLASHMEM bool LS_Capture_root(uint8_t &root);                                       // Learn the capture root note from a key press; return false if cancelled.
@@ -733,17 +733,17 @@ unsigned long LOOP_Clock_time_from_virtual_time(int T_evento);                  
 void LOOP_restart_procedure(int track);                                                  // Prepare the selected track to restart playback.
 void LOOP_set_time_order(int track);                                                     // Build the event playback order for a track.
 FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id);                                    // Read and print all data from a stored MIDI Loop file.
-bool LOOP_Compile_midi_loop_file(FsFile &file);                                          // Serialize the current MIDI Loop data into the supplied file.
-bool LOOP_Read_midi_loop_file(FsFile &file, bool load);                                  // Validate a MIDI Loop file and optionally load its data into RAM.
+FLASHMEM bool LOOP_Compile_midi_loop_file(FsFile &file);                                          // Serialize the current MIDI Loop data into the supplied file.
+FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load);                                  // Validate a MIDI Loop file and optionally load its data into RAM.
 static constexpr size_t LOOP_FILENAME_SIZE = sizeof("-2147483648.loop");                 // Enough for every 32-bit int, extension and terminator.
 static constexpr size_t LOOP_PATH_SIZE = sizeof("/LILLALOOP/") - 1 + LOOP_FILENAME_SIZE; // Buffer capacity for an absolute MIDI Loop path, including its terminator.
 static constexpr size_t LOOP_SIDECAR_PATH_SIZE = LOOP_PATH_SIZE + sizeof(".bak") - 1;    // Path capacity including a .bak or .tmp suffix and terminator.
 void LOOP_Filename_midi_loop(int loop_id, char (&filename)[LOOP_FILENAME_SIZE]);         // Write into caller-owned storage.
 void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE]);                     // Build the absolute SD path without dynamic allocation.
 bool LOOP_Look_for_midi_loop_in_SD(int loop_id);                                         // Initialize SD and check for the loop file or its backup copy.
-bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);                                    // Save the current MIDI Loop to SD using the requested ID.
-bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id);                                    // Load the selected MIDI Loop from SD.
-bool LOOP_Delete_midi_loop_from_SD(int loop_id);                                         // Delete the selected MIDI Loop file from SD.
+FLASHMEM bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id);                                    // Save the current MIDI Loop to SD using the requested ID.
+FLASHMEM bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id);                                    // Load the selected MIDI Loop from SD.
+FLASHMEM bool LOOP_Delete_midi_loop_from_SD(int loop_id);                                         // Delete the selected MIDI Loop file from SD.
 FLASHMEM int LOOP_Get_first_loop_id_free(void);                                                   // Find the first unused MIDI Loop file ID on SD.
 FLASHMEM int LOOP_Get_next_loop_id_in_SD(int loop_id);                                            // Find the next stored MIDI Loop ID after the supplied selection.
 FLASHMEM int LOOP_Get_previous_loop_id_in_SD(int loop_id);                                        // Find the previous stored MIDI Loop ID before the supplied selection.
@@ -768,18 +768,18 @@ constexpr int headphones_pwm_volume_max = 40; // Maximum PWM pre-listen headphon
 // >>>>>>>>>>>>>>>>>>>>>>> SWITCH
 void Switch_to_PERFORMANCE_patch_old(void);                // Restore the saved Performance patch and return to its page.
 bool P_Jump_to_Patch(uint8_t next_patch);                  // Publish the destination patch only after its presets and tables are ready.
-bool P_Save_current_patch_as_new(void);                    // Prepare the cloned patch before saving its sounds and metadata.
+FLASHMEM bool P_Save_current_patch_as_new(void);                    // Prepare the cloned patch before saving its sounds and metadata.
 bool P_Rebuild_patch_old(void);                            // Restore the previous performance patch only after its tables are ready; call with audio interrupts disabled.
 void Golive_with_PERFORMANCE(int patch_id);                // Enter the Performance page for the requested patch.
 void Switch_from_MIDI_LOOP_to_PERFORMANCE(void);           // Stop loop tracks and return to Performance.
 void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void);       // Handle recording exit and restore the previous Performance patch.
-void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void);     // Handle Direct Sampler exit and restore the previous Performance patch.
+FLASHMEM void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void);     // Handle Direct Sampler exit and restore the previous Performance patch.
 void Switch_to_MIXER(void);                                // Open the Mixer for the current patch and select the first available instrument.
 void Switch_from_LIVE_SAMPLING_to_DELAY(void);             // Open Delay settings while retaining Live Sampler as the return page.
 void Golive_with_LIVE_SAMPLING(void);                      // Enter and redraw the Live Sampler page with its controls and waveform.
 void Switch_from_PERFORMANCE_to_LIVE_SAMPLING(void);       // Prepare the temporary Live Sampler patch and enter its page.
 void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void);         // Stop loop tracks, prepare the Live Sampler patch and enter its page.
-void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void);   // Handle Direct Sampler exit before preparing Live Sampler.
+FLASHMEM void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void);   // Handle Direct Sampler exit before preparing Live Sampler.
 void Golive_DIRECT_SAMPLING(void);                         // Enter and redraw the Direct Sampler page and its controls.
 bool DS_Jump_to_DIRECT_SAMPLING_recording(int &recording); // Prepare the selected recording before updating its playback presets and display.
 void Switch_to_DIRECT_SAMPLING(void);                      // Prepare the temporary recording patch and enter Direct Sampler.
@@ -787,9 +787,9 @@ void Switch_from_MIDI_LOOP_to_DIRECT_SAMPLING(void);       // Stop loop tracks a
 void Switch_from_LIVE_SAMPLING_to_DIRECT_SAMPLING(void);   // Handle Live Sampler recording exit before entering Direct Sampler.
 void Golive_MIDI_MONITOR(void);                            // Enter the MIDI Monitor page and initialize its display.
 void Switch_from_MIDI_LOOP_to_MIDI_MONITOR(void);          // Stop loop tracks before entering MIDI Monitor.
-void Golive_with_MIDI_LOOP(bool restart = false);          // Enter MIDI Loop; preserve running tracks unless restart is requested.
+FLASHMEM void Golive_with_MIDI_LOOP(bool restart = false);          // Enter MIDI Loop; preserve running tracks unless restart is requested.
 void Switch_from_PERFORMANCE_to_MIDI_LOOP(void);           // Enter MIDI Loop while retaining the current Performance patch.
-void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void);       // Leave Direct Sampler and restore the previous patch for MIDI Loop.
+FLASHMEM void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void);       // Leave Direct Sampler and restore the previous patch for MIDI Loop.
 void Switch_from_LIVE_SAMPLING_to_MIDI_LOOP(void);         // Handle recording exit and restore the previous patch for MIDI Loop.
 void Golive_SETUP(void);                                   // Enter and initialize the Setup page.
 void Switch_from_MIDI_LOOP_to_SETUP(void);                 // Keep the loop running while editing setup.
@@ -821,9 +821,9 @@ inline void P_UpdatePatchOriginalAndMenu(void); // Recheck patch changes and red
 
 // >>>>>>>>>>>>>>>>>>>>>>>  STARTUP
 FLASHMEM bool Startup_mode(void);                 // Prepare tables for the selected startup mode before enabling MIDI callbacks.
-void Startup_hardware_and_objects(void); // Initialize hardware, audio objects, buffers and UI controllers.
-void Compile_tables(void);               // Build lookup tables required by playback and the interface.
-void Reload_system_state(void);          // Reload persistent settings and model data into the running system.
+FLASHMEM void Startup_hardware_and_objects(void); // Initialize hardware, audio objects, buffers and UI controllers.
+FLASHMEM void Compile_tables(void);               // Build lookup tables required by playback and the interface.
+FLASHMEM void Reload_system_state(void);          // Reload persistent settings and model data into the running system.
 
 // >>>>>>>>>>>>>>>>>>>>>>>   ENCODER - PUSHBUTTONS
 bool Read_pushbutton(int element);      // Consume a pending press/change event for the specified pushbutton.
@@ -857,6 +857,8 @@ FLASHMEM static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uin
 // *************************************************************
 // *************************************************************
 
+static constexpr uint16_t AUDIO_POOL_BLOCKS = 96; // Original 16-voice audio block pool.
+
 FLASHMEM
 void setup()
 {
@@ -872,7 +874,7 @@ void setup()
       Each block holds 128 audio samples, or approx 2.9 ms of sound. Usually an initial guess is made for numberBlocks and the actual
       usage is checked with AudioMemoryUsageMax().
     */
-    AudioMemory(96);
+    AudioMemory(AUDIO_POOL_BLOCKS);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //   *************** SETUP HARDWARE E OBJECTS *****************
@@ -984,6 +986,52 @@ void setup()
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
+static uint32_t audio_cost_started_ms = 0;
+
+FLASHMEM
+void Reset_audio_cost_diagnostics(void)
+{
+    AudioProcessorUsageMaxReset();
+    AudioMemoryUsageMaxReset();
+    for (auto &player : Player)
+    {
+        player.processorUsageMaxReset();
+    }
+    audio_cost_started_ms = millis();
+}
+
+FLASHMEM
+void Print_audio_cost_diagnostics(void)
+{
+    float player_cpu[PLAYERS][2];
+    uint8_t active = 0;
+    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+
+    AudioNoInterrupts();
+    const float cpu = AudioProcessorUsage();
+    const float peak = AudioProcessorUsageMax();
+    const unsigned int blocks = AudioMemoryUsage();
+    const unsigned int peak_blocks = AudioMemoryUsageMax();
+    for (int i = 0; i < PLAYERS; ++i)
+    {
+        player_cpu[i][0] = Player[i].processorUsage();
+        player_cpu[i][1] = Player[i].processorUsageMax();
+        active += Player[i].isPlaying();
+    }
+    if (audio_enabled)
+    {
+        AudioInterrupts();
+    }
+
+    const float block_us = 1000000.0f * AUDIO_BLOCK_SAMPLES / AUDIO_SAMPLE_RATE_EXACT;
+    Serial.printf("AUDIO_COST: window_ms=%lu,voices=%u,active=%u,cpu_pct=%.3f,peak_pct=%.3f,cpu_us=%.3f,peak_us=%.3f,blocks=%u,peak_blocks=%u,pool_blocks=%u\n", static_cast<unsigned long>(millis() - audio_cost_started_ms), static_cast<unsigned int>(PLAYERS), static_cast<unsigned int>(active), cpu, peak, cpu * block_us / 100.0f, peak * block_us / 100.0f, blocks, peak_blocks, static_cast<unsigned int>(AUDIO_POOL_BLOCKS));
+    for (int i = 0; i < PLAYERS; ++i)
+    {
+        Serial.printf("AUDIO_PLAYER,%d,cpu_pct=%.3f,peak_pct=%.3f\n", i, player_cpu[i][0], player_cpu[i][1]);
+    }
+    Serial.println(F("AUDIO_COST: peaks are since d/reset; individual Player peaks need not coincide. c=CPU report, p=CPU+read report, d=reset/start, D=disable read diagnostics."));
+}
+
 FLASHMEM
 void loop()
 {
@@ -998,34 +1046,43 @@ void loop()
     P_Service_patch_cache();
 
 
-    /*
+#if defined(LILLA_AUDIO_DIAGNOSTICS) || defined(LILLA_READ_BENCHMARK)
     if (Serial.available() > 0)
     {
         const int command = Serial.read();
-        // #if defined(LILLA_READ_BENCHMARK)
+#if defined(LILLA_READ_BENCHMARK)
         if (command == 'b')
         {
             ReadBenchmark::Run(PatchCache_Manager, Audio_tables, Trigger.Is_running() && (Lilla_state != DIRECT_SAMPLING || DS_state == DS_waiting_state));
         }
         else
-        // #endif
+#endif
         if (command == 'd' || command == 'D')
         {
             const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
             AudioNoInterrupts();
             Players_Manager.Enable_read_diagnostics(command == 'd');
+            if (command == 'd')
+            {
+                Reset_audio_cost_diagnostics();
+            }
             if (audio_enabled)
             {
                 AudioInterrupts();
             }
             Serial.println(command == 'd' ? F("READ_DIAG: enabled/reset; play notes, then send p; D disables") : F("READ_DIAG: disabled; last/peak retained"));
         }
+        else if (command == 'c')
+        {
+            Print_audio_cost_diagnostics();
+        }
         else if (command == 'p')
         {
             Print_player_read_diagnostics();
         }
     }
-    */
+
+#endif
 
     if (audio_tables_error_pending)
     {
@@ -1269,19 +1326,13 @@ void loop()
         }
     }
 
+#if defined(LILLA_AUDIO_DIAGNOSTICS)
     // Print AudioProcessorUsage
     if (Read_pushbutton(EN_PB_PreListenVol))
     {
-        Serial.print("AudioProcessorUsage(): ");
-        Serial.println(AudioProcessorUsage());
-        for (auto player = 0; player < PLAYERS; ++player)
-        {
-            Serial.print("Player[");
-            Serial.print(player);
-            Serial.print("].processorUsage(): ");
-            Serial.println(Player[player].processorUsage());
-        }
+        Print_audio_cost_diagnostics();
     }
+#endif
 
 #pragma endregion // parte comune
 
@@ -2102,6 +2153,7 @@ void loop()
             S_Select_menu_elements();
             Display_Sound.Show_SOUND_menu();
             Display_Sound.Show_wave(Instrument_id);
+            Pointer_Sound.Display_pointer(); // Restore the selection frame erased by the entry-time menu redraw.
         }
         const bool no_browser_audio = Lilla_state_0 != DIRECT_SAMPLING && S_flash_first < 0 && S_sd_files == 0 && !SdSoundSource::Is_sd(Sound[Sound_id].file);
         if (entering_sound_edit && no_browser_audio)
@@ -6855,7 +6907,7 @@ void loop()
                         if (LOOP_learning_track == MASTER_TRACK)
                         {
                             // Setup di LOOP_time (durata di tutti i loop)
-                            LOOP_time = LOOP_learn_clock;
+                            LOOP_time = min(static_cast<uint32_t>(LOOP_learn_clock), LOOP_MAX_DURATION_MS);
 
                             // Restart clock
                             LOOP_restart_clock();
@@ -11368,8 +11420,8 @@ bool LOOP_Print_midi_loop_complete_data(int loop_id)
     Serial.println(loop_id);
     Serial.println();
 
-    // uint16_t LOOP_time;
-    Serial.print("uint16_t LOOP_time: ");
+    // uint32_t LOOP_time;
+    Serial.print("uint32_t LOOP_time: ");
     Serial.println(LOOP_time);
 
     // uint32_t LOOP_events[TRACKS]
@@ -11434,10 +11486,11 @@ void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])
     snprintf(path, sizeof(path), "/LILLALOOP/%s", filename);
 }
 
-// Loop SD v1: magic line, uint32_t track count, uint16_t duration, uint32_t event counts,
+// Loop SD v2: magic line, uint32_t track count, uint32_t duration, uint32_t event counts,
 // int32_t slides/pitches/stretch, then 8-byte events. Little-endian bytes, one decimal byte per line.
+// SD v1 uses a uint16_t duration.
 // Legacy files omit magic/track count and use uint8_t event counts; malformed 24-byte arrays are rejected.
-static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 1\r\n"; // Header identifying the versioned MIDI Loop SD format.
+static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 2\r\n"; // Header identifying the versioned MIDI Loop SD format.
 static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
 
 FLASHMEM
@@ -11487,11 +11540,17 @@ FLASHMEM
 bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 {
     const bool versioned = file.peek() == 'L';
+    uint8_t version = 0;
     if (versioned)
     {
         for (size_t i = 0; i < sizeof(LOOP_SD_MAGIC) - 1; ++i)
         {
-            if (file.read() != LOOP_SD_MAGIC[i])
+            const int value = file.read();
+            if (i == sizeof("LILLALOOP ") - 1 && (value == '1' || value == '2'))
+            {
+                version = value - '0';
+            }
+            else if (value != LOOP_SD_MAGIC[i])
             {
                 return false;
             }
@@ -11502,10 +11561,10 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
             return false;
         }
     }
-    uint16_t duration = 0;
+    uint32_t duration = 0;
     uint32_t counts[TRACKS] = {};
     int slides[TRACKS], pitches[TRACKS], stretch;
-    if (!LOOP_Read_bytes(file, &duration, sizeof(duration)))
+    if (!LOOP_Read_bytes(file, &duration, version >= 2 ? sizeof(uint32_t) : sizeof(uint16_t)))
     {
         return false;
     }
@@ -11523,13 +11582,13 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
     }
     if (!load)
     {
-        if (duration == 0 || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
+        if (duration == 0 || duration > LOOP_MAX_DURATION_MS || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
         {
             return false;
         }
         for (int track = 0; track < TRACKS; ++track)
         {
-            if (slides[track] < 0 || slides[track] >= duration || pitches[track] < -24 || pitches[track] > 24)
+            if (slides[track] < 0 || static_cast<uint32_t>(slides[track]) >= duration || pitches[track] < -24 || pitches[track] > 24)
             {
                 return false;
             }
@@ -11546,7 +11605,7 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
             }
             int time;
             memcpy(&time, bytes, sizeof(time));
-            if (!load && (time < 0 || time > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
+            if (!load && (time < 0 || static_cast<uint32_t>(time) > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
             {
                 return false;
             }
@@ -11586,10 +11645,6 @@ bool LOOP_Compile_midi_loop_file(FsFile &file)
     }
     for (int track = 0; track < TRACKS; ++track)
     {
-        if (LOOP_events[track] > LOOP_EVENTS)
-        {
-            return false;
-        }
         for (uint32_t event = 0; event < LOOP_events[track]; ++event)
         {
             if (!LOOP_Write_bytes(file, &LOOP_element[track][event], sizeof(LOOP_struct)))
@@ -15903,6 +15958,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
 FLASHMEM
 void Print_player_read_diagnostics(void)
 {
+    Print_audio_cost_diagnostics();
     DMAMEM static PlayersManager::ReadDiagnosticsSnapshot snapshots[4];
     const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
 
@@ -15928,7 +15984,7 @@ void Print_player_read_diagnostics(void)
     Serial.println(F("READ_DIAG: harvest_us includes assembly/reversal, counter overhead and interruptions; estimated_us models source transfers only"));
     Serial.println(F("READ_DIAG: max_underestimate is the largest positive harvest-minus-estimate gap, including assembly/diagnostic overhead; not pure memory-model error"));
     Serial.println(F("READ_DIAG: flags 1=RAM loop proxy, 2=Live PSRAM copy without zero-fill (proxy), 4=padding, 8=packet open unmodelled, 16=pending restart/edit, 32=restart executed"));
-    Serial.println(F("READ_DIAG: READ_DIAG_BUDGET belongs to each snapshot cycle; headroom values are before crossfades, pre_players_us includes scheduling; minimum_us is the rejected 16-sample cost"));
+    Serial.println(F("READ_DIAG: READ_DIAG_BUDGET belongs to each snapshot cycle; reserved_us covers maximum modulation; forecast_us uses current/queued bend; headroom values are before crossfades, pre_players_us includes scheduling; minimum_us is the rejected 16-sample cost"));
     Serial.println(F("READ_DIAG: transition_kind 0=none, 1=restart, 2=edit, 3=both; mix_samples is assigned, harvests/flags describe actual execution; READ_BUDGET counters are since boot"));
     Serial.println(F("snapshot,cycle,player,harvests,max_actual_pitch,flash_reads,flash_samples,psram_reads,psram_samples,ram_reads,ram_samples,estimated_us,harvest_us,flags,uncovered_reads,transition_kind,mix_samples,available_before_us,assigned_us,minimum_us"));
 
@@ -15947,7 +16003,7 @@ void Print_player_read_diagnostics(void)
         }
 
         const auto &scheduled = data.budget; // Historical allocation travels with the same last/peak/restart/gap snapshot.
-        Serial.printf("READ_DIAG_BUDGET,%s,cycle=%lu,valid=%u,limit_us=%.1f,reserved_us=%.3f,read_headroom_us=%.3f,deadline_headroom_us=%.3f,scheduler_elapsed_us=%.3f,pre_players_us=%.3f,available_us=%.3f,crossfade_us=%.3f,first_player=%u\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(scheduled.valid), PlayerReadBudget::Limit_us, scheduled.reserved_us, scheduled.read_headroom_us, scheduled.deadline_headroom_us, scheduled.scheduler_elapsed_us, scheduled.pre_players_us, scheduled.available_us, scheduled.crossfade_us, static_cast<unsigned int>(scheduled.first_player));
+        Serial.printf("READ_DIAG_BUDGET,%s,cycle=%lu,valid=%u,limit_us=%.1f,reserved_us=%.3f,forecast_us=%.3f,read_headroom_us=%.3f,deadline_headroom_us=%.3f,scheduler_elapsed_us=%.3f,pre_players_us=%.3f,available_us=%.3f,crossfade_us=%.3f,first_player=%u\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(scheduled.valid), PlayerReadBudget::Limit_us, scheduled.reserved_us, scheduled.forecast_us, scheduled.read_headroom_us, scheduled.deadline_headroom_us, scheduled.scheduler_elapsed_us, scheduled.pre_players_us, scheduled.available_us, scheduled.crossfade_us, static_cast<unsigned int>(scheduled.first_player));
 
         for (uint8_t player = 0; player < PLAYERS; ++player)
         {

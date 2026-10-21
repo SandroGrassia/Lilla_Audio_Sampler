@@ -13,7 +13,7 @@
 class DisplayPerformance
 {
 private:
-    void Note(const int note_number);
+    FLASHMEM void Note(const int note_number);
     bool upload_popup_visible = false;
     uint32_t upload_popup_drawn_ms = 0;
 
@@ -57,27 +57,27 @@ public:
 
     void Led_PERFORMANCE_instrument(int instrument_id, bool on);
     void Led_tuning_tone(int patch_id);
-    bool P_update_upload_popup(bool loading, P_field_description_struct pointer);
-    void P_show_pointer_frame(P_field_description_struct value, bool show);
-    void P_show_PERFORMANCE_page(bool change_patch, bool change_vol);
-    void P_Patch_header(bool change_patch, bool change_vol);
-    void P_show_Performance_menu(void);
-    void P_Confirm_patch_change_popup(void);
-    void P_Confirm_patch_change_popup_frame(int value);
-    void P_Confirm_patch_delete_popup(void);
-    void P_Confirm_patch_delete_popup_frame(int value);
-    void P_show_Instruments_header(void);
-    void P_show_all_instruments(int patch_id);
-    void P_show_Instrument_description(int patch_id, int instrument_id, bool editing);
-    void P_show_Sound_number(int instrument_id, bool editing);
-    void P_show_Tone_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Precedence_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Midi_value(int patch_id, int instrument_id, bool editing);
-    void P_show_RootKey_value(int patch_id, int instrument_id, bool editing);
-    void P_show_FromKey_value(int patch_id, int instrument_id, bool editing);
-    void P_show_ToKey_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Pan_value(int patch_id, int instrument_id, bool editing);
-    void P_show_Gain_value(int patch_id, int instrument_id, bool editing);
-    void P_show_TuningTone_instrument(int patch_id);
-    void P_show_gain_TuningTone(int patch_id);
+    FLASHMEM bool P_update_upload_popup(bool loading, P_field_description_struct pointer);
+    FLASHMEM void P_show_pointer_frame(P_field_description_struct value, bool show);
+    FLASHMEM void P_show_PERFORMANCE_page(bool change_patch, bool change_vol);
+    FLASHMEM void P_Patch_header(bool change_patch, bool change_vol);
+    FLASHMEM void P_show_Performance_menu(void);
+    FLASHMEM void P_Confirm_patch_change_popup(void);
+    FLASHMEM void P_Confirm_patch_change_popup_frame(int value);
+    FLASHMEM void P_Confirm_patch_delete_popup(void);
+    FLASHMEM void P_Confirm_patch_delete_popup_frame(int value);
+    FLASHMEM void P_show_Instruments_header(void);
+    FLASHMEM void P_show_all_instruments(int patch_id);
+    FLASHMEM void P_show_Instrument_description(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_Sound_number(int instrument_id, bool editing);
+    FLASHMEM void P_show_Tone_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_Precedence_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_Midi_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_RootKey_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_FromKey_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_ToKey_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_Pan_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_Gain_value(int patch_id, int instrument_id, bool editing);
+    FLASHMEM void P_show_TuningTone_instrument(int patch_id);
+    FLASHMEM void P_show_gain_TuningTone(int patch_id);
 };

@@ -73,7 +73,7 @@ void MidiReader::Collect_messages(void)
 void MidiReader::Update(void)
 {
     Collect_messages();
-    if (LOOP_learn_flag && Lilla_state == MIDI_LOOP && LOOP_learning_track > 0 && LOOP_elements > 0 && LOOP_learn_clock >= LOOP_time)
+    if (LOOP_learn_flag && Lilla_state == MIDI_LOOP && LOOP_elements > 0 && LOOP_learn_clock >= (LOOP_learning_track == MASTER_TRACK ? LOOP_MAX_DURATION_MS : LOOP_time))
     {
         LOOP_learn_flag = false;
     }
@@ -127,7 +127,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
         */
 
         // Loop learning
-        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements < LOOP_EVENTS)
+        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag)
         {
             // Solo in caso di NoteOn
             if (LOOP_elements == 0)
@@ -156,6 +156,11 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
             if (LOOP_learning_track == 0)
             {
                 LOOP_clock_memo = LOOP_learn_clock;
+                if (LOOP_clock_memo >= static_cast<int>(LOOP_MAX_DURATION_MS))
+                {
+                    LOOP_clock_memo = LOOP_MAX_DURATION_MS;
+                    LOOP_learn_flag = false;
+                }
             }
             else
             {
@@ -215,7 +220,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
         velocity = message.data2;
 
         // Loop learning
-        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0 && LOOP_elements < LOOP_EVENTS)
+        if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0)
         {
             // Aggiorna il conteggio degli elementi
             ++LOOP_elements;
@@ -225,6 +230,11 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
             if (LOOP_learning_track == 0)
             {
                 LOOP_clock_memo = LOOP_learn_clock;
+                if (LOOP_clock_memo >= static_cast<int>(LOOP_MAX_DURATION_MS))
+                {
+                    LOOP_clock_memo = LOOP_MAX_DURATION_MS;
+                    LOOP_learn_flag = false;
+                }
             }
             else
             {

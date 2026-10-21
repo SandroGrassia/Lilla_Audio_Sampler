@@ -53,7 +53,7 @@ private:
 public:
     PointerPerformance() {}
     
-    void Move_pointer(const int value, const int P_menu_max);
+    FLASHMEM void Move_pointer(const int value, const int P_menu_max);
     P_field_description_struct Get_pointer(void);
     void Set_pointer_to_Patch(void);
     void Set_pointer_to_RootKey(const int instrument_id);

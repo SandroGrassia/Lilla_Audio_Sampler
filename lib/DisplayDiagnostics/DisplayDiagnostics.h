@@ -20,8 +20,8 @@ private:
 public:
     DisplayDiagnostics() {}
 
-    void Encoder_pushbutton_test_board(void);
+    FLASHMEM void Encoder_pushbutton_test_board(void);
     void Encoder_pushbutton_test_result(const int device, const int element, const int value);
-    void Midi_monitor_page(void);
-    void Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number);
+    FLASHMEM void Midi_monitor_page(void);
+    FLASHMEM void Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number);
 };

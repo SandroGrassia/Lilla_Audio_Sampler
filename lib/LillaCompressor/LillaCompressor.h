@@ -45,13 +45,13 @@ private:
     static int16_t To_sample(float sample);
 
 public:
-    explicit LillaCompressor(Profile selected_profile);
-    void Reset(void); // Clear history with audio interrupts disabled; preserve the requested enable state.
+    FLASHMEM explicit LillaCompressor(Profile selected_profile);
+    FLASHMEM void Reset(void); // Clear history with audio interrupts disabled; preserve the requested enable state.
     StereoLiveSampler *Recorder_ptr = nullptr; // Connected at startup before recording can begin.
     void update(void) override;
-    void Set_feedback(float feedback); // LiveSampler profile only; caller supplies the table range [0, 1].
-    void Set_enabled(bool value); // Call with audio interrupts disabled.
-    bool Is_enabled(void) const;
-    void Set_threshold(int db); // Caller supplies [-24, -3] dBFS or THRESHOLD_OFF with audio interrupts disabled.
-    int Get_threshold(void) const;
+    FLASHMEM void Set_feedback(float feedback); // LiveSampler profile only; caller supplies the table range [0, 1].
+    FLASHMEM void Set_enabled(bool value); // Call with audio interrupts disabled.
+    FLASHMEM bool Is_enabled(void) const;
+    FLASHMEM void Set_threshold(int db); // Caller supplies [-24, -3] dBFS or THRESHOLD_OFF with audio interrupts disabled.
+    FLASHMEM int Get_threshold(void) const;
 };

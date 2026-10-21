@@ -21,13 +21,13 @@ public:
 
     DisplayCommon() {}
 
-    void Confirm_no_yes_popup_frame(int value);
-    void Show_all_effects(void);
-    void Resolution(void);
-    void Downsampling(void);
-    void Lowpass_filter(void);
-    void P_show_PERFORMANCE_title(void);
-    void P_show_Patch_number(bool change_patch);
-    void P_Patch_VOLUME(bool change_vol); // shows VOLUME <value>
-    void P_Patch_volume_value(bool change_vol);
+    FLASHMEM void Confirm_no_yes_popup_frame(int value);
+    FLASHMEM void Show_all_effects(void);
+    FLASHMEM void Resolution(void);
+    FLASHMEM void Downsampling(void);
+    FLASHMEM void Lowpass_filter(void);
+    FLASHMEM void P_show_PERFORMANCE_title(void);
+    FLASHMEM void P_show_Patch_number(bool change_patch);
+    FLASHMEM void P_Patch_VOLUME(bool change_vol); // shows VOLUME <value>
+    FLASHMEM void P_Patch_volume_value(bool change_vol);
 };

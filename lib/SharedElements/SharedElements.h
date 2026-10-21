@@ -132,7 +132,7 @@ struct Patch_struct
 };
 static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 16 = 130
 
-extern Patch_struct Patch[PATCHES_MAX + 1]; // last used by Direct Sampling for "preascolto" and Live Sampling
+DMAMEM extern Patch_struct Patch[PATCHES_MAX + 1]; // last used by Direct Sampling for "preascolto" and Live Sampling
 
 struct Instrument_filter_values_struct
 {
@@ -164,7 +164,7 @@ struct Sound_struct // 22 bytes
     uint8_t gain;
 } __attribute__((__packed__));
 static constexpr uint8_t SIZE_OF_SOUND = sizeof(Sound_struct); // 22
-extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by Direct Sampling for "preascolto" and Live Sampling
+DMAMEM extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by Direct Sampling for "preascolto" and Live Sampling
 
 // == overloads
 inline bool operator==(const Instrument_filter_data_struct &lhs, const Instrument_filter_data_struct &rhs)
@@ -427,4 +427,4 @@ semitones	pitch	    delta pitch
 -12     	0,5	        -0,5
 */
 
-int Compare_audio_file_names(uint16_t left, uint16_t right);
+FLASHMEM int Compare_audio_file_names(uint16_t left, uint16_t right);

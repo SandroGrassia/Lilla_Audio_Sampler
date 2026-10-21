@@ -49,13 +49,13 @@ private:
 
     // Draws the X (play point) and Y (loop end) vertical lines on the canvas.
     void Draw_XY_lines(void);
-    void Show_no_recorded_audio(void);
+    FLASHMEM void Show_no_recorded_audio(void);
 
     // Erases all menu item highlight frames.
-    void Delete_menu_frames(void);
+    FLASHMEM void Delete_menu_frames(void);
 
     // Renders the "LIVE SAMPLER" title bar with red background.
-    void Page_title(void);
+    FLASHMEM void Page_title(void);
 
     // pointer
     static constexpr float LS_ROW_MENU = 1;
@@ -113,45 +113,45 @@ public:
     void Led_LIVE_SAMPLING(bool on);
 
     // Draws the "STOP RECORDING?" confirmation popup.
-    void Confirm_EXIT_from_LS(void);
+    FLASHMEM void Confirm_EXIT_from_LS(void);
 
     // Renders the full Live Sampler page (title, all labels and values).
-    void Page(void);
-    void Compressor(int threshold); // Value adjusts the threshold or selects OFF at the upper end.
-    void Update_no_recorded_audio(bool requested); // Erase only the popup rectangle when it expires.
+    FLASHMEM void Page(void);
+    FLASHMEM void Compressor(int threshold); // Value adjusts the threshold or selects OFF at the upper end.
+    FLASHMEM void Update_no_recorded_audio(bool requested); // Erase only the popup rectangle when it expires.
 
     // Redraws the Feedback parameter value.
-    void Feedback(void);
+    FLASHMEM void Feedback(void);
 
     // Redraws the Step parameter value (in samples).
-    void Step(void);
+    FLASHMEM void Step(void);
 
     // Redraws the Buffer size value (in seconds).
-    void Buffer(void);
+    FLASHMEM void Buffer(void);
 
     // Redraws the Volume value.
-    void Volume(void);
-    void Gain(void); // Shared hardware input gain, displayed as 1..16.
+    FLASHMEM void Volume(void);
+    FLASHMEM void Gain(void); // Shared hardware input gain, displayed as 1..16.
 
     // Redraws the Play Mode value (mode name, optional loop prefix).
-    void Play_mode(void);
+    FLASHMEM void Play_mode(void);
 
     // Redraws the Window width value (in seconds).
-    void Window(void);
+    FLASHMEM void Window(void);
 
     // Redraws the Loop Time value; shows "--" when looping is inactive.
-    void Loop_time(void);
+    FLASHMEM void Loop_time(void);
 
     // Redraws the Start Point value, expressing it as DELAY or ADVANCE relative to the current write head, or as FIXED when XY lock is on.
-    void Start_point(void);
+    FLASHMEM void Start_point(void);
 
     // Redraws the entire menu row, recalculating each visible item's pixel position and updating element_Menu_LS / position_Menu_LS tables.
-    void Menu(void);
+    FLASHMEM void Menu(void);
 
     // Draws a highlight frame around the menu item at the given display position.
 
     // Renders the waveform canvas for the given sound channel (min/max envelope, colour gradient by buffer age, X/Y markers, REC LED, stereo label), then blits the canvas to the TFT.
-    void Show_wave(const int sound_id);
+    FLASHMEM void Show_wave(const int sound_id);
 
     // Returns the RGB565 colour for a canvas pixel at column `point',
     // encoding buffer age as a green channel gradient.
@@ -162,6 +162,6 @@ public:
 
     // Draws or erases the pointer highlight frame at the position described
     // by `pointer` (either a menu item or a parameter value cell).
-    void LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show);
-    void LS_Display_Confirm_capture_frame(uint8_t value);
+    FLASHMEM void LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show);
+    FLASHMEM void LS_Display_Confirm_capture_frame(uint8_t value);
 };

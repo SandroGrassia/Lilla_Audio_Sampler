@@ -95,19 +95,19 @@ private:
 public:
     DisplayMidiLoop() {}
 
-    void Show_Loop_page(void);
-    void Show_loop_id(void);
+    FLASHMEM void Show_Loop_page(void);
+    FLASHMEM void Show_loop_id(void);
     void Show_patch_id(void);
     void Show_volume(void);
-    void Show_MIDI_LOOP(void);
-    void Show_track_all_data(const int track);
-    void Loop_total_time(void);
-    void Loop_REC_advice(const int track, const bool on);
+    FLASHMEM void Show_MIDI_LOOP(void);
+    FLASHMEM void Show_track_all_data(const int track);
+    FLASHMEM void Loop_total_time(void);
+    FLASHMEM void Loop_REC_advice(const int track, const bool on);
     void Loop_led(const int track, const int instrument_id, const bool on);
     void Loop_led_metronomo(const int Xled, const int Yled, const bool ONled);
-    void Show_menu(void);
-    void Show_save_failed(void);
-    bool Update_save_failed(void); // True when track data was restored; the caller must redraw the pointer.
+    FLASHMEM void Show_menu(void);
+    FLASHMEM void Show_save_failed(void);
+    FLASHMEM bool Update_save_failed(void); // True when track data was restored; the caller must redraw the pointer.
 
     // pointer
     void Loop_show_pointerMenu(const LOOP_menu_element_name pointer, const bool show);

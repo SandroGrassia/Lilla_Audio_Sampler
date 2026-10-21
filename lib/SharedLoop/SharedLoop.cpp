@@ -26,7 +26,7 @@ bool LOOP_track_run[TRACKS] = {false};
 uint32_t LOOP_play_time[TRACKS] = {0};
 uint32_t LOOP_play_event[TRACKS] = {0};
 float LOOP_volume[TRACKS] = {0};
-uint16_t LOOP_time;
+uint32_t LOOP_time;
 int LOOP_pitch_int[TRACKS] = {0};
 
 // LOOP learn

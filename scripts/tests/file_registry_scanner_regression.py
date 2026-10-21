@@ -68,7 +68,7 @@ int main()
     assert(FileNameRegistry::Add("7.raw") == 1);
     assert(FileNameRegistry::Add("kick.raw") == 2);
     assert(FileNameRegistry::Save());
-    SerialFlash.files = {{"0.raw", {100, 88000}}, {"7.raw", {100000, 2000}}, {"kick.raw", {102000, 4000}}, {"P0.raw", {120000, 65536}}};
+    SerialFlash.files = {{"0.raw", {100, 88000}}, {"7.raw", {100000, 2000}}, {"kick.raw", {102000, 4000}}, {"LillaR0.raw", {120000, 65536}}};
     FlashFileRegisterParser::Read_all_file_data();
     assert(FlashFileRegisterParser::address(1) == 100000);
     assert(FlashFileRegisterParser::length(2) == 4000);

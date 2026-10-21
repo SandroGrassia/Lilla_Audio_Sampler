@@ -185,7 +185,7 @@ private:
     static constexpr uint32_t FRAM_LEGACY_END_ADDRESS = FRAM_SYSTEM_ADDRESS + FRAM_SYSTEM_BYTES; // 0x0FE00
     static constexpr uint32_t FRAM_RECORDING_EDIT_ADDRESS = FileNameRegistry::END_ADDRESS;
     static constexpr uint32_t FRAM_FIRST_FREE_ADDRESS = FRAM_RECORDING_EDIT_ADDRESS + RECORDINGS * sizeof(FRAM_Recording_edit_struct);
-    byte Migrate_file_registry();
+    FLASHMEM byte Migrate_file_registry();
 
     struct alignas(4) FRAM_Backup_header_struct
     {
@@ -236,18 +236,18 @@ public:
     FLASHMEM byte Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument);
     FLASHMEM byte Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument);
     byte Read_Delay(uint8_t patch_id, Delay_data_struct &Delay_data);
-    byte Save_Delay(uint8_t patch_id, const Delay_data_struct &Delay_data);
+    FLASHMEM byte Save_Delay(uint8_t patch_id, const Delay_data_struct &Delay_data);
     FLASHMEM byte Read_first_octave(int8_t &first_octave);
     FLASHMEM byte Save_first_octave(const int8_t first_octave);
     byte Save_Sound(const int sound_id);
     bool Validate_Sound_AB_file_raw(uint32_t sound_id);
     byte Read_Sound(const int sound_id);
-    byte Save_Patch(const int patch_id);
+    FLASHMEM byte Save_Patch(const int patch_id);
     byte Read_Patch(const int patch_id);
     byte Save_DS_Recording(const int recording);
     byte Read_DS_Recording(const int recording);
-    byte Save_DS_edit(int recording, uint32_t first_sample, uint32_t last_sample);
-    byte Read_DS_edit(int recording, uint32_t &first_sample, uint32_t &last_sample); // Missing or corrupt edits leave the supplied full-length defaults intact.
+    FLASHMEM byte Save_DS_edit(int recording, uint32_t first_sample, uint32_t last_sample);
+    FLASHMEM byte Read_DS_edit(int recording, uint32_t &first_sample, uint32_t &last_sample); // Missing or corrupt edits leave the supplied full-length defaults intact.
     byte Clear_DS_edit(int recording);
     FLASHMEM bool Copy_Patch_from_RAM_to_SD(const int patch_id);
     FLASHMEM bool Copy_Patch_from_SD_to_RAM(const int patch_id);

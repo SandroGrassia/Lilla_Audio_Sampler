@@ -98,18 +98,18 @@ private:
 public:
     DisplayDelay() {}
 
-    void D_disabled(void);
-    void D_show_page(void);
-    void D_sounds(void); // Display the requested setting, independently of intermediate DSP values.
-    void D_feedback(void);             // feedback
-    void D_feedback_compressor(void);
-    void D_feedback_lpf(void);           // Feedback cutoff in integer Hz within seven characters.
-    void D_delay_time(void);           // Display the requested setting, independently of intermediate DSP values.
-    void D_delay_time_LR(void);        // Display the requested setting, independently of intermediate DSP values.
-    void D_modulation_source(void);    // Display the requested setting, independently of intermediate DSP values.
-    void D_modulation_frequency(void); // Display the requested setting, independently of intermediate DSP values.
-    void D_modulation_depth(void);     // Display the requested setting, independently of intermediate DSP values.
-    void D_modulation_phase_LR(void);  // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_disabled(void);
+    FLASHMEM void D_show_page(void);
+    FLASHMEM void D_sounds(void); // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_feedback(void);             // feedback
+    FLASHMEM void D_feedback_compressor(void);
+    FLASHMEM void D_feedback_lpf(void);           // Feedback cutoff in integer Hz within seven characters.
+    FLASHMEM void D_delay_time(void);           // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_delay_time_LR(void);        // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_modulation_source(void);    // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_modulation_frequency(void); // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_modulation_depth(void);     // Display the requested setting, independently of intermediate DSP values.
+    FLASHMEM void D_modulation_phase_LR(void);  // Display the requested setting, independently of intermediate DSP values.
 
     // pointer
     void DELAY_show_pointer_frame(const DELAY_element_name pointer, const bool show);

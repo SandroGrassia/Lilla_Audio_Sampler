@@ -162,7 +162,7 @@ production += method('void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PA
 production += method('void LOOP_reset_all_data(void)')
 production += 'void LOOP_stop_and_reset_runnig_loop_data() { LOOP_reset_all_data(); }\n'
 production += method('void LOOP_set_time_order(int track)')
-codec_start = main.index('// Loop SD v1:')
+codec_start = main.index('// Loop SD v2:')
 codec_end = main.index('bool LOOP_Look_for_midi_loop_in_SD(int loop_id)\n{', codec_start)
 production += main[codec_start:codec_end]
 for signature in ['bool LOOP_Look_for_midi_loop_in_SD(int loop_id)', 'int LOOP_Get_first_loop_id_free(void)', 'int LOOP_Get_next_loop_id_in_SD(int loop_id)', 'int LOOP_Get_previous_loop_id_in_SD(int loop_id)']:
@@ -170,7 +170,9 @@ for signature in ['bool LOOP_Look_for_midi_loop_in_SD(int loop_id)', 'int LOOP_G
 
 reader = (ROOT / 'lib/MidiReader/MidiReader.cpp').read_text(encoding='utf-8')
 production += 'constexpr int MIDI_LOOP = 1; int Lilla_state = MIDI_LOOP; unsigned long LOOP_Clock() { return 123; }\n'
-for name, condition in [('Learn_on', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements < LOOP_EVENTS)'), ('Learn_off', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0 && LOOP_elements < LOOP_EVENTS)')]:
+timeout = re.search(r'    if \(LOOP_learn_flag && Lilla_state == MIDI_LOOP.*?\n    \}', reader, re.S).group(0)
+production += 'void Check_recording_timeout()\n{\n' + timeout + '\n}\n'
+for name, condition in [('Learn_on', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag)'), ('Learn_off', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0)')]:
     start = reader.index(condition)
     position = reader.index('{', start)
     depth = 1
@@ -243,14 +245,22 @@ String encoded()
     assert(LOOP_Compile_midi_loop_file(file));
     return file.node->text;
 }
-String legacy()
+String legacy(bool v1 = false)
 {
     FsFile file{std::make_shared<Node>()};
-    assert(LOOP_Write_bytes(file, &LOOP_time, sizeof(LOOP_time)));
+    if (v1)
+    {
+        const String magic = "LILLALOOP 1\r\n";
+        assert(file.write(magic.data(), magic.size()) == magic.size());
+        const uint32_t tracks = TRACKS;
+        assert(LOOP_Write_bytes(file, &tracks, sizeof(tracks)));
+    }
+    const uint16_t duration = LOOP_time;
+    assert(LOOP_Write_bytes(file, &duration, sizeof(duration)));
     for (int track = 0; track < TRACKS; ++track)
     {
-        const uint8_t count = LOOP_events[track];
-        assert(LOOP_Write_bytes(file, &count, sizeof(count)));
+        const uint32_t count = LOOP_events[track];
+        assert(LOOP_Write_bytes(file, &count, v1 ? sizeof(uint32_t) : sizeof(uint8_t)));
     }
     assert(LOOP_Write_bytes(file, LOOP_slide, sizeof(LOOP_slide)));
     assert(LOOP_Write_bytes(file, LOOP_pitch_int, sizeof(LOOP_pitch_int)));
@@ -312,29 +322,40 @@ int main()
     put(path, old);
     LOOP_reset_all_data();
     assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_events[3] == 2 && LOOP_element[3][1].note_number == 41);
+    put(path, legacy(true));
+    LOOP_reset_all_data();
+    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_time == 10000 && LOOP_events[3] == 2);
     const String small = encoded();
+    seed(LOOP_EVENTS);
+    LOOP_time = LOOP_MAX_DURATION_MS;
+    LOOP_element[3][LOOP_EVENTS - 1].time = 119999;
+    put(path, encoded());
+    LOOP_reset_all_data();
+    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_time == 120000 && LOOP_events[3] == LOOP_EVENTS && LOOP_element[3][LOOP_EVENTS - 1].time == 119999);
+    LOOP_time = LOOP_MAX_DURATION_MS + 1;
+    rejected(encoded());
     for (size_t length = 0; length < small.size(); ++length)
     {
         rejected(small.substr(0, length));
     }
     rejected(small + "0\r\n");
-    rejected("LILLALOOP 2\r\n" + small.substr(sizeof(LOOP_SD_MAGIC) - 1));
+    rejected("LILLALOOP 3\r\n" + small.substr(sizeof(LOOP_SD_MAGIC) - 1));
     rejected(change_byte(small, 0, "5")); // Track count.
     for (const char *bad : {"256", "-1", "x", "", "12x", "999999", " 1"})
     {
         rejected(change_byte(small, 4, bad));
     }
     rejected(change_byte(change_byte(small, 4, "0"), 5, "0")); // Zero duration.
-    rejected(change_byte(small, 6, "0")); // Empty master.
-    rejected(change_byte(small, 9, "255")); // Huge 32-bit event count.
-    rejected(change_byte(small, 25, "127")); // Slide outside duration.
-    rejected(change_byte(small, 38, "25")); // Pitch.
-    rejected(change_byte(small, 54, "0")); // Stretch.
-    rejected(change_byte(small, 61, "127"));
-    rejected(change_byte(small, 62, "16")); // MIDI channel.
-    rejected(change_byte(small, 63, "128")); // Note.
-    rejected(change_byte(small, 64, "128")); // Velocity.
-    rejected(change_byte(small, 65, "2")); // Bool representation.
+    rejected(change_byte(small, 8, "0")); // Empty master.
+    rejected(change_byte(small, 11, "255")); // Huge 32-bit event count.
+    rejected(change_byte(small, 27, "127")); // Slide outside duration.
+    rejected(change_byte(small, 40, "25")); // Pitch.
+    rejected(change_byte(small, 56, "0")); // Stretch.
+    rejected(change_byte(small, 63, "127"));
+    rejected(change_byte(small, 64, "16")); // MIDI channel.
+    rejected(change_byte(small, 65, "128")); // Note.
+    rejected(change_byte(small, 66, "128")); // Velocity.
+    rejected(change_byte(small, 67, "2")); // Bool representation.
     // Legacy export with the old extra 8 bytes in each array must not be accepted.
     size_t array_end = 0;
     for (int line = 0; line < 22; ++line)
@@ -446,6 +467,24 @@ int main()
     LOOP_id = 7;
     Display_MidiLoop.Show_loop_id();
     assert(tft.text == "7");
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        LOOP_learning_track = track;
+        LOOP_time = 90000;
+        LOOP_elements = 1;
+        const uint32_t limit = track == MASTER_TRACK ? LOOP_MAX_DURATION_MS : LOOP_time;
+        LOOP_learn_flag = true;
+        LOOP_learn_clock = limit - 1;
+        Check_recording_timeout();
+        assert(LOOP_learn_flag);
+        LOOP_learn_clock = limit;
+        Check_recording_timeout();
+        assert(!LOOP_learn_flag);
+        LOOP_elements = 0;
+        LOOP_learn_flag = true;
+        Check_recording_timeout();
+        assert(LOOP_learn_flag);
+    }
     // Exercise production recording conditions: the last slot is usable and no later event writes past it.
     LOOP_learning_track = 0;
     LOOP_elements = 0;
@@ -462,20 +501,30 @@ int main()
         }
     }
     assert(LOOP_elements == LOOP_EVENTS && LOOP_last_event == LOOP_EVENTS - 1 && !LOOP_learn_flag);
-    LOOP_learn_flag = true; // Even an inconsistent flag cannot cause an out-of-bounds append.
+    // Completion disables recording before any subsequent MIDI event arrives.
     Learn_on(0, 61, 100);
     Learn_off(0, 61, 0);
     assert(LOOP_elements == LOOP_EVENTS && LOOP_element[0][LOOP_EVENTS - 1].note_number == 60);
+    // The clock can cross the limit while a collected MIDI batch is handled.
+    LOOP_elements = 1;
+    LOOP_last_event = 0;
+    LOOP_learn_flag = true;
+    LOOP_learn_clock = LOOP_MAX_DURATION_MS + 1;
+    Learn_on(0, 60, 100);
+    assert(!LOOP_learn_flag && LOOP_element[0][1].time == 120000);
+    LOOP_learn_flag = true;
+    Learn_off(0, 60, 0);
+    assert(!LOOP_learn_flag && LOOP_element[0][2].time == 120000);
     std::cout << "PASS: loop SD round trips, bounds, malformed/truncated files, second-pass failure, safe replacement/recovery; capacity=" << LOOP_EVENTS << '\n';
 }
 '''
 
 compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-loop-') as directory:
-    for capacity in [100, 1024]:
+    for capacity in [1000]:
         cpp = Path(directory) / 'loop.cpp'
         exe = Path(directory) / ('loop.exe' if os.name == 'nt' else 'loop')
-        variant = production.replace('LOOP_EVENTS = 100;', f'LOOP_EVENTS = {capacity};')
+        variant = production.replace('LOOP_EVENTS = 1000;', f'LOOP_EVENTS = {capacity};')
         cpp.write_text(prefix + variant + tests, encoding='utf-8', newline='\r\n')
         subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
         environment = os.environ.copy()
