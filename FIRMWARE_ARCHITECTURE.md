@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.6 21/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.7 22/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 

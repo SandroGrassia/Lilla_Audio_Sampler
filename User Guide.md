@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.6**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.7**
 
-Guide edition: **21 October 2026**
+Guide edition: **22 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.6](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.7](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -883,20 +883,20 @@ If the monitor receives notes but Performance is silent, the connection is worki
 
 ```text
 microSD root/
-  SD_AUDIO_FILES/       Originals for conversion to the SD audio library
-  FLASH_AUDIO_FILES/    Originals for import into internal Flash
-  EXPORTED_AUDIO_FILES/ Sampler recordings exported as WAV
-  DATA_BACKUPS/         Numbered configuration and recording backups
-  RESTORE/              Contents of the selected backup to restore
+  SD_AUDIO_FILES/        Originals for the SD audio library
+  FLASH_AUDIO_FILES/     Originals for internal Flash import
+  EXPORTED_AUDIO_FILES/  Exported Sampler WAV recordings
+  DATA_BACKUPS/          Numbered configuration/recording backups
+  RESTORE/               Contents of the backup chosen for restore
   LILLA_PRIVATE/
     MIDI_LOOPS/         Saved MIDI loops
-    AUDIO_FILES/  Prepared RAW library, index and source references
+    AUDIO_FILES/        Prepared RAW files, index and source references
     PATCHES/            Patch parameter copies
 ```
 
 Prepare the input folders and `/RESTORE` as needed. The firmware creates output folders when saving or converting. Keep all hidden files in `AUDIO_FILES` when copying the library.
 
-For an existing SD card, rename `/EXTERNAL_AUDIO` to `/SD_AUDIO_FILES`, `/FLASH_AUDIO` to `/FLASH_AUDIO_FILES`, `/LILLAWAV_EXPORT` to `/EXPORTED_AUDIO_FILES`, and `/LILLABACKUP` to `/DATA_BACKUPS`. Create `/LILLA_PRIVATE` and move `/LILLALOOP`, `/LILLA_AUDIO`, and `/LILLAPATCH` into it as `MIDI_LOOPS`, `AUDIO_FILES`, and `PATCHES`, respectively. File contents and formats do not change. The unused `/LILLASOUND` folder is no longer used. Migration is manual; the firmware reads the new paths.
+**Firmware 7.2.7 introduces this layout.** For an existing SD card, rename `/EXTERNAL_AUDIO` to `/SD_AUDIO_FILES`, `/FLASH_AUDIO` to `/FLASH_AUDIO_FILES`, `/LILLAWAV_EXPORT` to `/EXPORTED_AUDIO_FILES`, and `/LILLABACKUP` to `/DATA_BACKUPS`. Create `/LILLA_PRIVATE` and move `/LILLALOOP`, `/LILLA_AUDIO`, and `/LILLAPATCH` into it as `MIDI_LOOPS`, `AUDIO_FILES`, and `PATCHES`, respectively. File contents and formats do not change. The unused `/LILLASOUND` folder is no longer used. Migration is manual; the firmware reads the new paths.
 
 ### Plan a complete archive
 
@@ -1000,7 +1000,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.6. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.7. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1054,7 +1054,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.6.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.7.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1199,6 +1199,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 21 October 2026*
+*LILLA User Guide - English edition - 22 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*
