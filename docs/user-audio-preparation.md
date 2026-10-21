@@ -1,6 +1,6 @@
 # User audio preparation on SD (firmware 7.2.4)
 
-Select **CONVERT SD AUDIO FILES** in SETUP after putting source files directly in `/EXTERNAL_AUDIO` and inserting the SD. The green confirmation identifies the source and destination folders and explains that originals are retained and existing destination files are skipped. Choose GO to start or CANCEL to return. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
+Select **CONVERT SD AUDIO FILES** in SETUP after putting source files directly in `/SD_AUDIO_FILES` and inserting the SD. The green confirmation identifies the source and destination folders and explains that originals are retained and existing destination files are skipped. Choose GO to start or CANCEL to return. A green popup displays "FILE IMPORT IN PROGRESS" and "PLEASE DON'T POWER OFF LILLA" throughout indexing and import; SETUP is restored when the operation ends.
 
 MIDI and Trigger are stopped, active Players are drained, and audio processing is suspended until preparation ends. The previous audio/MIDI state is restored afterwards. The Serial terminal lists each source and destination, successful copies/conversions, skipped files, errors, and the index result.
 
@@ -12,15 +12,15 @@ MIDI and Trigger are stopped, active Players are drained, and audio processing i
 - MP3: decoded with the existing importer and resampled to 44.1 kHz when needed.
 - Stereo is averaged to mono with the existing conversion rules. All outputs are signed 16-bit little-endian mono RAW at 44.1 kHz.
 
-The destination keeps the source stem and uses `.raw`: `Piano.wav` becomes `/LILLA_AUDIO/Piano.raw`. Originals in `/EXTERNAL_AUDIO` are retained. Subdirectories and unsupported extensions are skipped and reported. Existing destination files are never overwritten. If `Piano.raw` exists, `Piano.wav`, `Piano.aiff`, `Piano.mp3` and `Piano.raw` are skipped before conversion; matching follows the SD filesystem's case-insensitive filenames.
+The destination keeps the source stem and uses `.raw`: `Piano.wav` becomes `/LILLA_PRIVATE/AUDIO_FILES/Piano.raw`. Originals in `/SD_AUDIO_FILES` are retained. Subdirectories and unsupported extensions are skipped and reported. Existing destination files are never overwritten. If `Piano.raw` exists, `Piano.wav`, `Piano.aiff`, `Piano.mp3` and `Piano.raw` are skipped before conversion; matching follows the SD filesystem's case-insensitive filenames.
 
 Files with the same stem map to the same RAW name. When multiple inputs have that stem, the first successfully processed one is retained; later inputs are skipped. Processing follows SD directory order and every skip is reported. Use unique stems when all source files must be retained as separate RAWs.
 
-The SD operation copies/converts complete files rather than applying the existing Flash import's 3 MiB limit. Empty or odd-length RAWs and unsupported/corrupt audio are reported as errors. Conversion writes a temporary file first, then renames it to the new destination only after the write is complete. Failed writes or renames do not publish a partial audio file. Original source files remain available in `/EXTERNAL_AUDIO`.
+The SD operation copies/converts complete files rather than applying the existing Flash import's 3 MiB limit. Empty or odd-length RAWs and unsupported/corrupt audio are reported as errors. Conversion writes a temporary file first, then renames it to the new destination only after the write is complete. Failed writes or renames do not publish a partial audio file. Original source files remain available in `/SD_AUDIO_FILES`.
 
 ## Alphabetical index
 
-Before importing, the command creates `/LILLA_AUDIO/.lilla-index` if it is absent, describing the existing RAW files. If this initial creation fails, no audio is imported. An existing index is retained until the final update. After processing, the index is rebuilt and describes all valid RAW files currently in the destination, including previously existing files. Capacity is **4,096 entries**. Ordering is case-insensitive by filename, with the original spelling retained. Filenames can use up to 255 bytes including `.raw`.
+Before importing, the command creates `/LILLA_PRIVATE/AUDIO_FILES/.lilla-index` if it is absent, describing the existing RAW files. If this initial creation fails, no audio is imported. An existing index is retained until the final update. After processing, the index is rebuilt and describes all valid RAW files currently in the destination, including previously existing files. Capacity is **4,096 entries**. Ordering is case-insensitive by filename, with the original spelling retained. Filenames can use up to 255 bytes including `.raw`.
 
 The index contains one entry per file actually present, not 4,096 preallocated entries. It is a binary file, not a text listing; file browsers that hide dot-prefixed names may hide it. `INDEX ERROR` followed by `index=UNAVAILABLE` means no valid index was published, even if the RAW conversions succeeded.
 
@@ -44,10 +44,10 @@ Selecting an SD file loads its initial window into an existing PSRAM cache: the 
 
 During preview, filename, resolution, downsampling, LPF cutoff, gain, pitch, MIDI channel, From, To and Step remain editable. Pan is centered, attack is FAST 0.00, decay is 1 second, sustain is 100%, release is 2 seconds, play mode is ONCE FWD and NOCLICK is zero. These locked controls become available after SAVE.
 
-SAVE retains the selected portion in PSRAM and creates a persistent source-and-trim reference in `/LILLA_AUDIO/.lilla-sources`. It writes no audio to Flash. Keep this directory together with the original RAW files: committed Sounds use these references to reload their portions after startup. The alphabetical index may be rebuilt without changing saved Sound identities. Commit the definitive patch from PERFORMANCE as usual. Leaving preview with RETURN without SAVE restores the previous Sound.
+SAVE retains the selected portion in PSRAM and creates a persistent source-and-trim reference in `/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources`. It writes no audio to Flash. Keep this directory together with the original RAW files: committed Sounds use these references to reload their portions after startup. The alphabetical index may be rebuilt without changing saved Sound identities. Commit the definitive patch from PERFORMANCE as usual. Leaving preview with RETURN without SAVE restores the previous Sound.
 
 Missing audio follows the Flash behavior: the Sound retains its reference and parameters, and remains inactive if no valid cached audio is available. SOUND_EDIT shows an empty waveform and the red message `AUDIO FILE UNAVAILABLE`. Audio already loaded in PSRAM can continue playing even after SD removal. When neither repository has audio, the editor displays the SETUP import instruction instead.
 
 If the SD is removed while browsing, attempting to select another file displays `INSERT SD` for two seconds, then redraws the previous selection. The failed selection leaves its source reference, trim and cached audio unchanged.
 
-For direct import into Flash, use SETUP > `IMPORT AUDIO FILES FROM SD` and place source files in `/FLASH_AUDIO`. SD library preparation instead reads `/EXTERNAL_AUDIO` and writes converted RAW files plus the index to `/LILLA_AUDIO`.
+For direct import into Flash, use SETUP > `IMPORT AUDIO FILES FROM SD` and place source files in `/FLASH_AUDIO_FILES`. SD library preparation instead reads `/SD_AUDIO_FILES` and writes converted RAW files plus the index to `/LILLA_PRIVATE/AUDIO_FILES`.

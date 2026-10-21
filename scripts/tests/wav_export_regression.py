@@ -138,7 +138,7 @@ struct Card
         }
     } sdfs;
     bool begin(int) { return card_ok; }
-    bool exists(const char *path) { return std::string(path) == "/LILLAWAV_EXPORT" ? directory_exists : files.count(path); }
+    bool exists(const char *path) { return std::string(path) == "/EXPORTED_AUDIO_FILES" ? directory_exists : files.count(path); }
     bool mkdir(const char *) { directory_exists = mkdir_ok; return mkdir_ok; }
     bool remove(const char *path) { return files.erase(path); }
 } SD;
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
             reset(bytes, stereo);
             assert(DS_export_wav_to_SD());
             assert(files.size() == 1);
-            const auto &actual = files.at(stereo ? "/LILLAWAV_EXPORT/0S.wav" : "/LILLAWAV_EXPORT/0M.wav");
+            const auto &actual = files.at(stereo ? "/EXPORTED_AUDIO_FILES/0S.wav" : "/EXPORTED_AUDIO_FILES/0M.wav");
             assert(actual.size() == 44 + static_cast<size_t>(bytes) * channels);
             assert(memcmp(actual.data(), "RIFF", 4) == 0);
             assert(little_endian(actual, 4, 4) == actual.size() - 8);
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
             const uint32_t last = stereo ? first + 137 : first + 131;
             const auto original_flash = flash;
             assert(DS_export_wav_to_SD());
-            const auto &actual = files.at(stereo ? "/LILLAWAV_EXPORT/0S.wav" : "/LILLAWAV_EXPORT/0M.wav");
+            const auto &actual = files.at(stereo ? "/EXPORTED_AUDIO_FILES/0S.wav" : "/EXPORTED_AUDIO_FILES/0M.wav");
             assert(actual.size() == 44 + (last - first + 1) * 2 * channels);
             assert(little_endian(actual, 40, 4) == (last - first + 1) * 2 * channels);
             for (uint32_t sample = first; sample <= last; ++sample)
@@ -316,12 +316,12 @@ int main(int argc, char **argv)
     for (bool stereo : {false, true})
     {
         reset(256, stereo);
-        files["/LILLAWAV_EXPORT/0M.wav"] = {42};
-        files["/LILLAWAV_EXPORT/1S.wav"] = {43};
+        files["/EXPORTED_AUDIO_FILES/0M.wav"] = {42};
+        files["/EXPORTED_AUDIO_FILES/1S.wav"] = {43};
         assert(DS_export_wav_to_SD());
-        assert(files["/LILLAWAV_EXPORT/0M.wav"] == std::vector<byte>{42});
-        assert(files["/LILLAWAV_EXPORT/1S.wav"] == std::vector<byte>{43});
-        assert(files.count(stereo ? "/LILLAWAV_EXPORT/2S.wav" : "/LILLAWAV_EXPORT/2M.wav"));
+        assert(files["/EXPORTED_AUDIO_FILES/0M.wav"] == std::vector<byte>{42});
+        assert(files["/EXPORTED_AUDIO_FILES/1S.wav"] == std::vector<byte>{43});
+        assert(files.count(stereo ? "/EXPORTED_AUDIO_FILES/2S.wav" : "/EXPORTED_AUDIO_FILES/2M.wav"));
     }
     std::cout << "WAV export regression passed: PCM headers, mono/stereo samples, packet boundaries, failure cleanup, existing files\n";
 }

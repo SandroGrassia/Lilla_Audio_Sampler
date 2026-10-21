@@ -131,6 +131,12 @@ struct SDStub
         {
             return false;
         }
+        const String name = path;
+        const size_t slash = name.find_last_of('/');
+        if (slash > 0 && !directories.count(name.substr(0, slash)))
+        {
+            return false;
+        }
         directories.insert(path);
         return true;
     }
@@ -215,7 +221,7 @@ ui_end = main.index('                    case value_LOOP_Delete:\n', ui_start)
 production += 'void Save_UI(int action)\n{\n    switch (action)\n    {\n' + main[ui_start:ui_end] + '    }\n}\n'
 
 tests = r'''
-const String path = "/LILLALOOP/3.loop";
+const String path = "/LILLA_PRIVATE/MIDI_LOOPS/3.loop";
 void seed(uint32_t count)
 {
     LOOP_reset_all_data();
@@ -298,10 +304,10 @@ int main()
     assert(std::strcmp(first, "0.loop") == 0 && std::strcmp(second, "2147483647.loop") == 0);
     char longest_path[LOOP_PATH_SIZE];
     LOOP_Path_midi_loop(INT32_MIN, longest_path);
-    assert(std::strcmp(longest_path, "/LILLALOOP/-2147483648.loop") == 0);
+    assert(std::strcmp(longest_path, "/LILLA_PRIVATE/MIDI_LOOPS/-2147483648.loop") == 0);
     char longest_backup[LOOP_SIDECAR_PATH_SIZE];
     assert(std::snprintf(longest_backup, sizeof(longest_backup), "%s.bak", longest_path) == int(sizeof(longest_backup) - 1));
-    assert(std::strcmp(longest_backup, "/LILLALOOP/-2147483648.loop.bak") == 0);
+    assert(std::strcmp(longest_backup, "/LILLA_PRIVATE/MIDI_LOOPS/-2147483648.loop.bak") == 0);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_events[0])>, uint32_t>);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_time_order[0][0])>, uint32_t>);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_play_event[0])>, uint32_t>);
@@ -442,14 +448,14 @@ int main()
     LOOP_select_menu_elements();
     assert(!Menu_LOOP[0] && Menu_LOOP[1] && !Menu_LOOP[2] && Menu_LOOP[3]);
     // Occupying the preview before Save selects the next free slot instead of overwriting it.
-    put("/LILLALOOP/1.loop.bak", "reserved");
+    put("/LILLA_PRIVATE/MIDI_LOOPS/1.loop.bak", "reserved");
     faults.write_limit = 10;
     Save_UI(value_LOOP_Save);
     assert(LOOP_id == NEW_LOOP && LOOP_suggested_id == 2 && tft.text == "2" && !LOOP_original);
     faults = {};
     Save_UI(value_LOOP_Save);
     assert(LOOP_id == 2 && LOOP_original && tft.text == "2");
-    assert(SD.sdfs.files["/LILLALOOP/1.loop.bak"]->text == "reserved");
+    assert(SD.sdfs.files["/LILLA_PRIVATE/MIDI_LOOPS/1.loop.bak"]->text == "reserved");
     // Missing SD and exhausted IDs show the placeholder while keeping the RAM loop unsaved.
     LOOP_id = NEW_LOOP;
     faults.begin = true;

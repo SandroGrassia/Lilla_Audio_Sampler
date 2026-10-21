@@ -1892,27 +1892,24 @@ String ArchivingManager::Filename_Patch(const int patch_id)
 }
 
 // Filename sound description
-FLASHMEM
-String ArchivingManager::Filename_Sound(const int patch_id, const int instrument_id)
-{
-    // String filename = String(patch_id + "_" + instrument_id);
-    String filename = String(patch_id) + "_" + instrument_id;
-    return String(filename + ".sound");
-}
 
 FLASHMEM
 bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
 {
     String filename = Filename_Patch(patch_id);
-    String full_path = String("/LILLAPATCH/" + filename);
+    String full_path = String("/LILLA_PRIVATE/PATCHES/" + filename);
     auto *full_path_ptr = full_path.c_str();
 
     if (SD.begin(BUILTIN_SDCARD))
     {
-        if (!SD.exists("/LILLAPATCH"))
+        if (!SD.exists("/LILLA_PRIVATE") && !SD.mkdir("/LILLA_PRIVATE"))
         {
-            SD.mkdir("/LILLAPATCH");
-            Serial.println(F("/LILLAPATCH directory created"));
+            return false;
+        }
+        if (!SD.exists("/LILLA_PRIVATE/PATCHES"))
+        {
+            SD.mkdir("/LILLA_PRIVATE/PATCHES");
+            Serial.println(F("/LILLA_PRIVATE/PATCHES directory created"));
         }
 
         else if (SD.exists(full_path_ptr))
@@ -1964,7 +1961,7 @@ bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
     }
 
     char full_path[PATCH_PATH_SIZE];
-    const int length = snprintf(full_path, sizeof(full_path), "/LILLAPATCH/%d.bin.patch", patch_id);
+    const int length = snprintf(full_path, sizeof(full_path), "/LILLA_PRIVATE/PATCHES/%d.bin.patch", patch_id);
 
     if (length < 0 || static_cast<size_t>(length) >= sizeof(full_path))
     {
@@ -1980,10 +1977,14 @@ bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
 
     else
     {
-        if (!SD.exists("/LILLAPATCH"))
+        if (!SD.exists("/LILLA_PRIVATE") && !SD.mkdir("/LILLA_PRIVATE"))
         {
-            SD.mkdir("/LILLAPATCH");
-            Serial.println(F("/LILLAPATCH directory created"));
+            return false;
+        }
+        if (!SD.exists("/LILLA_PRIVATE/PATCHES"))
+        {
+            SD.mkdir("/LILLA_PRIVATE/PATCHES");
+            Serial.println(F("/LILLA_PRIVATE/PATCHES directory created"));
         }
 
         if (SD.exists(full_path) && !SD.remove(full_path))
@@ -2041,7 +2042,7 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 
     char full_path[PATCH_PATH_SIZE];
 
-    const int length = snprintf(full_path, sizeof(full_path), "/LILLAPATCH/%d.bin.patch", patch_id);
+    const int length = snprintf(full_path, sizeof(full_path), "/LILLA_PRIVATE/PATCHES/%d.bin.patch", patch_id);
 
     if (length < 0 || static_cast<size_t>(length) >= sizeof(full_path))
     {
@@ -2182,72 +2183,13 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
     return true;
 }
 
-FLASHMEM
-bool ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id)
-{
-    String filename = Filename_Sound(patch_id, instrument_id);
-    String full_path = String("/LILLASOUND/" + filename);
-    auto *full_path_ptr = full_path.c_str();
 
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (!SD.exists("/LILLASOUND"))
-        {
-            SD.mkdir("/LILLASOUND");
-            Serial.println(F("/LILLASOUND directory created"));
-        }
-
-        else if (SD.exists(full_path_ptr))
-        {
-            SD.remove(full_path_ptr);
-
-            Serial.print(F("ArchivingManager::Copy_Sound_from_RAM_to_SD - existing "));
-            Serial.print(full_path);
-            Serial.println(" has been deleted.");
-        }
-
-        File file = SD.open(full_path_ptr, FILE_WRITE); // creazione del file vuoto
-        if (file)
-        {
-            Copy_Sound_from_RAM_to_SD(patch_id, instrument_id, file);
-            file.close();
-
-            Serial.print(F("ArchivingManager::Copy_Sound_from_RAM_to_SD - Sound saved in "));
-            Serial.print(full_path_ptr);
-            Serial.println(" in SD.");
-
-            return true;
-        }
-
-        else
-        {
-            return false;
-        }
-    }
-
-    else
-    {
-        Serial.println(F("ArchivingManager::Copy_Sound_from_RAM_to_SD - SD not present!"));
-        return false;
-    }
-}
-
-FLASHMEM
-void ArchivingManager::Copy_Sound_from_RAM_to_SD(const int patch_id, const int instrument_id, File &file) // private
-{
-    const auto *data = (const byte *)(const void *)&Sound[Get_sound_id(patch_id, instrument_id)];
-
-    for (auto i = 0; i < SIZE_OF_SOUND; ++i)
-    {
-        file.println(*(data + i));
-    }
-}
 
 FLASHMEM
 bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
 {
     String filename = Filename_Patch(patch_id);
-    String full_path = String("/LILLAPATCH/" + filename);
+    String full_path = String("/LILLA_PRIVATE/PATCHES/" + filename);
     auto *full_path_ptr = full_path.c_str();
 
     if (SD.begin(BUILTIN_SDCARD))
@@ -2401,145 +2343,7 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
     return true;
 }
 
-FLASHMEM
-bool ArchivingManager::Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id) // public
-{
-    String filename = Filename_Sound(patch_id, instrument_id);
-    String full_path = String("/LILLASOUND/" + filename);
-    auto *full_path_ptr = full_path.c_str();
 
-    if (SD.begin(BUILTIN_SDCARD))
-    {
-        if (SD.exists(full_path_ptr))
-        {
-            Serial.print(F("ArchivingManager::Copy_Sound_from_SD_to_RAM - Sound file "));
-            Serial.print(full_path);
-            Serial.println(F(" found; now starts Sound import."));
-
-            File file = SD.open(full_path_ptr);
-            if (file)
-            {
-                Copy_Sound_from_SD_to_RAM(patch_id, instrument_id, sound_id, file);
-                file.close();
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
-        {
-            Serial.println(F("ArchivingManager::Copy_Sound_from_SD_to_RAM - Sound not found on SD!"));
-            return false;
-        }
-    }
-
-    else
-    {
-        Serial.println(F("ArchivingManager::Copy_Sound_from_SD_to_RAM - SD not present!"));
-        return false;
-    }
-}
-
-FLASHMEM
-void ArchivingManager::Copy_Sound_from_SD_to_RAM(const int patch_id, const int instrument_id, const int sound_id, File &file) // private
-{
-    uint8_t value;
-    String value_txt;
-    uint8_t value_1;
-    uint8_t value_2;
-    uint8_t value_3;
-    uint8_t value_4;
-
-    /*
-    struct Sound_struct // 22 bytes
-    {
-        bool used;
-        uint16_t file;
-        uint8_t mode;
-        int8_t pitch; // -128 + 127
-        uint32_t A;
-        uint32_t B;
-        uint16_t Noclick;
-        int8_t pan;
-        uint8_t data; // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
-        uint8_t attack;
-        uint8_t decay;
-        uint8_t sustain;
-        uint8_t release;
-        uint8_t gain;
-    }
-    */
-
-    value_txt = file.readStringUntil('\n'); // restituisce String - es: x_txt = "230" ossia i char "2" "3" "0" "\n"
-    value = value_txt.toInt();              // toInt() conversione da String a long es: x = 230
-    Sound[sound_id].used = (value != 0);
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    Sound[sound_id].file = value_2 << 8 | value_1;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].pitch = static_cast<int8_t>(value);
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_3 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_4 = value_txt.toInt();
-    Sound[sound_id].A = value_4 << 24 | value_3 << 16 | value_2 << 8 | value_1;
-
-    value_txt = file.readStringUntil('\n');
-    value_1 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_2 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_3 = value_txt.toInt();
-    value_txt = file.readStringUntil('\n');
-    value_4 = value_txt.toInt();
-    Sound[sound_id].B = value_4 << 24 | value_3 << 16 | value_2 << 8 | value_1;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].Noclick = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].pan = static_cast<int8_t>(value);
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].data = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].attack = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].decay = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].sustain = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].release = value;
-
-    value_txt = file.readStringUntil('\n');
-    value = value_txt.toInt();
-    Sound[sound_id].gain = value;
-
-    Serial.println(F("ArchivingManager::Copy_Sound_from_SD_to_RAM - Done."));
-}
 
 FLASHMEM
 bool ArchivingManager::Is_SD_inserted(void)

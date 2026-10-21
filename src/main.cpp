@@ -736,7 +736,7 @@ FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id);                  
 FLASHMEM bool LOOP_Compile_midi_loop_file(FsFile &file);                                          // Serialize the current MIDI Loop data into the supplied file.
 FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load);                                  // Validate a MIDI Loop file and optionally load its data into RAM.
 static constexpr size_t LOOP_FILENAME_SIZE = sizeof("-2147483648.loop");                 // Enough for every 32-bit int, extension and terminator.
-static constexpr size_t LOOP_PATH_SIZE = sizeof("/LILLALOOP/") - 1 + LOOP_FILENAME_SIZE; // Buffer capacity for an absolute MIDI Loop path, including its terminator.
+static constexpr size_t LOOP_PATH_SIZE = sizeof("/LILLA_PRIVATE/MIDI_LOOPS/") - 1 + LOOP_FILENAME_SIZE; // Buffer capacity for an absolute MIDI Loop path, including its terminator.
 static constexpr size_t LOOP_SIDECAR_PATH_SIZE = LOOP_PATH_SIZE + sizeof(".bak") - 1;    // Path capacity including a .bak or .tmp suffix and terminator.
 void LOOP_Filename_midi_loop(int loop_id, char (&filename)[LOOP_FILENAME_SIZE]);         // Write into caller-owned storage.
 void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE]);                     // Build the absolute SD path without dynamic allocation.
@@ -7739,7 +7739,7 @@ void loop()
                     Display_Setup.SETUP_show_frame(SET_menu);
                     break;
                 }
-                if (!SD.exists("/LILLABACKUP/LILLA_CONFIG.fram"))
+                if (!SD.exists("/RESTORE/LILLA_CONFIG.fram"))
                 {
                     Display_Setup.SETUP_show_SETUP_page();
                     Display_Setup.SETUP_show_frame(SET_menu);
@@ -7777,7 +7777,7 @@ void loop()
                             Display_Setup.SETUP_show_frame(SET_menu);
                             break;
                         }
-                        Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /LILLABACKUP."));
+                        Serial.println(F("Full restore failed: check configuration, audio CRCs and packet capacity. Retry from /RESTORE."));
                         Display_Storage.Config_import_FILE_error_popup();
                         delay(5000);
                         Reload_system_state();
@@ -9727,7 +9727,7 @@ bool DS_export_wav_to_SD(void)
     }
     const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], entry.stereo);
     const uint32_t channel_bytes = (trim.last - trim.first + 1) * 2;
-    if (!SD.begin(BUILTIN_SDCARD) || (!SD.exists("/LILLAWAV_EXPORT") && !SD.mkdir("/LILLAWAV_EXPORT")))
+    if (!SD.begin(BUILTIN_SDCARD) || (!SD.exists("/EXPORTED_AUDIO_FILES") && !SD.mkdir("/EXPORTED_AUDIO_FILES")))
     {
         return false;
     }
@@ -9735,8 +9735,8 @@ bool DS_export_wav_to_SD(void)
     bool available = false;
     for (int id = 0; id < 100000; ++id)
     {
-        snprintf(paths[0], sizeof(paths[0]), "/LILLAWAV_EXPORT/%dM.wav", id);
-        snprintf(paths[1], sizeof(paths[1]), "/LILLAWAV_EXPORT/%dS.wav", id);
+        snprintf(paths[0], sizeof(paths[0]), "/EXPORTED_AUDIO_FILES/%dM.wav", id);
+        snprintf(paths[1], sizeof(paths[1]), "/EXPORTED_AUDIO_FILES/%dS.wav", id);
         if (!SD.exists(paths[0]) && !SD.exists(paths[1]))
         {
             available = true;
@@ -11483,7 +11483,7 @@ void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])
 {
     char filename[LOOP_FILENAME_SIZE];
     LOOP_Filename_midi_loop(loop_id, filename);
-    snprintf(path, sizeof(path), "/LILLALOOP/%s", filename);
+    snprintf(path, sizeof(path), "/LILLA_PRIVATE/MIDI_LOOPS/%s", filename);
 }
 
 // Loop SD v2: magic line, uint32_t track count, uint32_t duration, uint32_t event counts,
@@ -11671,7 +11671,7 @@ bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
     {
         return false;
     }
-    if (!SD.exists("/LILLALOOP") && !SD.mkdir("/LILLALOOP"))
+    if ((!SD.exists("/LILLA_PRIVATE") && !SD.mkdir("/LILLA_PRIVATE")) || (!SD.exists("/LILLA_PRIVATE/MIDI_LOOPS") && !SD.mkdir("/LILLA_PRIVATE/MIDI_LOOPS")))
     {
         return false;
     }
@@ -11785,7 +11785,7 @@ bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
 {
     if (SD.begin(BUILTIN_SDCARD))
     {
-        if (!SD.exists("/LILLALOOP"))
+        if (!SD.exists("/LILLA_PRIVATE/MIDI_LOOPS"))
         {
             Serial.println(F("LOOP_Look_for_midi_loop_in_SD(int loop_id) - file doesn't exist."));
             return false;
@@ -11818,7 +11818,7 @@ int LOOP_Get_first_loop_id_free(void)
         Serial.println(F("LOOP_Get_first_loop_id_free(void) - ERROR - SD not present!"));
         return -1;
     }
-    else if (!SD.exists("/LILLALOOP"))
+    else if (!SD.exists("/LILLA_PRIVATE/MIDI_LOOPS"))
     {
         Serial.println(F("LOOP_Get_first_loop_id_free(void) - no .loop file in SD."));
         return 0; // The export procedure creates the directory on the first save.
@@ -11848,7 +11848,7 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id)
         Serial.println(F("LOOP_Get_next_loop_id_in_SD(int loop_id) - ERROR - SD not present!"));
         return loop_id;
     }
-    else if (!SD.exists("/LILLALOOP"))
+    else if (!SD.exists("/LILLA_PRIVATE/MIDI_LOOPS"))
     {
         Serial.println(F("LOOP_Get_next_loop_id_in_SD(int loop_id) - no .loop file in SD."));
         return loop_id;
@@ -11882,7 +11882,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
         Serial.println(F("LOOP_Get_previous_loop_id_in_SD(int loop_id) - ERROR - SD not present!"));
         return loop_id;
     }
-    else if (!SD.exists("/LILLALOOP"))
+    else if (!SD.exists("/LILLA_PRIVATE/MIDI_LOOPS"))
     {
         Serial.println(F("LOOP_Get_previous_loop_id_in_SD(int loop_id) - no .loop file in SD."));
         return loop_id;
@@ -12484,7 +12484,8 @@ void VFS_Print_FAT(void)
 
 // Complete SD backups: metadata v3 binds every audio channel by length and CRC.
 // RAW files preserve full allocated packets, including erased tails, without trusting inferred runtime lengths.
-static constexpr char BACKUP_ROOT[] = "/LILLABACKUP";        // SD directory containing the published full backup.
+static constexpr char BACKUP_ROOT[] = "/DATA_BACKUPS";        // SD directory containing the published full backup.
+static constexpr char RESTORE_ROOT[] = "/RESTORE"; // User-selected backup contents to restore.
 static constexpr char BACKUP_CONFIG[] = "LILLA_CONFIG.fram"; // Configuration filename within a full SD backup.
 
 FLASHMEM
@@ -12784,13 +12785,13 @@ bool BACKUP_Restore_files(bool &changed, bool &config_error)
     VFS_Recording entries[RECORDINGS]{};
     int capacity = 0;
 
-    if (!BACKUP_Verify_directory(BACKUP_ROOT, audio, entries, capacity, true, &config_error))
+    if (!BACKUP_Verify_directory(RESTORE_ROOT, audio, entries, capacity, true, &config_error))
     {
         return false;
     }
 
     char path[64];
-    snprintf(path, sizeof(path), "%s/%s", BACKUP_ROOT, BACKUP_CONFIG);
+    snprintf(path, sizeof(path), "%s/%s", RESTORE_ROOT, BACKUP_CONFIG);
     File config = SD.open(path);
 
     if (!config || !Archive.Verify_FRAM_backup(config))
@@ -12826,7 +12827,7 @@ bool BACKUP_Restore_files(bool &changed, bool &config_error)
         entry.first_packet = entry.packets > 0 ? destination : 0;
         for (int channel = 0; channel < (entry.stereo ? 2 : 1) && entry.packets > 0; ++channel)
         {
-            BACKUP_Audio_path(path, sizeof(path), BACKUP_ROOT, id, channel);
+            BACKUP_Audio_path(path, sizeof(path), RESTORE_ROOT, id, channel);
             FsFile file = SD.sdfs.open(path, O_RDONLY);
             uint32_t crc = 0;
             if (!file || file.fileSize() != audio[id].bytes[channel] || !BACKUP_Copy_audio(file, entry, channel, true, crc) || crc != audio[id].crc32[channel])
@@ -14146,7 +14147,7 @@ byte CC_Read_all_Sound_gain()
 }
 
 // ***************************************************************************************************************
-// ****************************   COPY RAW FILES FROM SD/FLASH_AUDIO TO FLASH MEMORY CHIP  **************************
+// ****************************   COPY RAW FILES FROM SD/FLASH_AUDIO_FILES TO FLASH MEMORY CHIP  **************************
 // ***************************************************************************************************************
 
 enum class SET_Audio_format : uint8_t
@@ -14382,7 +14383,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     Delete_text_row(3);
 
     // Check if LILLA_AUDIO directory exists
-    if (!SD.exists("/FLASH_AUDIO"))
+    if (!SD.exists("/FLASH_AUDIO_FILES"))
     {
         Display_Storage.Copy_raw_files_SD_to_Flash_chip_flash_audio_missing();
         delay(4000);
@@ -14430,7 +14431,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     // SD card info
     unsigned long SD_raw_volume = 0;
     int SD_raw_files = 0;
-    File rootdir = SD.open("/FLASH_AUDIO");
+    File rootdir = SD.open("/FLASH_AUDIO_FILES");
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
@@ -14571,7 +14572,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     Display_Storage.Copy_raw_files_SD_to_Flash_chip_files_report(SD_raw_volume, SD_raw_files, Get_raw_files_volume(), Get_raw_files());
 
     // Stage and commit every accepted name before erasing audio. Missing names retain their IDs.
-    rootdir = SD.open("/FLASH_AUDIO");
+    rootdir = SD.open("/FLASH_AUDIO_FILES");
     bool registry_ok = rootdir && rootdir.isDirectory();
     const char *registry_error = "CANNOT READ AUDIO DIRECTORY";
     while (registry_ok)
@@ -14634,7 +14635,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     row = 2;
 
     // Import audio as mono RAW files from SD to Flash chip.
-    rootdir = SD.open("/FLASH_AUDIO");
+    rootdir = SD.open("/FLASH_AUDIO_FILES");
     if (!rootdir || !rootdir.isDirectory())
     {
         rootdir.close();
@@ -15485,7 +15486,7 @@ void Reload_system_state(void)
     if (Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
     {
         Serial.println(F("FRAM archive unavailable: interrupted restore, invalid header or I/O error. Automatic repair is blocked."));
-        Serial.println(F("Place LILLA_CONFIG.fram and its REC files in /LILLABACKUP. Press Select to retry the complete restore."));
+        Serial.println(F("Place LILLA_CONFIG.fram and its REC files in /RESTORE. Press Select to retry the complete restore."));
         Display_Storage.FRAM_recovery_popup();
         bool recovered = false;
         while (!recovered)

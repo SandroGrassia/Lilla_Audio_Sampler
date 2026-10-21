@@ -16,11 +16,26 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.6
+## New in firmware 7.2.7
 
-**Longer MIDI loops and more events.** Record loops up to 120 seconds long, with up to 1,000 MIDI events on each of the four tracks. Note On and Note Off each count as one event. Recording stops automatically when the duration or event limit is reached.
+**A clearer SD folder layout.** Source audio, exports, backups and restore files have dedicated folders; firmware-managed files are grouped under `/LILLA_PRIVATE`.
 
-See the [7.2.6 release notes](docs/release-notes-7.2.6.md) and the updated illustrated [User Guide](User%20Guide.md).
+```text
+microSD root/
+  SD_AUDIO_FILES/        Originals for the SD audio library
+  FLASH_AUDIO_FILES/     Originals for internal Flash import
+  EXPORTED_AUDIO_FILES/  Exported Sampler WAV recordings
+  DATA_BACKUPS/          Numbered configuration/recording backups
+  RESTORE/               Contents of the backup chosen for restore
+  LILLA_PRIVATE/
+    MIDI_LOOPS/         Saved MIDI loops
+    AUDIO_FILES/        Prepared RAW files, index and source references
+    PATCHES/            Patch parameter copies
+```
+
+**Existing SD cards need manual folder migration.** Preserve hidden audio-library files when moving them. New backups go to `/DATA_BACKUPS`; copy the contents of the selected backup into `/RESTORE` to restore it.
+
+See the [7.2.7 release notes](docs/release-notes-7.2.7.md) for the old-to-new folder mapping and the illustrated [User Guide](User%20Guide.md#sd-folder-layout) for operating instructions.
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -63,7 +78,7 @@ Sampler records the line input as a mono or stereo take in Flash. Use **PAUSE+RE
 
 **MAKE_RAW** converts recording material into the source format used by patches. **EXPORT_WAV_TO_SD** writes a 16-bit, 44.1 kHz WAV to microSD for editing, sharing or archiving on a computer. This makes Sampler useful for recording an instrument, voice, percussion hit or complete phrase before deciding how to map it to the keyboard.
 
-Recordings occupy persistent Flash storage, while WAV exports are written to `/LILLAWAV_EXPORT`. Keep an external copy before replacing the audio library or performing destructive storage operations. See [Recording with Sampler](User%20Guide.md#recording-with-sampler).
+Recordings occupy persistent Flash storage, while WAV exports are written to `/EXPORTED_AUDIO_FILES`. Keep an external copy before replacing the audio library or performing destructive storage operations. See [Recording with Sampler](User%20Guide.md#recording-with-sampler).
 
 ### Live Sampler
 
@@ -87,7 +102,7 @@ Track 1 is the master and establishes the loop duration. Record the first phrase
 
 Tracks can be started or stopped individually. Their **LEVEL**, **SHIFT** and **TRANSP** parameters adjust playback level, timing offset and note transposition. The Tempo control changes the timing of the MIDI sequence, while the Loop control selects saved loops and controls group playback. Tempo changes affect event timing rather than time-stretching sample audio.
 
-Save an arrangement or save a new variation to microSD in `/LILLALOOP`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
+Save an arrangement or save a new variation to microSD in `/LILLA_PRIVATE/MIDI_LOOPS`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
 
 ## Audio Files and Storage
 
@@ -138,7 +153,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.6 (21 October 2026)**: download [Lilla_v7_2_6.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.6/Lilla_v7_2_6.hex) from [release v7.2.6](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.6). See the [7.2.6 release notes](docs/release-notes-7.2.6.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.7 (22 October 2026)**: download [Lilla_v7_2_7.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.7/Lilla_v7_2_7.hex) from [release v7.2.7](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.7). See the [7.2.7 release notes](docs/release-notes-7.2.7.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 
