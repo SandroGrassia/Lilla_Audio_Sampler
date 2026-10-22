@@ -13,8 +13,7 @@ void PointerLiveSampler::Set_pointer_to_first_menu_element(void)
     Display_LiveSampler.LS_show_pointer_frame(pointer, true);
 }
 
-FLASHMEM
-void PointerLiveSampler::Move_pointer(const int value)
+FLASHMEM void PointerLiveSampler::Move_pointer(const int value)
 {
     pointer_old = pointer;
 

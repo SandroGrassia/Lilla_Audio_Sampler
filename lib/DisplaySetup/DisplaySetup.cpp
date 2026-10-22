@@ -7,8 +7,7 @@
 #include "DisplaySetup.h"
 #include "SharedElements.h"
 
-FLASHMEM
-void DisplaySetup::SETUP_show_SETUP_page(void)
+FLASHMEM void DisplaySetup::SETUP_show_SETUP_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -18,31 +17,30 @@ void DisplaySetup::SETUP_show_SETUP_page(void)
     tft.print("SETUP");
 
     tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(2));
+    tft.setCursor(display_coordinate_x(SET_column_row_Convert[0]), display_coordinate_y(SET_column_row_Convert[1]));
     tft.print(F("CONVERT SD AUDIO FILES"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
+    tft.setCursor(display_coordinate_x(SET_column_row_Import[0]), display_coordinate_y(SET_column_row_Import[1]));
     tft.print(F("IMPORT AUDIO FILES FROM SD"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
+    tft.setCursor(display_coordinate_x(SET_column_label), display_coordinate_y(SET_column_row_KeyStep[1]));
     tft.print(F("KEYBOARD STEP"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
+    tft.setCursor(display_coordinate_x(SET_column_label), display_coordinate_y(SET_column_row_FirstOctave[1]));
     tft.print(F("FIRST OCTAVE"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
+    tft.setCursor(display_coordinate_x(SET_column_row_ControlChange[0]), display_coordinate_y(SET_column_row_ControlChange[1]));
     tft.print(F("CONTROL CHANGE ASSIGNMENT"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
+    tft.setCursor(display_coordinate_x(SET_column_row_Backup[0]), display_coordinate_y(SET_column_row_Backup[1]));
     tft.print(F("CONFIGURATION BACKUP"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
+    tft.setCursor(display_coordinate_x(SET_column_row_Restore[0]), display_coordinate_y(SET_column_row_Restore[1]));
     tft.print(F("RESTORE CONFIGURATION FROM BACKUP"));
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(11));
+    tft.setCursor(display_coordinate_x(SET_column_row_FactoryReset[0]), display_coordinate_y(SET_column_row_FactoryReset[1]));
     tft.print(F("FACTORY RESET"));
 
     SETUP_show_Key_step_value();
     SETUP_show_First_octave_value();
 }
 
-FLASHMEM
-void DisplaySetup::SETUP_show_Key_step_value(void)
+FLASHMEM void DisplaySetup::SETUP_show_Key_step_value(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(14), display_coordinate_y(5), 12);
+    Cancel_text_reset_cursor(display_coordinate_x(SET_column_row_KeyStep[0]), display_coordinate_y(SET_column_row_KeyStep[1]), SET_chars_KeyStep);
     tft.setTextColor(ILI9341_YELLOW);
 
     switch (key_step)
@@ -68,149 +66,52 @@ void DisplaySetup::SETUP_show_Key_step_value(void)
     }
 }
 
-FLASHMEM
-void DisplaySetup::SETUP_show_First_octave_value(void)
+FLASHMEM void DisplaySetup::SETUP_show_First_octave_value(void)
 {
-    Cancel_text_reset_cursor(display_coordinate_x(13), display_coordinate_y(6), 2);
+    Cancel_text_reset_cursor(display_coordinate_x(SET_column_row_FirstOctave[0]), display_coordinate_y(SET_column_row_FirstOctave[1]), SET_chars_FirstOctave);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(first_octave);
 }
 
-FLASHMEM
-void DisplaySetup::SETUP_show_frame(int8_t value)
+FLASHMEM void DisplaySetup::SETUP_show_frame(int8_t value)
 {
-    Frame_by_col_row(0, 2, 22, false);
-    Frame_by_col_row(0, 3, 26, false);
-    Frame_by_col_row(14, 5, 12, false);
-    Frame_by_col_row(13, 6, 2, false);
-    Frame_by_col_row(0, 7, 25, false);
-    Frame_by_col_row(0, 9, 20, false);
-    Frame_by_col_row(0, 10, 33, false);
-    Frame_by_col_row(0, 11, 13, false);
+    Frame_by_col_row(SET_column_row_Convert[0], SET_column_row_Convert[1], SET_chars_Convert, false);
+    Frame_by_col_row(SET_column_row_Import[0], SET_column_row_Import[1], SET_chars_Import, false);
+    Frame_by_col_row(SET_column_row_KeyStep[0], SET_column_row_KeyStep[1], SET_chars_KeyStep, false);
+    Frame_by_col_row(SET_column_row_FirstOctave[0], SET_column_row_FirstOctave[1], SET_chars_FirstOctave, false);
+    Frame_by_col_row(SET_column_row_ControlChange[0], SET_column_row_ControlChange[1], SET_chars_ControlChange, false);
+    Frame_by_col_row(SET_column_row_Backup[0], SET_column_row_Backup[1], SET_chars_Backup, false);
+    Frame_by_col_row(SET_column_row_Restore[0], SET_column_row_Restore[1], SET_chars_Restore, false);
+    Frame_by_col_row(SET_column_row_FactoryReset[0], SET_column_row_FactoryReset[1], SET_chars_FactoryReset, false);
 
     switch (value)
     {
-    case 0:
-        Frame_by_col_row(0, 2, 22, true);
+    case value_SET_Convert:
+        Frame_by_col_row(SET_column_row_Convert[0], SET_column_row_Convert[1], SET_chars_Convert, true);
         break;
-    case 1:
-        Frame_by_col_row(0, 3, 26, true);
+    case value_SET_Import:
+        Frame_by_col_row(SET_column_row_Import[0], SET_column_row_Import[1], SET_chars_Import, true);
         break;
-    case 2:
-        Frame_by_col_row(14, 5, 12, true);
+    case value_SET_KeyStep:
+        Frame_by_col_row(SET_column_row_KeyStep[0], SET_column_row_KeyStep[1], SET_chars_KeyStep, true);
         break;
-    case 3:
-        Frame_by_col_row(13, 6, 2, true);
+    case value_SET_FirstOctave:
+        Frame_by_col_row(SET_column_row_FirstOctave[0], SET_column_row_FirstOctave[1], SET_chars_FirstOctave, true);
         break;
-    case 4:
-        Frame_by_col_row(0, 7, 25, true);
+    case value_SET_ControlChange:
+        Frame_by_col_row(SET_column_row_ControlChange[0], SET_column_row_ControlChange[1], SET_chars_ControlChange, true);
         break;
-    case 5:
-        Frame_by_col_row(0, 9, 20, true);
+    case value_SET_Backup:
+        Frame_by_col_row(SET_column_row_Backup[0], SET_column_row_Backup[1], SET_chars_Backup, true);
         break;
-    case 6:
-        Frame_by_col_row(0, 10, 33, true);
+    case value_SET_Restore:
+        Frame_by_col_row(SET_column_row_Restore[0], SET_column_row_Restore[1], SET_chars_Restore, true);
         break;
-    case 7:
-        Frame_by_col_row(0, 11, 13, true);
+    case value_SET_FactoryReset:
+        Frame_by_col_row(SET_column_row_FactoryReset[0], SET_column_row_FactoryReset[1], SET_chars_FactoryReset, true);
         break;
     default:
         break;
-    }
-}
-
-FLASHMEM
-void DisplaySetup::CC_show_ControlChange_page(void)
-{
-    tft.fillScreen(ILI9341_BLACK);
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
-    tft.setTextColor(TEXT_COLOR);
-    tft.print("CONTROL CHANGE ASSIGNMENT");
-
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(1));
-    tft.setTextColor(MENU_COLOR);
-    tft.print("RETURN");
-
-    tft.setTextColor(TEXT_COLOR);
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
-    tft.print("GAIN SOUND 1");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(4));
-    tft.print("GAIN SOUND 2");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(5));
-    tft.print("GAIN SOUND 3");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(6));
-    tft.print("GAIN SOUND 4");
-
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
-    tft.print("GAIN SOUND 5");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(8));
-    tft.print("GAIN SOUND 6");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(9));
-    tft.print("GAIN SOUND 7");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
-    tft.print("GAIN SOUND 8");
-    tft.setCursor(display_coordinate_x(0), display_coordinate_y(11));
-    tft.print("LPF CUTOFF");
-}
-
-FLASHMEM
-void DisplaySetup::CC_show_all_sound_gains(void)
-{
-    for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
-    {
-        CC_show_sound_gain(instrument_id);
-    }
-}
-
-FLASHMEM
-void DisplaySetup::CC_show_sound_gain(int value)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(Setup_Control_change_X), display_coordinate_y(value + 3), 3);
-    tft.setTextColor(ILI9341_YELLOW);
-
-    if (CC_Sound_gain[value] > 0)
-    {
-        tft.print(CC_Sound_gain[value]);
-    }
-    else
-    {
-        tft.print(" -");
-    }
-}
-
-FLASHMEM
-void DisplaySetup::CC_show_lowpass_filter_value(void)
-{
-    Cancel_text_reset_cursor(display_coordinate_x(Setup_Control_change_X), display_coordinate_y(11), 3);
-    tft.setTextColor(ILI9341_YELLOW);
-
-    if (CC_lowpass_filter_value > 0)
-    {
-        tft.print(CC_lowpass_filter_value);
-    }
-    else
-    {
-        tft.print(" -");
-    }
-}
-
-FLASHMEM
-void DisplaySetup::CC_show_frame_menu(int value)
-{
-    Frame_by_col_row(0, 1, 6, false); // Return
-
-    for (auto n = 0; n < 9; ++n)
-    {
-        Frame_by_col_row(Setup_Control_change_X, n + 3, 3, false);
-    }
-
-    if (value == 0)
-    {
-        Frame_by_col_row(0, 1, 6, true);
-    }
-    else
-    {
-        Frame_by_col_row(Setup_Control_change_X, value + 2, 3, true);
     }
 }
 

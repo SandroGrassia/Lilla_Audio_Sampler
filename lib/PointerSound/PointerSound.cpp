@@ -6,8 +6,7 @@
 
 #include "PointerSound.h"
 
-FLASHMEM
-void PointerSound::Set_pointer_to_file(const int S_menu_max)
+FLASHMEM void PointerSound::Set_pointer_to_file(const int S_menu_max)
 {
     pointer = {field_S_Value, 0, value_S_File};
     Display_Sound.Show_pointer_frame(pointer, true);
@@ -16,8 +15,7 @@ void PointerSound::Set_pointer_to_file(const int S_menu_max)
     // Print_pointer_description();
 }
 
-FLASHMEM
-void PointerSound::Set_pointer_to_first_menu_element(void)
+FLASHMEM void PointerSound::Set_pointer_to_first_menu_element(void)
 {
     pointer = {field_S_Menu, 0, value_S_File};
     Display_Sound.Show_pointer_frame(pointer, true);
@@ -26,8 +24,7 @@ void PointerSound::Set_pointer_to_first_menu_element(void)
     // Print_pointer_description();
 }
 
-FLASHMEM
-void PointerSound::Move_pointer(const int value, const int S_menu_max)
+FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max)
 {
     Display_Sound.Show_pointer_frame(pointer, false);
 
@@ -103,8 +100,7 @@ S_field_description_struct PointerSound::Get_pointer(void)
     return pointer;
 }
 
-FLASHMEM
-void PointerSound::Print_pointer_description(void)
+FLASHMEM void PointerSound::Print_pointer_description(void)
 {
     Serial.println("PointerSound::Print_pointer_description(const int pointer) - pointer: ");
     Serial.print(" field_name: ");
@@ -114,8 +110,7 @@ void PointerSound::Print_pointer_description(void)
     Serial.print(" value_element: ");
     Serial.println(pointer.value_element);
 }
-FLASHMEM
-void PointerSound::Set_pointer_to_menu_element(int position)
+FLASHMEM void PointerSound::Set_pointer_to_menu_element(int position)
 {
     pointer = {field_S_Menu, position, value_S_File};
 }

@@ -8,8 +8,7 @@
 #include "SharedElements.h"
 #include <AudioStream.h>
 
-FLASHMEM
-void DisplayCommon::P_show_Patch_number(bool change_patch)
+FLASHMEM void DisplayCommon::P_show_Patch_number(bool change_patch)
 {
     tft.setCursor(display_coordinate_x(P_column_PATCH), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
@@ -19,8 +18,7 @@ void DisplayCommon::P_show_Patch_number(bool change_patch)
     tft.print(Patch_id);
 }
 
-FLASHMEM
-void DisplayCommon::P_Patch_VOLUME(bool change_vol)
+FLASHMEM void DisplayCommon::P_Patch_VOLUME(bool change_vol)
 {
     tft.setCursor(display_coordinate_x(P_column_VOLUME), display_coordinate_y(0));
     tft.setTextColor(TEXT_COLOR);
@@ -28,16 +26,14 @@ void DisplayCommon::P_Patch_VOLUME(bool change_vol)
     P_Patch_volume_value(change_vol);
 }
 
-FLASHMEM
-void DisplayCommon::P_Patch_volume_value(bool change_vol)
+FLASHMEM void DisplayCommon::P_Patch_volume_value(bool change_vol)
 {
     Cancel_text_reset_cursor(display_coordinate_x(P_column_Volume_value), display_coordinate_y(0), 4);
     tft.setTextColor(ILI9341_YELLOW); // tft.setTextColor(change_vol ? ILI9341_YELLOW : ILI9341_WHITE);
     tft.print(volume_patch);
 }
 
-FLASHMEM
-void DisplayCommon::P_show_PERFORMANCE_title(void)
+FLASHMEM void DisplayCommon::P_show_PERFORMANCE_title(void)
 {
     Backgorund_red(0, 0, 11); // Display.Backgorund_red(float col, float row, int chars)
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
@@ -45,8 +41,7 @@ void DisplayCommon::P_show_PERFORMANCE_title(void)
     tft.print("PERFORMANCE");
 }
 
-FLASHMEM
-void DisplayCommon::Show_all_effects()
+FLASHMEM void DisplayCommon::Show_all_effects()
 {
     float Y_EFF;
 
@@ -86,8 +81,7 @@ void DisplayCommon::Show_all_effects()
     Lowpass_filter();
 }
 
-FLASHMEM
-void DisplayCommon::Resolution(void)
+FLASHMEM void DisplayCommon::Resolution(void)
 {
     float Y_EFF;
 
@@ -110,8 +104,7 @@ void DisplayCommon::Resolution(void)
     tft.print("bits");
 }
 
-FLASHMEM
-void DisplayCommon::Downsampling(void)
+FLASHMEM void DisplayCommon::Downsampling(void)
 {
     const float Y_EFF = 2.5;
 
@@ -137,8 +130,7 @@ void DisplayCommon::Downsampling(void)
     }
 }
 
-FLASHMEM
-void DisplayCommon::Lowpass_filter(void)
+FLASHMEM void DisplayCommon::Lowpass_filter(void)
 {
     float Y_EFF = (Lilla_state == MIDI_LOOP ? 1.5 : 2.5);
     Cancel_text_reset_cursor(display_coordinate_x(4), display_coordinate_y(Y_EFF + 1), 7);
@@ -149,8 +141,7 @@ void DisplayCommon::Lowpass_filter(void)
     tft.print("Hz");
 }
 
-FLASHMEM
-void DisplayCommon::Confirm_no_yes_popup_frame(int value)
+FLASHMEM void DisplayCommon::Confirm_no_yes_popup_frame(int value)
 {
     const int popup_x = Centered_element_left(106);
     const int options_y = Centered_element_top(47) + 30;

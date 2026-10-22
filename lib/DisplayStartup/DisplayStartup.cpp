@@ -7,8 +7,7 @@
 #include "DisplayStartup.h"
 #include "SharedElements.h"
 
-FLASHMEM
-void DisplayStartup::Lilla_cover_slow(void)
+FLASHMEM void DisplayStartup::Lilla_cover_slow(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -42,8 +41,7 @@ void DisplayStartup::Lilla_cover_slow(void)
     delay(200);
 }
 
-FLASHMEM
-void DisplayStartup::Logo(float light)
+FLASHMEM void DisplayStartup::Logo(float light)
 {
     tft.drawBitmap(0 + Logo_position_DX, 42 + Logo_position_DY, LOGO_0, 168, 49, Calc_color(ILI9341_YELLOW, light));
     tft.drawBitmap(0 + Logo_position_DX, 14 + Logo_position_DY, LOGO_1, 8, 26, Calc_color(ILI9341_RED, light));
@@ -53,8 +51,7 @@ void DisplayStartup::Logo(float light)
     tft.drawBitmap(-1 + Logo_position_DX, 100 + Logo_position_DY, audio_sampler, 168, 18, Calc_color(ILI9341_WHITE, light));
 }
 
-FLASHMEM
-void DisplayStartup::Cover_text(float light)
+FLASHMEM void DisplayStartup::Cover_text(float light)
 {
     tft.setTextColor(Calc_color(TEXT_COLOR, light)); // 16-bit ('565') color settings
     tft.setCursor(display_coordinate_x(13), Text_position_DY);
@@ -83,8 +80,7 @@ void DisplayStartup::Cover_text(float light)
     tft.print("16MB");
 }
 
-FLASHMEM
-uint16_t DisplayStartup::Calc_color(uint16_t color_peak, float light) // 16-bit ('565') color settings
+FLASHMEM uint16_t DisplayStartup::Calc_color(uint16_t color_peak, float light) // 16-bit ('565') color settings
 {
     // extracts components of peak (regime) value
     uint16_t red = color_peak >> 11;

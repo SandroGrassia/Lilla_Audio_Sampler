@@ -11,8 +11,7 @@
 // Four-second cosine cycle, starting at full brightness; duty cycle ranges from 40% to 100%.
 const uint16_t ShiftRegisters::LED_BREATH_ON_US[LED_BREATH_STEPS] = {10000, 9994, 9976, 9947, 9906, 9853, 9789, 9714, 9629, 9533, 9427, 9312, 9187, 9054, 8912, 8763, 8607, 8445, 8277, 8104, 7927, 7746, 7562, 7376, 7188, 7000, 6812, 6624, 6438, 6254, 6073, 5896, 5723, 5555, 5393, 5237, 5088, 4946, 4813, 4688, 4573, 4467, 4371, 4286, 4211, 4147, 4094, 4053, 4024, 4006, 4000, 4006, 4024, 4053, 4094, 4147, 4211, 4286, 4371, 4467, 4573, 4688, 4813, 4946, 5088, 5237, 5393, 5555, 5723, 5896, 6073, 6254, 6438, 6624, 6812, 7000, 7188, 7376, 7562, 7746, 7927, 8104, 8277, 8445, 8607, 8763, 8912, 9054, 9187, 9312, 9427, 9533, 9629, 9714, 9789, 9853, 9906, 9947, 9976, 9994};
 
-FLASHMEM
-void ShiftRegisters::Begin(void)
+FLASHMEM void ShiftRegisters::Begin(void)
 {
     // Deselect both devices before enabling their shared hardware SPI bus.
     digitalWrite(SPI1_DISPLAY_CS, HIGH);
@@ -27,8 +26,7 @@ void ShiftRegisters::Begin(void)
     Switch_all_leds(false);
 }
 
-FLASHMEM
-void ShiftRegisters::Pulse_startup_leds(void)
+FLASHMEM void ShiftRegisters::Pulse_startup_leds(void)
 {
     constexpr uint32_t pwm_period_us = 10000; // 100 Hz carrier.
     constexpr uint32_t pulse_period_us = 1000000;
@@ -66,8 +64,7 @@ void ShiftRegisters::Pulse_startup_leds(void)
     Switch_all_leds(false);
 }
 
-FLASHMEM
-void ShiftRegisters::Start_SPI_for_shifters(void)
+FLASHMEM void ShiftRegisters::Start_SPI_for_shifters(void)
 {
     for (auto i = 0; i < SHIFTERS; ++i)
     {
@@ -95,8 +92,7 @@ void ShiftRegisters::Reset_monitored_channels(void)
     }
 }
 
-FLASHMEM
-void ShiftRegisters::Setup_physical_channels(void)
+FLASHMEM void ShiftRegisters::Setup_physical_channels(void)
 {
     // Set all channels as INPUT with internal PULLUP (100kohm)
     for (auto i = 0; i < SHIFTERS; ++i)
@@ -168,8 +164,7 @@ void ShiftRegisters::Update_led_pwm(void)
     }
 }
 
-FLASHMEM
-void ShiftRegisters::Set_monitored_encoders(void)
+FLASHMEM void ShiftRegisters::Set_monitored_encoders(void)
 {
     Serial.print(F("monitored_encoders, BIN: "));
     Serial.println(monitored_encoders, BIN);
@@ -185,8 +180,7 @@ void ShiftRegisters::Set_monitored_encoders(void)
     }
 }
 
-FLASHMEM
-void ShiftRegisters::Set_monitored_switches(void)
+FLASHMEM void ShiftRegisters::Set_monitored_switches(void)
 {
     Serial.print(F("monitored_switches, BIN: "));
     Serial.println(monitored_switches, BIN);
@@ -204,8 +198,7 @@ void ShiftRegisters::Set_monitored_switches(void)
     }
 }
 
-FLASHMEM
-void ShiftRegisters::Set_monitored_pushbuttons(void)
+FLASHMEM void ShiftRegisters::Set_monitored_pushbuttons(void)
 {
     Serial.print(F("monitored_pushbuttons, BIN: "));
     Serial.println(monitored_pushbuttons, BIN);
@@ -259,26 +252,20 @@ static uint8_t Make_switches_mask(std::initializer_list<int> list)
     return mask;
 }
 
-FLASHMEM
-void ShiftRegisters::Init_controller_masks(void)
+FLASHMEM void ShiftRegisters::Init_controller_masks(void)
 {
-    monitored_encoders = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
-                                             EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol});
+    monitored_encoders = Make_encoders_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol});
 
-    monitored_pushbuttons = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2,
-                                                   EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol,
-                                                   PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Rec1, PB_Rec2, PB_Rec4, PB_Rec3, PB_Tools, PB_S1});
+    monitored_pushbuttons = Make_pushbuttons_mask({EN_PB_TuningTone, EN_PB_Resolution, EN_PB_Downsampling, EN_PB_Cutoff, EN_PB_Tempo, EN_PB_Loop, EN_PB_Track1, EN_PB_Track2, EN_PB_Select, EN_PB_Track3, EN_PB_Track4, EN_PB_Value, EN_PB_From, EN_PB_Step, EN_PB_To, EN_PB_LineOutVol, EN_PB_PreListenVol, PB_S2, PB_S3, PB_S4, PB_S5, PB_S6, PB_S7, PB_S8, PB_Rec1, PB_Rec2, PB_Rec4, PB_Rec3, PB_Tools, PB_S1});
     monitored_switches = Make_switches_mask({SwitchTools, SwitchModes});
 }
 
-FLASHMEM
-void ShiftRegisters::Monitor_all_controllers(void)
+FLASHMEM void ShiftRegisters::Monitor_all_controllers(void)
 {
     Set_monitored_encoders_pushbuttons_switches();
 }
 
-FLASHMEM
-void ShiftRegisters::Set_monitored_encoders_pushbuttons_switches()
+FLASHMEM void ShiftRegisters::Set_monitored_encoders_pushbuttons_switches()
 {
     Reset_monitored_channels();
     Set_monitored_encoders();

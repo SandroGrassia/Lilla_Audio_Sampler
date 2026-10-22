@@ -7,8 +7,7 @@
 #include "DisplaySampler.h"
 #include "SharedMixer.h"
 
-FLASHMEM
-void DisplaySampler::DS_confirm_EXIT_from_DS(void)
+FLASHMEM void DisplaySampler::DS_confirm_EXIT_from_DS(void)
 {
     const int L_POPUP = 106;
     const int H_POPUP = 47;
@@ -28,8 +27,7 @@ void DisplaySampler::DS_confirm_EXIT_from_DS(void)
     tft.print("YES");
 }
 
-FLASHMEM
-void DisplaySampler::DS_page_upper(void)
+FLASHMEM void DisplaySampler::DS_page_upper(void)
 {
     const int bottom = display_coordinate_y(DS_ROW_MEMORY) - 4;
     tft.fillRect(0, 0, 320, bottom, ILI9341_BLACK);
@@ -45,8 +43,7 @@ void DisplaySampler::DS_page_upper(void)
     DS_update_volume();
 }
 
-FLASHMEM
-void DisplaySampler::DS_page_lower(int recording)
+FLASHMEM void DisplaySampler::DS_page_lower(int recording)
 {
     const int top = display_coordinate_y(DS_ROW_MEMORY) - 4;
     tft.fillRect(0, top, 320, 240 - top, ILI9341_BLACK);
@@ -84,8 +81,7 @@ void DisplaySampler::DS_page_lower(int recording)
     }
 }
 
-FLASHMEM
-void DisplaySampler::DS_set_recording_controls(bool visible)
+FLASHMEM void DisplaySampler::DS_set_recording_controls(bool visible)
 {
     if (DS_recording_controls_visible == visible)
     {
@@ -106,8 +102,7 @@ void DisplaySampler::DS_set_recording_controls(bool visible)
     }
 }
 
-FLASHMEM
-void DisplaySampler::DS_sampler_IO(void)
+FLASHMEM void DisplaySampler::DS_sampler_IO(void)
 {
     if (!DS_recording_controls_visible)
     {
@@ -163,8 +158,7 @@ uint16_t DisplaySampler::DS_calc_bar_color(float value)
     return (red << 11) + (green << 5) + blue;
 }
 
-FLASHMEM
-void DisplaySampler::DS_sampler_txt(bool color)
+FLASHMEM void DisplaySampler::DS_sampler_txt(bool color)
 {
     if (!DS_recording_controls_visible)
     {
@@ -175,8 +169,7 @@ void DisplaySampler::DS_sampler_txt(bool color)
     tft.print("RECORDING");
 }
 
-FLASHMEM
-void DisplaySampler::DS_available_memory(void)
+FLASHMEM void DisplaySampler::DS_available_memory(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DS_column_row_available_memory[0]), display_coordinate_y(DS_column_row_available_memory[1]), DS_chars_available_memory);
     tft.setTextColor(ILI9341_WHITE);
@@ -184,8 +177,7 @@ void DisplaySampler::DS_available_memory(void)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplaySampler::DS_raw_available_memory(void)
+FLASHMEM void DisplaySampler::DS_raw_available_memory(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DS_column_row_audio_available_memory[0]), display_coordinate_y(DS_column_row_audio_available_memory[1]), DS_chars_audio_available_memory);
     tft.setTextColor(ILI9341_WHITE);
@@ -193,8 +185,7 @@ void DisplaySampler::DS_raw_available_memory(void)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplaySampler::DS_hide_recording(void)
+FLASHMEM void DisplaySampler::DS_hide_recording(void)
 {
     Cancel_text(display_coordinate_x(DS_column_row_POPUP_LINE_0[0]), display_coordinate_y(DS_column_row_POPUP_LINE_0[1]), 18);
     Cancel_text(display_coordinate_x(DS_column_row_POPUP_LINE_1[0]), display_coordinate_y(DS_column_row_POPUP_LINE_1[1]), 29);
@@ -203,14 +194,12 @@ void DisplaySampler::DS_hide_recording(void)
     Cancel_text(display_coordinate_x(0), display_coordinate_y(DS_ROW_VOLUME_STEREO), 18);
 }
 
-FLASHMEM
-void DisplaySampler::DS_advice_delete(bool value)
+FLASHMEM void DisplaySampler::DS_advice_delete(bool value)
 {
     Show_popup_text("DELETE RECORDING, PLEASE WAIT", ILI9341_BLACK, value ? ILI9341_GREEN : ILI9341_BLACK, 0);
 }
 
-FLASHMEM
-void DisplaySampler::DS_advice_no_conversion(int DS_export, bool value)
+FLASHMEM void DisplaySampler::DS_advice_no_conversion(int DS_export, bool value)
 {
     tft.setTextColor((value ? TEXT_COLOR : ILI9341_BLACK));
     tft.setCursor(display_coordinate_x(DS_column_row_POPUP_LINE_0[0]), display_coordinate_y(DS_column_row_POPUP_LINE_0[1]));
@@ -228,8 +217,7 @@ void DisplaySampler::DS_advice_no_conversion(int DS_export, bool value)
     }
 }
 
-FLASHMEM
-void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export)
+FLASHMEM void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int DS_export)
 {
     char audio_filename[NAME_FILE_SIZE];
     tft.fillRect(0, 120, 320, 120, ILI9341_BLACK);
@@ -271,8 +259,7 @@ void DisplaySampler::DS_conversion_options(int file_L_RAW, int file_R_RAW, int D
     }
 }
 
-FLASHMEM
-void DisplaySampler::DS_Recording_description(int recording, bool led, bool update_header)
+FLASHMEM void DisplaySampler::DS_Recording_description(int recording, bool led, bool update_header)
 {
     char audio_filename[NAME_FILE_SIZE];
     if (DS_recording_controls_visible)
@@ -338,8 +325,7 @@ void DisplaySampler::DS_Recording_description(int recording, bool led, bool upda
     }
 }
 
-FLASHMEM
-void DisplaySampler::DS_recording_seconds(void)
+FLASHMEM void DisplaySampler::DS_recording_seconds(void)
 {
     if (recording < 0)
     {
@@ -356,16 +342,14 @@ void DisplaySampler::DS_recording_seconds(void)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplaySampler::DS_update_volume(bool adj)
+FLASHMEM void DisplaySampler::DS_update_volume(bool adj)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DS_column_row_volume[0]), display_coordinate_y(DS_column_row_volume[1]), DS_chars_volume);
     tft.setTextColor(adj ? ILI9341_YELLOW : ILI9341_WHITE);
     tft.print(volume_patch);
 }
 
-FLASHMEM
-void DisplaySampler::DS_show_gain(void)
+FLASHMEM void DisplaySampler::DS_show_gain(void)
 {
     if (!DS_recording_controls_visible)
     {
@@ -376,8 +360,7 @@ void DisplaySampler::DS_show_gain(void)
     tft.print(Line_in_gain + 1);
 }
 
-FLASHMEM
-void DisplaySampler::DS_menu(void)
+FLASHMEM void DisplaySampler::DS_menu(void)
 {
     auto position = 0;
 
@@ -439,15 +422,13 @@ void DisplaySampler::Led_DIRECT_SAMPLING(bool on)
     return;
 }
 
-FLASHMEM
-void DisplaySampler::DS_confirm_raw_conversion_popup(void)
+FLASHMEM void DisplaySampler::DS_confirm_raw_conversion_popup(void)
 {
     Show_popup_text(DS_raw_conversion_question, "        NO  YES", ILI9341_WHITE, ILI9341_RED);
     DS_confirm_raw_conversion_frame(0);
 }
 
-FLASHMEM
-void DisplaySampler::DS_confirm_raw_conversion_frame(uint8_t value)
+FLASHMEM void DisplaySampler::DS_confirm_raw_conversion_frame(uint8_t value)
 {
     const int popup_width = display_coordinate_x(sizeof(DS_raw_conversion_question) - 1 + 2);
     const int popup_height = display_coordinate_y(1) + 15;

@@ -9,8 +9,7 @@
 #include "SharedSampler.h"
 #include "SharedVFS.h"
 
-FLASHMEM
-void DisplayStorage::VFS_show_packets(void)
+FLASHMEM void DisplayStorage::VFS_show_packets(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(21), display_coordinate_y(7), 40);
     Frame_by_col_row(21, 7, 21, true);
@@ -36,8 +35,7 @@ void DisplayStorage::VFS_show_packets(void)
     tft.print(")");
 }
 
-FLASHMEM
-void DisplayStorage::Import_raw_files_frame(uint8_t value)
+FLASHMEM void DisplayStorage::Import_raw_files_frame(uint8_t value)
 {
     const int left = Centered_element_left(8 * 6);
     const int top = Centered_element_top(display_coordinate_y(Import_popup_lines)) + 5 + 15 * (Import_popup_lines - 1);
@@ -45,8 +43,7 @@ void DisplayStorage::Import_raw_files_frame(uint8_t value)
     Confirm_frame_on_RED(left + 5 * 6, top, 3, value == 1);
 }
 
-FLASHMEM
-void DisplayStorage::Confirm_config_import_popup(void)
+FLASHMEM void DisplayStorage::Confirm_config_import_popup(void)
 {
     const char *lines[Restore_popup_lines] = {"PLEASE COPY THE CHOSEN BACKUP'S CONTENTS", "INTO SD /RESTORE FIRST", "", "- WARNING -", "RESTORE CONFIGURATION DELETES PATCHES AND", "AUDIO RECORDING. AUDIO FILES IN FLASH ARE KEPT", "", "DO YOU WANT TO PROCEED?", "CANCEL    GO"};
     Show_popup_text(lines, Restore_popup_lines, ILI9341_WHITE, ILI9341_RED);
@@ -60,8 +57,7 @@ FLASHMEM void DisplayStorage::Confirm_config_restore_frame(uint8_t value)
     Confirm_frame_on_RED(left + 10 * 6, top, 2, value == 1);
 }
 
-FLASHMEM
-void DisplayStorage::Factory_reset_wait_popup(void)
+FLASHMEM void DisplayStorage::Factory_reset_wait_popup(void)
 {
     L_POPUP = display_coordinate_x(38);
     H_POPUP = display_coordinate_y(3); // 64 pixel
@@ -82,8 +78,7 @@ void DisplayStorage::Factory_reset_wait_popup(void)
     tft.print(F("    PLEASE WAIT - DO NOT SWITCH OFF"));
 }
 
-FLASHMEM
-void DisplayStorage::SD_missing(uint16_t color)
+FLASHMEM void DisplayStorage::SD_missing(uint16_t color)
 {
     L_POPUP = display_coordinate_x(18);
     H_POPUP = display_coordinate_y(3);
@@ -130,8 +125,7 @@ void DisplayStorage::Config_import_FILE_error_popup(void)
     tft.print(F(" INVALID BACKUP OR NOT ENOUGH FLASH"));
 }
 
-FLASHMEM
-void DisplayStorage::Confirm_factory_reset_frame(uint8_t value)
+FLASHMEM void DisplayStorage::Confirm_factory_reset_frame(uint8_t value)
 {
     const int left = Centered_element_left(8 * 6);
     const int top = Centered_element_top(display_coordinate_y(Factory_reset_popup_lines)) + 5 + 15 * (Factory_reset_popup_lines - 1);
@@ -139,8 +133,7 @@ void DisplayStorage::Confirm_factory_reset_frame(uint8_t value)
     Confirm_frame_on_RED(left + 5 * 6, top, 3, value == 1);
 }
 
-FLASHMEM
-void DisplayStorage::Confirm_config_export_popup(void)
+FLASHMEM void DisplayStorage::Confirm_config_export_popup(void)
 {
     const char *lines[Backup_popup_lines] = {"SAVE CONFIGURATION AND RECORDING AUDIO", "TO A NEW NUMBERED FOLDER /DATA_BACKUPS IN SD", "(PREVIOUS BACKUPS ARE KEPT)", "- NOTICE -", "AUDIO LIBRARIES AND MIDI LOOPS ARE", "NOT INCLUDED IN BACKUP", "CANCEL    GO"};
     Show_popup_text(lines, Backup_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
@@ -154,8 +147,7 @@ FLASHMEM void DisplayStorage::Confirm_config_export_frame(uint8_t value)
     Confirm_frame_on_GREEN(left + 10 * 6, top, 2, value == 1, ILI9341_BLACK);
 }
 
-FLASHMEM
-void DisplayStorage::Config_export_SD_error_popup(void)
+FLASHMEM void DisplayStorage::Config_export_SD_error_popup(void)
 {
     L_POPUP = display_coordinate_x(27);
     H_POPUP = display_coordinate_y(3);
@@ -171,21 +163,18 @@ void DisplayStorage::Config_export_SD_error_popup(void)
     tft.print(F(" BACKUP FAILED - CHECK LOG"));
 }
 
-FLASHMEM
-void DisplayStorage::Config_export_save_popup(void)
+FLASHMEM void DisplayStorage::Config_export_save_popup(void)
 {
     Show_popup_text("NUMBERED BACKUP SAVED IN /DATA_BACKUPS", ILI9341_WHITE, ILI9341_BLACK);
 }
 
-FLASHMEM
-void DisplayStorage::Confirm_factory_reset_popup(void)
+FLASHMEM void DisplayStorage::Confirm_factory_reset_popup(void)
 {
     const char *lines[Factory_reset_popup_lines] = {"- WARNING -", "RESTORE FACTORY SETTINGS", "DELETES ALL PATCHES AND AUDIO RECORDINGS", "ONLY IMPORTED AUDIO FILES ARE KEPT", "", "DO YOU WANT TO PROCEED?", "NO   YES"};
     Show_popup_text(lines, Factory_reset_popup_lines, ILI9341_WHITE, ILI9341_RED);
 }
 
-FLASHMEM
-void DisplayStorage::VFS_Make_presentation(void)
+FLASHMEM void DisplayStorage::VFS_Make_presentation(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -215,8 +204,7 @@ void DisplayStorage::VFS_Make_presentation(void)
     Show_measure_unit("MB", 2);
 }
 
-FLASHMEM
-void DisplayStorage::VFS_Make_assignments(void)
+FLASHMEM void DisplayStorage::VFS_Make_assignments(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(7));
     tft.setTextColor(TEXT_COLOR);
@@ -231,8 +219,7 @@ void DisplayStorage::VFS_Make_assignments(void)
     tft.print(F("SPACE FOR RAW FILES EXPORT"));
 }
 
-FLASHMEM
-void DisplayStorage::VFS_Make_restart(void)
+FLASHMEM void DisplayStorage::VFS_Make_restart(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
     tft.setTextColor(ILI9341_GREEN);
@@ -241,8 +228,7 @@ void DisplayStorage::VFS_Make_restart(void)
     tft.print(ADV_VFS_4);
 }
 
-FLASHMEM
-void DisplayStorage::VFS_Make_not_enough_memory_for_sampler(void)
+FLASHMEM void DisplayStorage::VFS_Make_not_enough_memory_for_sampler(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
     tft.setTextColor(ILI9341_MAGENTA);
@@ -257,8 +243,7 @@ void DisplayStorage::VFS_Make_not_enough_memory_for_sampler(void)
     tft.print(ADV_VFS_4);
 }
 
-FLASHMEM
-void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_titolo(void)
+FLASHMEM void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_titolo(void)
 {
     tft.fillScreen(ILI9341_BLACK);
     tft.setTextColor(TEXT_COLOR);
@@ -266,24 +251,21 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_titolo(void)
     tft.print(F("IMPORT AUDIO FILES FROM SD TO FLASH MEMORY"));
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(F("WAITING 10sec FOR SD CARD"));
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(F("MISSING SD /FLASH_AUDIO_FILES"));
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int raw_files_volume, int flash_raw_files)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int raw_files_volume, int flash_raw_files)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(3));
     tft.setTextColor(TEXT_COLOR);
@@ -332,15 +314,13 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long 
     tft.print(recordings);
 }
 
-FLASHMEM
-void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(void)
+FLASHMEM void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_last_warning(void)
 {
     const char *lines[Import_popup_lines] = {"IMPORT AUDIO FROM SD /FLASH_AUDIO_FILES", "TO LILLA 64MB FLASH MEMORY.", "COMPLETE FILES ARE IMPORTED", "- WARNING -", "ALL EXISTING FLASH AUDIO AND RECORDINGS ARE DELETED", "NO   YES"};
     Show_popup_text(lines, Import_popup_lines, ILI9341_WHITE, ILI9341_RED);
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_time_ms)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_time_ms)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(10));
     tft.setTextColor(TEXT_COLOR);
@@ -363,8 +343,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_tim
     tft.print("TO LILLA FLASH MEMORY");
 }
 
-FLASHMEM
-void DisplayStorage::Update_raw_copy_progress(int percentage)
+FLASHMEM void DisplayStorage::Update_raw_copy_progress(int percentage)
 {
     const int raw_copy_progress_Y = 225; // display_coordinate_y(15)
     const int chars_to_cancel = (percentage == 101) ? 11 : 3;
@@ -401,21 +380,18 @@ void DisplayStorage::Update_raw_copy_progress(int percentage)
     }
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_popup_landscape(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_popup_landscape(void)
 {
     // Start copying AUDIO files from SD to Flash chip
     tft.fillRect(0, 12, 320, 240, ILI9341_BLACK);
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_list_landscape(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_list_landscape(void)
 {
     tft.fillRect(0, display_coordinate_y(3), 320, 240, ILI9341_BLACK);
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, const char *filename, unsigned long length)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, const char *filename, unsigned long length)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
     tft.setTextColor(TEXT_COLOR);
@@ -427,8 +403,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_files_to_copy(int row, cons
     tft.print("KB");
 }
 
-FLASHMEM
-void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, const char *filename)
+FLASHMEM void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, const char *filename)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
     tft.setTextColor(ILI9341_RED);
@@ -436,8 +411,7 @@ void DisplayStorage::Copy_audio_files_SD_to_Flash_chip_invalid_audio(int row, co
     tft.print(" INVALID AUDIO - NOT IMPORTED");
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const char *filename)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const char *filename)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
     tft.setTextColor(ILI9341_RED);
@@ -445,22 +419,19 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_duplicate(int row, const ch
     tft.print(" DUPLICATE - NOT IMPORTED");
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_error(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_error(void)
 {
     tft.setTextColor(TEXT_COLOR);
     tft.print("  FLASH MEMORY ERROR");
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_full_error(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_flash_full_error(void)
 {
     tft.setTextColor(TEXT_COLOR);
     tft.print("  ERROR: FLASH MEMORY FULL!");
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_done(void)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_done(void)
 {
     // Display RAW files list
     tft.fillRect(0, 12, 320, 240, ILI9341_BLACK);
@@ -469,8 +440,7 @@ void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_job_done(void)
     tft.print(F("AUDIO FILES IMPORT COMPLETED. FILE LIST:"));
 }
 
-FLASHMEM
-void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const char *filename, uint32_t filesize)
+FLASHMEM void DisplayStorage::Copy_raw_files_SD_to_Flash_chip_file_copied(int row, const char *filename, uint32_t filesize)
 {
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(row));
     tft.setTextColor(ILI9341_WHITE);

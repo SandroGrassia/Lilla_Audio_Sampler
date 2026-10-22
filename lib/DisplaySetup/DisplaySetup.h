@@ -7,14 +7,34 @@
 #pragma once
 
 #include "DisplayPrimitives.h"
+#include "SharedSetup.h"
 
-// Setup page and MIDI Control Change assignments.
+// Setup page.
 class DisplaySetup
 {
 private:
+    // SETUP selection coordinates in character columns/rows and frame widths.
+    static constexpr int SET_column_label = 0;
+    static constexpr float SET_column_row_Convert[2] = {0, 2};
+    static constexpr float SET_column_row_Import[2] = {0, 3};
+    static constexpr float SET_column_row_KeyStep[2] = {14, 5};
+    static constexpr float SET_column_row_FirstOctave[2] = {13, 6};
+    static constexpr float SET_column_row_ControlChange[2] = {0, 7};
+    static constexpr float SET_column_row_Backup[2] = {0, 9};
+    static constexpr float SET_column_row_Restore[2] = {0, 10};
+    static constexpr float SET_column_row_FactoryReset[2] = {0, 11};
+
+    static constexpr int SET_chars_Convert = 22;
+    static constexpr int SET_chars_Import = 26;
+    static constexpr int SET_chars_KeyStep = 12;
+    static constexpr int SET_chars_FirstOctave = 2;
+    static constexpr int SET_chars_ControlChange = 25;
+    static constexpr int SET_chars_Backup = 20;
+    static constexpr int SET_chars_Restore = 33;
+    static constexpr int SET_chars_FactoryReset = 13;
+
     static constexpr int Convert_popup_lines = 5;
     static constexpr int Import_info_popup_lines = 4;
-    static constexpr int Setup_Control_change_X = 13; // Character column.
 
 public:
     DisplaySetup() {}
@@ -27,9 +47,4 @@ public:
     FLASHMEM void SETUP_show_import_info_popup(void);
     FLASHMEM void SETUP_show_import_info_frame(int value);
     FLASHMEM void SETUP_show_convert_frame(int value);
-    FLASHMEM void CC_show_ControlChange_page(void);
-    FLASHMEM void CC_show_all_sound_gains(void);
-    FLASHMEM void CC_show_sound_gain(int value);
-    FLASHMEM void CC_show_lowpass_filter_value(void);
-    FLASHMEM void CC_show_frame_menu(int value);
 };

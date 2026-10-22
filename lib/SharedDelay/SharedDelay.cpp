@@ -36,8 +36,7 @@ void Calc_Delay_values(Delay_data_struct &data)
     }
 }
 
-FLASHMEM
-void Print_Delay_values(Delay_values_struct Delay_values)
+FLASHMEM void Print_Delay_values(Delay_values_struct Delay_values)
 {
     Serial.println();
     Serial.println("Print Delay_values");
@@ -66,8 +65,7 @@ void Print_Delay_values(Delay_values_struct Delay_values)
     Serial.println();
 }
 
-FLASHMEM
-void Print_Delay_data(const Delay_data_struct &data)
+FLASHMEM void Print_Delay_data(const Delay_data_struct &data)
 {
     Serial.println();
     Serial.println(F("Print_Delay_data(Delay_data_struct Data):"));

@@ -32,11 +32,7 @@ static inline void PrintErrorLocation(const __FlashStringHelper *message, const 
 
 #define PRINT_ERROR(message) PrintErrorLocation((message), __FILE__, __LINE__)
 
-static inline void PrintControlPoint(
-    const char *expression,
-    int value,
-    const char *file,
-    int line)
+static inline void PrintControlPoint(const char *expression, int value, const char *file, int line)
 {
     Serial.print(F("CONTROL POINT - "));
     Serial.print(file);

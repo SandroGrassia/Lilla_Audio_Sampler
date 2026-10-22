@@ -32,31 +32,26 @@ constexpr std::array<float, 258> Make_gain_table(float ceiling, float threshold)
 // Constant-initialized LUTs: no logarithms or curve construction in the audio interrupt.
 PROGMEM const std::array<std::array<float, 258>, 22> LillaCompressor::gain_table = {Make_gain_table(CEILING, 2062.6233947f), Make_gain_table(CEILING, 2314.3015131f), Make_gain_table(CEILING, 2596.6890065f), Make_gain_table(CEILING, 2913.5329854f), Make_gain_table(CEILING, 3269.0377768f), Make_gain_table(CEILING, 3667.9207134f), Make_gain_table(CEILING, 4115.4747294f), Make_gain_table(CEILING, 4617.6385946f), Make_gain_table(CEILING, 5181.0757184f), Make_gain_table(CEILING, 5813.2625692f), Make_gain_table(CEILING, 6522.5878823f), Make_gain_table(CEILING, 7318.4639738f), Make_gain_table(CEILING, 8211.4516357f), Make_gain_table(CEILING, 9213.4002719f), Make_gain_table(CEILING, 10337.6051320f), Make_gain_table(CEILING, 11598.9837313f), Make_gain_table(CEILING, 13014.2737977f), Make_gain_table(CEILING, 14602.2553704f), Make_gain_table(CEILING, 16384.0000000f), Make_gain_table(CEILING, 18383.1503553f), Make_gain_table(CEILING, 20626.2339468f), Make_gain_table(CEILING, 23143.0151311f)};
 
-FLASHMEM
-LillaCompressor::LillaCompressor(Profile selected_profile) : AudioStream(4, input_queue), profile(selected_profile), lookahead(MAX_LOOKAHEAD), attack_step(1.0f / static_cast<float>(lookahead))
+FLASHMEM LillaCompressor::LillaCompressor(Profile selected_profile) : AudioStream(4, input_queue), profile(selected_profile), lookahead(MAX_LOOKAHEAD), attack_step(1.0f / static_cast<float>(lookahead))
 {
 }
 
-FLASHMEM
-void LillaCompressor::Set_feedback(float feedback)
+FLASHMEM void LillaCompressor::Set_feedback(float feedback)
 {
     feedback_target = (static_cast<int32_t>(feedback * 65536.0f) / 128) * 128;
 }
 
-FLASHMEM
-void LillaCompressor::Set_enabled(bool value)
+FLASHMEM void LillaCompressor::Set_enabled(bool value)
 {
     enabled = value; // Retarget the running fade; never reset audio history or envelopes.
 }
 
-FLASHMEM
-bool LillaCompressor::Is_enabled(void) const
+FLASHMEM bool LillaCompressor::Is_enabled(void) const
 {
     return enabled;
 }
 
-FLASHMEM
-void LillaCompressor::Set_threshold(int db)
+FLASHMEM void LillaCompressor::Set_threshold(int db)
 {
     enabled = db != THRESHOLD_OFF;
     if (db == threshold_db)
@@ -73,8 +68,7 @@ void LillaCompressor::Set_threshold(int db)
     threshold_step = (static_cast<float>(db + 24) - threshold_position) / threshold_remaining;
 }
 
-FLASHMEM
-int LillaCompressor::Get_threshold(void) const
+FLASHMEM int LillaCompressor::Get_threshold(void) const
 {
     return threshold_db;
 }
@@ -162,8 +156,7 @@ void LillaCompressor::Process_sample(int32_t left, int32_t right, int16_t &outpu
     output_right = To_sample(dry_r + wet * (static_cast<float>(delayed_r) * compressor_gain - dry_r));
 }
 
-FLASHMEM
-void LillaCompressor::Reset(void)
+FLASHMEM void LillaCompressor::Reset(void)
 {
     std::fill(std::begin(delayed_left), std::end(delayed_left), 0);
     std::fill(std::begin(delayed_right), std::end(delayed_right), 0);

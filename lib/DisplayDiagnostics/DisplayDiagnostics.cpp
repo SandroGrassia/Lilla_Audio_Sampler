@@ -7,8 +7,7 @@
 #include "DisplayDiagnostics.h"
 #include "SharedElements.h"
 
-FLASHMEM
-void DisplayDiagnostics::Midi_monitor_page(void)
+FLASHMEM void DisplayDiagnostics::Midi_monitor_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -32,8 +31,7 @@ void DisplayDiagnostics::Midi_monitor_page(void)
     tft.print("NUMBER");
 }
 
-FLASHMEM
-void DisplayDiagnostics::Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number)
+FLASHMEM void DisplayDiagnostics::Midi_monitor_data(uint8_t incoming_midi_channel, uint8_t incoming_midi_message, int8_t incoming_note_number, int8_t incoming_velocity, int32_t incoming_midi_value, int8_t incoming_number)
 {
     const char message_name[12][20] = {{"NoteOn"}, {"NoteOff"}, {"PitchBend"}, {"AfterTouchPoly"}, {"ControlChange"}, {"ProgramChange"}, {"AfterTouchChange"}, {"SystemExclusive"}, {"Unknown"}};
 
@@ -74,8 +72,7 @@ void DisplayDiagnostics::Midi_monitor_data(uint8_t incoming_midi_channel, uint8_
     }
 }
 
-FLASHMEM
-void DisplayDiagnostics::Encoder_pushbutton_test_board(void)
+FLASHMEM void DisplayDiagnostics::Encoder_pushbutton_test_board(void)
 {
     L_POPUP = display_coordinate_x(32);
     H_POPUP = display_coordinate_y(6) - 4; // 64 pixel

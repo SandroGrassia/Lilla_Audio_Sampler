@@ -8,8 +8,7 @@ DMAMEM FileNameRegistry::Bank FileNameRegistry::current{};
 DMAMEM FileNameRegistry::Bank FileNameRegistry::scratch{};
 int FileNameRegistry::active_bank = -1;
 
-FLASHMEM
-bool FileNameRegistry::Read(uint32_t address, void *data, uint32_t bytes)
+FLASHMEM bool FileNameRegistry::Read(uint32_t address, void *data, uint32_t bytes)
 {
     auto *destination = static_cast<uint8_t *>(data);
     for (uint32_t offset = 0; offset < bytes; offset += 128)
@@ -23,8 +22,7 @@ bool FileNameRegistry::Read(uint32_t address, void *data, uint32_t bytes)
     return true;
 }
 
-FLASHMEM
-bool FileNameRegistry::Write(uint32_t address, const void *data, uint32_t bytes)
+FLASHMEM bool FileNameRegistry::Write(uint32_t address, const void *data, uint32_t bytes)
 {
     const auto *source = static_cast<const uint8_t *>(data);
     uint8_t buffer[128];
@@ -40,8 +38,7 @@ bool FileNameRegistry::Write(uint32_t address, const void *data, uint32_t bytes)
     return true;
 }
 
-FLASHMEM
-uint32_t FileNameRegistry::Crc(const Bank &bank)
+FLASHMEM uint32_t FileNameRegistry::Crc(const Bank &bank)
 {
     uint32_t crc = 0xFFFFFFFFUL;
     const auto *bytes = reinterpret_cast<const uint8_t *>(&bank);
@@ -56,8 +53,7 @@ uint32_t FileNameRegistry::Crc(const Bank &bank)
     return crc ^ 0xFFFFFFFFUL;
 }
 
-FLASHMEM
-bool FileNameRegistry::Valid_name(const char *filename)
+FLASHMEM bool FileNameRegistry::Valid_name(const char *filename)
 {
     const size_t length = strlen(filename);
     if (length < 5 || length >= FILENAME_BYTES || strcmp(filename + length - 4, ".raw") != 0)
@@ -81,8 +77,7 @@ bool FileNameRegistry::Valid_name(const char *filename)
     return !packet; // LillaR<number>.raw belongs to the recording packet namespace.
 }
 
-FLASHMEM
-bool FileNameRegistry::Valid(const Bank &bank)
+FLASHMEM bool FileNameRegistry::Valid(const Bank &bank)
 {
     if (bank.magic != 0x314E464CUL || bank.crc32 != Crc(bank) || bank.names[0][0] != '0' || bank.names[0][1] != 0)
     {
@@ -115,8 +110,7 @@ bool FileNameRegistry::Valid(const Bank &bank)
     return true;
 }
 
-FLASHMEM
-bool FileNameRegistry::Load()
+FLASHMEM bool FileNameRegistry::Load()
 {
     active_bank = -1;
     for (int bank = 0; bank < 2; ++bank)
@@ -135,8 +129,7 @@ bool FileNameRegistry::Load()
     return active_bank >= 0;
 }
 
-FLASHMEM
-bool FileNameRegistry::Save()
+FLASHMEM bool FileNameRegistry::Save()
 {
     const int target = active_bank == 0 ? 1 : 0;
     const uint32_t address = ADDRESS + target * BANK_BYTES;
@@ -153,8 +146,7 @@ bool FileNameRegistry::Save()
     return true;
 }
 
-FLASHMEM
-void FileNameRegistry::Clear()
+FLASHMEM void FileNameRegistry::Clear()
 {
     memset(current.names, 0, sizeof(current.names));
     strcpy(current.names[0], "0");
@@ -164,8 +156,7 @@ void FileNameRegistry::Clear()
     }
 }
 
-FLASHMEM
-int FileNameRegistry::Find(const char *filename)
+FLASHMEM int FileNameRegistry::Find(const char *filename)
 {
     if (!Valid_name(filename))
     {
@@ -182,8 +173,7 @@ int FileNameRegistry::Find(const char *filename)
     return -1;
 }
 
-FLASHMEM
-int FileNameRegistry::Add(const char *filename)
+FLASHMEM int FileNameRegistry::Add(const char *filename)
 {
     if (!Valid_name(filename))
     {
@@ -206,22 +196,19 @@ int FileNameRegistry::Add(const char *filename)
     return -1;
 }
 
-FLASHMEM
-bool FileNameRegistry::Assigned(uint16_t id)
+FLASHMEM bool FileNameRegistry::Assigned(uint16_t id)
 {
     return current.names[id][0] != 0;
 }
 
-FLASHMEM
-bool FileNameRegistry::Numeric_available(uint16_t id)
+FLASHMEM bool FileNameRegistry::Numeric_available(uint16_t id)
 {
     char filename[FILENAME_BYTES];
     snprintf(filename, sizeof(filename), "%u.raw", static_cast<unsigned int>(id));
     return !Assigned(id) && Find(filename) < 0;
 }
 
-FLASHMEM
-bool FileNameRegistry::Bind_numeric(uint16_t id)
+FLASHMEM bool FileNameRegistry::Bind_numeric(uint16_t id)
 {
     char filename[FILENAME_BYTES];
     snprintf(filename, sizeof(filename), "%u.raw", static_cast<unsigned int>(id));
@@ -237,8 +224,7 @@ bool FileNameRegistry::Bind_numeric(uint16_t id)
     return true;
 }
 
-FLASHMEM
-const char *FileNameRegistry::Filename(uint16_t id, char (&name)[FILENAME_BYTES])
+FLASHMEM const char *FileNameRegistry::Filename(uint16_t id, char (&name)[FILENAME_BYTES])
 {
     if (Assigned(id))
     {

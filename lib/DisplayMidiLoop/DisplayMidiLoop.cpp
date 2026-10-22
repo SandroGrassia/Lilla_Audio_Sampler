@@ -9,16 +9,14 @@
 // SAVE FAILED vertical offset in pixels: adjust here; negative moves up, positive moves down.
 static constexpr int Save_failed_y_offset = -14;
 
-FLASHMEM
-void DisplayMidiLoop::Show_save_failed(void)
+FLASHMEM void DisplayMidiLoop::Show_save_failed(void)
 {
     Show_popup_text("SAVE FAILED", ILI9341_WHITE, ILI9341_RED, Save_failed_y_offset);
     save_failed_started_ms = millis();
     save_failed_visible = true;
 }
 
-FLASHMEM
-bool DisplayMidiLoop::Update_save_failed(void)
+FLASHMEM bool DisplayMidiLoop::Update_save_failed(void)
 {
     if (!save_failed_visible)
     {
@@ -46,8 +44,7 @@ bool DisplayMidiLoop::Update_save_failed(void)
     return false;
 }
 
-FLASHMEM
-void DisplayMidiLoop::Loop_REC_advice(const int track, const bool on)
+FLASHMEM void DisplayMidiLoop::Loop_REC_advice(const int track, const bool on)
 {
     if (on)
     {
@@ -62,8 +59,7 @@ void DisplayMidiLoop::Loop_REC_advice(const int track, const bool on)
     }
 }
 
-FLASHMEM
-void DisplayMidiLoop::Show_loop_id(void)
+FLASHMEM void DisplayMidiLoop::Show_loop_id(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_loop[0]), display_coordinate_y(Loop_column_row_loop[1]), Loop_chars_loop);
     tft.setTextColor(ILI9341_YELLOW);
@@ -93,8 +89,7 @@ void DisplayMidiLoop::Show_volume(void)
     tft.print(volume_patch);
 }
 
-FLASHMEM
-void DisplayMidiLoop::Show_Loop_page(void)
+FLASHMEM void DisplayMidiLoop::Show_Loop_page(void)
 {
     save_failed_visible = false;
     tft.fillScreen(ILI9341_BLACK);
@@ -156,8 +151,7 @@ void DisplayMidiLoop::Show_Loop_page(void)
     Loop_total_time();
 }
 
-FLASHMEM
-void DisplayMidiLoop::Show_menu(void)
+FLASHMEM void DisplayMidiLoop::Show_menu(void)
 {
     uint8_t position = 0;
 
@@ -186,8 +180,7 @@ void DisplayMidiLoop::Show_menu(void)
     }
 }
 
-FLASHMEM
-void DisplayMidiLoop::Show_MIDI_LOOP(void)
+FLASHMEM void DisplayMidiLoop::Show_MIDI_LOOP(void)
 {
     Backgorund_red(0, 0, 9);
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(0));
@@ -195,8 +188,7 @@ void DisplayMidiLoop::Show_MIDI_LOOP(void)
     tft.print("MIDI LOOP");
 }
 
-FLASHMEM
-void DisplayMidiLoop::Show_track_all_data(const int track)
+FLASHMEM void DisplayMidiLoop::Show_track_all_data(const int track)
 {
     // Numero
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]), Loop_chars_track_number);
@@ -235,8 +227,7 @@ void DisplayMidiLoop::Show_track_all_data(const int track)
     }
 }
 
-FLASHMEM
-void DisplayMidiLoop::Loop_total_time(void)
+FLASHMEM void DisplayMidiLoop::Loop_total_time(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(Loop_column_row_total_time[0]), display_coordinate_y(Loop_column_row_total_time[1]), Loop_chars_total_time);
     tft.setTextColor(ILI9341_YELLOW);

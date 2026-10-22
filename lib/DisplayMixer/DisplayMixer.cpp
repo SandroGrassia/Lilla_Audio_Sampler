@@ -51,8 +51,7 @@ void DisplayMixer::MX_show_pointer_frame(const MX_pointer_struct pointer, const 
     }
 }
 
-FLASHMEM
-void DisplayMixer::MX_page(void)
+FLASHMEM void DisplayMixer::MX_page(void)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -86,8 +85,7 @@ void DisplayMixer::MX_page(void)
     tft.print("PRE_LIS");
 }
 
-FLASHMEM
-void DisplayMixer::MX_source_values(const int source,const bool bright)
+FLASHMEM void DisplayMixer::MX_source_values(const int source,const bool bright)
 {
     if (source == LINE_IN_source || Patch[Patch_id].Instrument[source].used)
     {
@@ -95,15 +93,13 @@ void DisplayMixer::MX_source_values(const int source,const bool bright)
     }
 }
 
-FLASHMEM
-void DisplayMixer::MX_source_values_jump(const int old_source, const int source)
+FLASHMEM void DisplayMixer::MX_source_values_jump(const int old_source, const int source)
 {
     MX_source_values_write(old_source, false); // 0
     MX_source_values_write(source, true);  // 6
 }
 
-FLASHMEM
-void DisplayMixer::MX_source_values_write(const int source, const bool bright)
+FLASHMEM void DisplayMixer::MX_source_values_write(const int source, const bool bright)
 {
     int local_sound_id;
     if (source == LINE_IN_source)
@@ -186,8 +182,7 @@ void DisplayMixer::MX_source_values_write(const int source, const bool bright)
     }  
 }
 
-FLASHMEM
-void DisplayMixer::MX_source_values_edit(const int source)
+FLASHMEM void DisplayMixer::MX_source_values_edit(const int source)
 {
     Cancel_text(display_coordinate_x(MX_column_Sound + 0.5 + source * 5), display_coordinate_y(MX_row_Sound + 1), 1); // Mute
     Cancel_text(display_coordinate_x(MX_column_Sound - 1 + source * 5), display_coordinate_y(MX_row_Sound + 2), 4);   // Gain

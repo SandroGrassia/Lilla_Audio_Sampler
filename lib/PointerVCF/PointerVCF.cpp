@@ -15,8 +15,7 @@ void PointerVCF::Set_pointer_to_FilterType(void)
     Print_pointer_description();
 }
 
-FLASHMEM
-bool PointerVCF::Move_pointer(const int value)
+FLASHMEM bool PointerVCF::Move_pointer(const int value)
 {
     bool changed = false;
     pointer_old = pointer;

@@ -7,8 +7,7 @@
 
 #include "DisplayDelay.h"
 
-FLASHMEM
-void DisplayDelay::D_show_page()
+FLASHMEM void DisplayDelay::D_show_page()
 {
     tft.fillScreen(ILI9341_BLACK);
     switch (Lilla_state_0)
@@ -127,8 +126,7 @@ void DisplayDelay::D_show_page()
     }
 }
 
-FLASHMEM
-void DisplayDelay::D_sounds(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_sounds(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_sounds[0]), display_coordinate_y(DELAY_column_row_sounds[1]), DELAY_chars_sounds); // DISPLAY_text(int X, int Y, int N)
     if (Lilla_state_0 == LIVE_SAMPLING)
@@ -165,8 +163,7 @@ void DisplayDelay::D_sounds(void) // Display the requested setting while the aud
     }
 }
 
-FLASHMEM
-void DisplayDelay::D_feedback(void)
+FLASHMEM void DisplayDelay::D_feedback(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback[0]), display_coordinate_y(DELAY_column_row_feedback[1]), DELAY_chars_feedback);
     tft.setTextColor(ILI9341_YELLOW);
@@ -175,8 +172,7 @@ void DisplayDelay::D_feedback(void)
     tft.print("%");
 }
 
-FLASHMEM
-void DisplayDelay::D_delay_time(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_delay_time(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time[0]), display_coordinate_y(DELAY_column_row_delay_time[1]), DELAY_chars_delay_time);
     tft.setTextColor(ILI9341_YELLOW);
@@ -196,8 +192,7 @@ void DisplayDelay::D_delay_time(void) // Display the requested setting while the
     }
 }
 
-FLASHMEM
-void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_delay_time_LR[0]), display_coordinate_y(DELAY_column_row_delay_time_LR[1]), DELAY_chars_delay_time_LR);
     tft.setTextColor(ILI9341_YELLOW);
@@ -224,8 +219,7 @@ void DisplayDelay::D_delay_time_LR(void) // Display the requested setting while 
     }
 }
 
-FLASHMEM
-void DisplayDelay::D_feedback_lpf(void)
+FLASHMEM void DisplayDelay::D_feedback_lpf(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_feedback_lpf[0]), display_coordinate_y(DELAY_column_row_feedback_lpf[1]), DELAY_chars_feedback_lpf);
     tft.setTextColor(ILI9341_YELLOW);
@@ -235,8 +229,7 @@ void DisplayDelay::D_feedback_lpf(void)
     tft.print("Hz");
 }
 
-FLASHMEM
-void DisplayDelay::D_modulation_source(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_modulation_source(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_source[0]), display_coordinate_y(DELAY_column_row_modulation_source[1]), DELAY_chars_modulation_source);
     tft.setTextColor(ILI9341_YELLOW);
@@ -254,8 +247,7 @@ void DisplayDelay::D_modulation_source(void) // Display the requested setting wh
     }
 }
 
-FLASHMEM
-void DisplayDelay::D_modulation_frequency(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_modulation_frequency(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_frequency[0]), display_coordinate_y(DELAY_column_row_modulation_frequency[1]), DELAY_chars_modulation_frequency);
     tft.setTextColor(ILI9341_YELLOW);
@@ -264,8 +256,7 @@ void DisplayDelay::D_modulation_frequency(void) // Display the requested setting
     tft.print("Hz");
 }
 
-FLASHMEM
-void DisplayDelay::D_modulation_depth(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_modulation_depth(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_depth[0]), display_coordinate_y(DELAY_column_row_modulation_depth[1]), DELAY_chars_modulation_depth);
     tft.setTextColor(ILI9341_YELLOW);
@@ -281,8 +272,7 @@ void DisplayDelay::D_modulation_depth(void) // Display the requested setting whi
     tft.print("%");
 }
 
-FLASHMEM
-void DisplayDelay::D_modulation_phase_LR(void) // Display the requested setting while the audio transition runs independently.
+FLASHMEM void DisplayDelay::D_modulation_phase_LR(void) // Display the requested setting while the audio transition runs independently.
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_modulation_phase_LR[0]), display_coordinate_y(DELAY_column_row_modulation_phase_LR[1]), DELAY_chars_modulation_phase_LR);
     tft.setTextColor(ILI9341_YELLOW);
@@ -291,8 +281,7 @@ void DisplayDelay::D_modulation_phase_LR(void) // Display the requested setting 
     tft.print("deg");
 }
 
-FLASHMEM
-void DisplayDelay::D_disabled(void)
+FLASHMEM void DisplayDelay::D_disabled(void)
 {
     Show_popup_text("DELAY IS DISABLED WHILE SAMPLING", ILI9341_WHITE, ILI9341_RED);
 }
@@ -302,8 +291,7 @@ void DisplayDelay::DELAY_show_pointer_frame(const DELAY_element_name pointer, co
     Frame_by_col_row(DELAY_column_row_element[pointer][0], DELAY_column_row_element[pointer][1], DELAY_chars_element[pointer], show);
 }
 
-FLASHMEM
-void DisplayDelay::D_feedback_compressor(void)
+FLASHMEM void DisplayDelay::D_feedback_compressor(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(DELAY_column_row_compressor[0]), display_coordinate_y(DELAY_column_row_compressor[1]), DELAY_chars_feedback_compressor);
     tft.setTextColor(ILI9341_YELLOW);

@@ -67,8 +67,7 @@ P_field_description_struct PointerPerformance::Get_pointer(void)
     return pointer;
 }
 
-FLASHMEM
-void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
+FLASHMEM void PointerPerformance::Move_pointer(const int value, const int P_menu_max)
 {
     bool changed = false;
     P_field_description_struct full_pointer_old = pointer;

@@ -193,10 +193,7 @@ void AudioOutputNoiseShapedPWM::begin(uint8_t pin)
 		dma.TCD->DADDR = valReg;
 		dma.triggerAtHardwareEvent(dmamux_source);
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-		dma.attachInterrupt(unit == 0 ? isr0 : unit == 1 ? isr1
-										   : unit == 2	 ? isr2
-										   : unit == 3	 ? isr3
-														 : NULL);
+		dma.attachInterrupt(unit == 0 ? isr0 : unit == 1 ? isr1 : unit == 2	 ? isr2 : unit == 3	 ? isr3 : NULL);
 
 		// set PWM-DMA-Enable
 		apin.flexpwm->SM[submodule].DMAEN = FLEXPWM_SMDMAEN_VALDE;

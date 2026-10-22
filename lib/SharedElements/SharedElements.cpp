@@ -34,8 +34,7 @@ const char *Get_file_name(uint16_t file_id, char (&name)[NAME_FILE_SIZE])
 }
 
 
-FLASHMEM
-uint32_t Get_flash_size(void)
+FLASHMEM uint32_t Get_flash_size(void)
 {
     unsigned char buf[256];
     unsigned long chipsize;
@@ -44,8 +43,7 @@ uint32_t Get_flash_size(void)
     return chipsize;
 }
 
-FLASHMEM
-uint32_t Get_flash_occupation(void)
+FLASHMEM uint32_t Get_flash_occupation(void)
 {
     uint32_t filesize;
     uint32_t occupation = 0;

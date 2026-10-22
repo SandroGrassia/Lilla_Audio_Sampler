@@ -20,8 +20,7 @@ void DisplayLiveSampler::Led_LIVE_SAMPLING(const bool on)
     return;
 }
 
-FLASHMEM
-void DisplayLiveSampler::Confirm_EXIT_from_LS(void)
+FLASHMEM void DisplayLiveSampler::Confirm_EXIT_from_LS(void)
 {
     const int L_POPUP = 106;                 // Larghezza
     const int H_POPUP = 47;                  // Altezza
@@ -41,16 +40,14 @@ void DisplayLiveSampler::Confirm_EXIT_from_LS(void)
     tft.print("YES");
 }
 
-FLASHMEM
-void DisplayLiveSampler::Show_no_recorded_audio(void)
+FLASHMEM void DisplayLiveSampler::Show_no_recorded_audio(void)
 {
     const int height = display_coordinate_y(1);
     const int y_offset = display_coordinate_y(LS_column_row_GAIN[1]) - 8 - Centered_element_top(height);
     Show_popup_text("NO RECORDED AUDIO", ILI9341_WHITE, ILI9341_RED, y_offset);
 }
 
-FLASHMEM
-void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
+FLASHMEM void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
 {
     if (Lilla_state != LIVE_SAMPLING)
     {
@@ -76,8 +73,7 @@ void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::Page(void)
+FLASHMEM void DisplayLiveSampler::Page(void)
 {
     no_recorded_audio_visible = false;
     //("012345678901234567890"); // Size 1: 21 chars
@@ -131,8 +127,7 @@ void DisplayLiveSampler::Page(void)
     Step();
 }
 
-FLASHMEM
-void DisplayLiveSampler::Compressor(int threshold)
+FLASHMEM void DisplayLiveSampler::Compressor(int threshold)
 {
     compressor_threshold = threshold;
     tft.setCursor(display_coordinate_x(LS_column_row_COMPRESSOR[0]), display_coordinate_y(LS_column_row_COMPRESSOR[1]));
@@ -152,8 +147,7 @@ void DisplayLiveSampler::Compressor(int threshold)
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::Page_title(void)
+FLASHMEM void DisplayLiveSampler::Page_title(void)
 {
     //("012345678901234567890"); // Size 1: 21 chars
     Backgorund_red(0, 0, 12); // Display.Backgorund_red(float & col, float row, int chars)
@@ -162,24 +156,21 @@ void DisplayLiveSampler::Page_title(void)
     tft.print("LIVE SAMPLER");
 }
 
-FLASHMEM
-void DisplayLiveSampler::Volume(void)
+FLASHMEM void DisplayLiveSampler::Volume(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_volume[0]), display_coordinate_y(LS_column_row_volume[1]), 4);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(volume_patch);
 }
 
-FLASHMEM
-void DisplayLiveSampler::Gain(void)
+FLASHMEM void DisplayLiveSampler::Gain(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_gain[0]), display_coordinate_y(LS_column_row_gain[1]), 2);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Line_in_gain + 1);
 }
 
-FLASHMEM
-void DisplayLiveSampler::Buffer(void) //
+FLASHMEM void DisplayLiveSampler::Buffer(void) //
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_buffer[0]), display_coordinate_y(LS_column_row_buffer[1]), 12);
     tft.setTextColor(ILI9341_WHITE);
@@ -187,8 +178,7 @@ void DisplayLiveSampler::Buffer(void) //
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplayLiveSampler::Play_mode(void)
+FLASHMEM void DisplayLiveSampler::Play_mode(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_play_mode[0]), display_coordinate_y(LS_column_row_play_mode[1]), LS_chars_play_mode);
     tft.setTextColor(ILI9341_YELLOW);
@@ -202,8 +192,7 @@ void DisplayLiveSampler::Play_mode(void)
     LS_chars_play_mode = (tft.getCursorX() - display_coordinate_x(LS_column_row_play_mode[0])) / 6;
 }
 
-FLASHMEM
-void DisplayLiveSampler::Feedback(void)
+FLASHMEM void DisplayLiveSampler::Feedback(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_feedback[0]), display_coordinate_y(LS_column_row_feedback[1]), LS_chars_feedback);
     tft.setTextColor(ILI9341_YELLOW);
@@ -214,8 +203,7 @@ void DisplayLiveSampler::Feedback(void)
     LS_chars_feedback = (tft.getCursorX() - display_coordinate_x(LS_column_row_feedback[0])) / 6;
 }
 
-FLASHMEM
-void DisplayLiveSampler::Step(void)
+FLASHMEM void DisplayLiveSampler::Step(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_step[0]), display_coordinate_y(LS_column_row_step[1]), LS_chars_step);
     tft.setTextColor(ILI9341_YELLOW);
@@ -223,8 +211,7 @@ void DisplayLiveSampler::Step(void)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplayLiveSampler::Window(void)
+FLASHMEM void DisplayLiveSampler::Window(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_window[0]), display_coordinate_y(LS_column_row_window[1]), LS_chars_window);
     tft.setTextColor(ILI9341_YELLOW);
@@ -235,8 +222,7 @@ void DisplayLiveSampler::Window(void)
     LS_chars_window = (tft.getCursorX() - display_coordinate_x(LS_column_row_window[0])) / 6;
 }
 
-FLASHMEM
-void DisplayLiveSampler::Loop_time(void)
+FLASHMEM void DisplayLiveSampler::Loop_time(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_loop_time[0]), display_coordinate_y(LS_column_row_loop_time[1]), LS_chars_loop_time);
     tft.setTextColor(ILI9341_YELLOW);
@@ -251,8 +237,7 @@ void DisplayLiveSampler::Loop_time(void)
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::Start_point(void) // X_sample_delta
+FLASHMEM void DisplayLiveSampler::Start_point(void) // X_sample_delta
 {
     float local_value = 0;
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_start_point[0]), display_coordinate_y(LS_column_row_start_point[1]), LS_chars_start_point);
@@ -307,8 +292,7 @@ void DisplayLiveSampler::Start_point(void) // X_sample_delta
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::Menu(void)
+FLASHMEM void DisplayLiveSampler::Menu(void)
 {
     auto position = 0; // position on display
     Delete_text_row(1);
@@ -338,8 +322,7 @@ void DisplayLiveSampler::Menu(void)
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::Delete_menu_frames(void)
+FLASHMEM void DisplayLiveSampler::Delete_menu_frames(void)
 {
     int position;
 
@@ -353,8 +336,7 @@ void DisplayLiveSampler::Delete_menu_frames(void)
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::Show_wave(const int sound_id)
+FLASHMEM void DisplayLiveSampler::Show_wave(const int sound_id)
 {
     int id_file = Sound[sound_id].file;
 
@@ -573,8 +555,7 @@ uint16_t DisplayLiveSampler::Get_wave_color(const int point)
     return (31 << 11) + (green << 5); // (red << 11) + (green << 5) + blue
 }
 
-FLASHMEM
-void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
+FLASHMEM void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, const bool show)
 {
     if (pointer.field_name == field_LS_Menu)
     {
@@ -607,8 +588,7 @@ void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct pointer, 
     }
 }
 
-FLASHMEM
-void DisplayLiveSampler::LS_Display_Confirm_capture_frame(uint8_t value)
+FLASHMEM void DisplayLiveSampler::LS_Display_Confirm_capture_frame(uint8_t value)
 {
     const int popup_width = display_coordinate_x(sizeof("REPLACE CAPTURE?") - 1 + 2);
     const int popup_height = display_coordinate_y(1) + 15;

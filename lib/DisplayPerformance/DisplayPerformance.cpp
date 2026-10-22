@@ -28,8 +28,7 @@ void DisplayPerformance::Led_tuning_tone(int patch_id)
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_pointer_frame(P_field_description_struct value, bool show)
+FLASHMEM void DisplayPerformance::P_show_pointer_frame(P_field_description_struct value, bool show)
 {
     switch (value.field_name)
     {
@@ -53,8 +52,7 @@ void DisplayPerformance::P_show_pointer_frame(P_field_description_struct value, 
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_PERFORMANCE_page(bool change_patch, bool change_vol)
+FLASHMEM void DisplayPerformance::P_show_PERFORMANCE_page(bool change_patch, bool change_vol)
 {
     P_Patch_header(change_patch, change_vol);
     P_show_Performance_menu(); // Draw the menu and update its navigation layout.
@@ -67,8 +65,7 @@ int DisplayPerformance::P_Instrument_pixels_y(int position)
     return 4 + 15.0 * (6 + position) + 7;
 }
 
-FLASHMEM
-void DisplayPerformance::P_Patch_header(bool change_patch, bool change_vol)
+FLASHMEM void DisplayPerformance::P_Patch_header(bool change_patch, bool change_vol)
 {
     upload_popup_visible = false;
     tft.fillScreen(ILI9341_BLACK);
@@ -78,8 +75,7 @@ void DisplayPerformance::P_Patch_header(bool change_patch, bool change_vol)
     Display_Common.Show_all_effects();
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Instruments_header(void)
+FLASHMEM void DisplayPerformance::P_show_Instruments_header(void)
 {
     tft.setTextColor(TEXT_COLOR);
 
@@ -113,8 +109,7 @@ void DisplayPerformance::P_show_Instruments_header(void)
     tft.drawLine(6, display_coordinate_y(P_row_Instrument_title) + 11, 312, display_coordinate_y(P_row_Instrument_title) + 11, 0x630C);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Instrument_description(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Instrument_description(int patch_id, int instrument_id, bool editing)
 {
     P_show_Sound_number(instrument_id, editing);
     P_show_Tone_value(patch_id, instrument_id, editing);
@@ -127,8 +122,7 @@ void DisplayPerformance::P_show_Instrument_description(int patch_id, int instrum
     P_show_Gain_value(patch_id, instrument_id, editing);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Sound_number(int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Sound_number(int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -140,8 +134,7 @@ void DisplayPerformance::P_show_Sound_number(int instrument_id, bool editing)
     tft.print(instrument_id + 1);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Tone_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Tone_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -163,8 +156,7 @@ void DisplayPerformance::P_show_Tone_value(int patch_id, int instrument_id, bool
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Precedence_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Precedence_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -183,8 +175,7 @@ void DisplayPerformance::P_show_Precedence_value(int patch_id, int instrument_id
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Midi_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Midi_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -196,8 +187,7 @@ void DisplayPerformance::P_show_Midi_value(int patch_id, int instrument_id, bool
     tft.print(Get_midi_channel(patch_id, instrument_id) + 1);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_RootKey_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_RootKey_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -209,8 +199,7 @@ void DisplayPerformance::P_show_RootKey_value(int patch_id, int instrument_id, b
     Note(Patch[patch_id].Instrument[instrument_id].root_key);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_FromKey_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_FromKey_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -222,8 +211,7 @@ void DisplayPerformance::P_show_FromKey_value(int patch_id, int instrument_id, b
     Note(Patch[patch_id].Instrument[instrument_id].from_note);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_ToKey_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_ToKey_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -235,8 +223,7 @@ void DisplayPerformance::P_show_ToKey_value(int patch_id, int instrument_id, boo
     Note(Patch[patch_id].Instrument[instrument_id].to_note);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Pan_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Pan_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -258,8 +245,7 @@ void DisplayPerformance::P_show_Pan_value(int patch_id, int instrument_id, bool 
     tft.print(abs(Sound[sound_id].pan));
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Gain_value(int patch_id, int instrument_id, bool editing)
+FLASHMEM void DisplayPerformance::P_show_Gain_value(int patch_id, int instrument_id, bool editing)
 {
     auto position = P_line_of_instrument[instrument_id];
     auto y_display = P_Instrument_pixels_y(position);
@@ -271,8 +257,7 @@ void DisplayPerformance::P_show_Gain_value(int patch_id, int instrument_id, bool
     tft.print(Sound[Get_sound_id(patch_id, instrument_id)].gain / 20.0f, 2);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_all_instruments(int patch_id)
+FLASHMEM void DisplayPerformance::P_show_all_instruments(int patch_id)
 {
     tft.fillRect(0, P_Instrument_pixels_y(0) - 4, 320, 240, ILI9341_BLACK);
 
@@ -290,8 +275,7 @@ void DisplayPerformance::P_show_all_instruments(int patch_id)
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_TuningTone_instrument(int patch_id)
+FLASHMEM void DisplayPerformance::P_show_TuningTone_instrument(int patch_id)
 {
     auto position = Patch[patch_id].instruments;
 
@@ -329,8 +313,7 @@ void DisplayPerformance::P_show_TuningTone_instrument(int patch_id)
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_gain_TuningTone(int patch_id)
+FLASHMEM void DisplayPerformance::P_show_gain_TuningTone(int patch_id)
 {
     auto position = Patch[patch_id].instruments;
 
@@ -339,15 +322,13 @@ void DisplayPerformance::P_show_gain_TuningTone(int patch_id)
     tft.print(tuning_tone_volume / 20.0f, 2);
 }
 
-FLASHMEM
-void DisplayPerformance::Note(int note_number)
+FLASHMEM void DisplayPerformance::Note(int note_number)
 {
     tft.print(note_name[note_number % 12]);
     tft.print((int)(note_number / 12.0f) + first_octave);
 }
 
-FLASHMEM
-void DisplayPerformance::P_show_Performance_menu(void)
+FLASHMEM void DisplayPerformance::P_show_Performance_menu(void)
 {
     auto position = 0; // position on display
 
@@ -378,8 +359,7 @@ void DisplayPerformance::P_show_Performance_menu(void)
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_Confirm_patch_change_popup(void)
+FLASHMEM void DisplayPerformance::P_Confirm_patch_change_popup(void)
 {
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED); // does NOT delete frame
     tft.setCursor(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_TXT);
@@ -394,8 +374,7 @@ void DisplayPerformance::P_Confirm_patch_change_popup(void)
     tft.print("YES");
 }
 
-FLASHMEM
-void DisplayPerformance::P_Confirm_patch_change_popup_frame(int value)
+FLASHMEM void DisplayPerformance::P_Confirm_patch_change_popup_frame(int value)
 {
     Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
     Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, false);
@@ -417,8 +396,7 @@ void DisplayPerformance::P_Confirm_patch_change_popup_frame(int value)
     }
 }
 
-FLASHMEM
-void DisplayPerformance::P_Confirm_patch_delete_popup(void)
+FLASHMEM void DisplayPerformance::P_Confirm_patch_delete_popup(void)
 {
     tft.fillRoundRect(X_POPUP, Y_POPUP, L_POPUP, H_POPUP, 4, ILI9341_RED); // does NOT delete frame
     tft.setCursor(X_POPUP + display_coordinate_x(1), Y_POPUP + Y_POPUP_TXT);
@@ -431,14 +409,12 @@ void DisplayPerformance::P_Confirm_patch_delete_popup(void)
     tft.print("YES");
 }
 
-FLASHMEM
-void DisplayPerformance::P_Confirm_patch_delete_popup_frame(int value)
+FLASHMEM void DisplayPerformance::P_Confirm_patch_delete_popup_frame(int value)
 {
     Display_Common.Confirm_no_yes_popup_frame(value);
 }
 
-FLASHMEM
-bool DisplayPerformance::P_update_upload_popup(bool loading, P_field_description_struct pointer)
+FLASHMEM bool DisplayPerformance::P_update_upload_popup(bool loading, P_field_description_struct pointer)
 {
     if (Lilla_state != PERFORMANCE)
     {

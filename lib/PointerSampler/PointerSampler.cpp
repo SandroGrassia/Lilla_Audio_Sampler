@@ -16,8 +16,7 @@ void PointerSampler::Set_pointer_to_first_menu_element(void)
     Print_pointer();
 }
 
-FLASHMEM
-void PointerSampler::Move_pointer(const int value)
+FLASHMEM void PointerSampler::Move_pointer(const int value)
 {
     bool change = false;
     pointer_old = pointer;
@@ -113,8 +112,7 @@ void PointerSampler::Move_pointer_within_menu(const int value)
     }
 }
 
-FLASHMEM
-void PointerSampler::Print_pointer()
+FLASHMEM void PointerSampler::Print_pointer()
 {
     Serial.print("SAMPLER pointer -  DS_field:");
     Serial.print(pointer.field_name);

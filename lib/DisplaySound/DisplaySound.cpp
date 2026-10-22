@@ -10,8 +10,7 @@
 #include "SharedSampler.h"
 #include <math.h>
 
-FLASHMEM
-void DisplaySound::Show_pointer_frame(S_field_description_struct description, bool show)
+FLASHMEM void DisplaySound::Show_pointer_frame(S_field_description_struct description, bool show)
 {
     switch (description.field_name)
     {
@@ -34,8 +33,7 @@ void DisplaySound::Show_pointer_frame(S_field_description_struct description, bo
     }
 }
 
-FLASHMEM
-void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
+FLASHMEM void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 {
     tft.fillScreen(ILI9341_BLACK);
 
@@ -136,8 +134,7 @@ void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     Show_players_Pitch_max_value(instrument_id);
 }
 
-FLASHMEM
-void DisplaySound::Show_SOUND_menu(void)
+FLASHMEM void DisplaySound::Show_SOUND_menu(void)
 {
     int count = 0;
     int total_width = 0;
@@ -173,8 +170,7 @@ void DisplaySound::Show_SOUND_menu(void)
     }
 }
 
-FLASHMEM
-void DisplaySound::Show_Attack_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Attack_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Attack][0]), display_coordinate_y(S_column_row_value_element[value_S_Attack][1]), S_chars_Attack);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
@@ -195,8 +191,7 @@ void DisplaySound::Show_Attack_value(int instrument_id)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplaySound::Show_Decay_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Decay_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Decay][0]), display_coordinate_y(S_column_row_value_element[value_S_Decay][1]), S_chars_Decay);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
@@ -204,8 +199,7 @@ void DisplaySound::Show_Decay_value(int instrument_id)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplaySound::Show_Sustain_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Sustain_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Sustain][0]), display_coordinate_y(S_column_row_value_element[value_S_Sustain][1]), S_chars_Sustain);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
@@ -213,8 +207,7 @@ void DisplaySound::Show_Sustain_value(int instrument_id)
     Show_measure_unit("%", 1);
 }
 
-FLASHMEM
-void DisplaySound::Show_Release_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Release_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Release][0]), display_coordinate_y(S_column_row_value_element[value_S_Release][1]), S_chars_Release);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
@@ -222,8 +215,7 @@ void DisplaySound::Show_Release_value(int instrument_id)
     Show_measure_unit("sec", 3);
 }
 
-FLASHMEM
-void DisplaySound::Show_File_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_File_value(int instrument_id)
 {
     char audio_filename[NAME_FILE_SIZE];
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_File][0]), display_coordinate_y(S_column_row_value_element[value_S_File][1]), S_chars_File);
@@ -249,31 +241,27 @@ void DisplaySound::Show_File_value(int instrument_id)
     tft.print(audio_filename);
 }
 
-FLASHMEM
-void DisplaySound::Show_Midi_channel_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Midi_channel_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Midi][0]), display_coordinate_y(S_column_row_value_element[value_S_Midi][1]), S_chars_Midi);
     tft.setTextColor(ILI9341_WHITE);
     tft.print(Preset[instrument_id].midi_channel + 1);
 }
-FLASHMEM
-void DisplaySound::Show_Pitch_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Pitch_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Pitch][0]), display_coordinate_y(S_column_row_value_element[value_S_Pitch][1]), S_chars_Pitch);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Preset[instrument_id].pitch, 3);
 }
 
-FLASHMEM
-void DisplaySound::Show_Gain_value(int patch_id, int instrument_id)
+FLASHMEM void DisplaySound::Show_Gain_value(int patch_id, int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Gain][0]), display_coordinate_y(S_column_row_value_element[value_S_Gain][1]), S_chars_Gain);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print(Sound[Get_sound_id(patch_id, instrument_id)].gain / 20.0);
 }
 
-FLASHMEM
-void DisplaySound::Show_Pan_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Pan_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Pan][0]), display_coordinate_y(S_column_row_value_element[value_S_Pan][1]), S_chars_Pan);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
@@ -290,8 +278,7 @@ void DisplaySound::Show_Pan_value(int instrument_id)
     tft.print(abs(Preset[instrument_id].pan));
 }
 
-FLASHMEM
-void DisplaySound::Show_Play_mode_value(int instrument_id)
+FLASHMEM void DisplaySound::Show_Play_mode_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_PlayMode][0]), display_coordinate_y(S_column_row_value_element[value_S_PlayMode][1]), S_chars_PlayMode);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : ILI9341_YELLOW);
@@ -300,8 +287,7 @@ void DisplaySound::Show_Play_mode_value(int instrument_id)
     tft.print(name_mode[Preset[instrument_id].mode]);
 }
 
-FLASHMEM
-void DisplaySound::Show_Noclick_value(int instrument_id, bool value)
+FLASHMEM void DisplaySound::Show_Noclick_value(int instrument_id, bool value)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_value_element[value_S_Noclick][0]), display_coordinate_y(S_column_row_value_element[value_S_Noclick][1]), S_chars_NoClick);
     tft.setTextColor(Sound[Get_sound_id(Patch_id, instrument_id)].file == SdSoundSource::PREVIEW ? ILI9341_WHITE : (value ? ILI9341_YELLOW : ILI9341_WHITE));
@@ -309,8 +295,7 @@ void DisplaySound::Show_Noclick_value(int instrument_id, bool value)
     Show_measure_unit("S", 1);
 }
 
-FLASHMEM
-void DisplaySound::Show_Trim_step_value(void)
+FLASHMEM void DisplaySound::Show_Trim_step_value(void)
 {
     Cancel_text_reset_cursor(display_coordinate_x(9.5), display_coordinate_y(15), 6);
     tft.setTextColor(ILI9341_YELLOW);
@@ -340,8 +325,7 @@ void DisplaySound::Show_Trim_step_value(void)
     }
 }
 
-FLASHMEM
-void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
+FLASHMEM void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // max pitch related to which media is read
 {
     Cancel_text_reset_cursor(display_coordinate_x(46.5), display_coordinate_y(15), 5);
     tft.setTextColor(ILI9341_WHITE);

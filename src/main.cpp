@@ -132,6 +132,7 @@
 #include "DisplayPrimitives.h"
 #include "DisplayCommon.h"
 #include "DisplaySetup.h"
+#include "DisplayControlChange.h"
 #include "DisplayStorage.h"
 #include "DisplayDiagnostics.h"
 #include "DisplayStartup.h"
@@ -147,6 +148,7 @@
 #include "GlobalDisplayMidiLoop.h"
 #include "PointerPerformance.h"
 #include "PointerSound.h"
+#include "PointerControlChange.h"
 #include "PointerVCF.h"
 #include "PointerMixer.h"
 #include "PointerDelay.h"
@@ -331,7 +333,8 @@ PlayersStatistics Players_statistics;      // Track active voices and their inst
 FlashFileRegisterParser File_scanner;      // Scan Flash files and cache their metadata.
 
 DisplayCommon Display_Common;           // Render shared UI elements.
-DisplaySetup Display_Setup;             // Render system settings and MIDI control configuration.
+DisplaySetup Display_Setup;             // Render system settings.
+DisplayControlChange Display_ControlChange; // Render MIDI Control Change assignments.
 DisplayStorage Display_Storage;         // Render storage operations, progress and recovery dialogs.
 DisplayDiagnostics Display_Diagnostics; // Render hardware and controller diagnostic pages.
 DisplayStartup Display_Startup;         // Render the startup logo and cover animation.
@@ -376,6 +379,7 @@ ShiftRegisters Shifters_manager(Encoders_manager, Pushbuttons_manager, Switches_
 LillaFRAM_2x512 LillaFram; // Access the two FRAM devices used for persistent data.
 
 // Pointers
+PointerControlChange Pointer_ControlChange(Display_ControlChange); // Manage selection on the Control Change page.
 PointerPerformance Pointer_Performance; // Manage selection and navigation on the Performance page.
 PointerSound Pointer_Sound;             // Manage selection and navigation on the Sound page.
 PointerVCF Pointer_VCF;                 // Manage selection and navigation on the filter page.
@@ -551,7 +555,6 @@ FLASHMEM void SET_Ask_if_FACTORY_RESET(void);                             // Req
 // CC Control Change
 uint8_t CC_Sound_gain_cache[INSTRUMENTS]; // Cached per-instrument Sound gains used by the Control Change page.
 uint8_t CC_lowpass_filter_cache;          // Cached low-pass filter control value.
-int8_t CC_menu;                           // Current Control Change menu selection.
 int CC_number;                            // Selected MIDI Control Change number.
 
 // functions
@@ -859,8 +862,7 @@ FLASHMEM static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uin
 
 static constexpr uint16_t AUDIO_POOL_BLOCKS = 96; // Original 16-voice audio block pool.
 
-FLASHMEM
-void setup()
+FLASHMEM void setup()
 {
     AudioNoInterrupts();
     Shifters_manager.Begin();
@@ -988,8 +990,7 @@ void setup()
 
 static uint32_t audio_cost_started_ms = 0;
 
-FLASHMEM
-void Reset_audio_cost_diagnostics(void)
+FLASHMEM void Reset_audio_cost_diagnostics(void)
 {
     AudioProcessorUsageMaxReset();
     AudioMemoryUsageMaxReset();
@@ -1000,8 +1001,7 @@ void Reset_audio_cost_diagnostics(void)
     audio_cost_started_ms = millis();
 }
 
-FLASHMEM
-void Print_audio_cost_diagnostics(void)
+FLASHMEM void Print_audio_cost_diagnostics(void)
 {
     float player_cpu[PLAYERS][2];
     uint8_t active = 0;
@@ -1032,8 +1032,7 @@ void Print_audio_cost_diagnostics(void)
     Serial.println(F("AUDIO_COST: peaks are since d/reset; individual Player peaks need not coincide. c=CPU report, p=CPU+read report, d=reset/start, D=disable read diagnostics."));
 }
 
-FLASHMEM
-void loop()
+FLASHMEM void loop()
 {
     static bool recording_limit_notified = false;
     if (Lilla_state != DIRECT_SAMPLING || !DS_recording_slots_full)
@@ -7640,13 +7639,12 @@ void loop()
                 }
 
                 CC_lowpass_filter_cache = CC_lowpass_filter_value;
-                Display_Setup.CC_show_ControlChange_page();
+                Display_ControlChange.CC_show_ControlChange_page();
 
-                Display_Setup.CC_show_all_sound_gains();
-                Display_Setup.CC_show_lowpass_filter_value();
+                Display_ControlChange.CC_show_all_sound_gains();
+                Display_ControlChange.CC_show_lowpass_filter_value();
 
-                CC_menu = 0;
-                Display_Setup.CC_show_frame_menu(CC_menu);
+                Pointer_ControlChange.Set_pointer_to_return();
 
                 Clear_UI_events();
                 break;
@@ -8078,17 +8076,19 @@ void loop()
     if (Lilla_state == CC_SETTINGS)
     {
 
-        if (Read_encoder(EN_PB_Select, CC_menu, 9, 0, 1))
+        auto CC_pointer = Pointer_ControlChange.Get_pointer();
+        result = Read_encoder_simple(EN_PB_Select);
+        if (result != 0 && Pointer_ControlChange.Move_pointer(result))
         {
-            Display_Setup.CC_show_frame_menu(CC_menu);
+            CC_pointer = Pointer_ControlChange.Get_pointer();
 
             Clear_UI_events();
 
-            if (CC_menu > 0 && CC_menu < 9)
+            if (CC_pointer.field_name == field_CC_SoundGain)
             {
-                CC_number = CC_Sound_gain[CC_menu - 1];
+                CC_number = CC_Sound_gain[CC_pointer.instrument];
             }
-            else if (CC_menu == 9)
+            else if (CC_pointer.field_name == field_CC_LowpassFilter)
             {
                 CC_number = CC_lowpass_filter_value;
             }
@@ -8096,53 +8096,53 @@ void loop()
 
         if (Read_encoder(EN_PB_Value, CC_number, 127, 0, 1))
         {
-            if (CC_menu > 0 && CC_menu < 9)
+            if (CC_pointer.field_name == field_CC_SoundGain)
             {
-                CC_Sound_gain[CC_menu - 1] = CC_number;
-                Display_Setup.CC_show_sound_gain(CC_menu - 1);
+                CC_Sound_gain[CC_pointer.instrument] = CC_number;
+                Display_ControlChange.CC_show_sound_gain(CC_pointer.instrument);
             }
-            else if (CC_menu == 9)
+            else if (CC_pointer.field_name == field_CC_LowpassFilter)
             {
                 CC_lowpass_filter_value = CC_number;
-                Display_Setup.CC_show_lowpass_filter_value();
+                Display_ControlChange.CC_show_lowpass_filter_value();
             }
         }
 
         // scegli l'item
         if (Read_pushbutton(EN_PB_Value))
         {
-            if (CC_menu > 0 && CC_menu < 9)
+            if (CC_pointer.field_name == field_CC_SoundGain)
             {
-                CC_Sound_gain[CC_menu - 1] = 0;
-                Display_Setup.CC_show_sound_gain(CC_menu - 1);
+                CC_Sound_gain[CC_pointer.instrument] = 0;
+                Display_ControlChange.CC_show_sound_gain(CC_pointer.instrument);
             }
-            else if (CC_menu == 9)
+            else if (CC_pointer.field_name == field_CC_LowpassFilter)
             {
                 CC_lowpass_filter_value = 0;
-                Display_Setup.CC_show_lowpass_filter_value();
+                Display_ControlChange.CC_show_lowpass_filter_value();
             }
         }
 
         // Autolearning
         if (display_wait)
         {
-            if (CC_menu > 0 && CC_menu < 9)
+            if (CC_pointer.field_name == field_CC_SoundGain)
             {
-                CC_Sound_gain[CC_menu - 1] = CC_midi_controller;
-                Display_Setup.CC_show_sound_gain(CC_menu - 1);
-                CC_number = CC_Sound_gain[CC_menu - 1];
+                CC_Sound_gain[CC_pointer.instrument] = CC_midi_controller;
+                Display_ControlChange.CC_show_sound_gain(CC_pointer.instrument);
+                CC_number = CC_Sound_gain[CC_pointer.instrument];
             }
-            else if (CC_menu == 9)
+            else if (CC_pointer.field_name == field_CC_LowpassFilter)
             {
                 CC_lowpass_filter_value = CC_midi_controller;
-                Display_Setup.CC_show_lowpass_filter_value();
+                Display_ControlChange.CC_show_lowpass_filter_value();
                 CC_number = CC_lowpass_filter_value;
             }
             display_wait = false;
         }
 
         // Return to SETUP
-        if (Read_pushbutton(EN_PB_Select) && CC_menu == 0)
+        if (Read_pushbutton(EN_PB_Select) && CC_pointer.field_name == field_CC_Return)
         {
             CC_Save_settings();
             Golive_SETUP();
@@ -8305,8 +8305,7 @@ bool Read_encoder_inverse(const int encoder, T &value, const int highest, const 
     }
 }
 
-FLASHMEM
-bool DS_load_recording_sounds(void)
+FLASHMEM bool DS_load_recording_sounds(void)
 {
     DS_set_DS_Sampling_Patch();
     if (recording < 0)
@@ -8336,8 +8335,7 @@ bool DS_load_recording_sounds(void)
     return true;
 }
 
-FLASHMEM
-void DS_open_sound_edit(int channel)
+FLASHMEM void DS_open_sound_edit(int channel)
 {
     if (Lilla_state == DIRECT_SAMPLING)
     {
@@ -8364,8 +8362,7 @@ void DS_open_sound_edit(int channel)
     Clear_UI_events();
 }
 
-FLASHMEM
-void DS_close_sound_edit(void)
+FLASHMEM void DS_close_sound_edit(void)
 {
     const DS_Trim trim = DS_get_trim(&Sound[SOUNDS_MAX], Recording[recording].stereo);
     Archive.Save_DS_edit(recording, trim.first, trim.last);
@@ -8540,8 +8537,7 @@ void PatchEditSnapshot::Restore(void) const // Restore the model and note maps a
 // ***************************************************************************************************************
 // **********************************                   TABLES                  **********************************
 // ***************************************************************************************************************
-FLASHMEM
-void Compile_tables(void)
+FLASHMEM void Compile_tables(void)
 {
     const float value_float = 16.0;
     Serial.println("void Compile_tables(void)");
@@ -8633,8 +8629,7 @@ void P_Reset_all_maps_Instrument_for_notes()
 // **********************************                 PERFORMANCE               **********************************
 // ***************************************************************************************************************
 
-FLASHMEM
-void P_Delete_all_Patches_and_Sounds(void)
+FLASHMEM void P_Delete_all_Patches_and_Sounds(void)
 {
     const Patch_struct empty_patch{};
 
@@ -8755,8 +8750,7 @@ bool P_Rebuild_patch_old(void)
     return true;
 }
 
-FLASHMEM
-int P_Ask_if_change_Patch(void)
+FLASHMEM int P_Ask_if_change_Patch(void)
 {
     bool confirmation = false;
     int action = 0;
@@ -8787,8 +8781,7 @@ int P_Ask_if_change_Patch(void)
     return action;
 }
 
-FLASHMEM
-bool P_Ask_if_delete_this_Patch(void)
+FLASHMEM bool P_Ask_if_delete_this_Patch(void)
 {
     bool confirmation = false;
     int action = 0; // NO
@@ -8872,8 +8865,7 @@ bool P_Jump_to_Patch(uint8_t next_patch)
     return true;
 }
 
-FLASHMEM
-bool P_Save_current_patch_as_new(void)
+FLASHMEM bool P_Save_current_patch_as_new(void)
 {
     if (!LS_Capture_materialize())
     {
@@ -9352,8 +9344,7 @@ void S_Copy_all_Sound_to_Sound_cache_P(void)
     }
 }
 
-FLASHMEM
-bool S_Save_all_Sounds_changed(void)
+FLASHMEM bool S_Save_all_Sounds_changed(void)
 {
     if (!LS_Capture_materialize())
     {
@@ -9715,8 +9706,7 @@ bool DS_setup_DIRECT_SAMPLING_Patch_and_Preset(void)
     return true;
 }
 
-FLASHMEM
-bool DS_export_wav_to_SD(void)
+FLASHMEM bool DS_export_wav_to_SD(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
     const auto &entry = Recording[recording];
@@ -9945,8 +9935,7 @@ bool DS_back_to_first_DS_Recording(void)
     return true;
 }
 
-FLASHMEM
-bool DS_convert_channel_to_raw(int file_id, int channel)
+FLASHMEM bool DS_convert_channel_to_raw(int file_id, int channel)
 {
     if (!FileNameRegistry::Bind_numeric(file_id) || !FileNameRegistry::Save())
     {
@@ -9997,20 +9986,17 @@ bool DS_convert_channel_to_raw(int file_id, int channel)
     return converted;
 }
 
-FLASHMEM
-bool DS_convert_file_L(int file_L_RAW)
+FLASHMEM bool DS_convert_file_L(int file_L_RAW)
 {
     return DS_convert_channel_to_raw(file_L_RAW, 0);
 }
 
-FLASHMEM
-bool DS_convert_file_R(int file_R_RAW)
+FLASHMEM bool DS_convert_file_R(int file_R_RAW)
 {
     return DS_convert_channel_to_raw(file_R_RAW, 1);
 }
 
-FLASHMEM
-void DS_Print_Directory(File dir, int numSpaces)
+FLASHMEM void DS_Print_Directory(File dir, int numSpaces)
 {
     while (true)
     {
@@ -10038,8 +10024,7 @@ void DS_Print_Directory(File dir, int numSpaces)
     }
 }
 
-FLASHMEM
-void DS_seed_all_Recordings(void)
+FLASHMEM void DS_seed_all_Recordings(void)
 {
     Serial.println(F("*** DS_seed_all_Recordings() ***"));
     for (auto i = 0; i < RECORDINGS; ++i)
@@ -10058,8 +10043,7 @@ void DS_seed_all_Recordings(void)
     Serial.println();
 }
 
-FLASHMEM
-void DS_update_recordings(void)
+FLASHMEM void DS_update_recordings(void)
 {
     recordings = 0;
 
@@ -10076,8 +10060,7 @@ void DS_update_recordings(void)
     Serial.println();
 }
 
-FLASHMEM
-byte DS_read_all_Recordings(void)
+FLASHMEM byte DS_read_all_Recordings(void)
 {
     for (auto i = 0; i < RECORDINGS; ++i)
     {
@@ -10090,8 +10073,7 @@ byte DS_read_all_Recordings(void)
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-byte DS_read_Recording(int recording)
+FLASHMEM byte DS_read_Recording(int recording)
 {
     if (recording >= 0 && recording < RECORDINGS)
     {
@@ -10303,8 +10285,7 @@ void DS_define_menu(void) // {"Exit"}, {"Delete"}, {"Pause+Rec"}, {"Mono Rec"}, 
     }
 }
 
-FLASHMEM
-void DS_set_DS_Sampling_Patch(void)
+FLASHMEM void DS_set_DS_Sampling_Patch(void)
 {
     // set DS Patch and Sounds
     Patch[PATCHES_MAX].used = true;
@@ -10375,8 +10356,7 @@ int DS_get_samples_in_Recording(int recording)
     return Info.DS_recording_samples(recording);
 }
 
-FLASHMEM
-void P_Recording(int value)
+FLASHMEM void P_Recording(int value)
 {
     Serial.print("Recording[");
     Serial.print(value);
@@ -10508,8 +10488,7 @@ void Golive_DELAY_SETTINGS(void)
     Clear_UI_events();
 }
 
-FLASHMEM
-void Golive_with_MIDI_LOOP(bool restart)
+FLASHMEM void Golive_with_MIDI_LOOP(bool restart)
 {
     Lilla_state = MIDI_LOOP;
 
@@ -10659,8 +10638,7 @@ void Switch_from_PERFORMANCE_to_MIDI_LOOP(void)
     Golive_with_MIDI_LOOP(true);
 }
 
-FLASHMEM
-void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
+FLASHMEM void Switch_from_DIRECT_SAMPLING_to_MIDI_LOOP(void)
 {
     switch (DS_state)
     {
@@ -10847,8 +10825,7 @@ void Switch_from_MIDI_LOOP_to_LIVE_SAMPLING(void)
     Golive_with_LIVE_SAMPLING();
 }
 
-FLASHMEM
-void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
+FLASHMEM void Switch_from_DIRECT_SAMPLING_to_LIVE_SAMPLING(void)
 {
     switch (DS_state)
     {
@@ -11009,8 +10986,7 @@ void Switch_from_LIVE_SAMPLING_to_PERFORMANCE(void)
     }
 }
 
-FLASHMEM
-void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
+FLASHMEM void Switch_from_DIRECT_SAMPLING_to_PERFORMANCE(void)
 {
     switch (DS_state)
     {
@@ -11408,8 +11384,7 @@ void LOOP_restart_procedure(int track)
     }
 }
 
-FLASHMEM
-bool LOOP_Print_midi_loop_complete_data(int loop_id)
+FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id)
 {
     if (false)
     {
@@ -11493,8 +11468,7 @@ void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])
 static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 2\r\n"; // Header identifying the versioned MIDI Loop SD format.
 static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
 
-FLASHMEM
-bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size)
+FLASHMEM bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size)
 {
     auto *bytes = static_cast<uint8_t *>(destination);
     for (size_t i = 0; i < size; ++i)
@@ -11521,8 +11495,7 @@ bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size)
     return true;
 }
 
-FLASHMEM
-bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size)
+FLASHMEM bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size)
 {
     const auto *bytes = static_cast<const uint8_t *>(source);
     for (size_t i = 0; i < size; ++i)
@@ -11536,8 +11509,7 @@ bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size)
     return true;
 }
 
-FLASHMEM
-bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
+FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 {
     const bool versioned = file.peek() == 'L';
     uint8_t version = 0;
@@ -11631,8 +11603,7 @@ bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
     return true;
 }
 
-FLASHMEM
-bool LOOP_Compile_midi_loop_file(FsFile &file)
+FLASHMEM bool LOOP_Compile_midi_loop_file(FsFile &file)
 {
     const uint32_t tracks = TRACKS;
     if (file.write(LOOP_SD_MAGIC, sizeof(LOOP_SD_MAGIC) - 1) != sizeof(LOOP_SD_MAGIC) - 1 || !LOOP_Write_bytes(file, &tracks, sizeof(tracks)))
@@ -11656,16 +11627,14 @@ bool LOOP_Compile_midi_loop_file(FsFile &file)
     return true;
 }
 
-FLASHMEM
-bool LOOP_Recover_SD_file(const char *path)
+FLASHMEM bool LOOP_Recover_SD_file(const char *path)
 {
     char backup[LOOP_SIDECAR_PATH_SIZE];
     snprintf(backup, sizeof(backup), "%s.bak", path);
     return SD.exists(path) || !SD.exists(backup) || SD.rename(backup, path);
 }
 
-FLASHMEM
-bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
+FLASHMEM bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
 {
     if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
     {
@@ -11726,8 +11695,7 @@ bool LOOP_Copy_midi_loop_from_RAM_to_SD(int loop_id)
     return true; // Keep .bak until the next successful replacement or explicit deletion.
 }
 
-FLASHMEM
-bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id)
+FLASHMEM bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id)
 {
     if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
     {
@@ -11759,8 +11727,7 @@ bool LOOP_Copy_midi_loop_from_SD_to_RAM(int loop_id)
     return true;
 }
 
-FLASHMEM
-bool LOOP_Delete_midi_loop_from_SD(int loop_id)
+FLASHMEM bool LOOP_Delete_midi_loop_from_SD(int loop_id)
 {
     if (loop_id < 0 || loop_id >= MIDI_LOOP_FILES || !SD.begin(BUILTIN_SDCARD))
     {
@@ -11810,8 +11777,7 @@ bool LOOP_Look_for_midi_loop_in_SD(int loop_id)
     return false;
 }
 
-FLASHMEM
-int LOOP_Get_first_loop_id_free(void)
+FLASHMEM int LOOP_Get_first_loop_id_free(void)
 {
     if (!SD.begin(BUILTIN_SDCARD))
     {
@@ -11840,8 +11806,7 @@ int LOOP_Get_first_loop_id_free(void)
     return -3;
 }
 
-FLASHMEM
-int LOOP_Get_next_loop_id_in_SD(int loop_id)
+FLASHMEM int LOOP_Get_next_loop_id_in_SD(int loop_id)
 {
     if (!SD.begin(BUILTIN_SDCARD))
     {
@@ -11869,8 +11834,7 @@ int LOOP_Get_next_loop_id_in_SD(int loop_id)
     return loop_id;
 }
 
-FLASHMEM
-int LOOP_Get_previous_loop_id_in_SD(int loop_id)
+FLASHMEM int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 {
     if (loop_id <= 0)
     {
@@ -11906,8 +11870,7 @@ int LOOP_Get_previous_loop_id_in_SD(int loop_id)
 // **********************************            VIRTUAL FILE SYSTEM            **********************************
 // ***************************************************************************************************************
 
-FLASHMEM
-void VFS_Make_VFS(void)
+FLASHMEM void VFS_Make_VFS(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
     Display_Storage.VFS_Make_presentation();
@@ -11990,8 +11953,7 @@ int VFS_Get_packets(void)
     return value;
 }
 
-FLASHMEM
-void VFS_Print_allocation(void)
+FLASHMEM void VFS_Print_allocation(void)
 {
     Serial.println();
 
@@ -12030,8 +11992,7 @@ inline VFS_Audio_guard::~VFS_Audio_guard()
     }
 }
 
-FLASHMEM
-void Require_VFS(bool result)
+FLASHMEM void Require_VFS(bool result)
 {
     if (result)
     {
@@ -12047,15 +12008,13 @@ void Require_VFS(bool result)
     }
 }
 
-FLASHMEM
-bool VFS_Valid_span(const VFS_Recording &entry)
+FLASHMEM bool VFS_Valid_span(const VFS_Recording &entry)
 {
     const int channels = entry.stereo ? 2 : 1;
     return entry.packets >= 0 && entry.packets <= DS_VFS_packets / channels && (entry.packets == 0 || (entry.first_packet >= DS_First_packet && entry.first_packet <= DS_VFS_packets - entry.packets * channels));
 }
 
-FLASHMEM
-bool VFS_Compile_FAT_table(void)
+FLASHMEM bool VFS_Compile_FAT_table(void)
 {
     if (DS_First_packet < 0 || DS_VFS_packets < DS_First_packet || DS_VFS_packets > VFS_PACKETS_DS)
     {
@@ -12108,8 +12067,7 @@ int VFS_Get_first_packet_free(void)
     return -1;
 }
 
-FLASHMEM
-void VFS_Erase_all_packets(void)
+FLASHMEM void VFS_Erase_all_packets(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
     Serial.println("*** Erase ALL Packets and VFS_FAT ***");
@@ -12124,8 +12082,7 @@ void VFS_Erase_all_packets(void)
     Serial.println();
 }
 
-FLASHMEM
-void VFS_Erase_all_packets_for_DS(void)
+FLASHMEM void VFS_Erase_all_packets_for_DS(void)
 {
     Serial.println("*** Erase ALL Packets for Direct Sampling and VFS_FAT ***");
     for (auto i = DS_First_packet; i <= DS_Last_packet; ++i)
@@ -12139,8 +12096,7 @@ void VFS_Erase_all_packets_for_DS(void)
 static constexpr uint32_t VFS_FLASH_TIMEOUT_MS = 10000;
 static constexpr uint32_t VFS_COPY_BYTES = 256; // Chunk size used for VFS packet copies and verification.
 
-FLASHMEM
-bool VFS_Wait_flash(void)
+FLASHMEM bool VFS_Wait_flash(void)
 {
     const uint32_t start = millis();
     while (!SerialFlash.ready())
@@ -12154,8 +12110,7 @@ bool VFS_Wait_flash(void)
     return true;
 }
 
-FLASHMEM
-bool VFS_Open_packet(int id, SerialFlashFile &file)
+FLASHMEM bool VFS_Open_packet(int id, SerialFlashFile &file)
 {
     char packet_filename[NAME_PACKET_SIZE];
     if (id < 0 || id >= VFS_PACKETS_MAX || !VFS_Wait_flash())
@@ -12167,8 +12122,7 @@ bool VFS_Open_packet(int id, SerialFlashFile &file)
     return file && file.size() == PACKET_DIM && block > 0 && PACKET_DIM % block == 0 && file.getFlashAddress() % block == 0;
 }
 
-FLASHMEM
-bool VFS_Packet_is_blank(SerialFlashFile &file, bool &blank)
+FLASHMEM bool VFS_Packet_is_blank(SerialFlashFile &file, bool &blank)
 {
     uint8_t buffer[VFS_COPY_BYTES];
     blank = false;
@@ -12191,8 +12145,7 @@ bool VFS_Packet_is_blank(SerialFlashFile &file, bool &blank)
     return true;
 }
 
-FLASHMEM
-bool VFS_Erase_packet(int value)
+FLASHMEM bool VFS_Erase_packet(int value)
 {
     VFS_Audio_guard audio_guard;
     SerialFlashFile file;
@@ -12222,8 +12175,7 @@ bool VFS_Erase_packet(int value)
     return audio_guard.Complete();
 }
 
-FLASHMEM
-bool VFS_Save_recording_verified(int id)
+FLASHMEM bool VFS_Save_recording_verified(int id)
 {
     const VFS_Recording expected = Recording[id];
     if (Archive.Save_DS_Recording(id) != LillaFRAM_2x512::ERROR_0)
@@ -12237,8 +12189,7 @@ bool VFS_Save_recording_verified(int id)
     return verified;
 }
 
-FLASHMEM
-bool VFS_Clean_up_orphan_packets(void)
+FLASHMEM bool VFS_Clean_up_orphan_packets(void)
 {
     VFS_Audio_guard audio_guard;
     if (!VFS_Compile_FAT_table())
@@ -12264,8 +12215,7 @@ bool VFS_Clean_up_orphan_packets(void)
     return audio_guard.Complete();
 }
 
-FLASHMEM
-bool VFS_Clean_up_VFS(void)
+FLASHMEM bool VFS_Clean_up_VFS(void)
 {
     VFS_Audio_guard audio_guard;
     if (!VFS_Compile_FAT_table())
@@ -12312,8 +12262,7 @@ bool VFS_Clean_up_VFS(void)
     return audio_guard.Complete();
 }
 
-FLASHMEM
-bool VFS_Packet_used_bytes(SerialFlashFile &file, uint32_t &used)
+FLASHMEM bool VFS_Packet_used_bytes(SerialFlashFile &file, uint32_t &used)
 {
     uint8_t buffer[VFS_COPY_BYTES];
     for (uint32_t end = PACKET_DIM; end > 0; end -= sizeof(buffer))
@@ -12336,8 +12285,7 @@ bool VFS_Packet_used_bytes(SerialFlashFile &file, uint32_t &used)
     return true;
 }
 
-FLASHMEM
-bool VFS_Shift_file(int to_packet, int recording_id)
+FLASHMEM bool VFS_Shift_file(int to_packet, int recording_id)
 {
     VFS_Audio_guard audio_guard;
     if (recording_id < 0 || recording_id >= RECORDINGS)
@@ -12398,8 +12346,7 @@ bool VFS_Shift_file(int to_packet, int recording_id)
     return audio_guard.Complete();
 }
 
-FLASHMEM
-bool VFS_Defragment(void)
+FLASHMEM bool VFS_Defragment(void)
 {
     VFS_Audio_guard audio_guard;
     if (!VFS_Compile_FAT_table())
@@ -12464,8 +12411,7 @@ bool VFS_Defragment(void)
     return audio_guard.Complete();
 }
 
-FLASHMEM
-void VFS_Print_FAT(void)
+FLASHMEM void VFS_Print_FAT(void)
 {
     Serial.println();
     for (auto i = DS_First_packet; i < DS_VFS_packets; ++i)
@@ -12488,8 +12434,7 @@ static constexpr char BACKUP_ROOT[] = "/DATA_BACKUPS";        // SD directory co
 static constexpr char RESTORE_ROOT[] = "/RESTORE"; // User-selected backup contents to restore.
 static constexpr char BACKUP_CONFIG[] = "LILLA_CONFIG.fram"; // Configuration filename within a full SD backup.
 
-FLASHMEM
-uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size)
+FLASHMEM uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size)
 {
     for (size_t i = 0; i < size; ++i)
     {
@@ -12502,14 +12447,12 @@ uint32_t BACKUP_Update_crc(uint32_t crc, const uint8_t *data, size_t size)
     return crc;
 }
 
-FLASHMEM
-void BACKUP_Audio_path(char *path, size_t size, const char *directory, int id, int channel)
+FLASHMEM void BACKUP_Audio_path(char *path, size_t size, const char *directory, int id, int channel)
 {
     snprintf(path, size, "%s/REC_%02d_%c.raw", directory, id, channel == 0 ? 'L' : 'R');
 }
 
-FLASHMEM
-bool BACKUP_Verify_audio(const char *path, uint32_t bytes, uint32_t expected_crc)
+FLASHMEM bool BACKUP_Verify_audio(const char *path, uint32_t bytes, uint32_t expected_crc)
 {
     FsFile file = SD.sdfs.open(path, O_RDONLY);
     if (!file || file.fileSize() != bytes)
@@ -12530,8 +12473,7 @@ bool BACKUP_Verify_audio(const char *path, uint32_t bytes, uint32_t expected_crc
     return !file.getError() && (crc ^ 0xFFFFFFFFUL) == expected_crc;
 }
 
-FLASHMEM
-bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bool restore, uint32_t &crc)
+FLASHMEM bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bool restore, uint32_t &crc)
 {
     uint8_t buffer[VFS_COPY_BYTES], actual[VFS_COPY_BYTES];
     crc = 0xFFFFFFFFUL;
@@ -12575,8 +12517,7 @@ bool BACKUP_Copy_audio(FsFile &file, const VFS_Recording &entry, int channel, bo
     return !file.getError();
 }
 
-FLASHMEM
-bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio, bool *config_error)
+FLASHMEM bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_backup_audio *audio, VFS_Recording *entries, int &capacity, bool discard_invalid_audio, bool *config_error)
 {
     char packet_filename[NAME_PACKET_SIZE];
     char path[64];
@@ -12637,8 +12578,7 @@ bool BACKUP_Verify_directory(const char *directory, ArchivingManager::Recording_
     return required <= static_cast<uint32_t>(capacity);
 }
 
-FLASHMEM
-bool BACKUP_Export_files(void)
+FLASHMEM bool BACKUP_Export_files(void)
 {
     if (!SD.begin(BUILTIN_SDCARD) || Archive.Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
     {
@@ -12758,8 +12698,7 @@ bool BACKUP_Export_files(void)
     return true;
 }
 
-FLASHMEM
-bool BACKUP_Export(void)
+FLASHMEM bool BACKUP_Export(void)
 {
     VFS_Audio_guard guard;
     const bool saved = BACKUP_Export_files();
@@ -12767,8 +12706,7 @@ bool BACKUP_Export(void)
     return saved;
 }
 
-FLASHMEM
-bool BACKUP_Restore_files(bool &changed, bool &config_error)
+FLASHMEM bool BACKUP_Restore_files(bool &changed, bool &config_error)
 {
     if (!SD.begin(BUILTIN_SDCARD))
     {
@@ -12845,8 +12783,7 @@ bool BACKUP_Restore_files(bool &changed, bool &config_error)
     return Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-bool BACKUP_Restore(bool *config_error)
+FLASHMEM bool BACKUP_Restore(bool *config_error)
 {
     VFS_Audio_guard guard;
     bool changed = false;
@@ -12922,8 +12859,7 @@ int Get_samples_in_raw_file(int file_id) // value is a file_id
         return 0;
 }
 
-FLASHMEM
-void Print_flash_file_list(void)
+FLASHMEM void Print_flash_file_list(void)
 {
     uint32_t filesize = 0;
     int occupation = 0;
@@ -12958,8 +12894,7 @@ void Print_flash_file_list(void)
     Serial.println(F("---------------"));
 }
 
-FLASHMEM
-int Get_raw_files(void)
+FLASHMEM int Get_raw_files(void)
 {
     char audio_filename[NAME_FILE_SIZE];
     int value = 0;
@@ -12973,8 +12908,7 @@ int Get_raw_files(void)
     return value; // nessun file .RAW
 }
 
-FLASHMEM
-int Get_raw_files_volume(void)
+FLASHMEM int Get_raw_files_volume(void)
 {
     char audio_filename[NAME_FILE_SIZE];
     unsigned long value = 0;
@@ -13012,8 +12946,7 @@ uint16_t S_Calc_Noclick_max(bool use_Wavetable)
 // ***************************************************************************************************************
 // **********************************               FACTORY SETUP               **********************************
 // ***************************************************************************************************************
-FLASHMEM
-void Factory_setup_FRAM(void)
+FLASHMEM void Factory_setup_FRAM(void)
 {
     Archive.Factory_reset_FRAM(false);
 
@@ -13091,8 +13024,7 @@ void Factory_setup_FRAM(void)
     Archive.Set_FRAM_archive_state(ArchivingManager::ARCHIVE_READY);
 }
 
-FLASHMEM
-void Print_Patch(int patch_id)
+FLASHMEM void Print_Patch(int patch_id)
 {
     Serial.print("Patch:");
     Serial.print(patch_id);
@@ -13121,8 +13053,7 @@ void Print_Patch(int patch_id)
     Serial.println();
 }
 
-FLASHMEM
-void Print_Instrument(int patch_id, int instrument_id)
+FLASHMEM void Print_Instrument(int patch_id, int instrument_id)
 {
     Serial.print(" sound_id:");
     Serial.print(Get_sound_id(patch_id, instrument_id));
@@ -13156,8 +13087,7 @@ void Print_Instrument(int patch_id, int instrument_id)
     Serial.println(Patch[patch_id].Instrument[instrument_id].Filter.frequency_time);
 }
 
-FLASHMEM
-void Print_Sound(int sound_id)
+FLASHMEM void Print_Sound(int sound_id)
 {
     char audio_filename[NAME_FILE_SIZE];
     Serial.println();
@@ -13219,8 +13149,7 @@ void Print_Sound(int sound_id)
     Serial.println();
 }
 
-FLASHMEM
-void Print_Lilla_state(void)
+FLASHMEM void Print_Lilla_state(void)
 {
     Serial.print("Displayed page is: ");
     switch (Lilla_state)
@@ -13850,8 +13779,7 @@ void LS_update_Q_sample(void)
     AudioInterrupts();
 }
 
-FLASHMEM
-void LS_Reset_buffer(void)
+FLASHMEM void LS_Reset_buffer(void)
 {
     memset(LS_buffer_storage, 0, sizeof(LS_buffer_storage));
 
@@ -13870,8 +13798,7 @@ void LS_Reset_buffer(void)
     LS_Q_sample = -1;
 }
 
-FLASHMEM
-void LS_setup_LS_Patch(bool stereo)
+FLASHMEM void LS_setup_LS_Patch(bool stereo)
 {
     // set Sampler Patch and Sounds
     Patch[PATCHES_MAX].used = true;
@@ -14071,8 +13998,7 @@ void Golive_MIXER(void)
 // ****************************                         SETTINGS                        **************************
 // ***************************************************************************************************************
 
-FLASHMEM
-byte CC_Save_settings(void)
+FLASHMEM byte CC_Save_settings(void)
 {
     Midi_reader.Stop();
     const byte result = Archive.Save_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
@@ -14082,8 +14008,7 @@ byte CC_Save_settings(void)
     return result;
 }
 
-FLASHMEM
-void SET_Ask_if_IMPORT_EXPORT_setup(bool exporting)
+FLASHMEM void SET_Ask_if_IMPORT_EXPORT_setup(bool exporting)
 {
     confirmation = false;
     result = 0;
@@ -14113,8 +14038,7 @@ void SET_Ask_if_IMPORT_EXPORT_setup(bool exporting)
     Clear_UI_events();
 }
 
-FLASHMEM
-void SET_Ask_if_FACTORY_RESET(void)
+FLASHMEM void SET_Ask_if_FACTORY_RESET(void)
 {
     confirmation = false;
     result = 0;
@@ -14140,8 +14064,7 @@ void SET_Ask_if_FACTORY_RESET(void)
 // ****************************                 CONTROL CHANGE ASSIGNENT                **************************
 // ***************************************************************************************************************
 
-FLASHMEM
-byte CC_Read_all_Sound_gain()
+FLASHMEM byte CC_Read_all_Sound_gain()
 {
     return Archive.Read_CC_settings(CC_Sound_gain, CC_lowpass_filter_value);
 }
@@ -14158,8 +14081,7 @@ enum class SET_Audio_format : uint8_t
     Mp3
 };
 
-FLASHMEM
-static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
+FLASHMEM static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
 {
     const auto read16 = [&file](uint16_t &value) -> bool
     {
@@ -14242,8 +14164,7 @@ static bool SET_WAV_raw_data(File &file, uint32_t &data_offset, uint32_t &data_l
     return true;
 }
 
-FLASHMEM
-static bool SET_AIFF_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
+FLASHMEM static bool SET_AIFF_raw_data(File &file, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
 {
     const auto read16 = [&file](uint16_t &value) -> bool
     {
@@ -14327,8 +14248,7 @@ static bool SET_AIFF_raw_data(File &file, uint32_t &data_offset, uint32_t &data_
     return true;
 }
 
-FLASHMEM
-static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
+FLASHMEM static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &data_offset, uint32_t &data_length, uint16_t &channels)
 {
     data_offset = 0;
     const uint64_t file_length = file.size();
@@ -14355,8 +14275,7 @@ static bool SET_Audio_raw_data(File &file, SET_Audio_format format, uint32_t &da
     return true;
 }
 
-FLASHMEM
-bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
+FLASHMEM bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
 {
     LS_Capture_collect();
     for (const auto &source : Capture_sources)
@@ -14808,8 +14727,7 @@ bool SET_Copy_audio_files_from_SD_to_Flash(bool &flash_changed)
     return true;
 }
 
-FLASHMEM
-float SET_eraseBytesPerSecond(const unsigned char *id)
+FLASHMEM float SET_eraseBytesPerSecond(const unsigned char *id)
 {
     if (id[0] == 0x20) // Micron
     {
@@ -14834,8 +14752,7 @@ float SET_eraseBytesPerSecond(const unsigned char *id)
 // **********************************                 SOUND_EDIT                 *********************************
 // ***************************************************************************************************************
 
-FLASHMEM
-void S_Select_menu_elements(void)
+FLASHMEM void S_Select_menu_elements(void)
 {
     const bool preview = Sound[Sound_id].file == SdSoundSource::PREVIEW;
     S_Menu[value_S_BrowseFlash] = Lilla_state_0 != DIRECT_SAMPLING && S_flash_first >= 0 && SdSoundSource::Is_sd(Sound[Sound_id].file);
@@ -15165,8 +15082,7 @@ bool P_Quiesce_audio_players(void)
     return ready;
 }
 
-FLASHMEM
-bool Startup_mode(void)
+FLASHMEM bool Startup_mode(void)
 {
     const bool enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
     AudioNoInterrupts();
@@ -15234,8 +15150,7 @@ bool Startup_mode(void)
     return true;
 }
 
-FLASHMEM
-void Startup_hardware_and_objects(void)
+FLASHMEM void Startup_hardware_and_objects(void)
 {
     Serial.begin(115200);
 
@@ -15458,8 +15373,7 @@ void Startup_hardware_and_objects(void)
     Calc_pitch_from_note(key_step);
 }
 
-FLASHMEM
-void Reload_system_state(void)
+FLASHMEM void Reload_system_state(void)
 {
     if (!P_Quiesce_audio_players())
     {
@@ -15798,8 +15712,7 @@ void Reload_system_state(void)
     delay(20);
 }
 
-FLASHMEM
-bool TEST_Current_Patch_SD_round_trip(void)
+FLASHMEM bool TEST_Current_Patch_SD_round_trip(void)
 {
     const int test_patch_id = Patch_id;
 
@@ -15956,8 +15869,7 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
 }
 
 
-FLASHMEM
-void Print_player_read_diagnostics(void)
+FLASHMEM void Print_player_read_diagnostics(void)
 {
     Print_audio_cost_diagnostics();
     DMAMEM static PlayersManager::ReadDiagnosticsSnapshot snapshots[4];

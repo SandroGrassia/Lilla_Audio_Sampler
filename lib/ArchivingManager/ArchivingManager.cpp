@@ -112,8 +112,7 @@ namespace
     }
 }
 
-FLASHMEM
-byte ArchivingManager::Migrate_file_registry()
+FLASHMEM byte ArchivingManager::Migrate_file_registry()
 {
     FileNameRegistry::Load(); // Retain the newest generation when replacing an earlier registry on legacy restore.
     FileNameRegistry::Clear();
@@ -142,8 +141,7 @@ byte ArchivingManager::Migrate_file_registry()
     return FileNameRegistry::Save() ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_VERIFY;
 }
 
-FLASHMEM
-byte ArchivingManager::Set_FRAM_archive_state(uint32_t state)
+FLASHMEM byte ArchivingManager::Set_FRAM_archive_state(uint32_t state)
 {
     uint32_t header[4] = {0x4C465241, 2, state, 0};
     header[3] = FRAM_Calculate_crc32(reinterpret_cast<const uint8_t *>(header), 12);
@@ -172,8 +170,7 @@ byte ArchivingManager::Set_FRAM_archive_state(uint32_t state)
     return memcmp(header, actual, sizeof(header)) == 0 ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_VERIFY;
 }
 
-FLASHMEM
-byte ArchivingManager::Check_FRAM_archive()
+FLASHMEM byte ArchivingManager::Check_FRAM_archive()
 {
     uint32_t header[4]{};
     const byte result = FRAM_Read_record(FRAM_HEADER_ADDRESS, header);
@@ -246,8 +243,7 @@ byte ArchivingManager::Check_FRAM_archive()
     return FileNameRegistry::Load() ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_CRC;
 }
 
-FLASHMEM
-byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
+FLASHMEM byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
 {
     const byte started = Set_FRAM_archive_state(RESTORE_IN_PROGRESS);
     if (started != LillaFRAM_2x512::ERROR_0)
@@ -310,8 +306,7 @@ byte ArchivingManager::Factory_reset_FRAM(bool publish_ready)
     return publish_ready ? Set_FRAM_archive_state(ARCHIVE_READY) : LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio *audio)
+FLASHMEM bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio *audio)
 {
     if (Check_FRAM_archive() != LillaFRAM_2x512::ERROR_0)
     {
@@ -375,8 +370,7 @@ bool ArchivingManager::Save_FRAM_backup(File &file, const Recording_backup_audio
     return audio_bytes == 0 || file.write(manifest, audio_bytes) == audio_bytes;
 }
 
-FLASHMEM
-bool ArchivingManager::Verify_FRAM_backup(File &file)
+FLASHMEM bool ArchivingManager::Verify_FRAM_backup(File &file)
 {
     if (!file.seek(0))
     {
@@ -426,8 +420,7 @@ bool ArchivingManager::Verify_FRAM_backup(File &file)
     return (crc ^ 0xFFFFFFFFUL) == header.payload_crc32;
 }
 
-FLASHMEM
-bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
+FLASHMEM bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
 {
     if (!Verify_FRAM_backup(file) || !file.seek(0))
     {
@@ -483,8 +476,7 @@ bool ArchivingManager::Restore_FRAM_backup(File &file, bool publish_ready)
     return !publish_ready || Set_FRAM_archive_state(ARCHIVE_READY) == LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings)
+FLASHMEM bool ArchivingManager::Read_backup_audio(File &file, Recording_backup_audio *audio, VFS_Recording *recordings)
 {
     if (audio == nullptr || recordings == nullptr || !Verify_FRAM_backup(file) || !file.seek(0))
     {
@@ -811,8 +803,7 @@ byte ArchivingManager::FRAM_Read_recording(uint8_t recording_id, FRAM_Recording_
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-byte ArchivingManager::Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report)
+FLASHMEM byte ArchivingManager::Repair_Recordings_in_FRAM(FRAM_Recording_repair_report &report)
 {
     report = {};
     bool clear_recording[RECORDINGS] = {};
@@ -932,8 +923,7 @@ byte ArchivingManager::FRAM_Read_system(FRAM_System_struct &destination)
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-byte ArchivingManager::Repair_System_in_FRAM(FRAM_System_repair_report &report)
+FLASHMEM byte ArchivingManager::Repair_System_in_FRAM(FRAM_System_repair_report &report)
 {
     report = {};
     FRAM_System_struct system{};
@@ -975,8 +965,7 @@ byte ArchivingManager::Repair_System_in_FRAM(FRAM_System_repair_report &report)
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-byte ArchivingManager::Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report)
+FLASHMEM byte ArchivingManager::Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report)
 {
     report = {};
     bool clear_patch[FRAM_PATCHES] = {};
@@ -1149,8 +1138,7 @@ byte ArchivingManager::Repair_Patch_Sound_in_FRAM(FRAM_Repair_report &report)
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound)
+FLASHMEM byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &failed_sound)
 {
     static_assert(PATCHES_MAX == FRAM_PATCHES && SOUNDS_MAX == FRAM_SOUNDS);
 
@@ -1282,8 +1270,7 @@ byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, bool &fai
     return result;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
+FLASHMEM byte ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1297,8 +1284,7 @@ byte ArchivingManager::Save_CC_lowpass_filter(const int CC_lowpass_filter)
     return FRAM_Write_system(system);
 }
 
-FLASHMEM
-byte ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
+FLASHMEM byte ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1311,8 +1297,7 @@ byte ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filter)
     return result;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter)
+FLASHMEM byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1327,8 +1312,7 @@ byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], u
     return FRAM_Write_system(system);
 }
 
-FLASHMEM
-byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter)
+FLASHMEM byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1342,8 +1326,7 @@ byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t
     return result;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_key_step(const uint8_t key_step)
+FLASHMEM byte ArchivingManager::Save_key_step(const uint8_t key_step)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1357,8 +1340,7 @@ byte ArchivingManager::Save_key_step(const uint8_t key_step)
     return FRAM_Write_system(system);
 }
 
-FLASHMEM
-byte ArchivingManager::Read_key_step(uint8_t &key_step)
+FLASHMEM byte ArchivingManager::Read_key_step(uint8_t &key_step)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1371,8 +1353,7 @@ byte ArchivingManager::Read_key_step(uint8_t &key_step)
     return result;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument)
+FLASHMEM byte ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uint8_t CC_Sg_instrument)
 {
     if (instrument_id >= INSTRUMENTS)
     {
@@ -1391,8 +1372,7 @@ byte ArchivingManager::Save_CC_Sound_gain(const uint8_t instrument_id, const uin
     return FRAM_Write_system(system);
 }
 
-FLASHMEM
-byte ArchivingManager::Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument)
+FLASHMEM byte ArchivingManager::Read_CC_Sound_gain(const uint8_t instrument_id, uint8_t &CC_Sg_instrument)
 {
     if (instrument_id >= INSTRUMENTS)
     {
@@ -1464,8 +1444,7 @@ byte ArchivingManager::Read_Delay(uint8_t patch_id, Delay_data_struct &delay_dat
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &delay_data)
+FLASHMEM byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &delay_data)
 {
     if (patch_id == Capture_new_patch)
     {
@@ -1491,8 +1470,7 @@ byte ArchivingManager::Save_Delay(uint8_t patch_id, const Delay_data_struct &del
     return FRAM_Write_delay(patch_id, destination);
 }
 
-FLASHMEM
-byte ArchivingManager::Read_first_octave(int8_t &first_octave)
+FLASHMEM byte ArchivingManager::Read_first_octave(int8_t &first_octave)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1505,8 +1483,7 @@ byte ArchivingManager::Read_first_octave(int8_t &first_octave)
     return result;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_first_octave(const int8_t first_octave)
+FLASHMEM byte ArchivingManager::Save_first_octave(const int8_t first_octave)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1633,8 +1610,7 @@ byte ArchivingManager::Read_Sound(const int sound_id)
     return !runtime.used || Validate_Sound_AB_file_raw(sound_id) ? LillaFRAM_2x512::ERROR_0 : FRAM_ERROR_SOURCE;
 }
 
-FLASHMEM
-byte ArchivingManager::Save_Patch(const int patch_id)
+FLASHMEM byte ArchivingManager::Save_Patch(const int patch_id)
 {
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
@@ -1844,8 +1820,7 @@ byte ArchivingManager::Clear_DS_edit(int recording)
     return FRAM_Write_record(FRAM_RECORDING_EDIT_ADDRESS + recording * sizeof(FRAM_Recording_edit_struct), version);
 }
 
-FLASHMEM
-byte ArchivingManager::Save_DS_edit(int recording, uint32_t first_sample, uint32_t last_sample)
+FLASHMEM byte ArchivingManager::Save_DS_edit(int recording, uint32_t first_sample, uint32_t last_sample)
 {
     FRAM_Recording_edit_struct entry{};
     entry.version = 1;
@@ -1862,8 +1837,7 @@ byte ArchivingManager::Save_DS_edit(int recording, uint32_t first_sample, uint32
     return FRAM_Write_record(address + payload_bytes, entry.crc32);
 }
 
-FLASHMEM
-byte ArchivingManager::Read_DS_edit(int recording, uint32_t &first_sample, uint32_t &last_sample)
+FLASHMEM byte ArchivingManager::Read_DS_edit(int recording, uint32_t &first_sample, uint32_t &last_sample)
 {
     FRAM_Recording_edit_struct entry{};
     const byte result = FRAM_Read_record(FRAM_RECORDING_EDIT_ADDRESS + recording * sizeof(entry), entry);
@@ -1884,8 +1858,7 @@ byte ArchivingManager::Read_DS_edit(int recording, uint32_t &first_sample, uint3
     return LillaFRAM_2x512::ERROR_0;
 }
 
-FLASHMEM
-String ArchivingManager::Filename_Patch(const int patch_id)
+FLASHMEM String ArchivingManager::Filename_Patch(const int patch_id)
 {
     String filename = String(patch_id);
     return String(filename + ".patch");
@@ -1893,8 +1866,7 @@ String ArchivingManager::Filename_Patch(const int patch_id)
 
 // Filename sound description
 
-FLASHMEM
-bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
+FLASHMEM bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
 {
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLA_PRIVATE/PATCHES/" + filename);
@@ -1951,8 +1923,7 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) // public
     }
 }
 
-FLASHMEM
-bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
+FLASHMEM bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
 {
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
@@ -2031,8 +2002,7 @@ bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
     return false;
 }
 
-FLASHMEM
-bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
+FLASHMEM bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
 {
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
@@ -2135,8 +2105,7 @@ bool ArchivingManager::Resume_Patch_from_SD_to_RAM(const int patch_id)
     return true;
 }
 
-FLASHMEM
-bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
+FLASHMEM bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
 {
     if (patch_id < 0 || patch_id >= PATCHES_MAX)
     {
@@ -2185,8 +2154,7 @@ bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id, File &file)
 
 
 
-FLASHMEM
-bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
+FLASHMEM bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
 {
     String filename = Filename_Patch(patch_id);
     String full_path = String("/LILLA_PRIVATE/PATCHES/" + filename);
@@ -2226,8 +2194,7 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
     }
 }
 
-FLASHMEM
-bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
+FLASHMEM bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
 {
     if (patch_id < 0 || patch_id >= PATCHES_MAX || !file.seek(0))
     {
@@ -2345,8 +2312,7 @@ bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, File &file)
 
 
 
-FLASHMEM
-bool ArchivingManager::Is_SD_inserted(void)
+FLASHMEM bool ArchivingManager::Is_SD_inserted(void)
 {
     if (SD.begin(BUILTIN_SDCARD))
     {
