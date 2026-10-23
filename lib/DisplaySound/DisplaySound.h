@@ -21,6 +21,10 @@ class DisplaySound
 {
 private:
     int menu_first_visible = 0;
+    int source_notice_file = -1; // Source identity associated with the last notice.
+    uint8_t source_notice_reason = 0; // Distinguish missing media, empty libraries, missing files and load errors.
+    uint32_t source_notice_started = 0; // Nonblocking notice start time in milliseconds.
+    bool source_notice_visible = false; // Track whether the waveform contains a timed notice.
     // Screen coordinates for each SOUND page value field, expressed in character columns/rows.
     static constexpr float S_column_row_Patch[2] = {32, 0};
     static constexpr float S_column_row_Sound[2] = {22.5, 0};
@@ -85,7 +89,11 @@ public:
     FLASHMEM void Show_SOUND_page(int patch_id, int instrument_id);                      // Draws the complete SOUND page for the selected instrument.
     FLASHMEM void Show_pointer_frame(S_field_description_struct description, bool show); // Shows or hides the selection frame requested by PointerSound.
     FLASHMEM void Show_SOUND_menu(void);                                                 // Rebuilds the SOUND menu row using the currently enabled entries.
-    void Show_wave(int instrument_id);                                          // Renders the waveform preview and trim information.
+    void Show_wave(int instrument_id, bool show_notice = true);                                          // Renders the waveform preview and trim information.
+
+    FLASHMEM void Show_source_notice(int file, bool restart = true); // Explain how to restore a source and start a 4.5-second notice.
+    FLASHMEM void Show_read_sd_notice(); // Request SD catalog preparation with a nonblocking 4.5-second popup.
+    void Update_source_notice(int instrument_id); // Restore the waveform after the notice expires without blocking input.
 
     FLASHMEM void Show_Attack_value(int instrument_id);  // Prints attack mode and time.
     FLASHMEM void Show_Decay_value(int instrument_id);   // Prints decay time.

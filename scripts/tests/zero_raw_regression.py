@@ -21,8 +21,8 @@ assert all(value == round(32767 * math.sin(2 * math.pi * 261 * index / 43995)) f
 assert abs(1200 * math.log2((261 * 44100 / 43995) / (440 * 2 ** (-9 / 12)))) < 0.02
 
 main = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
-parsers = main[main.index('enum class SET_Audio_format : uint8_t\n{'):main.index('FLASHMEM\nbool SET_Copy_audio_files_from_SD_to_Flash')]
-method = re.search(r'^bool SET_Copy_audio_files_from_SD_to_Flash\(bool &flash_changed\)\n\{.*?^\}', main, re.M | re.S).group(0)
+parsers = main[main.index('enum class SET_Audio_format : uint8_t\n{'):re.search(r'^FLASHMEM\s+bool SET_Copy_audio_files_from_SD_to_Flash\(bool &flash_changed\)\n\{', main, re.M).start()]
+method = re.search(r'^(?:FLASHMEM\s+)?bool SET_Copy_audio_files_from_SD_to_Flash\(bool &flash_changed\)\n\{.*?^\}', main, re.M | re.S).group(0)
 case_start = re.search(r'^            case \d+: // import audio files from SD', main, re.M).start()
 case_end = main.index('            case ', case_start + len('            case '))
 menu_case = re.sub(r'case \d+:', 'case 4:', main[case_start:case_end], count=1)
@@ -56,9 +56,10 @@ tests = tests.replace('tables_rebuilt == 0 && reloaded == 0 && !Trigger.Is_runni
 tests = tests.replace('tables_rebuilt == 0 && !Trigger.Is_running()', 'tables_rebuilt == 2 && Trigger.Is_running()')
 fixture = fixture.replace('void VFS_Make_VFS() { assert(SerialFlash.files.count("0.raw")); }', 'void VFS_Make_VFS() {}')
 fixture = REGISTRY_FIXTURE + fixture
-fixture += '\nconstexpr int ILI9341_WHITE = 1, ILI9341_RED = 2;\nvoid Show_popup_text(const char *, int, int, int) {}\n'
+fixture += '\nconstexpr int ILI9341_WHITE = 1, ILI9341_RED = 2;\nvoid Show_popup_text(const char *, int, int, int = 0) {}\n'
 tests = tests.replace('void reset()\n{', 'void reset()\n{\n    reset_registry();\n    proceed_import = true;')
 tests = tests.replace('SD.fail_open_at = 2;', 'SD.fail_open_at = 3;')
+fixture += "\nstruct SdStorage { static bool Begin() { return SD.begin(BUILTIN_SDCARD); } };\n"
 fixture += r"""
 bool proceed_import = true;
 bool Read_encoder(int, int &value, int, int, int)
@@ -186,6 +187,9 @@ with tempfile.TemporaryDirectory(prefix='lilla-zero-raw-') as directory:
         subprocess.run([str(ffmpeg), '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=37', '-c:a', 'libmp3lame', '-q:a', '6', str(build / 'long48000.mp3')], check=True)
         mp3_tests = '#include <fstream>\n#include <iterator>\nstatic const char *mp3_test_directory = R"(' + str(build) + ')";\n' + (ROOT / 'scripts/tests/mp3_import_cases.inc').read_text(encoding='utf-8')
         tests = tests.replace('int main()\n{', mp3_tests + '\nint main()\n{\n    test_mp3_import();', 1)
+    for wav_path in ['lib/WavImport/WavImport.h', 'lib/WavImport/WavImport.cpp']:
+        wav_text = (ROOT / wav_path).read_text()
+        fixture += re.sub(r'^#(?:include [<"](?:SD.h|WavImport.h)[>"]|pragma once)[^\n]*\n', '', wav_text, flags=re.M) + '\n'
     cpp.write_text(fixture + display + parsers + method + '\nvoid run_menu_case()\n{\n    switch (4)\n    {\n' + menu_case + '\n    }\n}\n' + tests, encoding='utf-8', newline='\r\n')
     exe = build / ('zero_raw_test.exe' if os.name == 'nt' else 'zero_raw_test')
     subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(build), '-I', str(ROOT / 'include'), '-I', str(ROOT / '.pio/libdeps/teensy41/dr_libs'), str(cpp), str(ROOT / 'src/ZeroRaw.cpp'), '-o', str(exe)], check=True)

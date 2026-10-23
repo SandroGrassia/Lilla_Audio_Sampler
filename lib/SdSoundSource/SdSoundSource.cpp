@@ -1,3 +1,4 @@
+#include "SdStorage.h"
 #include "SdSoundSource.h"
 #include <cstring>
 #include <cstddef>
@@ -23,6 +24,62 @@ SdSoundSource::Loaded *SdSoundSource::Find(int file)
     return nullptr;
 }
 
+FLASHMEM SdSoundSource::SourceStatus SdSoundSource::Diagnose(int file)
+{
+    if (!SD.mediaPresent())
+    {
+        return SourceStatus::MissingCard;
+    }
+    File directory = SD.open("/AUDIO_FILES");
+    bool has_audio = false;
+    while (directory)
+    {
+        File entry = directory.openNextFile();
+        if (!entry)
+        {
+            break;
+        }
+        const char *extension = strrchr(entry.name(), '.');
+        if (!entry.isDirectory() && extension != nullptr && strcasecmp(extension, ".raw") == 0 && entry.size() > 0)
+        {
+            has_audio = true;
+            break;
+        }
+    }
+    if (!SD.mediaPresent())
+    {
+        return SourceStatus::MissingCard;
+    }
+    if (!has_audio)
+    {
+        return SourceStatus::EmptyLibrary;
+    }
+    // Preview selection can fail before a new filename has been assigned.
+    if (file == PREVIEW)
+    {
+        return SourceStatus::Unavailable;
+    }
+    Reference reference;
+    const auto *item = Find(file);
+    if (item != nullptr)
+    {
+        reference = item->reference;
+    }
+    else
+    {
+        char path[64];
+        Reference_path(file, path);
+        File input = SD.open(path);
+        if (!input || input.size() != sizeof(reference) || input.read(&reference, sizeof(reference)) != sizeof(reference) || reference.magic != 0x3153444C || reference.checksum != Checksum(reference) || memchr(reference.name, 0, sizeof(reference.name)) == nullptr || strchr(reference.name, '/') != nullptr || strchr(reference.name, '\\') != nullptr)
+        {
+            return SourceStatus::MissingReference;
+        }
+    }
+    char path[sizeof("/AUDIO_FILES/") + 256];
+    snprintf(path, sizeof(path), "/AUDIO_FILES/%s", reference.name);
+    return SD.exists(path) ? SourceStatus::Unavailable : SourceStatus::MissingFile;
+}
+
 FLASHMEM uint32_t SdSoundSource::Checksum(const Reference &reference)
 {
     uint32_t hash = 2166136261u;
@@ -36,7 +93,7 @@ FLASHMEM uint32_t SdSoundSource::Checksum(const Reference &reference)
 
 FLASHMEM void SdSoundSource::Reference_path(int file, char (&path)[64])
 {
-    snprintf(path, sizeof(path), "/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources/%05d.ref", file);
+    snprintf(path, sizeof(path), "/LILLA_PRIVATE/.lilla-sources/%05d.ref", file);
 }
 
 FLASHMEM bool SdSoundSource::Read_header(File &index, UserAudioImport::Header &header)
@@ -46,7 +103,7 @@ FLASHMEM bool SdSoundSource::Read_header(File &index, UserAudioImport::Header &h
 
 FLASHMEM uint32_t SdSoundSource::Catalog_count()
 {
-    if (!SD.begin(BUILTIN_SDCARD))
+    if (!SdStorage::Begin())
     {
         return 0;
     }
@@ -117,7 +174,7 @@ FLASHMEM bool SdSoundSource::Prepare(int file)
     {
         return true;
     }
-    if (!SD.begin(BUILTIN_SDCARD))
+    if (!SdStorage::Begin())
     {
         return false;
     }
@@ -165,8 +222,8 @@ FLASHMEM bool SdSoundSource::Load(int file, int16_t *destination)
         return false;
     }
     const auto &reference = item->reference;
-    char path[sizeof("/LILLA_PRIVATE/AUDIO_FILES/") + 256];
-    snprintf(path, sizeof(path), "/LILLA_PRIVATE/AUDIO_FILES/%s", reference.name);
+    char path[sizeof("/AUDIO_FILES/") + 256];
+    snprintf(path, sizeof(path), "/AUDIO_FILES/%s", reference.name);
     File input = SD.open(path);
     if (!input || input.size() != reference.original_bytes || !input.seek(reference.first * 2))
     {
@@ -218,7 +275,7 @@ FLASHMEM void SdSoundSource::Unbind_all()
 FLASHMEM int SdSoundSource::Save(uint32_t first, uint32_t last, bool (*identity_used)(int))
 {
     const auto *preview = Find(PREVIEW);
-    if (preview == nullptr || preview->data == nullptr || first > last || last >= preview->reference.samples || (!SD.exists("/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources") && !SD.mkdir("/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources")))
+    if (preview == nullptr || preview->data == nullptr || first > last || last >= preview->reference.samples || (!SD.exists("/LILLA_PRIVATE/.lilla-sources") && !SD.mkdir("/LILLA_PRIVATE/.lilla-sources")))
     {
         return -1;
     }
@@ -240,7 +297,7 @@ FLASHMEM int SdSoundSource::Save(uint32_t first, uint32_t last, bool (*identity_
     reference.first += first;
     reference.samples = last - first + 1;
     reference.checksum = Checksum(reference);
-    const char *temporary = "/LILLA_PRIVATE/AUDIO_FILES/.lilla-sources/.new";
+    const char *temporary = "/LILLA_PRIVATE/.lilla-sources/.new";
     if (SD.exists(temporary) && !SD.remove(temporary))
     {
         return -1;

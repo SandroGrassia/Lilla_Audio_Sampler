@@ -22,18 +22,19 @@ See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, 
 
 ```text
 microSD root/
-  SD_AUDIO_FILES/        Originals for the SD audio library
-  FLASH_AUDIO_FILES/     Originals for internal Flash import
-  EXPORTED_AUDIO_FILES/  Exported Sampler WAV recordings
-  DATA_BACKUPS/          Numbered configuration/recording backups
-  RESTORE/               Contents of the backup chosen for restore
-  LILLA_PRIVATE/
+  AUDIO_FILES/          SD audio and converted RAW files (visible)
+  UPLOAD_AUDIO_FILES/   Sources for Flash import (visible)
+  EXPORTED_AUDIO_FILES/ Exported Sampler WAV recordings
+  DATA_BACKUPS/         Numbered configuration/recording backups
+  RESTORE_FROM_BACKUP/  Contents of the selected backup
+  LILLA_PRIVATE/        Firmware metadata (Hidden/System)
+    .lilla-index        SD audio catalog
+    .lilla-sources/     Saved Sound source references
     MIDI_LOOPS/         Saved MIDI loops
-    AUDIO_FILES/        Prepared RAW files, index and source references
     PATCHES/            Patch parameter copies
 ```
 
-**Existing SD cards need manual folder migration.** Preserve hidden audio-library files when moving them. New backups go to `/DATA_BACKUPS`; copy the contents of the selected backup into `/RESTORE` to restore it.
+**Recent SD layouts are migrated automatically when the destination folders are absent.** Existing destinations are never overwritten; conflicting folders and older layouts require manual migration. Preserve the source-reference metadata when moving a library. New backups go to `/DATA_BACKUPS`; copy the contents of the selected backup into `/RESTORE_FROM_BACKUP` to restore it.
 
 See the [7.2.7 release notes](docs/release-notes-7.2.7.md) for the old-to-new folder mapping and the illustrated [User Guide](User%20Guide.md#sd-folder-layout) for operating instructions.
 
@@ -107,7 +108,7 @@ Save an arrangement or save a new variation to microSD in `/LILLA_PRIVATE/MIDI_L
 ## Audio Files and Storage
 
 - Internal audio format: signed 16-bit PCM at 44.1 kHz.
-- Import from microSD: mono RAW, mono/stereo 16-bit PCM WAV and AIFF at 44.1 kHz, and MP3 with conversion to 44.1 kHz. See [MP3 import](docs/mp3-import.md) for supported rates and implementation details.
+- Import from microSD: mono RAW; mono/stereo WAV (PCM 8/16/24/32-bit or float 32/64-bit, 8-192 kHz); 16-bit PCM AIFF at 44.1 kHz; and MP3. WAV and MP3 are converted to mono 16-bit at 44.1 kHz. See [MP3 import](docs/mp3-import.md) for supported rates and implementation details.
 - Flash imports preserve complete files, within Flash capacity. The playable region can move along the full file and is limited by the per-source PSRAM capacity.
 - Flash stores imported audio and Sampler recordings; PSRAM provides live recording and playback caches; FRAM stores patch and configuration data.
 - Configuration and recording backup/restore are available through microSD. A complete archive also requires separate copies of the imported audio library and MIDI-loop files; see [Backup and restore](User%20Guide.md#backup-and-restore).
@@ -175,7 +176,7 @@ The project targets Teensy 4.1 at 600 MHz. Building does not upload firmware to 
 
 Special thanks to:
 
-- **François Best**, for guidance on using the MIDI.h library within a class.
+- **FranÃ§ois Best**, for guidance on using the MIDI.h library within a class.
 - **Giuliano Cardinali**, for valuable suggestions on hardware and software design and implementation.
 - **Andreas Huelsmann**, for suggestions on MIDI Loop functionality and for beta testing it.
 - **Stefano Spada**, for contributing to the development of advanced features and improving usability.

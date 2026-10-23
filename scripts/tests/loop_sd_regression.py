@@ -17,7 +17,7 @@ def without_includes(text):
 
 
 def method(signature):
-    found = re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', main, re.M | re.S)
+    found = re.search(r'^(?:FLASHMEM )?' + re.escape(signature) + r'\n\{.*?^\}', main, re.M | re.S)
     assert found, signature
     return found.group(0) + '\n'
 
@@ -156,6 +156,8 @@ struct SDStub
     }
 } SD;
 '''
+
+prefix += "struct SdStorage { static bool Begin() { return SD.begin(BUILTIN_SDCARD); } static bool Ensure() { return SD.exists(\"/LILLA_PRIVATE\") || SD.mkdir(\"/LILLA_PRIVATE\"); } };\n"
 
 globals_start = main.index('DMAMEM uint32_t LOOP_time_order')
 globals_end = main.index('// Pointer', globals_start)

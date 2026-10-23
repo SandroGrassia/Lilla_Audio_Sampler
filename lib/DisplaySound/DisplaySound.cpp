@@ -35,6 +35,8 @@ FLASHMEM void DisplaySound::Show_pointer_frame(S_field_description_struct descri
 
 FLASHMEM void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
 {
+    source_notice_file = -1;
+    source_notice_visible = false;
     tft.fillScreen(ILI9341_BLACK);
 
     if (Lilla_state_0 == DIRECT_SAMPLING)
@@ -342,7 +344,75 @@ FLASHMEM void DisplaySound::Show_players_Pitch_max_value(int instrument_id) // m
     tft.print("st");
 }
 
-void DisplaySound::Show_wave(int instrument_id)
+FLASHMEM void DisplaySound::Show_source_notice(int file, bool restart)
+{
+    const bool sd_source = SdSoundSource::Is_sd(file);
+    const uint8_t reason = sd_source ? 3 + static_cast<uint8_t>(SdSoundSource::Diagnose(file)) : (S_flash_first < 0 ? 1 : 2);
+    if (restart || source_notice_file != file || source_notice_reason != reason)
+    {
+        source_notice_file = file;
+        source_notice_reason = reason;
+        source_notice_started = millis();
+        source_notice_visible = true;
+    }
+    if (source_notice_visible)
+    {
+        const char *problem = "";
+        const char *action = "";
+        switch (reason)
+        {
+        case 1:
+            problem = "NO AUDIO FILES IN FLASH";
+            action = "SETUP: IMPORT AUDIO FILES";
+            break;
+        case 2:
+            problem = "SOUND FILE MISSING FROM FLASH";
+            action = "SETUP: IMPORT THE REQUIRED FILE";
+            break;
+        case 3:
+            problem = "SD CARD NOT INSERTED";
+            action = "INSERT THE SD CARD";
+            break;
+        case 4:
+            problem = "NO CONVERTED AUDIO FILES ON SD";
+            action = "SETUP: READ SD AUDIO FILES";
+            break;
+        case 5:
+            problem = "SOUND SD REFERENCE UNAVAILABLE";
+            action = "RESTORE ORIGINAL SD OR RESELECT FILE";
+            break;
+        case 6:
+            problem = "SOUND FILE MISSING FROM SD";
+            action = "SETUP: CONVERT THE REQUIRED FILE";
+            break;
+        case 7:
+            problem = "SD AUDIO COULD NOT BE LOADED";
+            action = "CHECK SD FILES AND RESELECT FILE";
+            break;
+        }
+        Show_popup_text(problem, action, ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+    }
+}
+
+FLASHMEM void DisplaySound::Show_read_sd_notice()
+{
+    source_notice_file = -1;
+    source_notice_reason = 8;
+    source_notice_started = millis();
+    source_notice_visible = true;
+    Show_popup_text("PLEASE READ SD AUDIO FILES", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+}
+
+void DisplaySound::Update_source_notice(int instrument_id)
+{
+    if (source_notice_visible && static_cast<uint32_t>(millis() - source_notice_started) >= 4500u)
+    {
+        source_notice_visible = false;
+        Show_wave(instrument_id, false);
+    }
+}
+
+void DisplaySound::Show_wave(int instrument_id, bool show_notice)
 {
     const int selected_file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
     const bool no_repository = Lilla_state_0 != DIRECT_SAMPLING && S_flash_first < 0 && S_sd_files == 0 && !SdSoundSource::Is_sd(selected_file);
@@ -350,16 +420,14 @@ void DisplaySound::Show_wave(int instrument_id)
     {
         canvas.fillRect(0, 0, WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT, WAVE_BOARD_COLOR);
         tft.writeRect(X_WAVEBOARD_LEFT, WAVE_MAX, canvas.width(), canvas.height(), canvas.getBuffer());
-        if (no_repository)
+        if (show_notice)
         {
-            Show_popup_text("OPEN SETUP: CONVERT AUDIO FILES", "STORED IN SD /SD_AUDIO_FILES", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
-        }
-        else
-        {
-            Show_popup_text("AUDIO FILE UNAVAILABLE", ILI9341_WHITE, ILI9341_RED, WAVE_POPUP_Y_OFFSET);
+            Show_source_notice(selected_file, false);
         }
         return;
     }
+    source_notice_file = -1;
+    source_notice_visible = false;
     const bool preview = selected_file == SdSoundSource::PREVIEW;
 
     auto sound_id_local = Get_sound_id(Patch_id, instrument_id);                                                // Active sound routed to the selected instrument.

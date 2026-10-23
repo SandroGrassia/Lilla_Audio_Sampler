@@ -1,3 +1,5 @@
+#include "WavImport.h"
+#include "SdStorage.h"
 #include "UserAudioImport.h"
 #include "Mp3Import.h"
 #include <cstring>
@@ -32,7 +34,7 @@ FLASHMEM UserAudioImport::Format UserAudioImport::Get_format(const char *name)
     return Format::Unknown;
 }
 
-FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Format format, PcmParser wav, PcmParser aiff)
+FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Format format, PcmParser, PcmParser aiff)
 {
     if (source.size() > UINT32_MAX)
     {
@@ -42,10 +44,11 @@ FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Forma
     uint32_t offset = 0;
     uint16_t channels = 1;
     Mp3Import mp3;
+    WavImport wav_decoder;
     bool valid = true;
     if (format == Format::Wav)
     {
-        valid = wav(source, offset, bytes, channels);
+        valid = wav_decoder.Open(source, bytes, channels);
     }
     else if (format == Format::Aiff)
     {
@@ -55,12 +58,12 @@ FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Forma
     {
         valid = mp3.Open(source, bytes, channels);
     }
-    if (!valid || bytes < 2 || (bytes & 1u) != 0 || (format != Format::Mp3 && !source.seek(offset)))
+    if (!valid || bytes < 2 || (bytes & 1u) != 0 || (format != Format::Mp3 && format != Format::Wav && !source.seek(offset)))
     {
         Serial.println("  ERROR: unsupported or invalid audio");
         return false;
     }
-    const char *temporary = "/LILLA_PRIVATE/AUDIO_FILES/.user-import.tmp";
+    const char *temporary = "/LILLA_PRIVATE/.user-import.tmp";
     if (SD.exists(temporary) && !SD.remove(temporary))
     {
         return false;
@@ -74,7 +77,7 @@ FLASHMEM bool UserAudioImport::Copy(File &source, const char *destination, Forma
         const uint32_t capacity = sizeof(buffer) / channels;
         const uint32_t chunk = remaining < capacity ? remaining : capacity;
         const uint32_t frames = chunk / sizeof(int16_t);
-        success = format == Format::Mp3 ? mp3.Read(buffer, frames) : source.read(buffer, chunk * channels) == static_cast<int>(chunk * channels);
+        success = format == Format::Mp3 ? mp3.Read(buffer, frames) : format == Format::Wav ? wav_decoder.Read(buffer, frames) : source.read(buffer, chunk * channels) == static_cast<int>(chunk * channels);
         if (!success)
         {
             break;
@@ -179,15 +182,15 @@ FLASHMEM bool UserAudioImport::Merge_index(const char *source, const char *desti
 FLASHMEM bool UserAudioImport::Build_index(uint32_t &entries)
 {
     entries = 0;
-    const char *source = "/LILLA_PRIVATE/AUDIO_FILES/.lilla-index.tmp";
-    const char *destination = "/LILLA_PRIVATE/AUDIO_FILES/.lilla-index.sort";
+    const char *source = "/LILLA_PRIVATE/.lilla-index.tmp";
+    const char *destination = "/LILLA_PRIVATE/.lilla-index.sort";
     bool valid = (!SD.exists(INDEX_PATH) || SD.remove(INDEX_PATH)) && (!SD.exists(source) || SD.remove(source)) && (!SD.exists(destination) || SD.remove(destination));
     File records;
     if (valid)
     {
         records = SD.open(source, FILE_WRITE);
     }
-    File directory = SD.open("/LILLA_PRIVATE/AUDIO_FILES");
+    File directory = SD.open("/AUDIO_FILES");
     valid = valid && records && directory && directory.isDirectory();
     while (valid)
     {
@@ -198,9 +201,13 @@ FLASHMEM bool UserAudioImport::Build_index(uint32_t &entries)
         }
         if (!file.isDirectory() && Get_format(file.name()) == Format::Raw)
         {
-            if (entries == CAPACITY || strlen(file.name()) >= sizeof(Entry::name) || file.size() < 2 || file.size() > UINT32_MAX || (file.size() & 1u) != 0)
+            if (strlen(file.name()) >= sizeof(Entry::name) || file.size() < 2 || file.size() > UINT32_MAX || (file.size() & 1u) != 0)
             {
-                Serial.printf("INDEX ERROR: capacity, filename or invalid RAW: %s\n", file.name());
+                Serial.printf("INDEX SKIP: invalid RAW: %s\n", file.name());
+            }
+            else if (entries == CAPACITY)
+            {
+                Serial.println("INDEX ERROR: capacity exceeded");
                 valid = false;
             }
             else
@@ -273,41 +280,26 @@ FLASHMEM bool UserAudioImport::Build_index(uint32_t &entries)
     return valid;
 }
 
-FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser aiff)
+FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser aiff, void (*progress)(const char *))
 {
     Report report;
-    Serial.println("USER AUDIO: /SD_AUDIO_FILES -> /LILLA_PRIVATE/AUDIO_FILES");
-    if (!SD.begin(BUILTIN_SDCARD))
+    Serial.println("USER AUDIO: convert in /AUDIO_FILES; index in private SD storage");
+    if (!SdStorage::Begin())
     {
         Serial.println("ERROR: SD card unavailable");
         ++report.errors;
         return report;
     }
-    if ((!SD.exists("/LILLA_PRIVATE") && !SD.mkdir("/LILLA_PRIVATE")) || (!SD.exists("/LILLA_PRIVATE/AUDIO_FILES") && !SD.mkdir("/LILLA_PRIVATE/AUDIO_FILES")))
+    if (!SdStorage::Ensure() || (!SD.exists("/AUDIO_FILES") && !SD.mkdir("/AUDIO_FILES")))
     {
-        Serial.println("ERROR: cannot prepare /LILLA_PRIVATE/AUDIO_FILES");
+        Serial.println("ERROR: cannot prepare /AUDIO_FILES");
         ++report.errors;
         return report;
     }
-    if (!SD.exists(INDEX_PATH))
-    {
-        Serial.println("INDEX: creating initial catalog of /LILLA_PRIVATE/AUDIO_FILES");
-        report.index_ready = Build_index(report.indexed);
-        if (!report.index_ready)
-        {
-            Serial.println("USER AUDIO: initial index failed; import not started");
-            ++report.errors;
-            return report;
-        }
-    }
-    else
-    {
-        Serial.println("INDEX: existing catalog retained until final update");
-    }
-    File directory = SD.open("/SD_AUDIO_FILES");
+    File directory = SD.open("/AUDIO_FILES");
     if (!directory || !directory.isDirectory())
     {
-        Serial.println("ERROR: /SD_AUDIO_FILES directory unavailable");
+        Serial.println("ERROR: /AUDIO_FILES directory unavailable");
         ++report.errors;
         return report;
     }
@@ -326,7 +318,21 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
             source.close();
             continue;
         }
-        char destination[sizeof("/LILLA_PRIVATE/AUDIO_FILES/") + 256];
+        if (format == Format::Raw)
+        {
+            if (source.size() < 2 || source.size() > UINT32_MAX || (source.size() & 1u) != 0)
+            {
+                Serial.printf("ERROR: invalid RAW: %s\n", source.name());
+                ++report.errors;
+            }
+            else
+            {
+                ++report.skipped;
+            }
+            source.close();
+            continue;
+        }
+        char destination[sizeof("/AUDIO_FILES/") + 256];
         const size_t stem = strrchr(source.name(), '.') - source.name();
         if (stem == 0 || stem + sizeof(".raw") > 256)
         {
@@ -335,15 +341,19 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
             source.close();
             continue;
         }
-        snprintf(destination, sizeof(destination), "/LILLA_PRIVATE/AUDIO_FILES/%.*s.raw", static_cast<int>(stem), source.name());
+        snprintf(destination, sizeof(destination), "/AUDIO_FILES/%.*s.raw", static_cast<int>(stem), source.name());
         if (SD.exists(destination))
         {
-            Serial.printf("SKIP: /SD_AUDIO_FILES/%s -> %s already exists; unchanged\n", source.name(), destination);
+            Serial.printf("SKIP: /AUDIO_FILES/%s -> %s already exists; unchanged\n", source.name(), destination);
             ++report.skipped;
             source.close();
             continue;
         }
-        Serial.printf("%s: /SD_AUDIO_FILES/%s -> %s\n", format == Format::Raw ? "COPY" : "CONVERT", source.name(), destination);
+        Serial.printf("%s: /AUDIO_FILES/%s -> %s\n", "CONVERT", source.name(), destination);
+        if (progress != nullptr)
+        {
+            progress(source.name());
+        }
         if (Copy(source, destination, format, wav, aiff))
         {
             ++report.copied;
@@ -355,7 +365,11 @@ FLASHMEM UserAudioImport::Report UserAudioImport::Run(PcmParser wav, PcmParser a
         source.close();
     }
     directory.close();
-    Serial.println("INDEX: updating final catalog of /LILLA_PRIVATE/AUDIO_FILES");
+    Serial.println("INDEX: updating final catalog of /AUDIO_FILES");
+    if (progress != nullptr)
+    {
+        progress("");
+    }
     report.index_ready = Build_index(report.indexed);
     if (!report.index_ready)
     {

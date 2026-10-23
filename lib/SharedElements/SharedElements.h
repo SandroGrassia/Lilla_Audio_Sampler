@@ -132,7 +132,7 @@ struct Patch_struct
 };
 static constexpr uint8_t SIZE_OF_PATCH = sizeof(Patch_struct); // 2 + 8 * 16 = 130
 
-DMAMEM extern Patch_struct Patch[PATCHES_MAX + 1]; // last used by Direct Sampling for "preascolto" and Live Sampling
+extern Patch_struct Patch[PATCHES_MAX + 1]; // last used by Direct Sampling for "preascolto" and Live Sampling
 
 struct Instrument_filter_values_struct
 {
@@ -164,7 +164,7 @@ struct Sound_struct // 22 bytes
     uint8_t gain;
 } __attribute__((__packed__));
 static constexpr uint8_t SIZE_OF_SOUND = sizeof(Sound_struct); // 22
-DMAMEM extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by Direct Sampling for "preascolto" and Live Sampling
+extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by Direct Sampling for "preascolto" and Live Sampling
 
 // == overloads
 inline bool operator==(const Instrument_filter_data_struct &lhs, const Instrument_filter_data_struct &rhs)

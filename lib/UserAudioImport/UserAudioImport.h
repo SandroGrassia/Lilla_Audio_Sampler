@@ -8,7 +8,7 @@ class UserAudioImport
 public:
     using PcmParser = bool (*)(File &, uint32_t &, uint32_t &, uint16_t &);
     static constexpr uint32_t CAPACITY = 4096;
-    static constexpr const char *INDEX_PATH = "/LILLA_PRIVATE/AUDIO_FILES/.lilla-index";
+    static constexpr const char *INDEX_PATH = "/LILLA_PRIVATE/.lilla-index";
     struct Entry
     {
         char name[256];
@@ -33,7 +33,7 @@ public:
         uint32_t indexed = 0;
         bool index_ready = false;
     };
-    FLASHMEM static Report Run(PcmParser wav, PcmParser aiff);
+    FLASHMEM static Report Run(PcmParser wav, PcmParser aiff, void (*progress)(const char *) = nullptr); // Report each conversion filename and an empty name when indexing begins.
 private:
     enum class Format { Raw, Wav, Aiff, Mp3, Unknown };
     FLASHMEM static Format Get_format(const char *name);

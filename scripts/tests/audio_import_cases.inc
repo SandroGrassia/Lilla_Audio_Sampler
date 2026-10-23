@@ -120,6 +120,37 @@ void audio_import_rejected(const AudioBytes &bytes)
 void test_audio_import()
 {
     bool changed = false;
+    // Exercise extended WAV conversion through Flash preflight, allocation and payload copying.
+    for (uint16_t encoding : {1, 3})
+    {
+        reset();
+        const uint16_t bits = encoding == 1 ? 24 : 32;
+        const uint32_t rate = encoding == 1 ? 96000 : 48000;
+        AudioBytes format, data, chunks;
+        audio_integer(format, encoding, 2, false);
+        audio_integer(format, 1, 2, false);
+        audio_integer(format, rate, 4, false);
+        audio_integer(format, rate * bits / 8, 4, false);
+        audio_integer(format, bits / 8, 2, false);
+        audio_integer(format, bits, 2, false);
+        for (int frame = 0; frame < 1000; ++frame)
+        {
+            audio_integer(data, encoding == 1 ? 0x200000 : 0x3E800000, bits / 8, false);
+        }
+        audio_chunk(chunks, "fmt ", format, false);
+        audio_chunk(chunks, "data", data, false);
+        add("extended.wav", 0)->data = audio_container(chunks, false);
+        assert(SET_Copy_audio_files_from_SD_to_Flash(changed) && changed);
+        const auto &output = SerialFlash.files.at("extended.raw");
+        assert(output.size() == 2 * ((1000u * 44100 + rate - 1) / rate));
+        assert(Display_Storage.reported_bytes == output.size() && Display_Storage.invalid == 0);
+        for (size_t frame = 100; frame < output.size() / 2 - 100; ++frame)
+        {
+            int16_t sample;
+            memcpy(&sample, output.data() + frame * 2, 2);
+            assert(sample >= 8191 && sample <= 8193);
+        }
+    }
     for (const char *extension : {".aiff", ".AIFF", ".AiF", ".aif", ".wav", ".WAV"})
     {
         const bool aiff = extension[1] != 'w' && extension[1] != 'W';

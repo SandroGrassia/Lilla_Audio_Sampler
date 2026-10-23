@@ -57,7 +57,7 @@ public:
     FLASHMEM void Factory_reset_wait_popup(void);
     FLASHMEM void Copy_audio_files_SD_to_Flash_chip_titolo(void);           // importa i file audio dalla scheda SD
     FLASHMEM void Copy_raw_files_SD_to_Flash_chip_waiting_for_SD(void);   // attesa 10sec scheda SD
-    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void); // manca /FLASH_AUDIO_FILES
+    FLASHMEM void Copy_raw_files_SD_to_Flash_chip_flash_audio_missing(void); // manca /UPLOAD_AUDIO_FILES
     FLASHMEM void Copy_raw_files_SD_to_Flash_chip_files_report(unsigned long SD_raw_volume, int SD_raw_files, int flash_raw_volume, int flash_raw_files);
     FLASHMEM void Copy_audio_files_SD_to_Flash_chip_last_warning(void);
     FLASHMEM void Copy_raw_files_SD_to_Flash_chip_job_start(float erasing_time_ms); // inizia la cancellazione (erasing) della Flash memory

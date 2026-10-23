@@ -3497,7 +3497,7 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
     {
         return false;
     }
-    if (source_now.storage == Psram && file_id < FIRST_RECORDING_FILE && (preset.A < source_now.first_sample || preset.B >= source_now.first_sample + source_now.samples))
+    if (source_now.storage == Psram && file_id < FIRST_RECORDING_FILE && (static_cast<uint32_t>(preset.A) < source_now.first_sample || static_cast<uint32_t>(preset.B) >= source_now.first_sample + source_now.samples))
     {
         source_now = {};
         source_now.file_id = file_id;

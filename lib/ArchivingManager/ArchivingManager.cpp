@@ -1,3 +1,4 @@
+#include "SdStorage.h"
 #include "SdSoundSource.h"
 /*
  * LILLA Audio Sampler
@@ -1872,9 +1873,9 @@ FLASHMEM bool ArchivingManager::Copy_Patch_from_RAM_to_SD(const int patch_id) //
     String full_path = String("/LILLA_PRIVATE/PATCHES/" + filename);
     auto *full_path_ptr = full_path.c_str();
 
-    if (SD.begin(BUILTIN_SDCARD))
+    if (SdStorage::Begin())
     {
-        if (!SD.exists("/LILLA_PRIVATE") && !SD.mkdir("/LILLA_PRIVATE"))
+        if (!SdStorage::Ensure())
         {
             return false;
         }
@@ -1948,7 +1949,7 @@ FLASHMEM bool ArchivingManager::Save_Patch_from_RAM_to_SD(const int patch_id)
 
     else
     {
-        if (!SD.exists("/LILLA_PRIVATE") && !SD.mkdir("/LILLA_PRIVATE"))
+        if (!SdStorage::Ensure())
         {
             return false;
         }
@@ -2160,7 +2161,7 @@ FLASHMEM bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id)
     String full_path = String("/LILLA_PRIVATE/PATCHES/" + filename);
     auto *full_path_ptr = full_path.c_str();
 
-    if (SD.begin(BUILTIN_SDCARD))
+    if (SdStorage::Begin())
     {
         if (SD.exists(full_path_ptr))
         {
@@ -2314,7 +2315,7 @@ FLASHMEM bool ArchivingManager::Copy_Patch_from_SD_to_RAM(const int patch_id, Fi
 
 FLASHMEM bool ArchivingManager::Is_SD_inserted(void)
 {
-    if (SD.begin(BUILTIN_SDCARD))
+    if (SdStorage::Begin())
     {
         return true;
     }

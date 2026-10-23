@@ -18,7 +18,7 @@ FLASHMEM void DisplaySetup::SETUP_show_SETUP_page(void)
 
     tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(SET_column_row_Convert[0]), display_coordinate_y(SET_column_row_Convert[1]));
-    tft.print(F("CONVERT SD AUDIO FILES"));
+    tft.print(F("READ SD AUDIO FILES"));
     tft.setCursor(display_coordinate_x(SET_column_row_Import[0]), display_coordinate_y(SET_column_row_Import[1]));
     tft.print(F("IMPORT AUDIO FILES FROM SD"));
     tft.setCursor(display_coordinate_x(SET_column_label), display_coordinate_y(SET_column_row_KeyStep[1]));
@@ -117,9 +117,37 @@ FLASHMEM void DisplaySetup::SETUP_show_frame(int8_t value)
 
 FLASHMEM void DisplaySetup::SETUP_show_convert_popup(void)
 {
-    const char *lines[Convert_popup_lines] = {"CONVERT WAV/AIFF/MP3/RAW", "FROM SD /SD_AUDIO_FILES", "TO /LILLA_PRIVATE/AUDIO_FILES", "ORIGINALS KEPT - EXISTING FILES SKIPPED", "CANCEL    GO"};
+    const char *lines[Convert_popup_lines] = {"READ SD /AUDIO_FILES AND CREATE", "A RAW VERSION OF EACH WAV/AIFF/MP3 FILE", "WITH THE SAME NAME", "CANCEL    GO"};
     Show_popup_text(lines, Convert_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
     SETUP_show_convert_frame(0);
+}
+
+FLASHMEM void DisplaySetup::SETUP_show_read_progress(const char *filename)
+{
+    char status[52];
+    if (filename == nullptr)
+    {
+        strcpy(status, "READING SD /AUDIO_FILES");
+    }
+    else if (filename[0] == '\0')
+    {
+        strcpy(status, "BUILDING SD FILE INDEX");
+    }
+    else if (strlen(filename) <= 40)
+    {
+        snprintf(status, sizeof(status), "CONVERTING %s", filename);
+    }
+    else
+    {
+        snprintf(status, sizeof(status), "CONVERTING %.19s...%s", filename, filename + strlen(filename) - 18);
+    }
+    // Reserve the full 318-pixel popup width and center short status text within it.
+    char centered[52];
+    memset(centered, ' ', 51);
+    centered[51] = '\0';
+    memcpy(centered + (51 - strlen(status)) / 2, status, strlen(status));
+    const char *lines[] = {"SD AUDIO FILES READ IN PROGRESS", "PLEASE DON'T POWER OFF LILLA", centered};
+    Show_popup_text(lines, 3, ILI9341_WHITE, ILI9341_BLACK);
 }
 
 FLASHMEM void DisplaySetup::SETUP_show_convert_frame(int value)
@@ -132,7 +160,7 @@ FLASHMEM void DisplaySetup::SETUP_show_convert_frame(int value)
 
 FLASHMEM void DisplaySetup::SETUP_show_import_info_popup(void)
 {
-    const char *lines[Import_info_popup_lines] = {"IMPORT WAV/AIFF/MP3/RAW AUDIO FILES", "FROM SD /FLASH_AUDIO_FILES INTO LILLA", "PERMANENT FLASH MEMORY", "CANCEL   GO"};
+    const char *lines[Import_info_popup_lines] = {"IMPORT WAV/AIFF/MP3/RAW AUDIO FILES", "FROM SD /UPLOAD_AUDIO_FILES INTO LILLA", "PERMANENT FLASH MEMORY", "CANCEL   GO"};
     Show_popup_text(lines, Import_info_popup_lines, ILI9341_BLACK, ILI9341_GREEN);
     SETUP_show_import_info_frame(0);
 }

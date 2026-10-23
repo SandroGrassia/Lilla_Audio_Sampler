@@ -24,7 +24,7 @@ private:
     static constexpr float SET_column_row_Restore[2] = {0, 10};
     static constexpr float SET_column_row_FactoryReset[2] = {0, 11};
 
-    static constexpr int SET_chars_Convert = 22;
+    static constexpr int SET_chars_Convert = 19;
     static constexpr int SET_chars_Import = 26;
     static constexpr int SET_chars_KeyStep = 12;
     static constexpr int SET_chars_FirstOctave = 2;
@@ -33,7 +33,7 @@ private:
     static constexpr int SET_chars_Restore = 33;
     static constexpr int SET_chars_FactoryReset = 13;
 
-    static constexpr int Convert_popup_lines = 5;
+    static constexpr int Convert_popup_lines = 4;
     static constexpr int Import_info_popup_lines = 4;
 
 public:
@@ -44,6 +44,7 @@ public:
     FLASHMEM void SETUP_show_First_octave_value(void);
     FLASHMEM void SETUP_show_frame(int8_t value);
     FLASHMEM void SETUP_show_convert_popup(void);
+    FLASHMEM static void SETUP_show_read_progress(const char *filename); // Show reading, current conversion or indexing in a fixed-width three-line popup.
     FLASHMEM void SETUP_show_import_info_popup(void);
     FLASHMEM void SETUP_show_import_info_frame(int value);
     FLASHMEM void SETUP_show_convert_frame(int value);

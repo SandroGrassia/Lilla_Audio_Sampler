@@ -18,6 +18,8 @@ public:
         char name[256] = {};
         uint32_t checksum = 0;
     };
+    enum class SourceStatus { MissingCard, EmptyLibrary, MissingReference, MissingFile, Unavailable }; // Diagnose an SD source that failed to load.
+    FLASHMEM static SourceStatus Diagnose(int file); // Inspect the actual RAW library and source without relying on the cached catalog.
     static bool Is_sd(int file);
     FLASHMEM static uint32_t Catalog_count();
     FLASHMEM static bool Catalog_entry(uint32_t index, UserAudioImport::Entry &entry);

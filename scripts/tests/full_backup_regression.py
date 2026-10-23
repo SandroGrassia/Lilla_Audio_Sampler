@@ -344,7 +344,7 @@ int main()
     clear_faults();
     assert(BACKUP_Export() && SD.exists("/DATA_BACKUPS/000006")); // Never reuse incomplete numbers.
     select_backup(first);
-    const std::string root_config = "/RESTORE/LILLA_CONFIG.fram", right = "/RESTORE/REC_03_R.raw";
+    const std::string root_config = "/RESTORE_FROM_BACKUP/LILLA_CONFIG.fram", right = "/RESTORE_FROM_BACKUP/REC_03_R.raw";
     auto right_file = nodes.at(right);
     nodes.erase(right);
     restored_without_stereo(original[1]);
@@ -356,7 +356,7 @@ int main()
     restored_without_stereo(original[1]);
     // Capacity counts only surviving Recordings; a bad left channel also discards the right.
     select_backup(first);
-    nodes.erase("/RESTORE/REC_03_L.raw");
+    nodes.erase("/RESTORE_FROM_BACKUP/REC_03_L.raw");
     physical_capacity = 2;
     restored_without_stereo(original[1]);
     physical_capacity = 12;
@@ -388,7 +388,7 @@ int main()
     assert(std::equal(config.begin() + 256, config.begin() + 0xFB00, LillaFram.memory.begin() + 256));
     // Fail after prevalidation while reading audio: READY must never be published.
     clear_faults();
-    read_failure_path = "/RESTORE/REC_03_L.raw";
+    read_failure_path = "/RESTORE_FROM_BACKUP/REC_03_L.raw";
     read_budget = 2 * PACKET_DIM + 256; // One validation pass, then one restored page.
     assert(!BACKUP_Restore() && Archive.Check_FRAM_archive() != 0 && !audio_enabled);
     clear_faults();
