@@ -24,6 +24,8 @@ See the [7.2.8 release notes](docs/release-notes-7.2.8.md) and the illustrated [
 
 ## SD folder layout
 
+See [SD card formats and files](SD_FILES.md) for compatible filesystems, audio formats and each folder's purpose.
+
 ```text
 microSD root/
   AUDIO_FILES/          Source audio and converted RAW files for SD playback

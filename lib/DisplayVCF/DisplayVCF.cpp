@@ -82,7 +82,7 @@ FLASHMEM void DisplayVCF::VCF_show_VCF_page(const int patch_id, const int instru
 
     tft.setCursor(display_coordinate_x(VCF_column_row_CUTOFF[0]), display_coordinate_y(VCF_column_row_CUTOFF[1]));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("TUNED LPF");
+    tft.print("TUNED FILTER FREQUENCY");
     VCF_show_cutoff_value(instrument_id);
 
     tft.setCursor(display_coordinate_x(VCF_column_row_RESONANCE[0]), display_coordinate_y(VCF_column_row_RESONANCE[1]));

@@ -83,25 +83,100 @@ The input gain stage also feeds peak detection, direct sampling and live samplin
 
 Per-voice processing is implemented by [AudioPlayer](lib/AudioPlayer/AudioPlayer.h) together with ADSR, VCF, modulation and table helpers. The graph-level common filter and delay are separate from these per-voice operations.
 
+## 4. AudioPlayer
+
+Each of the 16 [AudioPlayer](lib/AudioPlayer/AudioPlayer.cpp) voices combines a source reader, playback-position and pitch processing, amplitude shaping, timbre effects and stereo output. The source paths and processing order are:
+
+```mermaid
+flowchart TD
+    Flash[Flash sample storage] --> FR[Flash reader]
+    Flash --> Cache[Patch cache loader]
+    SD[SD RAW audio files] --> SR[SD reader and source-reference resolver]
+    SR --> Cache
+    Cache --> PS[PSRAM patch caches]
+    Live[Live Sampler PSRAM ring] --> PR[PSRAM reader]
+    PS --> PR
+    FR --> Source[Source selection and loop-boundary handling]
+    PR --> Source
+    WT[Wavetable reader] --> Source
+    Source --> AA[TONE source-domain anti-alias filter]
+    AA --> Player[Player: pitch resampling and interpolation]
+    Player --> Amp[ADSR, velocity, volume and transition crossfades]
+    Amp --> Down[Downsampler: sample and hold]
+    Down --> Resolution[Resolution: amplitude quantization]
+    Resolution --> Tone[TONE and low-pitch anti-imaging LPF]
+    Tone --> VCF[Multifunction VCF]
+    Mod[Modulation source and depth] -. cutoff control .-> VCF
+    VCF --> Pan[Stereo pan gains]
+    Pan --> LR[Left and right router inputs]
+```
+
+### Readers and player
+
+Flash samples can be read directly or promoted to PSRAM by [PatchCacheManager](lib/PatchCacheManager/PatchCacheManager.h). [SdSoundSource](lib/SdSoundSource/SdSoundSource.h) resolves SD catalog entries and saved source references; the selected audio window is loaded into a PSRAM patch cache before playback. SD is a loading source, not a continuous streaming reader during notes. The PSRAM path also supplies the Live Sampler ring, while the wavetable path uses prepared tables. Cache publication and reader lifetime are described in the memory chapter.
+
+The player advances through the selected boundaries using the playback direction and loop mode. Tuning, note pitch, pitch bend and vibrato determine the resampling ratio. Interpolation and boundary crossfades support fractional positions and smooth transitions. ADSR, velocity and volume shape amplitude before the timbre effects; stereo panning follows the VCF.
+
+### Downsampler and resolution
+
+The downsampler holds each selected sample for the configured number of output samples, preserving its position across audio blocks. This deliberately reduces the effective sampling rate to approximately `44100 / factor` while the output stream stays at 44.1 kHz. Resolution quantizes amplitude to the selected effective bit depth, including fractional bit-depth settings, and saturates to the signed 16-bit range. These are playback effects, separate from file-import sample-rate conversion.
+
+### Pitch-dependent timbre processing
+
+TONE enables source-domain anti-aliasing above unity and a post-resampling LPF for upward-pitch timbre correction. The source filter precedes pitch resampling; the output LPF follows downsampling and resolution and precedes the VCF. Its cutoff moves from 20 kHz at pitch 1 to the selected 3.0-8.0 kHz endpoint at +11 semitones. Low-pitch anti-imaging operates independently of TONE, including when TONE is OFF. See [TONE processing](docs/player-tone-filter.md) for filter design and smoothing.
+
+### Multifunction VCF and modulation sources
+
+[AudioVCF](lib/AudioVCF/AudioVCF.cpp) provides LOWPASS, HIGHPASS, BANDPASS and NOTCH responses, with adjustable resonance. NONE bypasses the filter, and pushbutton bypass is also available. `TUNED FILTER FREQUENCY` uses the shared 40-entry frequency table (40-20000 Hz), displays `Hz x pitch`, and mirrors edits to both Live Sampler channels. The tuned frequency is the pivot multiplied by the voice pitch reference.
+
+| MOD SOURCE | Cutoff modulation |
+| --- | --- |
+| NONE | No modulation; the tuned frequency sets the filter. |
+| RISING | A rising one-shot waveform over the selected time. |
+| FALLING | A falling one-shot waveform over the selected time. |
+| LFO | Periodic sine modulation at the selected frequency and depth. |
+| LFO+CC7 | Periodic sine modulation whose depth is scaled by MIDI channel aftertouch. The display label is `LFO+CC7`, but the implemented source is channel pressure. |
+
+[WaveLFO](lib/WaveLFO/WaveLFO.h) supplies the modulation waveform; `PlayersManager` and `MidiReader` route its depth controls. Table-based cutoff selections are encoded as bytes 128-167; other supported encodings use an exponential frequency mapping. Manual cutoff edits reach active voices over 40 quarter-block steps (about 29 ms), with or without modulation. Cutoff and modulation-index ramps advance independently. AudioVCF reloads coefficients at quarter-block boundaries while preserving sample history. Outside manual cutoff ramps, the voice uses its established pitch reference.
+
+## 5. Delay
+
+The stereo delay has independent left/right PSRAM delay lines, feedback filters and feedback multipliers, with a shared stereo compressor gain. The diagram represents both channels in parallel. The input/feedback summers are implemented inside `D_Compressor`, before its dynamics processing.
+
+```mermaid
+flowchart LR
+    Send[Router delay sends L/R] --> Sum[Summers L/R: input plus feedback, 32-bit]
+    Sum --> Compressor[Linked stereo compressor and lookahead]
+    Compressor --> Main[Main mixers: delay branch]
+    Compressor --> Line[PSRAM delay lines L/R: write and delayed read]
+    Line --> Filter[Feedback low-pass filters L/R]
+    Filter --> Gain[Feedback multipliers L/R]
+    Gain --> Sum
+    Mod[Modulation: NONE, LFO or routed audio] --> Depth[Modulation-depth multiplier]
+    Depth --> Time[Sum: base time, L/R offset and modulation]
+    Time -. read-position control .-> Line
+    Dry[Router dry outputs] --> MainDry[Main mixers: dry branch]
+```
+
+The compressed sum feeds both the delay-line writes and the main mixers. Delayed samples return through the low-pass filters and feedback gains to the input summers. The dry router outputs reach the main mixers on a separate branch. Time modulation changes the delayed read position; routed audio used as a modulation source is not an additional audio summing input. The following sections describe feedback processing, timing and storage. Feedback connections cross audio-update boundaries as determined by object construction order.
+
 ### Delay feedback filtering
 
 Each feedback path has its own `AudioFilterBiquad` (`D_lpf_L` and `D_lpf_R`), connected between the delay output and feedback gain. Both use the same cutoff and Q of 0.7071, with independent filter history. `DelayManager` smooths cutoff changes over 30 audio blocks. The common output LPF and echo LPF share the 40-entry `lowpass_value` table (40-20000 Hz), displayed as integer Hz; the pitch-dependent Player TONE filter uses its separate endpoint mapping.
 
 `ECHO TIME DELTA L/R` uses integer millisecond offsets, up to 10 ms in either direction. Clockwise encoder movement produces a negative stored offset and increases the right delay; positive offsets increase the left delay. The allowed offset is bounded by both the base delay and the remaining active buffer capacity, with a maximum base delay of 1990 ms (displayed as `2.0sec`) retaining the full 10 ms offset in either direction within the 2-second per-channel capacity.
 
-`D_Compressor`, an instance of [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) with `Profile::Delay`, replaces the two saturating input/feedback mixers. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed `mixer_L/R` input 0 directly. The routed dry branch bypasses the Delay processing. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
+`D_Compressor`, an instance of [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) with `Profile::Delay`, provides the input/feedback summing stage. It receives routed L/R and filtered, gain-scaled feedback L/R, sums each channel in 32 bits, and applies a shared stereo gain before conversion to 16 bits and storage in the two `StereoDelay` caches. Its outputs also feed `mixer_L/R` input 0 directly. The routed dry branch bypasses the Delay processing. Both feedback filters and gains are constructed before the compressor, followed by both delay readers, so stereo linking adds no extra audio-block scheduling delay.
 
 The compressor offers thresholds from -24 to -3 dBFS in 1 dB steps, plus `THRESHOLD_OFF`. It uses 22 immutable 258-entry soft-knee gain tables in `PROGMEM`, an approximately -1 dBFS ceiling, 32 samples of lookahead (about 0.73 ms), and a 100 ms exponential release. Adjacent threshold curves are interpolated during 50 ms threshold transitions. Both bypass and compression retain the lookahead; bypass transitions use a 10 ms smooth crossfade, preserving timing. The Delay page lists `ECHO REPEATS`, `ECHO LPF`, `COMPRESSOR`, `ECHO TIME` and `ECHO TIME DELTA L/R`. Select chooses the field and Value adjusts the threshold or selects OFF; Live Sampler routing is labeled `LIVE SAMPLER`.
 
-The persisted Delay record remains unchanged in size. `reserved[1]` stores the echo cutoff index plus one. `reserved[2]` retains the historical boolean field; runtime compression is controlled by the threshold encoded in `reserved[3]` as `threshold + 25` (1-22 for -24 through -3, 23 for OFF). An unset threshold byte selects -6 dBFS. Invalid encoded cutoff, boolean or threshold values are rejected when loading.
+`reserved[1]` stores the echo cutoff index plus one. `reserved[2]` stores a boolean field; runtime compression is controlled by the threshold encoded in `reserved[3]` as `threshold + 25` (1-22 for -24 through -3, 23 for OFF). An unset threshold byte selects -6 dBFS. Invalid encoded cutoff, boolean or threshold values are rejected when loading.
 
-### Delay layout and storage
+### Delay storage
 
-The Delay page places MOD SOURCE, MOD FREQUENCY, MOD DEPTH and MOD PHASE L/R in the right column, starting at column 30 and row 6.5. The left column retains feedback, cutoff, compressor and echo timing controls.
+Each Delay channel allocates two seconds, rounded up to an audio-block boundary, plus one incoming audio block. `PSRAM_FUTURE_USE_RESERVE_BYTES` leaves 3,174,912 bytes (approximately 3.03 MiB) unallocated for future use. This space is excluded from the nine patch caches, and from all other application buffers. Reserved bytes 4 through 6 are ignored on load and zeroed on save. The downstream audio reserve is 200 us, giving players a 2700 us deadline within the 2900 us block budget. Worst-case headroom still requires hardware validation.
 
-Each Delay channel allocates two seconds, rounded up to an audio-block boundary, plus one incoming audio block. `PSRAM_FUTURE_USE_RESERVE_BYTES` leaves 3,174,912 bytes (approximately 3.03 MiB) unallocated for future use. This space is excluded from the nine patch caches, whose capacities remain unchanged, and from all other application buffers. The FRAM Delay record size is unchanged. Reserved bytes 4 through 6 are ignored on load and zeroed on save, preserving compatibility with existing patches. The downstream audio reserve is restored to 200 us, giving players a 2700 us deadline within the 2900 us block budget. Worst-case headroom still requires hardware validation.
-
-## 4. Patch, sound and voice model
+## 6. Patch, sound and voice model
 
 [config.h](lib/config/config.h) sets 16 players, eight instruments per patch, 200 stored patches and 800 stored sounds. Temporary preview/capture entries extend some runtime arrays beyond those persistent capacities.
 
@@ -123,7 +198,7 @@ These structures are defined in [SharedElements.h](lib/SharedElements/SharedElem
 
 The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h), [PlayerReadDiagnostics.h](lib/AudioPlayer/PlayerReadDiagnostics.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
 
-## 5. Memory and persistence
+## 7. Memory and persistence
 
 | Memory/storage | Main firmware use | Survives power-off? |
 | --- | --- | --- |
@@ -153,13 +228,15 @@ A patch change does not make the previous buffers immediately reusable. Outgoing
 
 ### SD audio library and source references
 
-[UserAudioImport](lib/UserAudioImport/UserAudioImport.h) converts supported non-RAW files in visible `/AUDIO_FILES` into complete mono RAW files in the same directory; existing RAW files are unchanged. Direct Flash import uses `/UPLOAD_AUDIO_FILES` and stores complete decoded mono files, without the former 3 MiB truncation. The capacity preflight counts complete output sizes before erasure. MP3 decoding counts the complete stream before allocation. Sound Edit limits the selected span to the per-source PSRAM capacity while allowing absolute trim offsets throughout the file. Changing sources preserves the trim, shifting it back or shortening it only to fit the new source. Preparation suspends audio and MIDI; existing destination files are preserved. The alphabetical catalog `/LILLA_PRIVATE/.lilla-index` supports up to 4096 entries. The version-1 format is unchanged: a 24-byte header and 264-byte records, with a filename of up to 255 bytes. Existing smaller catalogs remain readable.
+[SD_FILES.md](SD_FILES.md) documents the supported card filesystems, directory tree and folder purposes. [SdStorage](lib/SdStorage/SdStorage.h) initializes the card and maintains Hidden/System attributes on `/LILLA_PRIVATE`. Playback audio is in `/AUDIO_FILES`; the catalog and persistent source references are in `/LILLA_PRIVATE`. Configuration and recording backups use `/DATA_BACKUPS`, restore reads `/RESTORE_FROM_BACKUP`, and exports use `/EXPORTED_AUDIO_FILES`. MIDI loops and patch copies are stored under `/LILLA_PRIVATE/MIDI_LOOPS` and `/LILLA_PRIVATE/PATCHES`.
+
+[UserAudioImport](lib/UserAudioImport/UserAudioImport.h) converts supported non-RAW files in visible `/AUDIO_FILES` into complete mono RAW files in the same directory; existing RAW files are unchanged. Direct Flash import uses `/UPLOAD_AUDIO_FILES` and stores complete decoded mono files. The capacity preflight counts complete output sizes before erasure. MP3 decoding counts the complete stream before allocation. Sound Edit limits the selected span to the per-source PSRAM capacity while allowing absolute trim offsets throughout the file. Changing sources preserves the trim, shifting it back or shortening it only to fit the new source. Preparation suspends audio and MIDI; existing destination files are preserved. The alphabetical catalog `/LILLA_PRIVATE/.lilla-index` supports up to 4096 entries. Catalog format version 1 contains a 24-byte header and 264-byte records, with a filename of up to 255 bytes.
 
 Index construction uses merge sorting through temporary files on SD with only two current records in RAM. Increasing capacity therefore increases SD storage and sorting work, without allocating a full catalog in RAM. Exceeding 4096 valid files reports an index error. Catalog counts, offsets and browser positions use 32-bit values.
 
 [SdSoundSource](lib/SdSoundSource/SdSoundSource.h) reads catalog records on demand and resolves persistent source references independently of alphabetical positions. The identity range starts at 1024; this is not the catalog capacity. Sound Edit loads a selected window into the existing PSRAM cache for audition through the 16 Players. Saved portions retain an SD reference; the complete `/AUDIO_FILES` directory must be preserved separately from the normal backup. See [user audio preparation](docs/user-audio-preparation.md).
 
-## 6. Recording and capture workflows
+## 8. Recording and capture workflows
 
 ### Sampler
 
@@ -175,37 +252,19 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 ### Import and export
 
-The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate. Import and export workflows bridge this representation to microSD files. [WavImport](lib/WavImport/WavImport.h) validates RIFF chunks and converts PCM 8/16/24/32-bit and float 32/64-bit mono/stereo WAV, including extensible headers, from 8-192 kHz to mono 16-bit at 44.1 kHz. SD preparation and Flash import share this decoder. Non-native rates use a 128-tap Blackman-windowed sinc with 129 phase tables and interpolation, allocating 64.5 KiB of coefficients only during conversion. Streaming input/history buffers keep memory independent of file duration. Existing PCM16/44.1 kHz conversion remains sample-compatible. The known RIFF +4 size error is tolerated only with complete chunks ending at the actual file boundary; originals are never rewritten. MP3 decoding and conversion are implemented in [Mp3Import.cpp](src/Mp3Import.cpp); supported formats and conversion details are documented in [MP3 import](docs/mp3-import.md).
+The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate. Import and export workflows bridge this representation to microSD files. [WavImport](lib/WavImport/WavImport.h) validates RIFF chunks and converts PCM 8/16/24/32-bit and float 32/64-bit mono/stereo WAV, including extensible headers, from 8-192 kHz to mono 16-bit at 44.1 kHz. SD preparation and Flash import share this decoder. Non-native rates use a 128-tap Blackman-windowed sinc with 129 phase tables and interpolation, allocating 64.5 KiB of coefficients only during conversion. Streaming input/history buffers keep memory independent of file duration. PCM16 WAV at 44.1 kHz bypasses sample-rate conversion. The known RIFF +4 size error is tolerated only with complete chunks ending at the actual file boundary; originals are never rewritten. MP3 decoding and conversion are implemented in [Mp3Import.cpp](src/Mp3Import.cpp); supported formats and conversion details are documented in [MP3 import](docs/mp3-import.md).
 
-## 7. MIDI and loop scheduling
+## 9. MIDI and loop scheduling
 
 [MidiReader](lib/MidiReader/MidiReader.h) wraps the MIDI library's serial interface and coordinates incoming messages with loop playback. It is updated by `LillaClock` in the audio processing cycle.
 
 [MidiInputBatch](lib/MidiReader/MidiInputBatch.h) bounds incoming work: currently eight ordered messages, up to 64 received bytes and an 80 microsecond parsing limit per batch. Note events preserve order. Pitch bend, channel pressure and modulation use the last value collected for each channel within the batch; other control changes remain ordered. These bounds protect audio processing from bursts of input.
 
-MIDI Loop uses four tracks. [SharedLoop.h](lib/SharedLoop/SharedLoop.h) defines the event records, timing state and current capacity of 1,000 events per track; both note-on and note-off records consume event capacity. The first track is the master. Timing stretch, track offsets, transposition and gain affect playback through the same player system used by incoming notes. Loop-event processing has a separate per-track budget in `MidiReader`. The master recording stops at 120,000 ms or at the event limit; other tracks stop at the master duration or their event limit. `LOOP_time` is 32-bit. Playback stretch can extend the original duration. Event storage and time-order indices occupy 48,000 bytes in RAM2 across four tracks. SD format v2 stores a 32-bit duration; the reader retains support for v1 and legacy 16-bit durations. New saves require firmware 7.2.6 or later. The playback budget remains two events per track per audio block.
-
-The SD directory structure used by firmware 7.2.8 is:
-
-```text
-microSD root/
-  AUDIO_FILES/          Source audio and converted RAW files for SD playback
-  UPLOAD_AUDIO_FILES/   Source audio for import into Flash
-  EXPORTED_AUDIO_FILES/ Sampler WAV exports
-  DATA_BACKUPS/         Numbered configuration and recording backups
-  RESTORE_FROM_BACKUP/  Contents of the selected backup to restore
-  LILLA_PRIVATE/        Firmware-managed metadata (Hidden/System)
-    .lilla-index        SD audio catalog
-    .lilla-sources/     Saved Sound source references
-    MIDI_LOOPS/         Saved MIDI loops
-    PATCHES/            Patch parameter copies
-```
-
-SD playback audio lives in visible `/AUDIO_FILES`. Hidden `/LILLA_PRIVATE` holds `.lilla-index`, `.lilla-sources`, `MIDI_LOOPS` and `PATCHES`. Numbered configuration/recording backups are written to `/DATA_BACKUPS`; restore reads only the selected backup contents placed directly in `/RESTORE_FROM_BACKUP`. WAV exports go to `/EXPORTED_AUDIO_FILES`. Existing SD cards require manual folder migration; the file formats are unchanged.
+MIDI Loop uses four tracks. [SharedLoop.h](lib/SharedLoop/SharedLoop.h) defines the event records, timing state and current capacity of 1,000 events per track; both note-on and note-off records consume event capacity. The first track is the master. Timing stretch, track offsets, transposition and gain affect playback through the same player system used by incoming notes. Loop-event processing has a separate per-track budget in `MidiReader`. The master recording stops at 120,000 ms or at the event limit; other tracks stop at the master duration or their event limit. `LOOP_time` is 32-bit. Playback stretch can extend the original duration. Event storage and time-order indices occupy 48,000 bytes in RAM2 across four tracks. SD format v2 stores a 32-bit duration; the reader retains support for v1 and legacy 16-bit durations. The playback budget is two events per track per audio block.
 
 Saving a loop stores MIDI events rather than rendered audio. Reproducing a session also requires the relevant patch and sample material.
 
-## 8. User interface
+## 10. User interface
 
 The control path starts with the SPI-connected control expanders and the encoder, pushbutton and switch managers. The foreground interprets those events according to the current page.
 
@@ -215,7 +274,7 @@ For text popups and red-button confirmation, reuse `Show_popup_text` and `Confir
 
 SETUP conversion and Flash import begin with CANCEL/GO dialogs before audio is suspended. The final Flash erase confirmation remains separate. Backup and restore have their own selection frames. `Show_popup_text()` accepts an array of lines, centers each line, sizes the popup to its content and limits its width to the display. Destructive confirmations use white on red; informational confirmations use black on green. Menu coordinates, value clearing and frame dimensions must be updated together.
 
-## 9. Maintenance guide
+## 11. Maintenance guide
 
 | Intended change | Starting points and required review |
 | --- | --- |
@@ -233,15 +292,6 @@ For firmware changes, build with `pio run -e teensy41` and exercise the affected
 
 This document describes source-level behavior. Timing margins and hardware performance require measurement; keep this description and its source references current when those mechanisms change.
 
-## Pitch-dependent timbre processing in 7.1.0
-
-TONE enables source-domain anti-aliasing above unity and a post-resampling LPF for targeted upward-pitch timbre correction. The LPF moves from 20 kHz at pitch 1 to the selected 3.0-8.0 kHz endpoint at +11 semitones. Low-pitch anti-imaging remains independent of TONE, including OFF. See [TONE processing](docs/player-tone-filter.md) for signal order, smoothing and legacy setting migration.
-
-The VCF + LFO page offers NONE before LOWPASS, HIGHPASS, BANDPASS and NOTCH, using the existing filter bypass flag and retaining pushbutton bypass. TUNED LPF uses the shared 40-entry LPF table (40-20000 Hz), displays `Hz x pitch`, and mirrors edits to both Live Sampler channels. New cutoff selections use byte values 128-167; legacy values retain their original exponential frequency until edited, without changing the patch record size. Manual VCF cutoff edits reach active voices over 40 quarter-block steps (about 29 ms), with and without LFO. Cutoff and LFO index ramps advance independently; AudioVCF reloads coefficients at quarter-block boundaries while preserving its sample history. Outside manual cutoff ramps, the VCF retains its established pitch reference.
-
 ### Building the printable guide
 
 Run `python scripts/build_user_guide.py` with ReportLab and Pillow installed to regenerate `User Guide.pdf` from `User Guide.md`. The script reads the firmware version from `config.h`, embeds display photographs and fonts, and creates linked headings and a PDF outline. It uses Arial on Windows or DejaVu Sans on Linux. Render the PDF and inspect its pages before publishing.
-
-
-[SdStorage](lib/SdStorage/SdStorage.h) maintains the Hidden/System attributes on `/LILLA_PRIVATE`. Playback audio resides in visible `/AUDIO_FILES`; the SD catalog and `.lilla-sources` reference directory reside directly in `/LILLA_PRIVATE`. On card initialization, legacy `/LILLA_HIDDEN` is renamed when the private destination is absent. Legacy audio and metadata are relocated only when `/AUDIO_FILES` is absent; `/SD_AUDIO_FILES` and `/FLASH_AUDIO_FILES` can be renamed to `/AUDIO_FILES` and `/UPLOAD_AUDIO_FILES` when their destinations are absent. Existing destinations are never overwritten or merged. Conflicting legacy trees remain available for manual migration.

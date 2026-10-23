@@ -46,7 +46,7 @@ private:
     static constexpr float VCF_column_row_Menu[2] = {0, 1};
     static constexpr float VCF_column_row_Gain[2] = {47.5, 0};
     static constexpr float VCF_column_row_FilterType[2] = {12, 8};
-    static constexpr float VCF_column_row_Cutoff[2] = {10, 9};
+    static constexpr float VCF_column_row_Cutoff[2] = {23, 9};
     static constexpr float VCF_column_row_Resonance[2] = {10, 10};
     static constexpr float VCF_column_row_LFO_modulation_source[2] = {18, 11};
     static constexpr float VCF_column_row_LFO_frequancy_time[2] = {14, 12};
