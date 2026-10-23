@@ -180,7 +180,7 @@ The project targets Teensy 4.1 at 600 MHz. Building does not upload firmware to 
 
 Special thanks to:
 
-- **FranÃƒÂ§ois Best**, for guidance on using the MIDI.h library within a class.
+- **[François Best](https://francoisbest.com/)**, for guidance on using the MIDI.h library within a class.
 - **Giuliano Cardinali**, for valuable suggestions on hardware and software design and implementation.
 - **Andreas Huelsmann**, for suggestions on MIDI Loop functionality and for beta testing it.
 - **Stefano Spada**, for contributing to the development of advanced features and improving usability.
