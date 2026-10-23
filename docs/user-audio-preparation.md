@@ -1,8 +1,24 @@
-# User audio preparation on SD (firmware 7.2.4)
+# User audio preparation on SD (firmware 7.2.8)
 
 Select **READ SD AUDIO FILES** in SETUP after putting source files directly in `/AUDIO_FILES` and inserting the SD. The green confirmation explains that reading `/AUDIO_FILES` creates RAW versions of WAV/AIFF/MP3 files with the same basename. Choose GO to start or CANCEL to return. A wide black popup displays "SD AUDIO FILES READ IN PROGRESS", "PLEASE DON'T POWER OFF LILLA" and "CONVERTING <filename>" while each file is converted. Long names are abbreviated in the middle, retaining their beginning and extension. The third line changes to "BUILDING SD FILE INDEX" during indexing; SETUP is restored when the operation ends.
 
 MIDI and Trigger are stopped, active Players are drained, and audio processing is suspended until preparation ends. The previous audio/MIDI state is restored afterwards. The Serial terminal lists each source and destination, successful copies/conversions, skipped files, errors, and the index result.
+
+## SD directory structure
+
+```text
+microSD root/
+  AUDIO_FILES/          Source audio and converted RAW files for SD playback
+  UPLOAD_AUDIO_FILES/   Source audio for import into Flash
+  EXPORTED_AUDIO_FILES/ Sampler WAV exports
+  DATA_BACKUPS/         Numbered configuration and recording backups
+  RESTORE_FROM_BACKUP/  Contents of the selected backup to restore
+  LILLA_PRIVATE/        Firmware-managed metadata (Hidden/System)
+    .lilla-index        SD audio catalog
+    .lilla-sources/     Saved Sound source references
+    MIDI_LOOPS/         Saved MIDI loops
+    PATCHES/            Patch parameter copies
+```
 
 ## Files and conversion
 

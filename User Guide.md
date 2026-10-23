@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.7**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.8**
 
-Guide edition: **22 October 2026**
+Guide edition: **23 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.7](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.8](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -80,7 +80,7 @@ Use Sampler for a take you intend to audition, convert or export. Use Live Sampl
 4. Select `RETURN` and press **Select**.
 5. In Performance, choose `SAVE` when it is available.
 
-This introduces the normal editing cycle: **open a sound Ã¢â€ â€™ adjust it Ã¢â€ â€™ return to Performance Ã¢â€ â€™ save the patch**. Returning from a page keeps your working edits, but does not replace the Save step.
+This introduces the normal editing cycle: **open a sound ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ adjust it ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ return to Performance ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ save the patch**. Returning from a page keeps your working edits, but does not replace the Save step.
 
 ### Finish a session
 
@@ -190,7 +190,7 @@ Flash memory holds the imported audio library and Sampler recordings. PSRAM hold
 
 A typical setup has three layers:
 
-**Audio file Ã¢â€ â€™ Sound settings Ã¢â€ â€™ Instrument in a patch**
+**Audio file ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Sound settings ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Instrument in a patch**
 
 For example, `piano.wav` is imported as `piano.raw`. A Sound selects that source and defines its trim, envelope and tuning. An instrument slot assigns it a root key, a MIDI channel and a playable keyboard range.
 
@@ -318,7 +318,7 @@ Use `CLONE` when you want a second patch to develop from an existing one. Use `S
 
 **Before moving into a sampling workflow, save the patch you were editing.** Live Sampler can keep the previous Performance patch in memory, but creating a new captured patch requires that previous patch to have no pending edits.
 
-A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. With Flash sources, you can start playing immediately: LILLA optimizes playback within the Flash memoryÃ¢â‚¬â„¢s read-speed limits while loading audio into PSRAM in the background. Once loading is complete, active notes automatically switch to PSRAM without restarting playback.
+A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. With Flash sources, you can start playing immediately: LILLA optimizes playback within the Flash memoryÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s read-speed limits while loading audio into PSRAM in the background. Once loading is complete, active notes automatically switch to PSRAM without restarting playback.
 
 ## Editing a sound
 
@@ -476,12 +476,12 @@ A simple card layout is:
 
 ```text
 microSD root/
-  AUDIO_FILES/          SD audio and converted RAW files (visible)
-  UPLOAD_AUDIO_FILES/   Sources for Flash import (visible)
-  EXPORTED_AUDIO_FILES/ Exported Sampler WAV recordings
-  DATA_BACKUPS/         Numbered configuration/recording backups
-  RESTORE_FROM_BACKUP/  Contents of the selected backup
-  LILLA_PRIVATE/        Firmware metadata (Hidden/System)
+  AUDIO_FILES/          Source audio and converted RAW files for SD playback
+  UPLOAD_AUDIO_FILES/   Source audio for import into Flash
+  EXPORTED_AUDIO_FILES/ Sampler WAV exports
+  DATA_BACKUPS/         Numbered configuration and recording backups
+  RESTORE_FROM_BACKUP/  Contents of the selected backup to restore
+  LILLA_PRIVATE/        Firmware-managed metadata (Hidden/System)
     .lilla-index        SD audio catalog
     .lilla-sources/     Saved Sound source references
     MIDI_LOOPS/         Saved MIDI loops
@@ -890,21 +890,21 @@ If the monitor receives notes but Performance is silent, the connection is worki
 
 ```text
 microSD root/
-  AUDIO_FILES/          SD audio and converted RAW files (visible)
-  UPLOAD_AUDIO_FILES/   Sources for Flash import (visible)
-  EXPORTED_AUDIO_FILES/ Exported Sampler WAV recordings
-  DATA_BACKUPS/         Numbered configuration/recording backups
-  RESTORE_FROM_BACKUP/  Contents of the selected backup
-  LILLA_PRIVATE/        Firmware metadata (Hidden/System)
+  AUDIO_FILES/          Source audio and converted RAW files for SD playback
+  UPLOAD_AUDIO_FILES/   Source audio for import into Flash
+  EXPORTED_AUDIO_FILES/ Sampler WAV exports
+  DATA_BACKUPS/         Numbered configuration and recording backups
+  RESTORE_FROM_BACKUP/  Contents of the selected backup to restore
+  LILLA_PRIVATE/        Firmware-managed metadata (Hidden/System)
     .lilla-index        SD audio catalog
     .lilla-sources/     Saved Sound source references
     MIDI_LOOPS/         Saved MIDI loops
     PATCHES/            Patch parameter copies
 ```
 
-Prepare the input folders and `/RESTORE_FROM_BACKUP` as needed. The firmware creates output folders when saving or converting. Keep all hidden files in `AUDIO_FILES` when copying the library.
+Prepare the input folders and `/RESTORE_FROM_BACKUP` as needed. The firmware creates output folders when saving or converting. Keep `/AUDIO_FILES` together with the hidden catalog and source-reference metadata in `/LILLA_PRIVATE` when copying the library.
 
-**Firmware 7.2.7 introduces this layout.** For an existing SD card, rename `/EXTERNAL_AUDIO` to `/AUDIO_FILES`, `/FLASH_AUDIO` to `/UPLOAD_AUDIO_FILES`, `/LILLAWAV_EXPORT` to `/EXPORTED_AUDIO_FILES`, and `/LILLABACKUP` to `/DATA_BACKUPS`. Move the audio from `/LILLA_AUDIO` into visible `/AUDIO_FILES`, and its `.lilla-index` and `.lilla-sources` metadata directly into hidden `/LILLA_PRIVATE`. Move `/LILLALOOP` and `/LILLAPATCH` into `/LILLA_PRIVATE` as `MIDI_LOOPS` and `PATCHES`. File contents and formats do not change. The unused `/LILLASOUND` folder is no longer used. These older layouts require manual migration. Recent `/LILLA_HIDDEN`, `/SD_AUDIO_FILES` and `/FLASH_AUDIO_FILES` layouts are migrated automatically when the destinations are absent, without overwriting existing folders.
+For an SD card using an older layout, rename `/EXTERNAL_AUDIO` to `/AUDIO_FILES`, `/FLASH_AUDIO` to `/UPLOAD_AUDIO_FILES`, `/LILLAWAV_EXPORT` to `/EXPORTED_AUDIO_FILES`, and `/LILLABACKUP` to `/DATA_BACKUPS`. Move the audio from `/LILLA_AUDIO` into visible `/AUDIO_FILES`, and its `.lilla-index` and `.lilla-sources` metadata directly into hidden `/LILLA_PRIVATE`. Move `/LILLALOOP` and `/LILLAPATCH` into `/LILLA_PRIVATE` as `MIDI_LOOPS` and `PATCHES`. File contents and formats do not change. If the card has a `/RESTORE` folder, rename it to `/RESTORE_FROM_BACKUP`. The unused `/LILLASOUND` folder is no longer used. These older layouts require manual migration. Recent `/LILLA_HIDDEN`, `/SD_AUDIO_FILES` and `/FLASH_AUDIO_FILES` layouts are migrated automatically when the destinations are absent, without overwriting existing folders.
 
 ### Plan a complete archive
 
@@ -917,7 +917,7 @@ A configuration backup is one part of preserving a session. Keep the matching au
 | Sampler recording audio | Included. | WAV export is also useful for computer access. |
 | Sampler recording A/B boundaries | Included in current backups. | Older backups without trim metadata restore the full recording region. |
 | Imported RAW library | Not included. | Retain the original import library separately. |
-| SD source library | Not included in the normal backup. | Copy the complete `/AUDIO_FILES` directory, including hidden files, to your computer. |
+| SD source library | Not included in the normal backup. | Copy `/AUDIO_FILES` and its catalog and source references in `/LILLA_PRIVATE` to your computer. |
 | RAW files generated from recordings or live captures | Not included as a complete RAW-library archive. | Keep an independent recoverable audio copy; saving to Flash alone is not an external backup. |
 | MIDI-loop directory | Not included. | Copy `/LILLA_PRIVATE/MIDI_LOOPS` from the card. |
 | Temporary live buffer | Not included. | Capture and save useful material before power-off. |
@@ -953,19 +953,12 @@ The restore location should look like this:
 
 ```text
 microSD root/
-  AUDIO_FILES/          SD audio and converted RAW files (visible)
-  UPLOAD_AUDIO_FILES/   Sources for Flash import (visible)
-  EXPORTED_AUDIO_FILES/ Exported Sampler WAV recordings
-  DATA_BACKUPS/         Numbered configuration/recording backups
-  RESTORE_FROM_BACKUP/  Contents of the selected backup
-  LILLA_PRIVATE/        Firmware metadata (Hidden/System)
-    .lilla-index        SD audio catalog
-    .lilla-sources/     Saved Sound source references
-    MIDI_LOOPS/         Saved MIDI loops
-    PATCHES/            Patch parameter copies
+  RESTORE_FROM_BACKUP/
+    LILLA_CONFIG.fram
+    REC_*.raw           Matching recording files from the same backup
 ```
 
-The bracketed line above is a description, not a filename to create. Copy the actual recording files together with the configuration; do not mix files from different numbered backups.
+`REC_*.raw` represents the actual recording filenames. Copy these files together with the configuration; do not mix files from different numbered backups.
 
 Restoration replaces configuration and restores recording audio; audio-library files already in Flash are kept. Back up the current state before restoring a different one. Keep the original backup intact: invalid or missing recording audio can prevent a recording from being recovered.
 
@@ -1015,7 +1008,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.7. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.8. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1069,7 +1062,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.7.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.8.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1214,6 +1207,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 22 October 2026*
+*LILLA User Guide - English edition - 23 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

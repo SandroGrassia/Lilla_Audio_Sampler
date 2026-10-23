@@ -16,27 +16,29 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.7
+## New in firmware 7.2.8
 
-**A clearer SD folder layout.** Source audio, exports, backups and restore files have dedicated folders; firmware-managed files are grouped under `/LILLA_PRIVATE`.
+**WAV import supports more bit depths and sample rates.** Import mono or stereo PCM WAV at 8, 16, 24 or 32 bits, or floating-point WAV at 32 or 64 bits, with sample rates from 8 to 192 kHz. Standard and extensible WAV headers are supported. Both SD audio preparation and Flash import convert these files to mono 16-bit RAW at 44.1 kHz, with antialias filtering when resampling is needed.
+
+See the [7.2.8 release notes](docs/release-notes-7.2.8.md) and the illustrated [User Guide](User%20Guide.md#importing-audio).
+
+## SD folder layout
 
 ```text
 microSD root/
-  AUDIO_FILES/          SD audio and converted RAW files (visible)
-  UPLOAD_AUDIO_FILES/   Sources for Flash import (visible)
-  EXPORTED_AUDIO_FILES/ Exported Sampler WAV recordings
-  DATA_BACKUPS/         Numbered configuration/recording backups
-  RESTORE_FROM_BACKUP/  Contents of the selected backup
-  LILLA_PRIVATE/        Firmware metadata (Hidden/System)
+  AUDIO_FILES/          Source audio and converted RAW files for SD playback
+  UPLOAD_AUDIO_FILES/   Source audio for import into Flash
+  EXPORTED_AUDIO_FILES/ Sampler WAV exports
+  DATA_BACKUPS/         Numbered configuration and recording backups
+  RESTORE_FROM_BACKUP/  Contents of the selected backup to restore
+  LILLA_PRIVATE/        Firmware-managed metadata (Hidden/System)
     .lilla-index        SD audio catalog
     .lilla-sources/     Saved Sound source references
     MIDI_LOOPS/         Saved MIDI loops
     PATCHES/            Patch parameter copies
 ```
 
-**Recent SD layouts are migrated automatically when the destination folders are absent.** Existing destinations are never overwritten; conflicting folders and older layouts require manual migration. Preserve the source-reference metadata when moving a library. New backups go to `/DATA_BACKUPS`; copy the contents of the selected backup into `/RESTORE_FROM_BACKUP` to restore it.
-
-See the [7.2.7 release notes](docs/release-notes-7.2.7.md) for the old-to-new folder mapping and the illustrated [User Guide](User%20Guide.md#sd-folder-layout) for operating instructions.
+Keep playback audio in `/AUDIO_FILES` and its catalog and saved Sound references in `/LILLA_PRIVATE`. Place Flash import sources in `/UPLOAD_AUDIO_FILES`. To restore a backup, copy its contents directly into `/RESTORE_FROM_BACKUP`. See the [User Guide](User%20Guide.md#sd-folder-layout) for migration and backup instructions.
 
 ## SD audio library (introduced in 7.2.0)
 
@@ -154,7 +156,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.7 (22 October 2026)**: download [Lilla_v7_2_7.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.7/Lilla_v7_2_7.hex) from [release v7.2.7](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.7). See the [7.2.7 release notes](docs/release-notes-7.2.7.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.8 (23 October 2026)**: download [Lilla_v7_2_8.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.8/Lilla_v7_2_8.hex) from [release v7.2.8](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.8). See the [7.2.8 release notes](docs/release-notes-7.2.8.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 
@@ -176,7 +178,7 @@ The project targets Teensy 4.1 at 600 MHz. Building does not upload firmware to 
 
 Special thanks to:
 
-- **FranÃ§ois Best**, for guidance on using the MIDI.h library within a class.
+- **FranÃƒÂ§ois Best**, for guidance on using the MIDI.h library within a class.
 - **Giuliano Cardinali**, for valuable suggestions on hardware and software design and implementation.
 - **Andreas Huelsmann**, for suggestions on MIDI Loop functionality and for beta testing it.
 - **Stefano Spada**, for contributing to the development of advanced features and improving usability.

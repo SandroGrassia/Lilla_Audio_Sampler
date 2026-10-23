@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.7 22/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.8 23/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -184,6 +184,22 @@ The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate
 [MidiInputBatch](lib/MidiReader/MidiInputBatch.h) bounds incoming work: currently eight ordered messages, up to 64 received bytes and an 80 microsecond parsing limit per batch. Note events preserve order. Pitch bend, channel pressure and modulation use the last value collected for each channel within the batch; other control changes remain ordered. These bounds protect audio processing from bursts of input.
 
 MIDI Loop uses four tracks. [SharedLoop.h](lib/SharedLoop/SharedLoop.h) defines the event records, timing state and current capacity of 1,000 events per track; both note-on and note-off records consume event capacity. The first track is the master. Timing stretch, track offsets, transposition and gain affect playback through the same player system used by incoming notes. Loop-event processing has a separate per-track budget in `MidiReader`. The master recording stops at 120,000 ms or at the event limit; other tracks stop at the master duration or their event limit. `LOOP_time` is 32-bit. Playback stretch can extend the original duration. Event storage and time-order indices occupy 48,000 bytes in RAM2 across four tracks. SD format v2 stores a 32-bit duration; the reader retains support for v1 and legacy 16-bit durations. New saves require firmware 7.2.6 or later. The playback budget remains two events per track per audio block.
+
+The SD directory structure used by firmware 7.2.8 is:
+
+```text
+microSD root/
+  AUDIO_FILES/          Source audio and converted RAW files for SD playback
+  UPLOAD_AUDIO_FILES/   Source audio for import into Flash
+  EXPORTED_AUDIO_FILES/ Sampler WAV exports
+  DATA_BACKUPS/         Numbered configuration and recording backups
+  RESTORE_FROM_BACKUP/  Contents of the selected backup to restore
+  LILLA_PRIVATE/        Firmware-managed metadata (Hidden/System)
+    .lilla-index        SD audio catalog
+    .lilla-sources/     Saved Sound source references
+    MIDI_LOOPS/         Saved MIDI loops
+    PATCHES/            Patch parameter copies
+```
 
 SD playback audio lives in visible `/AUDIO_FILES`. Hidden `/LILLA_PRIVATE` holds `.lilla-index`, `.lilla-sources`, `MIDI_LOOPS` and `PATCHES`. Numbered configuration/recording backups are written to `/DATA_BACKUPS`; restore reads only the selected backup contents placed directly in `/RESTORE_FROM_BACKUP`. WAV exports go to `/EXPORTED_AUDIO_FILES`. Existing SD cards require manual folder migration; the file formats are unchanged.
 
