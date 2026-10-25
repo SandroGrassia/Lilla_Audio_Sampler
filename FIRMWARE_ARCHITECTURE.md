@@ -198,7 +198,47 @@ These structures are defined in [SharedElements.h](lib/SharedElements/SharedElem
 
 The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h), [PlayerReadDiagnostics.h](lib/AudioPlayer/PlayerReadDiagnostics.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
 
-## 7. Memory and persistence
+## 7. Pitch-dependent polyphony
+
+LILLA adapts the number of active Players to the estimated processing cost of the requested pitches, up to a maximum of 16. Raising pitch requires more source samples for each 128-sample output block. The voice manager therefore limits the combined source-read workload to help keep processing within the approximately 2.9 ms audio deadline and avoid CPU overload and resulting audio interruptions. This concerns processing time, rather than clipping of the audio signal amplitude.
+
+[PlayersManager](lib/PlayersManager/PlayersManager.cpp) evaluates each incoming voice together with existing reservations. When necessary, it retires eligible voices according to voice-allocation priorities, or rejects an incoming note if no admissible combination fits. It also rechecks reservations when playback settings change. The allocation uses the sum of individual voice costs: the table below is a reference for voices at the same pitch, not a fixed limit selected from the highest note alone. Layered sounds each consume a Player.
+
+### Reference conditions and budget
+
+The table and graph are calculated from [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) for samples cached in PSRAM, MODE **FW-REV** (ping-pong), neutral tuning and a long A-B region. An A-B span of at least 4500 source samples is sufficient for the long-loop assumption throughout the tabulated range. Ping-pong does not use the NoClick crossfade. Shorter loops, different source storage and other playback geometries require their own cost estimates.
+
+The model reserves up to **1.515 times the requested base pitch** for positive pitch bend and vibrato, subject to the PSRAM pitch ceiling of 35. It applies a 10% cost margin and a combined source-read budget of **1800 microseconds per block**, leaving approximately 1100 microseconds for remaining processing and safety margin. Thus +48 semitones means a requested pitch of 16, with a reserved pitch of 24.24 before the ceiling applies. Requested pitch is expressed as semitones from the root key: `pitch = 2^(semitones / 12)`.
+
+VCF+LFO belongs to the remaining processing allowance; its cost must not also be subtracted from the 1800-microsecond source-read budget. Measurements in the tested configurations suggest approximately 10 microseconds per voice per block, with 15 microseconds used as a provisional conservative allowance, not an established maximum for every configuration. The table is unchanged with antialias option A enabled: the model still admits 16 voices through +12 semitones, and A does not enable source antialiasing for base pitches above 2. Bend and vibrato do not switch that upper-threshold eligibility.
+
+### Maximum polyphony predicted by the budget
+
+| Semitoni dalla root | Polifonia |
+| ---: | ---: |
+| 0...+37 | 16 |
+| +38 | 15 |
+| +39 | 14 |
+| +40 | 13 |
+| +41...+42 | 12 |
+| +43 | 11 |
+| +44...+45 | 10 |
+| +46...+47 | 9 |
+| +48...+49 | 8 |
+| +50...+51 | 7 |
+| +52...+61 | 6 |
+
+```mermaid
+xychart-beta
+    title "Polifonia massima prevista dal budget - PSRAM, FW-REV"
+    x-axis "Semitoni dalla root" 0 --> 61
+    y-axis "Polifonia" 0 --> 16
+    line [16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 15, 14, 13, 12, 12, 11, 10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+```
+
+Each plotted value corresponds to an integer semitone; the table groups consecutive semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. In particular, diagnostic measurements at fixed pitch with read-budget enforcement disabled must not be interpreted as the production limit with bend/vibrato headroom. The VCF benchmark build deliberately bypasses budget admission and retirement; normal firmware retains them. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
+
+## 8. Memory and persistence
 
 | Memory/storage | Main firmware use | Survives power-off? |
 | --- | --- | --- |
@@ -236,7 +276,7 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 [SdSoundSource](lib/SdSoundSource/SdSoundSource.h) reads catalog records on demand and resolves persistent source references independently of alphabetical positions. The identity range starts at 1024; this is not the catalog capacity. Sound Edit loads a selected window into the existing PSRAM cache for audition through the 16 Players. Saved portions retain an SD reference; the complete `/AUDIO_FILES` directory must be preserved separately from the normal backup. See [user audio preparation](docs/user-audio-preparation.md).
 
-## 8. Recording and capture workflows
+## 9. Recording and capture workflows
 
 ### Sampler
 
@@ -254,7 +294,7 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate. Import and export workflows bridge this representation to microSD files. [WavImport](lib/WavImport/WavImport.h) validates RIFF chunks and converts PCM 8/16/24/32-bit and float 32/64-bit mono/stereo WAV, including extensible headers, from 8-192 kHz to mono 16-bit at 44.1 kHz. SD preparation and Flash import share this decoder. Non-native rates use a 128-tap Blackman-windowed sinc with 129 phase tables and interpolation, allocating 64.5 KiB of coefficients only during conversion. Streaming input/history buffers keep memory independent of file duration. PCM16 WAV at 44.1 kHz bypasses sample-rate conversion. The known RIFF +4 size error is tolerated only with complete chunks ending at the actual file boundary; originals are never rewritten. MP3 decoding and conversion are implemented in [Mp3Import.cpp](src/Mp3Import.cpp); supported formats and conversion details are documented in [MP3 import](docs/mp3-import.md).
 
-## 9. MIDI and loop scheduling
+## 10. MIDI and loop scheduling
 
 [MidiReader](lib/MidiReader/MidiReader.h) wraps the MIDI library's serial interface and coordinates incoming messages with loop playback. It is updated by `LillaClock` in the audio processing cycle.
 
@@ -264,7 +304,7 @@ MIDI Loop uses four tracks. [SharedLoop.h](lib/SharedLoop/SharedLoop.h) defines 
 
 Saving a loop stores MIDI events rather than rendered audio. Reproducing a session also requires the relevant patch and sample material.
 
-## 10. User interface
+## 11. User interface
 
 The control path starts with the SPI-connected control expanders and the encoder, pushbutton and switch managers. The foreground interprets those events according to the current page.
 
@@ -274,7 +314,7 @@ For text popups and red-button confirmation, reuse `Show_popup_text` and `Confir
 
 SETUP conversion and Flash import begin with CANCEL/GO dialogs before audio is suspended. The final Flash erase confirmation remains separate. Backup and restore have their own selection frames. `Show_popup_text()` accepts an array of lines, centers each line, sizes the popup to its content and limits its width to the display. Destructive confirmations use white on red; informational confirmations use black on green. Menu coordinates, value clearing and frame dimensions must be updated together.
 
-## 11. Maintenance guide
+## 12. Maintenance guide
 
 | Intended change | Starting points and required review |
 | --- | --- |

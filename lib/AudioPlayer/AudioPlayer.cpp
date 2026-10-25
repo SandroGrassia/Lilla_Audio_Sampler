@@ -1626,10 +1626,16 @@ void AudioPlayer::update(void)
 
         if (VCF_connect)
         {
+#if defined(LILLA_VCF_BENCHMARK)
+            const uint32_t vcf_start = ARM_DWT_CYCCNT; // Time the entire chain, including modulation and coefficient updates.
+#endif
             if (VCF_modulated)
             {
                 LFO_ptr->Update();
             }
+#if defined(LILLA_VCF_BENCHMARK)
+            const uint32_t vcf_after_lfo = ARM_DWT_CYCCNT;
+#endif
             if (VCF_modulated || VCF_pivot_steps > 0)
             {
                 Send_LFO_to_VCF();
@@ -1638,7 +1644,29 @@ void AudioPlayer::update(void)
             {
                 VCF_ptr->LFO_connect = false;
             }
+#if defined(LILLA_VCF_BENCHMARK)
+            const uint32_t vcf_after_mapping = ARM_DWT_CYCCNT;
+#endif
             VCF_ptr->Update();
+#if defined(LILLA_VCF_BENCHMARK)
+            const uint32_t vcf_end = ARM_DWT_CYCCNT;
+            const uint32_t elapsed[4] = {vcf_after_lfo - vcf_start, vcf_after_mapping - vcf_after_lfo, vcf_end - vcf_after_mapping, vcf_end - vcf_start};
+            ++vcf_timing.blocks;
+            if (elapsed[3] > vcf_timing.peak[3])
+            {
+                vcf_timing.peak_pitch = pitch;
+                vcf_timing.peak_cutoff = VCF_frequency_pivot;
+                vcf_timing.peak_q = VCF_ptr->q_value;
+                vcf_timing.peak_type = VCF_ptr->filter_type;
+                vcf_timing.peak_modulation = VCF_modulated ? LFO_modulation : 0;
+                vcf_timing.peak_periodic = LFO_periodic;
+            }
+            for (int stage = 0; stage < 4; ++stage)
+            {
+                vcf_timing.sum[stage] += elapsed[stage];
+                vcf_timing.peak[stage] = max(vcf_timing.peak[stage], elapsed[stage]);
+            }
+#endif
         }
 
         if (live_forward_end)

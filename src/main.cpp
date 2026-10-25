@@ -991,25 +991,38 @@ FLASHMEM void setup()
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 static uint32_t audio_cost_started_ms = 0;
+static uint32_t audio_cost_initial_stops = 0; // Emergency-stop baseline for the current measurement window.
 
 FLASHMEM void Reset_audio_cost_diagnostics(void)
 {
+#if defined(LILLA_VCF_BENCHMARK)
+    ARM_DEMCR |= ARM_DEMCR_TRCENA;
+    ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+#endif
     AudioProcessorUsageMaxReset();
     AudioMemoryUsageMaxReset();
     for (auto &player : Player)
     {
         player.processorUsageMaxReset();
+#if defined(LILLA_VCF_BENCHMARK)
+        player.vcf_timing = {};
+#endif
     }
+    audio_cost_initial_stops = audio_player_emergency_stops;
     audio_cost_started_ms = millis();
 }
 
 FLASHMEM void Print_audio_cost_diagnostics(void)
 {
     float player_cpu[PLAYERS][2];
+#if defined(LILLA_VCF_BENCHMARK)
+    AudioPlayer::VcfTiming vcf[PLAYERS]; // Snapshot before printing so Serial never runs inside the audio critical section.
+#endif
     uint8_t active = 0;
     const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
 
     AudioNoInterrupts();
+    const uint32_t deadline_stops = audio_player_emergency_stops - audio_cost_initial_stops;
     const float cpu = AudioProcessorUsage();
     const float peak = AudioProcessorUsageMax();
     const unsigned int blocks = AudioMemoryUsage();
@@ -1019,6 +1032,9 @@ FLASHMEM void Print_audio_cost_diagnostics(void)
         player_cpu[i][0] = Player[i].processorUsage();
         player_cpu[i][1] = Player[i].processorUsageMax();
         active += Player[i].isPlaying();
+#if defined(LILLA_VCF_BENCHMARK)
+        vcf[i] = Player[i].vcf_timing;
+#endif
     }
     if (audio_enabled)
     {
@@ -1031,6 +1047,31 @@ FLASHMEM void Print_audio_cost_diagnostics(void)
     {
         Serial.printf("AUDIO_PLAYER,%d,cpu_pct=%.3f,peak_pct=%.3f\n", i, player_cpu[i][0], player_cpu[i][1]);
     }
+    Serial.printf("AUDIO_DEADLINE: stops=%lu%s\n", static_cast<unsigned long>(deadline_stops), deadline_stops != 0 ? ",INVALID_FULL_POLYPHONY_TEST" : "");
+#if defined(LILLA_VCF_BENCHMARK)
+    Serial.println(F("VCF_BENCH: read-budget voice limit disabled; emergency deadline active; stages=LFO,MAP,VCF,TOTAL; means/peaks in us"));
+#if defined(LILLA_VCF_BENCHMARK_DISABLE_PWM)
+    Serial.println(F("VCF_BENCH: PWM=OFF; pre-listen PWM hardware and DMA interrupts disabled; I2S output unchanged."));
+#else
+    Serial.println(F("VCF_BENCH: PWM=ON"));
+#endif
+    const double cycles_per_us = static_cast<double>(F_CPU_ACTUAL) / 1000000.0;
+    for (int player = 0; player < PLAYERS; ++player)
+    {
+        const auto &timing = vcf[player];
+        if (timing.blocks == 0)
+        {
+            continue;
+        }
+        Serial.printf("VCF_PLAYER,%d,blocks=%lu", player, static_cast<unsigned long>(timing.blocks));
+        for (int stage = 0; stage < 4; ++stage)
+        {
+            Serial.printf(",mean%d_us=%.3f,peak%d_us=%.3f", stage, static_cast<double>(timing.sum[stage]) / timing.blocks / cycles_per_us, stage, timing.peak[stage] / cycles_per_us);
+        }
+        Serial.printf(",peak_type=%u,peak_mod=%u,peak_periodic=%u,peak_pitch=%.4f,peak_pivot=%.1f,peak_q=%.3f\n", timing.peak_type, timing.peak_modulation, timing.peak_periodic, timing.peak_pitch, timing.peak_cutoff, timing.peak_q);
+    }
+    Serial.println(F("VCF_BENCH: v=reset CPU/VCF without read instrumentation; c=report; stage and voice peaks need not coincide; VCF stage includes 3 quarter-block coefficient updates."));
+#endif
     Serial.println(F("AUDIO_COST: peaks are since d/reset; individual Player peaks need not coincide. c=CPU report, p=CPU+read report, d=reset/start, D=disable read diagnostics."));
 }
 
@@ -1058,7 +1099,21 @@ FLASHMEM void loop()
         }
         else
 #endif
-        if (command == 'd' || command == 'D')
+        if (command == 'v')
+        {
+            const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
+
+            AudioNoInterrupts();
+            Players_Manager.Enable_read_diagnostics(false);
+            Reset_audio_cost_diagnostics();
+            if (audio_enabled)
+            {
+                AudioInterrupts();
+            }
+
+            Serial.println(F("VCF/CPU measurement reset; read instrumentation disabled; play test, then send c."));
+        }
+        else if (command == 'd' || command == 'D')
         {
             const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
             AudioNoInterrupts();

@@ -333,6 +333,21 @@ private:
     void My_LED(bool on);
 
 public:
+#if defined(LILLA_VCF_BENCHMARK)
+    struct VcfTiming // Cycle counts from actual rendered VCF blocks; copy/reset only with audio interrupts disabled.
+    {
+        uint32_t blocks = 0;
+        uint64_t sum[4] = {}; // LFO, frequency mapping, VCF update, complete chain.
+        uint32_t peak[4] = {}; // Independent stage maxima; do not add these to estimate a simultaneous peak.
+        float peak_pitch = 0.0f;
+        float peak_cutoff = 0.0f;
+        float peak_q = 0.0f;
+        uint8_t peak_type = 0;
+        uint8_t peak_modulation = 0;
+        uint8_t peak_periodic = 0;
+    };
+    VcfTiming vcf_timing; // Diagnostic-only per-voice statistics; no Serial calls in the audio interrupt.
+#endif
     AudioPlayer(void) : AudioStream(0, NULL)
     {
         begin();

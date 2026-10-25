@@ -450,6 +450,9 @@ float PlayersManager::Reserved_read_us(void) const
 
 bool PlayersManager::Admit_read_budget(int target, uint8_t instrument, float incoming_us)
 {
+#if defined(LILLA_VCF_BENCHMARK)
+    return std::isfinite(incoming_us); // Benchmark all 16 voices without cost-based retirement; invalid source geometry remains rejected.
+#endif
     if (!std::isfinite(incoming_us) || incoming_us > PlayerReadBudget::Limit_us)
     {
         ++budget_rejected_notes;
@@ -529,6 +532,7 @@ void PlayersManager::Prepare_read_budget(void)
 {
     // Main-loop edits and cache promotion can change the forecast without a NoteOn.
     float total = Reserved_read_us(); // Fresh full-block cost, including pending edits and replacements.
+#if !defined(LILLA_VCF_BENCHMARK)
     while (total > PlayerReadBudget::Limit_us)
     {
         int best = -1; // Release tails first, then unprotected held voices, protected voices only as a last resort.
@@ -559,6 +563,7 @@ void PlayersManager::Prepare_read_budget(void)
         ++budget_retired_players;
         total = Reserved_read_us();
     }
+#endif
     budget_reserved_us = total;
     const bool previous_batch = midi_batch_active; // Include elapsed preparation time when scheduling from the audio clock.
     midi_batch_active = true;
