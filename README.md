@@ -16,11 +16,11 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.8
+## New in firmware 7.2.9
 
-**WAV import supports more bit depths and sample rates.** Import mono or stereo PCM WAV at 8, 16, 24 or 32 bits, or floating-point WAV at 32 or 64 bits, with sample rates from 8 to 192 kHz. Standard and extensible WAV headers are supported. Both SD audio preparation and Flash import convert these files to mono 16-bit RAW at 44.1 kHz, with antialias filtering when resampling is needed.
+**Switch antialiasing on or off with Value.** In Performance, select an Instrument's `TONE` field, choose a cutoff from 3.0 to 8.0 kHz, then press **Value** to toggle antialiasing for upward playback pitch from 1 to 2 (up to one octave). The `A` suffix shows that the option is enabled. Save the patch to retain the setting.
 
-See the [7.2.8 release notes](docs/release-notes-7.2.8.md) and the illustrated [User Guide](User%20Guide.md#importing-audio).
+See the [7.2.9 release notes](docs/release-notes-7.2.9.md) and the illustrated [User Guide](User%20Guide.md#tone-consistent-timbre-when-transposing-upwards).
 
 ## SD folder layout
 
@@ -158,7 +158,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.8 (23 October 2026)**: download [Lilla_v7_2_8.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.8/Lilla_v7_2_8.hex) from [release v7.2.8](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.8). See the [7.2.8 release notes](docs/release-notes-7.2.8.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.9 (25 October 2026)**: download [Lilla_v7_2_9.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.9/Lilla_v7_2_9.hex) from [release v7.2.9](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.9). See the [7.2.9 release notes](docs/release-notes-7.2.9.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

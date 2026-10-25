@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.8 23/10/2026`. Constants and source links below are the reference when the implementation changes.
+This document describes the LILLA Audio Sampler firmware architecture and the constraints that matter when maintaining it. It is based on the source accompanying firmware version `7.2.9 25/10/2026`. Constants and source links below are the reference when the implementation changes.
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
@@ -123,7 +123,7 @@ The downsampler holds each selected sample for the configured number of output s
 
 ### Pitch-dependent timbre processing
 
-TONE enables source-domain anti-aliasing above unity and a post-resampling LPF for upward-pitch timbre correction. The source filter precedes pitch resampling; the output LPF follows downsampling and resolution and precedes the VCF. Its cutoff moves from 20 kHz at pitch 1 to the selected 3.0-8.0 kHz endpoint at +11 semitones. Low-pitch anti-imaging operates independently of TONE, including when TONE is OFF. See [TONE processing](docs/player-tone-filter.md) for filter design and smoothing.
+TONE enables a post-resampling LPF for upward-pitch timbre correction and offers independently switchable source-domain anti-aliasing. In Performance, pressing Value on an enabled TONE field toggles the antialias flag and its A suffix. The source filter acts above unity only when that flag is set and base pitch (note ratio times tuning, excluding bend and vibrato) is at most 2. Bend and vibrato affect filter cutoff and unity blending, but do not change upper-limit eligibility. OFF clears the flag; choosing a cutoff again leaves antialiasing off. The existing one-byte instrument `lock` field stores cutoff 30..80 in its low seven bits and antialias enable in bit 7, preserving the FRAM/SD patch layout. Existing patches without that bit load with antialiasing off; saving retains both settings. The source filter precedes pitch resampling; the output LPF follows downsampling and resolution and precedes the VCF. Its cutoff moves from 20 kHz at pitch 1 to the selected 3.0-8.0 kHz endpoint at +11 semitones. Low-pitch anti-imaging operates independently of TONE, including when TONE is OFF. See [TONE processing](docs/player-tone-filter.md) for filter design and smoothing.
 
 ### Multifunction VCF and modulation sources
 

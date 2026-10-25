@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.8**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.9**
 
-Guide edition: **23 October 2026**
+Guide edition: **25 October 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.8](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.9](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -158,6 +158,7 @@ Menus are dynamic. A command may be hidden when the current state does not allow
 | Performance | Press an active S1-S8 button | Open that sound's editor. |
 | Sound Edit from Performance | Press the same sound button again | Open its VCF page. |
 | Sound Edit from Sampler | Press S1, or S2 for stereo | Select the recording channel; the same button keeps that channel in Sound Edit. |
+| Performance, `TONE` selected and not OFF | Press Value | Toggle antialiasing; `A` indicates enabled. Save the patch to retain it. |
 | Sound Edit, `PITCH` selected | Press Value | Reset the pitch adjustment. |
 | Sound Edit, `PITCH` selected | Press Select | Run Auto Tune on the selected audio region. |
 | Sound Edit | Press From | Move the region's start to the beginning of the source. |
@@ -262,9 +263,13 @@ In the Instrument area of Performance, turn **Select** through `TONE`, `P`, `MID
 
 ### TONE: consistent timbre when transposing upwards
 
-Raising sample pitch can make a sound excessively bright and introduce aliasing. TONE combines anti-alias filtering before resampling with a dedicated low-pass filter (LPF) after resampling, whose cutoff follows the pitch increase. This helps keep the upper notes closer in timbre to the original sample, especially in multisampled instruments. It is independent of the creative VCF and its LFO.
+Raising sample pitch can make a sound excessively bright and introduce aliasing. TONE combines optional anti-alias filtering before resampling with a dedicated low-pass filter (LPF) after resampling, whose cutoff follows the pitch increase. This helps keep the upper notes closer in timbre to the original sample, especially in multisampled instruments. It is independent of the creative VCF and its LFO.
 
 Choose `OFF` to bypass both upward-pitch filters, or select a value from `3.0` to `8.0` kHz. The selected value is the LPF endpoint at +11 semitones relative to the sample playback reference (pitch = 1); it is retained above that interval. The curve starts at 20 kHz at pitch = 1 and descends progressively as pitch rises. At or below pitch = 1, this timbre LPF is bypassed. Lower TONE values darken transposed notes more; higher values preserve more brightness. Changes also affect sounding notes, with smoothing.
+
+To switch antialiasing on or off, select the Instrument's `TONE` field in Performance, choose a cutoff from `3.0` to `8.0` kHz, then press **Value**. The suffix `A` (for example, `5.0A`) means antialiasing is enabled; without `A`, the timbre LPF remains active but antialiasing is off. The filter acts above pitch 1 for base pitches up to and including 2 (+12 semitones, one octave). At pitch 1 it is bypassed. The base pitch includes note transposition and tuning; bend and vibrato do not change eligibility at the upper limit, so an eligible note can remain filtered when bent above 2.
+
+`OFF` clears the antialiasing option. Selecting a cutoff again leaves antialiasing off until you press Value. Existing patches without this option load with antialiasing off. **Save the patch to retain each Instrument's cutoff and antialiasing setting.**
 
 To set TONE, play the same sample across its mapped range, compare `OFF` with an enabled value, and listen for a balanced transition into the higher notes. Keep the common LPF open while comparing, then adjust it and the VCF for your intended sound. Save the patch to keep each Instrument's TONE setting. Existing HIFI levels 1-5 are converted on loading to 5.0, 4.5, 4.2, 4.0 and 3.8 kHz.
 
@@ -1008,7 +1013,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.8. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.9. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1062,7 +1067,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.8.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.9.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1207,6 +1212,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 23 October 2026*
+*LILLA User Guide - English edition - 25 October 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*
