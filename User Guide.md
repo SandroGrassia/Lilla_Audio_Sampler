@@ -80,7 +80,7 @@ Use Sampler for a take you intend to audition, convert or export. Use Live Sampl
 4. Select `RETURN` and press **Select**.
 5. In Performance, choose `SAVE` when it is available.
 
-This introduces the normal editing cycle: **open a sound ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ adjust it ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ return to Performance ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ save the patch**. Returning from a page keeps your working edits, but does not replace the Save step.
+This introduces the normal editing cycle: **open a sound -> adjust it -> return to Performance -> save the patch**. Returning from a page keeps your working edits, but does not replace the Save step.
 
 ### Finish a session
 
@@ -190,7 +190,7 @@ Flash memory holds the imported audio library and Sampler recordings. PSRAM hold
 
 A typical setup has three layers:
 
-**Audio file ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Sound settings ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Instrument in a patch**
+**Audio file -> Sound settings -> Instrument in a patch**
 
 For example, `piano.wav` is imported as `piano.raw`. A Sound selects that source and defines its trim, envelope and tuning. An instrument slot assigns it a root key, a MIDI channel and a playable keyboard range.
 
@@ -318,7 +318,7 @@ Use `CLONE` when you want a second patch to develop from an existing one. Use `S
 
 **Before moving into a sampling workflow, save the patch you were editing.** Live Sampler can keep the previous Performance patch in memory, but creating a new captured patch requires that previous patch to have no pending edits.
 
-A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. With Flash sources, you can start playing immediately: LILLA optimizes playback within the Flash memoryÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s read-speed limits while loading audio into PSRAM in the background. Once loading is complete, active notes automatically switch to PSRAM without restarting playback.
+A green `PATCH UPLOADING` popup indicates that patch audio is being transferred from Flash or SD into PSRAM. With Flash sources, you can start playing immediately: LILLA optimizes playback within the Flash memory's read-speed limits while loading audio into PSRAM in the background. Once loading is complete, active notes automatically switch to PSRAM without restarting playback.
 
 ## Editing a sound
 
