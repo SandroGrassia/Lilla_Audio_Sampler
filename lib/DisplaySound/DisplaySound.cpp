@@ -225,6 +225,14 @@ FLASHMEM void DisplaySound::Show_File_value(int instrument_id)
     const uint16_t file = Sound[Get_sound_id(Patch_id, instrument_id)].file;
     const bool sd_source = SdSoundSource::Is_sd(file);
     const char *name = sd_source ? SdSoundSource::Name(file) : Get_file_name(file, audio_filename);
+    if (name[0] == 0)
+    {
+        if (displayed_file == file)
+        {
+            tft.print(displayed_filename);
+        }
+        return;
+    }
     size_t name_length = strlen(name);
     if (file < FIRST_RECORDING_FILE || sd_source)
     {
@@ -240,6 +248,8 @@ FLASHMEM void DisplaySound::Show_File_value(int instrument_id)
     }
     memmove(audio_filename, name, name_length);
     audio_filename[name_length] = 0;
+    displayed_file = file;
+    memcpy(displayed_filename, audio_filename, name_length + 1);
     tft.print(audio_filename);
 }
 

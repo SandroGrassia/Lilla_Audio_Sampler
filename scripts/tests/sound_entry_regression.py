@@ -14,4 +14,8 @@ for match in re.finditer(r'Lilla_state = SOUND_EDIT;', source):
     assert 'S_sd_files = SdSoundSource::Catalog_count();' in entry, 'SD availability is stale at entry'
     entries += 1
 assert entries == 4, entries
+entry_start = source.index('if (entering_sound_edit && Lilla_state_0 != DIRECT_SAMPLING)')
+entry_end = source.index('const bool no_browser_audio', entry_start)
+assert 'browse_flash();' not in source[entry_start:entry_end]
+assert 'browse_sd(0);' not in source[entry_start:entry_end]
 print('PASS: all four patch/MIDI-loop Sound entry paths refresh repositories before rendering')

@@ -13,15 +13,19 @@ encoder = re.search(r'template <class T>\nbool Read_encoder\([^;{}]*\)\n\{.*?^\}
 start = main.index('            case value_P_Tone:')
 end = main.index('            case value_P_Precedence:', start)
 handler = main[start:end]
-render = re.search(r'^void DisplayPerformance::P_show_Tone_value\(.*?^\}', display, re.M | re.S).group(0)
+render = re.search(r'^(?:FLASHMEM )?void DisplayPerformance::P_show_Tone_value\(.*?^\}', display, re.M | re.S).group(0)
 header = (root / 'lib/DisplayPerformance/DisplayPerformance.h').read_text(encoding='utf-8')
 geometry = '\n'.join(re.findall(r'^    static constexpr [^\n]*(?:P_column_TONE_title|P_chars_instrument_element|P_column_instrument_element)[^\n]*', header, re.M))
 code = r"""
 #include <cassert>
+#define FLASHMEM
+#include "PlayerAntialias.h"
 #include <cstdint>
 #include <string>
 #include <type_traits>
 #include <iostream>
+bool pressed = false;
+bool Read_pushbutton(int) { bool result = pressed; pressed = false; return result; }
 int rotation = 0;
 struct Encoder { int Get_rotation(int) { return rotation; } } Encoders_manager;
 struct Instrument { uint8_t lock = 0; };
@@ -67,39 +71,59 @@ int main()
 {
     DisplayPerformance display;
     assert(display.P_column_instrument_element[0] == display.P_column_TONE_title && display.P_column_TONE_title == 7);
-    assert(display.P_chars_instrument_element[0] == 3);
+    assert(display.P_chars_instrument_element[0] == 4);
     display.P_show_Tone_value(0, 0, false);
-    assert(tft.text == "OFF" && cleared == 3);
-    rotation = -1;
+    assert(tft.text == "OFF" && cleared == 4);
+    rotation = 1;
     Step();
     assert(Patch[0].Instrument[0].lock == 0 && updates == 0);
-    rotation = 1;
-    for (int cutoff = 30; cutoff <= 80; ++cutoff)
+    rotation = -1;
+    for (int cutoff = 80; cutoff >= 30; --cutoff)
     {
         Step();
         assert(Patch[0].Instrument[0].lock == cutoff);
         display.P_show_Tone_value(0, 0, true);
         assert(tft.text == std::to_string(cutoff / 10) + "." + std::to_string(cutoff % 10));
-        assert(cleared == 3);
+        assert(cleared == 4);
     }
     assert(updates == 51 && redraws == 51);
     Step();
-    assert(Patch[0].Instrument[0].lock == 80 && updates == 51);
-    rotation = -1;
-    for (int cutoff = 79; cutoff >= 30; --cutoff)
+    assert(Patch[0].Instrument[0].lock == 30 && updates == 51);
+    rotation = 1;
+    for (int cutoff = 31; cutoff <= 80; ++cutoff)
     {
         Step();
         assert(Patch[0].Instrument[0].lock == cutoff);
     }
+    rotation = 0;
+    pressed = true;
+    Step();
+    assert(Patch[0].Instrument[0].lock == (80 | 128));
+    display.P_show_Tone_value(0, 0, true);
+    assert(tft.text == "8.0A" && cleared == 4);
+    pressed = true;
+    Step();
+    assert(Patch[0].Instrument[0].lock == 80);
+    pressed = true;
+    Step();
+    rotation = -1;
+    Step();
+    assert(Patch[0].Instrument[0].lock == (79 | 128));
+    rotation = 1;
+    Step();
     Step();
     assert(Patch[0].Instrument[0].lock == 0);
     display.P_show_Tone_value(0, 0, false);
-    assert(tft.text == "OFF" && cleared == 3);
+    assert(tft.text == "OFF" && cleared == 4);
     rotation = 0;
     const int before = updates;
+    pressed = true;
     Step();
-    assert(updates == before && interrupts);
-    std::cout << "PASS: TONE OFF/3.0..8.0 selection, boundaries and one-decimal rendering\n";
+    assert(Patch[0].Instrument[0].lock == 0 && updates == before && interrupts);
+    rotation = -1;
+    Step();
+    assert(Patch[0].Instrument[0].lock == 80);
+    std::cout << "PASS: TONE 3.0..8.0/OFF selection, boundaries and one-decimal rendering\n";
 }
 """
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
@@ -109,5 +133,5 @@ with tempfile.TemporaryDirectory(prefix='tone-controls-') as folder:
     cpp = Path(folder) / 'test.cpp'
     exe = Path(folder) / 'test.exe'
     cpp.write_text(code, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=env)
+    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(root / 'lib/AudioPlayer'), str(cpp), '-o', str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)

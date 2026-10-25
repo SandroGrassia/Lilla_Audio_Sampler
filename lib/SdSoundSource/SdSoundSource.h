@@ -27,7 +27,7 @@ public:
     FLASHMEM static bool Select(uint32_t index, uint32_t capacity);
     FLASHMEM static bool Prepare(int file);
     static uint32_t Samples(int file);
-    static const char *Name(int file);
+    static const char *Name(int file); // Return the original source name, or an empty string when its reference is unavailable.
     FLASHMEM static bool Load(int file, int16_t *destination);
     FLASHMEM static bool Read(int file, int16_t *destination, int first, int count);
     FLASHMEM static void Bind(int file, const int16_t *data);

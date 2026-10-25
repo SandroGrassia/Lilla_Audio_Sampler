@@ -21,6 +21,8 @@ class DisplaySound
 {
 private:
     int menu_first_visible = 0;
+    int displayed_file = -1; // Source identity associated with the last readable FILE label.
+    char displayed_filename[NAME_FILE_SIZE] = {}; // Preserve the original label across missing-source redraws.
     int source_notice_file = -1; // Source identity associated with the last notice.
     uint8_t source_notice_reason = 0; // Distinguish missing media, empty libraries, missing files and load errors.
     uint32_t source_notice_started = 0; // Nonblocking notice start time in milliseconds.

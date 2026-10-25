@@ -8,9 +8,10 @@ import tempfile
 
 root = Path(__file__).resolve().parents[2]
 source = (root / "lib/DisplaySound/DisplaySound.cpp").read_text(encoding="utf-8")
-methods = "\n".join(re.search(r"^(?:FLASHMEM )?void DisplaySound::" + name + r"\(.*?^}", source, re.M | re.S).group(0) for name in ("Show_source_notice", "Show_read_sd_notice", "Update_source_notice"))
+methods = "\n".join(re.search(r"^(?:FLASHMEM )?void DisplaySound::" + name + r"\(.*?^}", source, re.M | re.S).group(0) for name in ("Show_source_notice", "Show_read_sd_notice", "Update_source_notice", "Show_File_value"))
 sd_source = (root / "lib/SdSoundSource/SdSoundSource.cpp").read_text(encoding="utf-8")
 diagnose = re.search(r"^FLASHMEM SdSoundSource::SourceStatus SdSoundSource::Diagnose\(.*?^}", sd_source, re.M | re.S).group(0)
+diagnose += "\n" + re.search(r"^const char \*SdSoundSource::Name\(.*?^}", sd_source, re.M | re.S).group(0)
 fixture = r'''
 #include <cassert>
 #include <cstdint>
@@ -55,7 +56,22 @@ struct SdSoundSource
     static uint32_t Checksum(const Reference &) { return 17; }
     static bool Is_sd(int file) { return file >= 1024 && file <= PREVIEW; }
     static SourceStatus Diagnose(int file);
+    static const char *Name(int file);
 };
+constexpr int NAME_FILE_SIZE = 32, FIRST_RECORDING_FILE = 256, ILI9341_YELLOW = 3, value_S_File = 0;
+int Patch_id = 0;
+struct SoundRecord { uint16_t file = 17; } Sound[1];
+int Get_sound_id(int, int) { return 0; }
+const char *Get_file_name(int, char (&name)[NAME_FILE_SIZE]) { strcpy(name, "original.raw"); return name; }
+int display_coordinate_x(int value) { return value; }
+int display_coordinate_y(int value) { return value; }
+struct Screen
+{
+    std::string label;
+    void setTextColor(int) {}
+    void print(const char *text) { label += text; }
+} tft;
+void Cancel_text_reset_cursor(int, int, int) { tft.label.clear(); }
 int S_flash_first = -1;
 std::string message, action;
 int draws = 0;
@@ -73,6 +89,11 @@ void Show_popup_text(const char *text, int fg, int bg, int offset)
 }
 struct DisplaySound
 {
+    int displayed_file = -1;
+    char displayed_filename[NAME_FILE_SIZE] = {};
+    static constexpr int S_column_row_value_element[1][2] = {{0, 0}};
+    static constexpr size_t S_chars_File = 10;
+    void Show_File_value(int instrument_id);
     int source_notice_file = -1;
     uint8_t source_notice_reason = 0;
     uint32_t source_notice_started = 0;
@@ -93,7 +114,7 @@ int main()
 {
     DisplaySound display;
     display.Show_source_notice(17, false);
-    assert(message == "NO AUDIO FILES IN FLASH" && action == "PLEASE IMPORT AUDIO FILES");
+    assert(message == "NO AUDIO FILES IN FLASH" && action == "SETUP: IMPORT AUDIO FILES");
     now = 4499;
     display.Show_source_notice(17, false);
     display.Update_source_notice(3);
@@ -147,7 +168,7 @@ int main()
     display.Update_source_notice(3);
     assert(!display.source_notice_visible && display.restored == 3);
     display.Show_read_sd_notice();
-    assert(message == "READ SD AUDIO FILES" && action.empty());
+    assert(message == "PLEASE READ SD AUDIO FILES" && action.empty());
     assert(display.source_notice_visible);
     now += 4499;
     display.Update_source_notice(3);
@@ -155,6 +176,25 @@ int main()
     ++now;
     display.Update_source_notice(3);
     assert(!display.source_notice_visible && display.restored == 4);
+    display.Show_File_value(3);
+    assert(tft.label == "original");
+    display.Show_source_notice(17);
+    display.Show_File_value(3);
+    assert(tft.label == "original");
+    Sound[0].file = 1024;
+    SdSoundSource::loaded = true;
+    display.Show_File_value(3);
+    assert(tft.label == "wanted");
+    SdSoundSource::loaded = false;
+    display.Show_source_notice(1024);
+    display.Show_File_value(3);
+    assert(tft.label == "wanted");
+    Sound[0].file = 1025;
+    display.Show_File_value(3);
+    assert(tft.label.empty()); // Never reuse another source's name or print a diagnostic in FILE.
+    Sound[0].file = 17;
+    display.Show_File_value(3);
+    assert(tft.label == "original");
 }
 '''
 compiler = shutil.which("g++") or shutil.which("clang++")

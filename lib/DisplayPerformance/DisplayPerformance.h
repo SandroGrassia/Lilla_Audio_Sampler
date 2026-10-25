@@ -35,7 +35,7 @@ private:
     static constexpr float P_column_Sound = 3;
 
     // pointer
-    static constexpr int P_chars_instrument_element[8] = {3, 1, 2, 4, 4, 4, 3, 4};                       // TONE, Precedence,....., Gain
+    static constexpr int P_chars_instrument_element[8] = {4, 1, 2, 4, 4, 4, 3, 4};                       // TONE includes the antialias indicator; then Precedence through Gain.
     static constexpr float P_column_instrument_element[8] = {7, 12.5, 16, 21.5, 28.5, 36.5, 43, 47.5}; // TONE, Precedence,....., Gain
 
     int P_Instrument_pixels_y(int position);

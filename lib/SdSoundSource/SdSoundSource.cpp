@@ -211,7 +211,7 @@ uint32_t SdSoundSource::Samples(int file)
 const char *SdSoundSource::Name(int file)
 {
     const auto *item = Find(file);
-    return item == nullptr ? "SD AUDIO UNAVAILABLE" : item->reference.name;
+    return item == nullptr ? "" : item->reference.name;
 }
 
 FLASHMEM bool SdSoundSource::Load(int file, int16_t *destination)

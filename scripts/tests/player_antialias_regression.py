@@ -149,7 +149,26 @@ int main()
             }
         }
     }
-    std::cout << "PASS: source IIR through 35x, source-history continuity, seeks, DC and alias rejection\n";
+    const uint8_t enabled = 50 | PlayerAntialias::Enable_flag;
+    assert(!PlayerAntialias::Enabled(0, 1.5f));
+    assert(!PlayerAntialias::Enabled(50, 1.5f));
+    assert(!PlayerAntialias::Enabled(PlayerAntialias::Enable_flag, 1.5f));
+    for (float base : {1.9f, 2.0f, 2.1f})
+    {
+        for (float bend : {0.75f, 1.0f, 1.5f})
+        {
+            const bool active = PlayerAntialias::Enabled(enabled, base);
+            PlayerAntialias::Settings filter;
+            PlayerAntialias::Configure(filter, active ? base * bend : 1.0f);
+            assert(active == (base <= 2.0f));
+            assert((filter.mix > 0.0f) == active);
+            if (active)
+            {
+                assert(filter.pitch == base * bend);
+            }
+        }
+    }
+    std::cout << "PASS: source IIR, alias rejection and base-pitch eligibility independent of bend\n";
 }
 """
 compiler = shutil.which("g++") or r"C:\msys64\ucrt64\bin\g++.exe"

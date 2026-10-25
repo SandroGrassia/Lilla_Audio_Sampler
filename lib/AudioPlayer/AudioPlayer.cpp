@@ -16,7 +16,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, boo
     const bool wavetable = edited ? use_Wavetable_E : (pending ? use_Wavetable_wait : use_Wavetable); // RAM tables bypass the file reader.
     const AudioFileSource &source = pending ? source_wait : source_now;                               // Pending starts can use a different source from the outgoing voice.
     const int file = pending ? file_id_wait : file_id;                                                // File class determines Live and packet behavior.
-    plan.antialias = pending ? tone_filter_level_wait : tone_filter_level;
+    plan.antialias = false; // Set after resolving base pitch and any queued tuning below.
     plan.live = (file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file));
     plan.source = wavetable ? PlayerReadSource::Ram : (plan.live || source.storage == Psram ? PlayerReadSource::Psram : PlayerReadSource::Flash);
     plan.packets = !wavetable && !plan.live && source.storage == Flash && file >= FIRST_RECORDING_FILE;
@@ -31,6 +31,8 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, boo
     }
     const float tune = pending ? pitch_tune_wait : (pitch_tune_flag && !Has_pending_note() ? fmaxf(pitch_tune, pitch_tune_wait) : pitch_tune); // A staged replacement tune must not be applied to the old voice.
     const float note_pitch = pending ? pitch_note_wait : pitch_note;                                                                           // Pitch before bend and vibrato.
+    const float eligibility_tune = pending ? tune : (pitch_tune_flag && !Has_pending_note() ? fminf(pitch_tune, pitch_tune_wait) : pitch_tune); // Reserve filtering on either side of a queued tuning edit.
+    plan.antialias = PlayerAntialias::Enabled(pending ? tone_filter_level_wait : tone_filter_level, note_pitch * eligibility_tune);
     const float ceiling = file == SdSoundSource::PREVIEW ? 8.0f : (edited ? pitch_limit_E : (pending ? pitch_limit_wait : pitch_limit));       // Actual reader ceiling, including pending edits.
     const float modulation = reserve_modulation ? PlayerReadBudget::Maximum_modulation : fmaxf(pitch_bend, pitch_bend_wait) * fmaxf(1.01f, pitch_vibrato); // Cover queued bend and the next vibrato phase without reserving unused maximum bend.
     plan.pitch = constrain(note_pitch * tune * modulation, MIN_PITCH, ceiling);
@@ -1620,7 +1622,7 @@ void AudioPlayer::update(void)
             sliding = (sliding + AUDIO_BLOCK_SAMPLES) % downsampling;
         }
 
-        tone_filter.Process(block, AUDIO_BLOCK_SAMPLES, pitch, tone_filter_level, AUDIO_SAMPLE_RATE_EXACT);
+        tone_filter.Process(block, AUDIO_BLOCK_SAMPLES, pitch, tone_filter_level & 0x7f, AUDIO_SAMPLE_RATE_EXACT);
 
         if (VCF_connect)
         {
@@ -1758,7 +1760,7 @@ void AudioPlayer::Harvest_samples(int outputs)
     const bool diagnostics = read_diagnostics_enabled;
     const uint32_t start = diagnostics ? ARM_DWT_CYCCNT : 0;
     interpolation_mix = PlayerInterpolator::Mix(pitch);
-    PlayerAntialias::Configure(antialias, tone_filter_level ? pitch : 1.0f);
+    PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
     if (antialias.mix > 0.0f)
     {
         Harvest_filtered_samples(antialias.history, 1, (outputs - 1) * pitch);

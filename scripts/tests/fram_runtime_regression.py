@@ -194,7 +194,7 @@ int main()
     assert(sizeof(expected) == 130);
     assert(archive.Copy_Patch_from_SD_to_RAM(198, legacy) && Patch[198] == expected);
     // All TONE settings survive FRAM and SD round trips without changing stored numeric values.
-    for (uint8_t level = 0; level <= 80; level = level == 0 ? 30 : level + 1)
+    for (uint8_t level = 0; level <= 208; level = level == 0 ? 30 : (level == 80 ? 158 : level + 1))
     {
         Patch[198] = expected;
         Patch[198].Instrument[0].lock = level;

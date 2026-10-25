@@ -119,7 +119,7 @@ struct Instrument_struct
     uint8_t from_note;
     uint8_t to_note;
     bool precedence;
-    uint8_t lock; // 0: off; 30..80: TONE endpoint in tenths of kHz, with anti-aliasing.
+    uint8_t lock; // Low seven bits: 0 or TONE cutoff 30..80; bit 7 enables antialiasing for base pitch up to 2.
     Instrument_filter_data_struct Filter;
 };
 static constexpr uint8_t SIZE_OF_INSTRUMENT = sizeof(Instrument_struct); // 16, including alignment for sound_id
@@ -344,7 +344,7 @@ struct Preset_struct
     float sustain;
     float release;
     bool precedence;
-    uint8_t lock; // 0: off; 30..80: TONE endpoint in tenths of kHz, with anti-aliasing.
+    uint8_t lock; // Low seven bits: 0 or TONE cutoff 30..80; bit 7 enables antialiasing for base pitch up to 2.
     Instrument_filter_values_struct Filter;
 };
 extern Preset_struct Preset[INSTRUMENTS];

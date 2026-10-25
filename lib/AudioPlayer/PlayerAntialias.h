@@ -5,6 +5,11 @@
 
 namespace PlayerAntialias
 {
+constexpr uint8_t Enable_flag = 0x80; // Stored alongside the TONE cutoff in the existing instrument byte.
+inline bool Enabled(uint8_t setting, float base_pitch) // Bend and vibrato never affect eligibility at the upper pitch limit.
+{
+    return (setting & Enable_flag) != 0 && (setting & 0x7f) != 0 && base_pitch <= 2.0f;
+}
 constexpr int Basket_capacity = 5000;
 constexpr int History_base = 64;
 constexpr int History_per_pitch = 12;

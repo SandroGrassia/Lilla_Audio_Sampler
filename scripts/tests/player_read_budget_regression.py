@@ -176,11 +176,11 @@ int main()
     RealVoice::AudioPlayer real;
     real.pitch_note = 2;
     const float unlocked_cost = real.Reserved_read_us();
-    real.tone_filter_level = 80;
+    real.tone_filter_level = 80 | 128;
     assert(real.Get_read_plan().antialias && real.Get_read_plan(false, true).antialias);
     assert(!real.Get_read_plan(true).antialias && real.Reserved_read_us() > unlocked_cost);
     real.tone_filter_level = false;
-    real.tone_filter_level_wait = 38;
+    real.tone_filter_level_wait = 38 | 128;
     assert(!real.Get_read_plan().antialias && real.Get_read_plan(true).antialias);
     real.tone_filter_level_wait = false;
     assert(real.Get_read_plan().pitch == real.pitch_limit);
@@ -209,6 +209,20 @@ int main()
     assert(real.output[0].data[0] == 617 && real.output[0].data[127] == 0);
     assert(real.output[1].data[127] == 0 && real.closed == 1);
 
+    RealVoice::AudioPlayer bend_test;
+    bend_test.tone_filter_level = 50 | 128;
+    bend_test.pitch_note = 1.9f;
+    bend_test.pitch_bend = 1.5f;
+    assert(bend_test.Get_read_plan().antialias);
+    bend_test.pitch_note = 2.1f;
+    bend_test.pitch_bend = 0.75f;
+    assert(!bend_test.Get_read_plan().antialias);
+    bend_test.pitch_tune_flag = true;
+    bend_test.pitch_tune_wait = 0.9f;
+    assert(bend_test.Get_read_plan().antialias); // A queued downward tune can re-enable filtering.
+    bend_test.pitch_note = 1.9f;
+    bend_test.pitch_tune_wait = 1.2f;
+    assert(bend_test.Get_read_plan().antialias); // Keep the outgoing filtered block reserved.
     RealVoice::AudioPlayer limit_test;
     for (const float ceiling : {MAX_PITCH_FLASH, MAX_PITCH_PSRAM, MAX_PITCH_WAVETABLE})
     {
@@ -249,8 +263,9 @@ int main()
     PlayersManager forecast;
     Preset[0].source.storage = Psram; Preset[0].pitch = 8;
     assert(!forecast.New_read_plan(0, 8).antialias);
-    Preset[0].lock = 80;
-    assert(forecast.New_read_plan(0, 8).antialias);
+    Preset[0].lock = 80 | 128;
+    assert(!forecast.New_read_plan(0, 8).antialias);
+    assert(forecast.New_read_plan(0, 0.25f).antialias);
     assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_PSRAM);
     Preset[0].use_Wavetable = true;
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Ram);

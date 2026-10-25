@@ -16,7 +16,8 @@ namespace
 {
     bool Valid_tone_setting(uint8_t value)
     {
-        return value <= 5 || (value >= 30 && value <= 80); // Legacy HIFI or current cutoff in tenths of kHz.
+        const uint8_t cutoff = value & 0x7f; // The high bit stores antialias enable only for a valid nonzero cutoff.
+        return value <= 5 || (cutoff >= 30 && cutoff <= 80);
     }
 
     uint8_t Decode_tone_setting(uint8_t value)

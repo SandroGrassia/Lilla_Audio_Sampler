@@ -1657,14 +1657,26 @@ FLASHMEM void loop()
 
             switch (Pointer_Performance.Get_pointer().element)
             {
-            case value_P_Tone: // Cutoff in tenths of kHz, with OFF before 3.0 kHz.
+            case value_P_Tone: // Cutoff in tenths of kHz, with OFF after 8.0 kHz.
             {
-                const uint8_t cutoff = Patch[Patch_id].Instrument[instrument_id].lock;
-                uint8_t position = cutoff == 0 ? 0 : cutoff - 29;
+                const bool pressed = Read_pushbutton(EN_PB_Value);
+                const uint8_t setting = Patch[Patch_id].Instrument[instrument_id].lock;
+                const uint8_t cutoff = setting & 0x7f;
+                if (pressed && cutoff != 0)
+                {
+                    AudioNoInterrupts();
+                    Patch[Patch_id].Instrument[instrument_id].lock ^= PlayerAntialias::Enable_flag;
+                    Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
+                    AudioInterrupts();
+
+                    P_Macro_Instrument_editing(Patch_id, instrument_id, element);
+                    P_UpdatePatchOriginalAndMenu();
+                }
+                uint8_t position = cutoff == 0 ? 51 : cutoff - 30;
                 if (Read_encoder(EN_PB_Value, position, 51, 0, 1))
                 {
                     AudioNoInterrupts();
-                    Patch[Patch_id].Instrument[instrument_id].lock = position == 0 ? 0 : position + 29;
+                    Patch[Patch_id].Instrument[instrument_id].lock = position == 51 ? 0 : (position + 30) | (Patch[Patch_id].Instrument[instrument_id].lock & PlayerAntialias::Enable_flag);
                     Players_Manager.Update_Preset_lock(Patch_id, instrument_id);
                     AudioInterrupts();
 
@@ -2136,17 +2148,6 @@ FLASHMEM void loop()
             {
                 SdSoundSource::Find_catalog(SdSoundSource::Name(Sound[Sound_id].file), S_sd_files, S_sd_index);
             }
-            if (Sound[Sound_id].file == 0 && FlashFileRegisterParser::Zero_from_firmware())
-            {
-                if (S_flash_first >= 0)
-                {
-                    browse_flash();
-                }
-                else if (S_sd_files > 0)
-                {
-                    browse_sd(0);
-                }
-            }
             S_Select_menu_elements();
             Display_Sound.Show_SOUND_menu();
             Display_Sound.Show_wave(Instrument_id);
@@ -2417,6 +2418,18 @@ FLASHMEM void loop()
                 int result = Read_encoder_simple(EN_PB_Value);
                 if (result != 0 && Lilla_state_0 != DIRECT_SAMPLING)
                 {
+                    if (Sound[Sound_id].file == 0 && FlashFileRegisterParser::Zero_from_firmware())
+                    {
+                        if (S_flash_first >= 0)
+                        {
+                            browse_flash();
+                        }
+                        else if (S_sd_files > 0)
+                        {
+                            browse_sd(0);
+                        }
+                        break;
+                    }
                     const int file_step = Read_pushbutton_fast(EN_PB_Select) ? 10 : 1;
                     if (SdSoundSource::Is_sd(Sound[Sound_id].file))
                     {
@@ -2426,7 +2439,7 @@ FLASHMEM void loop()
                             break;
                         }
                         const int next = constrain(static_cast<int>(S_sd_index) + result * file_step, 0, static_cast<int>(S_sd_files) - 1);
-                        if (next >= 0 && static_cast<uint32_t>(next) < S_sd_files && static_cast<uint32_t>(next) != S_sd_index)
+                        if (next >= 0 && static_cast<uint32_t>(next) < S_sd_files && (static_cast<uint32_t>(next) != S_sd_index || !Preset[Instrument_id].active))
                         {
                             browse_sd(next);
                         }

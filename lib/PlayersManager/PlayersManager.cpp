@@ -420,7 +420,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
 {
     const auto &preset = Preset[instrument]; // Prepared source selected for the incoming note.
     PlayerReadBudget::Plan plan; // Match AudioPlayer's pending geometry without modifying a voice.
-    plan.antialias = preset.lock;
+    plan.antialias = PlayerAntialias::Enabled(preset.lock, note_pitch * preset.pitch);
     plan.live = (preset.file >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(preset.file));
     const bool wavetable = preset.use_Wavetable && !plan.live; // Live always uses its circular PSRAM buffer.
     plan.source = wavetable ? ReadSource::Ram : (plan.live || preset.source.storage == Psram ? ReadSource::Psram : ReadSource::Flash);
@@ -639,7 +639,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
 
     Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
 
-    Player_ptr[id_player].Set_tone_filter(Preset[instrument_id].lock); // TONE enables timbre compensation and source-domain anti-alias filtering.
+    Player_ptr[id_player].Set_tone_filter(Preset[instrument_id].lock); // TONE carries the cutoff and the independent antialias enable bit.
     Player_ptr[id_player].Set_effects(resolution_value[resolution], downsampling);
     Player_ptr[id_player].Set_pitch_bend(pitch_bend_value[Preset[instrument_id].midi_channel]);
 

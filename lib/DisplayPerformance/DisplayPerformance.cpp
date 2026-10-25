@@ -1,3 +1,4 @@
+#include "PlayerAntialias.h"
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
@@ -142,8 +143,9 @@ FLASHMEM void DisplayPerformance::P_show_Tone_value(int patch_id, int instrument
     auto x_display = display_coordinate_x(P_column_instrument_element[0]);
     tft.setTextColor((editing ? ILI9341_YELLOW : ILI9341_WHITE));
 
-    Cancel_text_reset_cursor(x_display, y_display, 3);
-    const uint8_t cutoff = Patch[patch_id].Instrument[instrument_id].lock;
+    Cancel_text_reset_cursor(x_display, y_display, P_chars_instrument_element[0]);
+    const uint8_t setting = Patch[patch_id].Instrument[instrument_id].lock;
+    const uint8_t cutoff = setting & 0x7f;
     if (cutoff == 0)
     {
         tft.print("OFF");
@@ -153,6 +155,10 @@ FLASHMEM void DisplayPerformance::P_show_Tone_value(int patch_id, int instrument
         tft.print(cutoff / 10);
         tft.print('.');
         tft.print(cutoff % 10);
+        if ((setting & PlayerAntialias::Enable_flag) != 0)
+        {
+            tft.print('A');
+        }
     }
 }
 
