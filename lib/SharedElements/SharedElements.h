@@ -308,16 +308,9 @@ extern float pan_gain_L_table[33];
 extern float pan_gain_R_table[33];
 
 // funzioni
-inline uint16_t Get_sound_id(int patch_id, int instrument_id)
-{
-    return Patch[patch_id].Instrument[instrument_id].sound_id;
-}
+uint16_t Get_sound_id(int patch_id, int instrument_id); // Return the Sound assigned to an instrument in the selected patch.
 
-inline uint8_t Get_midi_channel(int patch_id, int instrument_id)
-{
-    // .data contains midi channel in its bits: 7 6 5 M I D I 0
-    return ((Sound[Patch[patch_id].Instrument[instrument_id].sound_id].data & 30) >> 1);
-}
+uint8_t Get_midi_channel(int patch_id, int instrument_id); // Return the MIDI channel assigned to an instrument in the selected patch.
 
 
 

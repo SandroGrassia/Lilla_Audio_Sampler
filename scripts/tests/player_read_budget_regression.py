@@ -395,7 +395,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-read-budget-') as directory:
     cpp = Path(directory) / 'budget.cpp'
     exe = Path(directory) / ('budget.exe' if os.name == 'nt' else 'budget')
     cpp.write_text(prefix + production + tests, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I' + str(ROOT / 'lib/AudioPlayer'), '-I' + str(ROOT / 'lib/config'), str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I' + str(ROOT / 'lib/AudioPlayer'), '-I' + str(ROOT / 'lib/config'), str(cpp), str(ROOT / 'lib/AudioPlayer/PlayerReadBudget.cpp'), str(ROOT / 'lib/config/PlaybackProfile.cpp'), str(ROOT / 'lib/AudioPlayer/PlayerAntialias.cpp'), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

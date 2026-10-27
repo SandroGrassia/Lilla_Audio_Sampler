@@ -90,7 +90,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-missing-audio-') as directory:
     cpp = Path(directory) / 'missing_audio.cpp'
     exe = Path(directory) / 'missing_audio.exe'
     cpp.write_text(fixture + method + checks, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', str(cpp), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

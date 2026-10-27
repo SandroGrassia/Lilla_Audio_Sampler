@@ -439,3 +439,8 @@ FLASHMEM void DisplaySampler::DS_confirm_raw_conversion_frame(uint8_t value)
     Confirm_frame_on_RED(no_x, options_y, 2, value == 0);
     Confirm_frame_on_RED(yes_x, options_y, 3, value == 1);
 }
+
+bool DisplaySampler::DS_has_recording_controls(void) const
+{
+    return DS_recording_controls_visible;
+}

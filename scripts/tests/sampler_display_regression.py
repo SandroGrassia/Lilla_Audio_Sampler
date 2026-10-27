@@ -5,14 +5,14 @@ import re
 import shutil
 import subprocess
 import tempfile
+from production_source import method
 
 root = Path(__file__).resolve().parents[2]
 def read(name):
     return (root / name).read_text(encoding='utf-8')
 def header(name):
     return re.sub(r'^#(?:include|pragma).*$', '', read(name), flags=re.M)
-def method(source, signature):
-    return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
+
 
 prefix = r"""
 #include <algorithm>
@@ -60,6 +60,7 @@ int descriptions = 0;
 source = read('lib/DisplaySampler/DisplaySampler.cpp')
 production = header('lib/DisplaySampler/DisplaySampler.h')
 for signature in [
+    'bool DisplaySampler::DS_has_recording_controls(void) const',
     'void DisplaySampler::DS_set_recording_controls(bool visible)',
     'void DisplaySampler::DS_sampler_IO(void)',
     'void DisplaySampler::DS_bar(int channel, int value)',

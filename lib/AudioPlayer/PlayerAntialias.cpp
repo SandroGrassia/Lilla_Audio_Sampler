@@ -1,5 +1,15 @@
 #include "PlayerAntialias.h"
 
+bool PlayerAntialias::Enabled(uint8_t setting, float base_pitch)
+{
+    return (setting & Enable_flag) != 0 && (setting & 0x7f) != 0 && base_pitch <= 2.0f;
+}
+
+int PlayerAntialias::History(float pitch)
+{
+    return History_base + static_cast<int>(std::ceil(History_per_pitch * pitch));
+}
+
 void PlayerAntialias::Configure(Settings &settings, float pitch)
 {
     if (settings.pitch == pitch)

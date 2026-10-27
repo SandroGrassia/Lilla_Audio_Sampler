@@ -27,3 +27,8 @@ void LillaClock::Stop(void)
 {
     stop_flag = true;
 }
+
+bool LillaClock::Is_running(void) const
+{
+    return !stop_flag;
+}

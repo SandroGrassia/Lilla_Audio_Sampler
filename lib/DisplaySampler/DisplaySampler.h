@@ -104,7 +104,7 @@ public:
 
     // Shows recording controls only during input monitoring and recording.
     FLASHMEM void DS_set_recording_controls(bool visible);
-    bool DS_has_recording_controls(void) const { return DS_recording_controls_visible; }
+    bool DS_has_recording_controls(void) const; // Return whether recording controls are visible.
     FLASHMEM void DS_sampler_IO(void);
 
     // Incrementally redraws one VU-meter bar channel. channel: 0 = L, 1 = R. value: 0 – BAR_ELEMENTS.

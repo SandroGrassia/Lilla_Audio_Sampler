@@ -3447,3 +3447,48 @@ void AudioPlayer::Update_tone_filter(int patch, int instrument, uint8_t level)
         tone_filter_level_wait = level;
     }
 }
+
+float AudioPlayer::Read_rendered_sample(int sample, float position) const
+{
+    return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, interpolation_mix);
+}
+
+bool AudioPlayer::Has_pending_edit(void) const
+{
+    return main_settings_editing_flag;
+}
+
+void AudioPlayer::Set_tone_filter(uint8_t level)
+{
+    tone_filter_level_wait = level;
+}
+
+bool AudioPlayer::Has_pending_note(void) const
+{
+    return state != IDLE && (warmup_for_play_again_flag || restart_flag);
+}
+
+bool AudioPlayer::Needs_restart_mix(void) const
+{
+    return state != IDLE && warmup_for_play_again_flag;
+}
+
+int AudioPlayer::Assigned_note(void) const
+{
+    return Has_pending_note() ? note_wait : note;
+}
+
+int AudioPlayer::Assigned_track(void) const
+{
+    return Has_pending_note() ? track_wait : track;
+}
+
+int AudioPlayer::Assigned_instrument(void) const
+{
+    return Has_pending_note() ? instrument_id_wait : instrument_id;
+}
+
+int AudioPlayer::Assigned_patch(void) const
+{
+    return Has_pending_note() ? patch_id_wait : local_patch;
+}

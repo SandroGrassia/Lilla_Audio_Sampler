@@ -262,3 +262,35 @@ const float PlayerInterpolator::coefficients[Phases + 1][Taps] =
     {-0.0000001790f, 0.0127878994f, -0.0477449472f, 0.0873007563f, 0.9004212506f, 0.0807204608f, -0.0458522436f, 0.0123670027f},
     {0.0000000000f, 0.0125770566f, -0.0467974293f, 0.0839994338f, 0.9004418778f, 0.0839994338f, -0.0467974293f, 0.0125770566f},
 };
+
+float PlayerInterpolator::Mix(float pitch)
+{
+    return pitch < 1.0f ? (pitch <= 0.75f ? 1.0f : (1.0f - pitch) * 4.0f) : 0.0f;
+}
+
+float PlayerInterpolator::Read(const int16_t *samples, float position, float mix)
+{
+    const int index = static_cast<int>(position);
+    const float fraction = position - index;
+    if (mix == 0.0f)
+    {
+        return samples[index] + fraction * (samples[index + (fraction > 0.0f)] - samples[index]);
+    }
+    const float phase = fraction * Phases;
+    const int row = static_cast<int>(phase);
+    const float delta = phase - row;
+    const float *low = coefficients[row];
+    const float *high = coefficients[row + 1];
+    const int16_t *window = samples + index - Left;
+    float filtered = 0.0f;
+    for (int tap = 0; tap < Taps; ++tap)
+    {
+        filtered += window[tap] * (low[tap] + delta * (high[tap] - low[tap]));
+    }
+    if (mix == 1.0f)
+    {
+        return filtered;
+    }
+    const float linear = samples[index] + fraction * (samples[index + (fraction > 0.0f)] - samples[index]);
+    return linear + mix * (filtered - linear);
+}

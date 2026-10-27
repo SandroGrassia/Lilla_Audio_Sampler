@@ -45,7 +45,7 @@ public:
     virtual void Update(void);
     void Begin(void); // inizializza le funzionalità midi
     void Start(void); // inizializza le tastiere virtuali
-    bool Is_running(void) const { return !midi_stop_flag; } // Read with audio interrupts disabled.
+    bool Is_running(void) const; // Read the MIDI callback state with audio interrupts disabled.
 
     /*
     Chiamando .Stop():
@@ -58,10 +58,7 @@ public:
     3) si usa quando quando l'esecuzione parziale delle istruzioni creerebbe problemi
     4) vanno escuse istruzioni che comportano tempi di elaborazione "importanti" (come SerialPrint, operazioni sul Display) perche' l'interrupt di Audiostrem si puo' sospendere per un tempo T << 2900us
     */
-    void Stop()
-    {
-        midi_stop_flag = true;
-    }
+    void Stop(); // Suspend MIDI input processing while audio playback continues.
 
     WaveVibrato *Vibrato = nullptr; // Midi_reader.Vibrato = &Vibrato
     WaveSine *Tone_generator = nullptr;

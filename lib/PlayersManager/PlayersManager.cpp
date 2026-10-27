@@ -11,17 +11,17 @@ namespace
 // Least-squares fits to the original exact_mean_us measurements (before the table's cumulative maximum).
 // PSRAM/RAM use cold source cache; Flash uses seek+read. Units: samples -> microseconds per operation.
 // Validated at 600 MHz over 10..4500 samples. Mean estimates, not worst-case timing guarantees.
-constexpr float Flash_read_time_us(uint32_t samples)
+float Flash_read_time_us(uint32_t samples)
 {
     return PlayerReadBudget::Transfer_us(PlayerReadSource::Flash, samples);
 }
 
-constexpr float Psram_read_time_us(uint32_t samples)
+float Psram_read_time_us(uint32_t samples)
 {
     return PlayerReadBudget::Transfer_us(PlayerReadSource::Psram, samples);
 }
 
-constexpr float Ram_read_time_us(uint32_t samples)
+float Ram_read_time_us(uint32_t samples)
 {
     return PlayerReadBudget::Transfer_us(PlayerReadSource::Ram, samples);
 }
@@ -1589,4 +1589,29 @@ uint16_t PlayersManager::Fast_stop_players_using_cache(uint16_t mask)
         }
     }
     return stopped;
+}
+
+float PlayersManager::Calc_pitch(float value)
+{
+    return pow(2.0f, value / 192.0f); // 0: no shift
+}
+
+float PlayersManager::Calc_attack(float value)
+{
+    return (value / 100.0f);
+}
+
+float PlayersManager::Calc_decay(float value)
+{
+    return (value / 25.0f);
+}
+
+float PlayersManager::Calc_sustain(float value)
+{
+    return (value / 50.0f);
+}
+
+float PlayersManager::Calc_release(float value)
+{
+    return (value / 2.0f);
 }

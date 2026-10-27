@@ -87,6 +87,7 @@ shared = source('lib/SharedDelay/SharedDelay.h') + source('lib/SharedDelay/Share
 gain_header = source('lib/AudioGain/AudioGain.h').replace('private:', 'public:')
 gain_cpp = source('lib/AudioGain/AudioGain.cpp')
 gain = gain_header + '\nvoid AudioGain::update() {}\n' + '\n'.join(method(gain_cpp, 'void AudioGain::' + name) for name in ['Set_gain(', 'Mute(', 'Unmute(', 'Get_mults('])
+gain += method(gain_cpp, 'bool AudioGain::Is_silent(')
 stereo = source('lib/StereoDelay/StereoDelay.h').replace('private:', 'public:') + source('lib/StereoDelay/StereoDelay.cpp')
 manager = source('lib/DelayManager/DelayManager.h').replace('private:', 'public:') + source('lib/DelayManager/DelayManager.cpp')
 main_source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')

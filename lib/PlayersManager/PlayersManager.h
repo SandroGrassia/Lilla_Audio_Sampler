@@ -71,30 +71,15 @@ private:
     int Select_player_for_note(uint8_t instrument_id, uint8_t note_number, int track);
     bool restart_Player[PLAYERS] = {false}; // questo array serve per contare, ad ogni ciclo, il numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
 
-    static inline float Calc_pitch(float value)
-    {
-        return pow(2.0f, value / 192.0f); // 0: no shift
-    }
+    static float Calc_pitch(float value); // Convert tuning steps to a pitch ratio.
 
-    static inline float Calc_attack(float value)
-    {
-        return (value / 100.0f);
-    }
+    static float Calc_attack(float value); // Convert the stored attack value to seconds.
 
-    static inline float Calc_decay(float value)
-    {
-        return (value / 25.0f);
-    }
+    static float Calc_decay(float value); // Convert the stored decay value to seconds.
 
-    static inline float Calc_sustain(float value)
-    {
-        return (value / 50.0f);
-    }
+    static float Calc_sustain(float value); // Convert the stored sustain value to a gain.
 
-    static inline float Calc_release(float value)
-    {
-        return (value / 2.0f);
-    }
+    static float Calc_release(float value); // Convert the stored release value to seconds.
 
 public:
     float Reserved_read_us(void) const; // Sum current and pending reservations without stale idle costs.

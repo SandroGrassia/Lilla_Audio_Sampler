@@ -1,6 +1,3 @@
-#include "WavImport.h"
-#include "SdStorage.h"
-#include "SdSoundSource.h"
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
@@ -57,6 +54,9 @@
 #include "CaptureSources.h"
 #include "Mp3Import.h"
 #include "UserAudioImport.h"
+#include "WavImport.h"
+#include "SdStorage.h"
+#include "SdSoundSource.h"
 
 #if defined(LILLA_READ_BENCHMARK)
 #include "ReadBenchmark.h"
@@ -526,10 +526,10 @@ bool S_Fill_tables(uint8_t instrument_id); // Prepare a Sound edit from the mode
 bool S_Fill_all_tables(void);              // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t);      // Publish a complete table bank while preserving previous presets if preparation fails.
 
-// >>>>>>> FILE COPY TO PSRAM
+// >>>>>>>>>>>>>>>>>>>>>>> FILE COPY TO PSRAM
 EXTMEM int16_t patch_cache_array[PATCH_CACHE_ARRAY_COUNT][PATCH_CACHE_ARRAY_SAMPLES]; // PSRAM backing arrays for the patch audio caches.
 
-// >>>>>>> SETTINGS
+// >>>>>>>>>>>>>>>>>>>>>>> SETTINGS
 int8_t SET_menu;                                // Current Setup menu selection.
 void Calc_pitch_from_note(const int &key_step); // Recalculate the note pitch multipliers for the selected keyboard scale.
 uint8_t Line_in_gain = 8;                       // Shared hardware input gain; displayed as 1..16.
@@ -551,7 +551,7 @@ int CC_number;                            // Selected MIDI Control Change number
 FLASHMEM byte CC_Save_settings(void);       // Persist Control Change settings and return the FRAM status code.
 FLASHMEM byte CC_Read_all_Sound_gain(void); // Load instrument Sound gains for the Control Change page and return the FRAM status.
 
-// >>>>>>> DELAY
+// >>>>>>>>>>>>>>>>>>>>>>> DELAY
 EXTMEM int16_t DELAY_fifo_L[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the left delay channel.
 EXTMEM int16_t DELAY_fifo_R[DELAY_CACHE_CHANNEL_SAMPLES]; // PSRAM circular storage for the right delay channel.
 
@@ -561,7 +561,7 @@ DELAY_element_name DELAY_local_pointer; // Current Delay menu or parameter selec
 void D_Set_value(int item, int value); // Publish one UI request through the same parameter owner used by patch changes.
 bool D_Read_value(int item);           // Read a delay parameter edit into a local value and publish it through the parameter owner.
 
-// >>>>>>> DIRECT_SAMPLING
+// >>>>>>>>>>>>>>>>>>>>>>> DIRECT_SAMPLING
 // menu
 DS_pointer_struct DS_local_pointer; // Current Direct Sampler menu or parameter selection.
 
@@ -583,7 +583,7 @@ elapsedMillis DS_recording_time_update;      // Timer used to throttle recording
 int DS_recording_change;                     // Working recording selection during Direct Sampler navigation.
 static bool DS_recording_slots_full = false; // Updated whenever the Sampler menu is recalculated.
 
-// PACKETS
+// >>>>>>>>>>>>>>>>>>>>>>> PACKETS
 int DS_VFS_packets = 0;  // Number of Flash packets reserved for Direct Sampling.
 int DS_First_packet = 0; // First packet in the Direct Sampling Flash area.
 int DS_Last_packet = 0;  // Last packet in the Direct Sampling Flash area.
@@ -615,7 +615,7 @@ FLASHMEM void DS_close_sound_edit(void);                           // Save the r
 void DS_sync_stereo_parameters(void);                              // Apply edited parameters to the other stereo channel and update playback.
 FLASHMEM void P_Recording(int value);                                       // Print one recording's metadata to Serial.
 
-// VFS VIRTUAL FILE SYSTEM
+// >>>>>>>>>>>>>>>>>>>>>>> VFS VIRTUAL FILE SYSTEM
 FLASHMEM void VFS_Make_VFS(void);                                                    // Ask for the recording-area size and create the erasable Flash packet files.
 int VFS_Get_packets(void);                                                  // Count the VFS packet files present in Flash.
 FLASHMEM void VFS_Print_allocation(void);                                            // Print the VFS and Direct Sampler packet allocation to Serial.
@@ -649,7 +649,7 @@ struct VFS_Audio_guard // VFS operations run without audio callbacks, which coul
     ~VFS_Audio_guard();                                      // Restore the audio IRQ only after successful completion.
 };
 
-// STANDARD FILE SYSTEM
+// >>>>>>>>>>>>>>>>>>>>>>> STANDARD FILE SYSTEM
 FLASHMEM int Get_next_raw_file_in_flash(int file);     // Find the next available RAW audio source after the supplied file ID.
 FLASHMEM int Get_previous_raw_file_in_flash(int file); // Find the previous available RAW audio source before the supplied file ID.
 int Get_samples_in_raw_file(int value);       // Return the sample count for a RAW file or Direct Sampler channel.
@@ -657,7 +657,7 @@ FLASHMEM void Print_flash_file_list(void);             // Print Flash filenames,
 FLASHMEM int Get_raw_files(void);                      // Count stored RAW files in the ordinary audio-file ID range.
 FLASHMEM int Get_raw_files_volume(void);               // Sum the sizes of stored ordinary RAW files, in bytes.
 
-// >>>>>>> LIVE_SAMPLING
+// >>>>>>>>>>>>>>>>>>>>>>> LIVE_SAMPLING
 // pointer
 LS_pointer_struct LS_local_pointer; // Current Live Sampler menu or parameter selection.
 
@@ -13136,9 +13136,8 @@ FLASHMEM bool LS_Capture_confirm(void)
 FLASHMEM bool LS_Capture_root(uint8_t &root)
 {
     LS_refresh_LS_page();
-    //                                                "PRESS A KEY TO INSERT ROOT KEY"
-    Show_popup_text("PRESS A KEY TO INSERT ROOT KEY", "           CANCEL", ILI9341_WHITE, ILI9341_RED);
-    Frame_by_pixels_on_RED(138, 123, 6, true);
+    Show_popup_text("PRESS A KEY TO INSERT ROOT KEY", "CANCEL", ILI9341_WHITE, ILI9341_RED);
+    Confirm_frame_on_RED(Centered_element_left(6 * 6), Centered_element_top(display_coordinate_y(2)) + 20, 6, true);
 
     Clear_UI_events();
     AudioNoInterrupts();
@@ -15704,10 +15703,6 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
     }
     AudioInterrupts(); // Restore audio processing
 }
-
-
-
-
 
 FLASHMEM void SET_Prepare_user_audio(void)
 {

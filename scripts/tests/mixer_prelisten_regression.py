@@ -5,18 +5,19 @@ import re
 import shutil
 import subprocess
 import tempfile
+from production_source import method
 
 root = Path(__file__).resolve().parents[2]
 shared = (root / 'lib/SharedMixer/SharedMixer.cpp').read_text(encoding='utf-8')
 main = (root / 'src/main.cpp').read_text(encoding='utf-8')
 header = (root / 'lib/SharedSound/SharedSound.h').read_text(encoding='utf-8')
 production = re.sub(r'^#include.*$', '', shared, flags=re.M)
-production += re.search(r'^void S_Select_menu_elements\(void\)\n\{.*?^\}', main, re.M | re.S).group(0)
+production += method(main, 'void S_Select_menu_elements(void)')
 menu = re.search(r'enum S_menu_elements_name\s*\{.*?\};', header, re.S).group(0)
 menu += '\n' + '\n'.join(line for line in header.splitlines() if line.startswith(('static constexpr int S_menu_elements', 'static constexpr int S_row_menu', 'static constexpr char S_menu_char', 'static constexpr uint8_t S_dimension_voice_menu')))
 menu += '\nuint8_t S_column_menu_element[S_menu_elements], S_position_menu[S_menu_elements];\nS_menu_elements_name S_element_menu[S_menu_elements];\n'
 display = (root / 'lib/DisplaySound/DisplaySound.cpp').read_text(encoding='utf-8')
-production += '\n' + re.search(r'^void DisplaySound::Show_SOUND_menu\(void\)\n\{.*?^\}', display, re.M | re.S).group(0)
+production += '\n' + method(display, 'void DisplaySound::Show_SOUND_menu(void)')
 
 lineout_start = main.index('            case value_MX_Lineout:')
 lineout_end = main.index('            case value_MX_Monitor:', lineout_start)
@@ -35,6 +36,7 @@ mute_end = main.index('            case value_MX_Gain:', mute_start)
 production += '\nvoid handle_mute()\n{\n    switch (0)\n    {\n' + main[mute_start:mute_end].replace('case value_MX_Mute:', 'case 0:') + '\n    }\n}\n'
 
 prefix = r'''
+#define FLASHMEM
 #include <cassert>
 #include <cstdint>
 #include <iostream>
@@ -228,7 +230,8 @@ int main()
         S_Select_menu_elements();
         assert(S_Menu[value_S_OnlyPrelisten] == (routing != 1));
         assert(S_Menu[value_S_SendToLineOut] == ((routing & 2) == 0));
-        assert(S_menu_max == (routing == 0 ? 5 : 4));
+        assert(S_Menu[value_S_BrowseSd] && !S_Menu[value_S_BrowseFlash] && !S_Menu[value_S_SaveSd]);
+        assert(S_menu_max == (routing == 0 ? 6 : 5));
     }
     Lilla_state_0 = 0;
     for (int instrument = 0; instrument < INSTRUMENTS; ++instrument)
@@ -330,9 +333,20 @@ int main()
     MX_routing_source[Instrument_id] = 2;
     Lilla_state_0 = MIDI_LOOP;
     S_Select_menu_elements();
-    assert(S_menu_max == 2 && !S_Menu[value_S_Clone] && !S_Menu[value_S_Drop]);
+    assert(S_menu_max == 3 && S_Menu[value_S_BrowseSd] && !S_Menu[value_S_Clone] && !S_Menu[value_S_Drop]);
+    Lilla_state_0 = 0;
+    S_flash_first = 0;
+    Sound[0].file = SdSoundSource::FIRST;
+    S_Select_menu_elements();
+    assert(S_Menu[value_S_BrowseFlash] && !S_Menu[value_S_BrowseSd] && !S_Menu[value_S_SaveSd]);
+    assert(S_menu_max == 5 && S_Menu[value_S_Clone] && S_Menu[value_S_Drop]);
+    Sound[0].file = SdSoundSource::PREVIEW;
+    S_Select_menu_elements();
+    assert(S_Menu[value_S_BrowseFlash] && !S_Menu[value_S_BrowseSd] && S_Menu[value_S_SaveSd]);
+    assert(S_menu_max == 4 && !S_Menu[value_S_Clone] && !S_Menu[value_S_Drop]);
     Lilla_state_0 = DIRECT_SAMPLING;
     S_Select_menu_elements();
+    assert(!S_Menu[value_S_BrowseFlash] && !S_Menu[value_S_BrowseSd] && !S_Menu[value_S_SaveSd]);
     assert(S_menu_max == 1 && S_Menu[value_S_Return] && !S_Menu[value_S_OnlyPrelisten] && !S_Menu[value_S_SendToLineOut]);
     std::cout << "PASS: exclusive prelisten on all nine sources, live routing, line input mute and Sound menus\n";
 }
@@ -344,5 +358,5 @@ with tempfile.TemporaryDirectory(prefix='mixer-prelisten-') as folder:
     cpp = Path(folder) / 'test.cpp'
     exe = Path(folder) / 'test.exe'
     cpp.write_text(prefix + menu + production + checks, encoding='utf-8')
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=environment)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True, env=environment)
     subprocess.run([str(exe)], check=True, env=environment)

@@ -366,3 +366,13 @@ void StereoSampler::stop(void)
         recording = false;
     }
 }
+
+uint32_t StereoSampler::Missing_blocks_left(void) const
+{
+    return missing_blocks_L;
+}
+
+uint32_t StereoSampler::Missing_blocks_right(void) const
+{
+    return missing_blocks_R;
+}

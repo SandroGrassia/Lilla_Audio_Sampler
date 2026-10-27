@@ -286,7 +286,7 @@ with tempfile.TemporaryDirectory(prefix="lilla-runtime-") as directory:
     source = Path(directory) / "runtime.cpp"
     executable = Path(directory) / "runtime.exe"
     source.write_text(base["prefix"] + mock + base["runtime"] + fixture + methods + tests, encoding="utf-8", newline="\r\n")
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), "-std=c++20", "-Wall", "-Wextra", "-Werror", str(source), "-o", str(executable)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), "-std=c++20", "-Wall", "-Wextra", "-Werror", str(source), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), "-o", str(executable)], check=True)
     environment = os.environ.copy()
     environment["PATH"] = str(Path(compiler).parent) + os.pathsep + environment.get("PATH", "")
     subprocess.run([str(executable)], env=environment, check=True)

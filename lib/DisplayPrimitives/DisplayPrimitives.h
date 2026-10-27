@@ -28,18 +28,12 @@ static constexpr int CANVAS_WAVE_MIN = WAVEBOARD_HEIGHT - 1;
 static constexpr int CANVAS_WAVE_0 = CANVAS_WAVE_MIN / 2;
 
 // Top-left coordinates for centering an element on the 320 x 240 display.
-static constexpr int Centered_element_left(const int width)
-{
-    return (320 - width) / 2;
-}
+int Centered_element_left(const int width); // Return the horizontal origin for centering an element on the display.
 
-static constexpr int Centered_element_top(const int height)
-{
-    return (240 - height) / 2;
-}
+int Centered_element_top(const int height); // Return the vertical origin for centering an element on the display.
 
 // Align popup centers with the waveform canvas instead of the whole display.
-static constexpr int WAVE_POPUP_Y_OFFSET = WAVE_MAX - Centered_element_top(WAVEBOARD_HEIGHT);
+static constexpr int WAVE_POPUP_Y_OFFSET = WAVE_MAX - (240 - WAVEBOARD_HEIGHT) / 2;
 
 // conversion
 int display_coordinate_y(const float row);

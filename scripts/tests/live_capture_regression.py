@@ -314,7 +314,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-live-capture-') as directory:
     exe = Path(directory) / 'capture.exe'
     cpp.write_text(program, encoding='utf-8')
     compiler = shutil.which('g++')
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

@@ -144,3 +144,13 @@ void Confirm_frame_on_GREEN(int X, int Y, int chars, bool print, uint16_t frame_
 {
     tft.drawRect(X - 4, Y - 4, (6 * chars) + 7, Frame_heigh, print ? frame_color : ILI9341_GREEN);
 }
+
+int Centered_element_left(const int width)
+{
+    return (320 - width) / 2;
+}
+
+int Centered_element_top(const int height)
+{
+    return (240 - height) / 2;
+}

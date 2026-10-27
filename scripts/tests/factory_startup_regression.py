@@ -1,18 +1,16 @@
 """Verify the production factory setup and a cold metadata reload using simulated FRAM."""
 from pathlib import Path
 import os
-import re
 import runpy
 import subprocess
 import tempfile
+from production_source import method
 
 ROOT = Path(__file__).resolve().parents[2]
 runtime = runpy.run_path(str(Path(__file__).with_name('fram_runtime_regression.py')))
 base = runtime['base']
 main = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
 
-def method(signature):
-    return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', main, re.M | re.S).group(0) + '\n'
 
 fixture = runtime['fixture']
 prefix = base['prefix'].replace('struct SerialStub {', 'struct SerialStub {\n    void println() {}\n    void println(int) {}')
@@ -30,7 +28,7 @@ void VFS_Erase_all_packets()
 }
 '''
 for signature in ['void P_Delete_all_Patches_and_Sounds(void)', 'void DS_seed_all_Recordings(void)', 'void Factory_setup_FRAM(void)', 'uint8_t P_Get_first_Patch_id_existing(void)']:
-    production += method(signature)
+    production += method(main, signature)
 
 checks = r'''
 int main()
@@ -95,7 +93,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-factory-startup-') as directory:
     cpp = Path(directory) / 'factory.cpp'
     exe = Path(directory) / 'factory.exe'
     cpp.write_text(prefix + runtime['mock'] + base['runtime'] + fixture + production + checks, encoding='utf-8')
-    subprocess.run([compiler, '-include', str(Path(__file__).with_name('sd_sound_source_stub.h').resolve()), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).with_name('sd_sound_source_stub.h').resolve()), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

@@ -340,3 +340,13 @@ location&offset space = 10*(max number of files) = 640KB
 
 Strings are null terminated.  The remainder of the chip is file data.
 */
+
+LillaSerialFlashFile::operator bool()
+{
+    return firmware_source || SerialFlashFile::operator bool();
+}
+
+bool FlashFileRegisterParser::Zero_from_firmware(void)
+{
+    return zero_from_firmware;
+}

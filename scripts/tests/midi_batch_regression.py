@@ -179,9 +179,8 @@ production = '\n'.join(line for line in config.splitlines() if line.startswith('
 production += method(clock_source, 'void LillaClock::update')
 production += method(reader, 'void MidiReader::Collect_messages') + method(reader, 'void MidiReader::Update')
 for name in ['Has_pending_note', 'Needs_restart_mix', 'Assigned_note', 'Assigned_track', 'Assigned_instrument', 'Assigned_patch']:
-    inline = re.search(r'    (bool|int) ' + name + r'\(void\) const \{[^\n]+\}', player_header)
-    assert inline
-    production += inline.group(0).strip().replace(name + '(', 'AudioPlayer::' + name + '(') + '\n'
+    return_type = 'bool' if name in ['Has_pending_note', 'Needs_restart_mix'] else 'int'
+    production += method(player, return_type + ' AudioPlayer::' + name)
 for name in ['Get_ready_to_play', 'Release_note', 'Set_modulation', 'Enforce_cycle_deadline']:
     production += method(player, 'void AudioPlayer::' + name)
 for name in ['Reset_booked_and_restart_player', 'Begin_midi_batch', 'End_midi_batch', 'Set_modulation', 'Multicast_stop_players_for_NoteOff', 'Multicast_stop_players_for_loop_track', 'Multicast_all_notes_off']:
@@ -327,7 +326,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-midi-') as directory:
     cpp = Path(directory) / 'midi.cpp'
     exe = Path(directory) / ('midi.exe' if os.name == 'nt' else 'midi')
     cpp.write_text(prefix + production + tests, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-I' + str(MIDI_LIB), '-I' + str(ROOT / 'lib/MidiReader'), '-I' + str(ROOT / 'lib/AudioPlayer'), str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-I' + str(MIDI_LIB), '-I' + str(ROOT / 'lib/MidiReader'), '-I' + str(ROOT / 'lib/AudioPlayer'), str(cpp), str(ROOT / 'lib/AudioPlayer/PlayerAntialias.cpp'), str(ROOT / 'lib/AudioPlayer/PlayerReadBudget.cpp'), str(ROOT / 'lib/MidiReader/MidiInputBatch.cpp'), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

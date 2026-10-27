@@ -70,3 +70,12 @@ void PerformanceLedSet::Restore_all_LED(void)
         __enable_irq();
     }
 }
+
+PerformanceLedSet::PerformanceLedSet()
+{
+    // Zero is not a valid LED state: accept the first NoteOn even for previously unused instruments.
+    for (int instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+    {
+        led_activity[instrument_id] = -1;
+    }
+}

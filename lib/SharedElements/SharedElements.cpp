@@ -207,3 +207,14 @@ FLASHMEM int Compare_audio_file_names(uint16_t left, uint16_t right)
     const int order = strcasecmp(a, b);
     return order == 0 ? static_cast<int>(left) - static_cast<int>(right) : order;
 }
+
+uint16_t Get_sound_id(int patch_id, int instrument_id)
+{
+    return Patch[patch_id].Instrument[instrument_id].sound_id;
+}
+
+uint8_t Get_midi_channel(int patch_id, int instrument_id)
+{
+    // .data contains midi channel in its bits: 7 6 5 M I D I 0
+    return ((Sound[Patch[patch_id].Instrument[instrument_id].sound_id].data & 30) >> 1);
+}

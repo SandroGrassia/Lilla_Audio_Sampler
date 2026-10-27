@@ -5,15 +5,13 @@ import re
 import shutil
 import subprocess
 import tempfile
+from production_source import method
 
 root = Path(__file__).resolve().parents[2]
 main = (root / 'src/main.cpp').read_text(encoding='utf-8')
 shared = (root / 'lib/SharedSampler/SharedSampler.cpp').read_text(encoding='utf-8')
 elements = (root / 'lib/SharedElements/SharedElements.h').read_text(encoding='utf-8')
 
-
-def method(source, signature):
-    return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
 
 
 prefix = r'''
@@ -149,9 +147,10 @@ for signature in [
     'bool S_Fill_tables(uint8_t instrument_id)',
 ]:
     production += method(main, signature)
-finish_start = main.index('        if (Lilla_state_0 == DIRECT_SAMPLING)\n        {\n            if (Recording[recording].stereo)')
-finish_end = main.index('        // Switch Sound or INSTRUMENT_EDIT', finish_start)
-production += '\nvoid finish_edit(const Sound_struct &sound_before_edit)\n{\n' + main[finish_start:finish_end] + '}\n'
+# Extract only the sampler completion block, independent of its surrounding branch.
+finish = re.search(r'^([ \t]+)if \(Lilla_state_0 == DIRECT_SAMPLING\)\n\1\{\n\1    if \(Recording\[recording\].stereo\).*?^\1\}', main, re.M | re.S)
+assert finish is not None, 'Sampler edit completion block not found'
+production += '\nvoid finish_edit(const Sound_struct &sound_before_edit)\n{\n' + finish.group(0) + '\n}\n'
 
 checks = r'''
 void begin_edit()
@@ -259,7 +258,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-sampler-edit-') as directory:
     source = Path(directory) / 'edit.cpp'
     executable = Path(directory) / 'edit.exe'
     source.write_text(prefix + production + checks, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(source), '-o', str(executable)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(source), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(executable)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(executable)], env=environment, check=True)

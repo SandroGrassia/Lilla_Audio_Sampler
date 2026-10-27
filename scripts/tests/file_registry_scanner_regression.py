@@ -61,6 +61,8 @@ methods += re.sub(r'^#(?:include|pragma).*$', '', header, flags=re.M)
 source = (ROOT / 'lib/LillaSerialFlash/LillaSerialFlash.cpp').read_text(encoding='utf-8')
 methods += source[source.index('void LillaSerialFlashFile::fast_open'):source.index('void FlashFileRegisterParser::Read_all_file_data')]
 methods += source[source.index('void FlashFileRegisterParser::Read_all_file_data'):source.index('/*\n** On-chip')]
+methods += re.search(r'^LillaSerialFlashFile::operator bool\(\)\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
+methods += re.search(r'^bool FlashFileRegisterParser::Zero_from_firmware\(void\)\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
 checks = r'''
 int main()
 {
@@ -124,7 +126,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-registry-scanner-') as directory:
     cpp = Path(directory) / 'scanner.cpp'
     exe = Path(directory) / 'scanner.exe'
     cpp.write_text(REGISTRY_FIXTURE + prefix + methods + checks, encoding='utf-8', newline='\r\n')
-    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
+    subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
     subprocess.run([str(exe)], check=True, env=environment)

@@ -68,6 +68,6 @@ public:
     bool Start(int from_packet, int last_packet, int recording_id_in, bool stereo_in); // Main only, audio IRQ enabled; verifies the FRAM marker before capture, returns false on failure; records for 20 ms.
     void Stop_and_wait(void); // Main only, with audio interrupts enabled; wait until packet writes have stopped.
     bool Is_recording(void);
-    uint32_t Missing_blocks_left(void) const { return missing_blocks_L; } // Reset at Start; disable audio interrupts when reading both counters together.
-    uint32_t Missing_blocks_right(void) const { return missing_blocks_R; }
+    uint32_t Missing_blocks_left(void) const; // Return the number of missing left-channel recording blocks.
+    uint32_t Missing_blocks_right(void) const; // Return the number of missing right-channel recording blocks.
 };

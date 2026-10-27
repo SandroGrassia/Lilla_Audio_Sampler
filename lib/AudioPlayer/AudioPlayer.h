@@ -300,10 +300,7 @@ private:
     int harvested_samples = 0;
     void Harvest_filtered_samples(int left, int right, float distance); // Source context does not advance the logical playhead.
     void Harvest_samples(int outputs = AUDIO_BLOCK_SAMPLES);            // Includes source-domain anti-alias processing in diagnostics.
-    float Read_rendered_sample(int sample, float position) const
-    {
-        return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, interpolation_mix);
-    }
+    float Read_rendered_sample(int sample, float position) const; // Read the filtered output or interpolate the current source window.
     void Update_pitch(void);
     void Update_volume_gain(void);
     void Update_pan_gain(void);
@@ -340,9 +337,9 @@ public:
     float Current_read_us(uint32_t output_samples) const;                                      // Cost of an outgoing crossfade segment.
     void Retire_for_read_budget(void);                                                         // Release source ownership now and fade previously computed audio without further source reads.
     void Set_edit_mix_samples(uint8_t value);                                                  // Override only a pending edit crossfade before its next render.
-    bool Has_pending_edit(void) const { return main_settings_editing_flag; }                   // Expose edit transitions to the shared read-budget planner.
+    bool Has_pending_edit(void) const; // Return whether source geometry has a pending edit.
     static bool Take_live_unrecorded_notice(void);                                             // Consume from the main loop with audio interrupts disabled by the caller.
-    void Set_tone_filter(uint8_t level) { tone_filter_level_wait = level; }
+    void Set_tone_filter(uint8_t level); // Stage the TONE cutoff and antialias flag for the next note.
     void Update_tone_filter(int patch, int instrument, uint8_t level);
     void begin(void);
     virtual void update(void);
@@ -373,12 +370,12 @@ public:
 
     bool isPlaying(void);
     bool isPoweredOn(void);
-    bool Has_pending_note(void) const { return state != IDLE && (warmup_for_play_again_flag || restart_flag); }
-    bool Needs_restart_mix(void) const { return state != IDLE && warmup_for_play_again_flag; }
-    int Assigned_note(void) const { return Has_pending_note() ? note_wait : note; }
-    int Assigned_track(void) const { return Has_pending_note() ? track_wait : track; }
-    int Assigned_instrument(void) const { return Has_pending_note() ? instrument_id_wait : instrument_id; }
-    int Assigned_patch(void) const { return Has_pending_note() ? patch_id_wait : local_patch; }
+    bool Has_pending_note(void) const; // Return whether an active voice has a queued replacement note.
+    bool Needs_restart_mix(void) const; // Return whether the queued note needs an outgoing crossfade.
+    int Assigned_note(void) const; // Return the queued note number, or the current note when none is pending.
+    int Assigned_track(void) const; // Return the track owning the queued or current note.
+    int Assigned_instrument(void) const; // Return the instrument owning the queued or current note.
+    int Assigned_patch(void) const; // Return the patch owning the queued or current note.
     void Set_modulation(uint8_t value);
     void Set_source(const AudioFileSource &source);            // Attach the prepared source before configuring the next note.
     void Refresh_cached_source(const AudioFileSource &source); // Promote identical data and refresh current/pending pitch limits; call with audio interrupts disabled.

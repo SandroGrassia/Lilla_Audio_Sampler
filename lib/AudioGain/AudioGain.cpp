@@ -12,6 +12,11 @@
 
 #include "AudioGain.h"
 
+bool AudioGain::Is_silent(void) const
+{
+    return !gain_flag && multiplier == 0;
+}
+
 void AudioGain::update(void)
 {
     audio_block_t *out = NULL;

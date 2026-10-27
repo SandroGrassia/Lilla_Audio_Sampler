@@ -536,3 +536,13 @@ void MidiReader::Update_loops(void)
         }
     }
 }
+
+bool MidiReader::Is_running(void) const
+{
+    return !midi_stop_flag;
+}
+
+void MidiReader::Stop()
+{
+    midi_stop_flag = true;
+}

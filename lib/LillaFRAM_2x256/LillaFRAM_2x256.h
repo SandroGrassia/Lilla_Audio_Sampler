@@ -93,10 +93,7 @@ private:
         uint16_t product;
         uint16_t densityCode;
 
-        bool ok() const
-        {
-            return error == BankCheckError::None;
-        }
+        bool ok() const; // Return whether the bank identity check succeeded.
     };
 
     boolean _framInitialised;

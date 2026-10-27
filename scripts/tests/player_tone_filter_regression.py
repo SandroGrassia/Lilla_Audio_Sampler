@@ -101,6 +101,7 @@ player_code = (root / 'lib/AudioPlayer/AudioPlayer.cpp').read_text(encoding='utf
 fields = re.findall(r'^    uint8_t tone_filter_level(?:_wait)? = 0;', player_header, re.M)
 assert len(fields) == 2
 setter = re.search(r'^    void Set_tone_filter[^\n]+', player_header, re.M).group(0)
+setter_definition = re.search(r'^void AudioPlayer::Set_tone_filter[^\n]+\n\{.*?^\}', player_code, re.M | re.S).group(0)
 update = re.search(r'^void AudioPlayer::Update_tone_filter[^\n]+\n\{.*?^\}', player_code, re.M | re.S).group(0)
 voice = "\nnamespace VoiceTest\n{\nstruct AudioPlayer\n{\n" + "\n".join(fields) + "\n" + setter + r"""
     int local_patch = 1, instrument_id = 2, patch_id_wait = 1, instrument_id_wait = 2;
@@ -108,7 +109,7 @@ voice = "\nnamespace VoiceTest\n{\nstruct AudioPlayer\n{\n" + "\n".join(fields) 
     bool Has_pending_note() const { return pending; }
     void Update_tone_filter(int patch, int instrument, uint8_t level);
 };
-""" + update + "\n}\n"
+""" + setter_definition + "\n" + update + "\n}\n"
 source = source.replace('int main()', voice + 'int main()')
 source = source.replace('    const float pitch =', r"""    VoiceTest::AudioPlayer player;
     for (uint8_t level = 0; level <= 80; level = level == 0 ? 30 : level + 1)

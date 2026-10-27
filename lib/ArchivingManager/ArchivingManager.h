@@ -23,12 +23,10 @@ private:
 #define AUDIO_BOARD_SDCARD 10
 
     FLASHMEM String Filename_Patch(const int patch_id);
-
     static constexpr size_t PATCH_PATH_SIZE = sizeof("/LILLA_PRIVATE/PATCHES/-2147483648.bin.patch");
     FLASHMEM bool Is_SD_inserted(void);
     FLASHMEM bool Copy_Patch_from_RAM_to_SD(const int patch_id, File &file);
     FLASHMEM bool Copy_Patch_from_SD_to_RAM(const int patch_id, File &file);
-
     static constexpr uint16_t FILEHEADER_VERSION = 0;
 
     struct FileHeader
@@ -192,6 +190,7 @@ private:
         uint32_t payload_bytes;
         uint32_t payload_crc32;
     };
+    
     static constexpr uint16_t FRAM_BACKUP_VERSION = 6;
     static_assert(sizeof(FRAM_Recording_edit_struct) == 16);
 

@@ -47,8 +47,8 @@ private:
     // Both patch dialogs use this centered layout.
     static constexpr int L_POPUP = 106;
     static constexpr int H_POPUP = 47;
-    static constexpr int X_POPUP = Centered_element_left(L_POPUP);
-    static constexpr int Y_POPUP = Centered_element_top(H_POPUP);
+    static constexpr int X_POPUP = (320 - L_POPUP) / 2;
+    static constexpr int Y_POPUP = (240 - H_POPUP) / 2;
     static constexpr int Y_POPUP_TXT = 10;
     static constexpr int Y_POPUP_OPT = 30;
 

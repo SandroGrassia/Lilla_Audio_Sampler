@@ -417,3 +417,8 @@ void LillaFRAM_2x256::Destructive_Fram_Test(const uint8_t writevalue)
         Serial.println("- Test done.");
     }
 }
+
+bool LillaFRAM_2x256::BankCheckResult::ok() const
+{
+    return error == BankCheckError::None;
+}
