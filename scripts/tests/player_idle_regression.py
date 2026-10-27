@@ -20,21 +20,15 @@ constexpr int IDLE = 0, PLAYING = 1, AUDIO_BLOCK_SAMPLES = 128;
 constexpr uint32_t QUICK_RELEASE_TIME = 10, PATCH_RELEASE_BLOCK_MS = 3, AUDIO_PLAYER_DEADLINE_US = 2700;
 uint32_t now_ms = 0, audio_update_cycle = 42, audio_update_time_micros = 0, audio_player_emergency_stops = 0;
 uint32_t millis() { return now_ms; }
-struct PlayerReadDiagnostics
-{
-    enum { Transition = 1, RestartExecuted = 2 };
-    uint32_t flags = 0, cycle = 0;
-};
 struct audio_block_t { int16_t data[AUDIO_BLOCK_SAMPLES] = {}; };
 struct AudioPlayer
 {
     int state = IDLE;
-    bool read_diagnostics_enabled = true, budget_tail_pending = false, patch_release_pending = false;
+    bool budget_tail_pending = false, patch_release_pending = false;
     bool warmup_for_play_again_flag = false, restart_flag = false, main_settings_editing_flag = false;
     bool idle = true, power_on = false, pending_note_released = false;
     uint32_t patch_release_started = 0;
     float budget_tail_sample = 100, budget_tail_pan_L = 1, budget_tail_pan_R = 1;
-    PlayerReadDiagnostics read_diagnostics;
     audio_block_t output[2];
     int allocations = 0, releases = 0, transmissions = 0, active_entries = 0, closed = 0, led_off = 0, starts = 0;
     int fail_allocation = -1;
@@ -56,10 +50,8 @@ checks = r'''
 int main()
 {
     AudioPlayer idle;
-    idle.read_diagnostics.flags = 255;
     idle.update();
     assert(idle.allocations == 0 && idle.transmissions == 0 && idle.active_entries == 0);
-    assert(idle.read_diagnostics.cycle == audio_update_cycle && idle.read_diagnostics.flags == 0);
     AudioPlayer active;
     active.state = PLAYING;
     active.update();
@@ -75,7 +67,7 @@ int main()
     restart.restart_flag = true;
     restart.update();
     assert(restart.starts == 1 && restart.state == PLAYING && restart.active_entries == 1);
-    assert(!restart.restart_flag && (restart.read_diagnostics.flags & PlayerReadDiagnostics::RestartExecuted));
+    assert(!restart.restart_flag);
     AudioPlayer deadline;
     deadline.state = PLAYING;
     audio_update_time_micros = AUDIO_PLAYER_DEADLINE_US;
@@ -100,7 +92,7 @@ int main()
         retry.update();
         assert(!retry.budget_tail_pending && retry.transmissions == 2);
     }
-    std::puts("PASS: idle without allocations, diagnostics, release, queued restart, deadline, budget tail and allocation retry");
+    std::puts("PASS: idle without allocations, release, queued restart, deadline, budget tail and allocation retry");
 }
 '''
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'

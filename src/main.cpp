@@ -128,6 +128,7 @@
 #include "LoopLedSet.h"
 #include "LoopMetronomo.h"
 #include "CacheCycleFinalizer.h"
+#include "AutoTuneInput.h"
 #include "ArchivingManager.h"
 #include "LillaFRAM_2x512.h"
 #include "GraphicElements.h"
@@ -164,19 +165,6 @@
 // *************************************************************
 
 // Attenzione: la funzione update() e' chiamata nell'ordine in cui vengono dichiarati gli oggetti Audiostream
-class AutoTuneInput : public AudioStream
-{
-private:
-    const int16_t *samples = nullptr;  // Source window supplied to the auto-tune FFT input.
-    volatile uint16_t position = 1024; // Next sample to transmit; 1024 marks a completed FFT window.
-
-public:
-    AutoTuneInput();                  // Create an audio source with no input queues.
-    bool Idle() const;                // Return whether the complete FFT window has been transmitted.
-    void Begin(const int16_t *input); // Called with audio interrupts disabled and the previous window fully sent.
-    void update() override;           // Send the next source block to the FFT analyzer.
-};
-
 LillaClock Trigger;                                                   // Schedule MIDI and player work at audio-block boundaries.
 AudioPlayer Player[PLAYERS];                                          // Audio voices that process and output the active Sounds.
 Router_16x3 Router_L;                                                 // Route left voice outputs to delay, main and pre-listen buses.
@@ -398,6 +386,7 @@ PointerMidiLoop Pointer_MidiLoop;       // Manage selection and navigation on th
 #define AudioNoInterrupts() (NVIC_DISABLE_IRQ(IRQ_SOFTWARE))
 #define AudioInterrupts() (NVIC_ENABLE_IRQ(IRQ_SOFTWARE))
 
+
 // >>>>>>>>>>>>>>>>>>>>>>> Polyphony/Max Pitch
 int first_octave_cache; // Previous first-octave setting, used to detect changes that need saving.
 
@@ -528,7 +517,6 @@ bool S_Fill_tables(uint8_t instrument_id);                            // Prepare
 bool S_Fill_all_tables(void);                                         // Prepare all used instruments from the model with audio interrupts disabled.
 bool S_Rebuild_audio_tables(uint8_t edited_instrument = INSTRUMENTS); // Publish a complete table bank while preserving previous presets if preparation fails.
 bool P_Quiesce_audio_players(void);                                   // Stop control callbacks and drain players before replacing file or patch metadata.
-FLASHMEM void Print_player_read_diagnostics(void);                             // Serial p: last, peak estimate, restart and largest positive gap; d enables/resets, D disables.
 void P_Service_patch_cache(void);                                     // Copy one bounded chunk between audio updates and publish only completed files.
 void P_Invalidate_file_cache(int file_id);                            // Invalidate replaced audio while retaining buffers still referenced by players.
 void P_Invalidate_recording_cache(int recording_id);                  // Retire both cached channels before recording data is deleted or replaced.
@@ -990,91 +978,6 @@ FLASHMEM void setup()
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-static uint32_t audio_cost_started_ms = 0;
-static uint32_t audio_cost_initial_stops = 0; // Emergency-stop baseline for the current measurement window.
-
-FLASHMEM void Reset_audio_cost_diagnostics(void)
-{
-#if defined(LILLA_VCF_BENCHMARK)
-    ARM_DEMCR |= ARM_DEMCR_TRCENA;
-    ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
-#endif
-    AudioProcessorUsageMaxReset();
-    AudioMemoryUsageMaxReset();
-    for (auto &player : Player)
-    {
-        player.processorUsageMaxReset();
-#if defined(LILLA_VCF_BENCHMARK)
-        player.vcf_timing = {};
-#endif
-    }
-    audio_cost_initial_stops = audio_player_emergency_stops;
-    audio_cost_started_ms = millis();
-}
-
-FLASHMEM void Print_audio_cost_diagnostics(void)
-{
-    float player_cpu[PLAYERS][2];
-#if defined(LILLA_VCF_BENCHMARK)
-    AudioPlayer::VcfTiming vcf[PLAYERS]; // Snapshot before printing so Serial never runs inside the audio critical section.
-#endif
-    uint8_t active = 0;
-    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-
-    AudioNoInterrupts();
-    const uint32_t deadline_stops = audio_player_emergency_stops - audio_cost_initial_stops;
-    const float cpu = AudioProcessorUsage();
-    const float peak = AudioProcessorUsageMax();
-    const unsigned int blocks = AudioMemoryUsage();
-    const unsigned int peak_blocks = AudioMemoryUsageMax();
-    for (int i = 0; i < PLAYERS; ++i)
-    {
-        player_cpu[i][0] = Player[i].processorUsage();
-        player_cpu[i][1] = Player[i].processorUsageMax();
-        active += Player[i].isPlaying();
-#if defined(LILLA_VCF_BENCHMARK)
-        vcf[i] = Player[i].vcf_timing;
-#endif
-    }
-    if (audio_enabled)
-    {
-        AudioInterrupts();
-    }
-
-    const float block_us = 1000000.0f * AUDIO_BLOCK_SAMPLES / AUDIO_SAMPLE_RATE_EXACT;
-    Serial.printf("AUDIO_COST: window_ms=%lu,voices=%u,active=%u,cpu_pct=%.3f,peak_pct=%.3f,cpu_us=%.3f,peak_us=%.3f,blocks=%u,peak_blocks=%u,pool_blocks=%u\n", static_cast<unsigned long>(millis() - audio_cost_started_ms), static_cast<unsigned int>(PLAYERS), static_cast<unsigned int>(active), cpu, peak, cpu * block_us / 100.0f, peak * block_us / 100.0f, blocks, peak_blocks, static_cast<unsigned int>(AUDIO_POOL_BLOCKS));
-    for (int i = 0; i < PLAYERS; ++i)
-    {
-        Serial.printf("AUDIO_PLAYER,%d,cpu_pct=%.3f,peak_pct=%.3f\n", i, player_cpu[i][0], player_cpu[i][1]);
-    }
-    Serial.printf("AUDIO_DEADLINE: stops=%lu%s\n", static_cast<unsigned long>(deadline_stops), deadline_stops != 0 ? ",INVALID_FULL_POLYPHONY_TEST" : "");
-#if defined(LILLA_VCF_BENCHMARK)
-    Serial.println(F("VCF_BENCH: read-budget voice limit disabled; emergency deadline active; stages=LFO,MAP,VCF,TOTAL; means/peaks in us"));
-#if defined(LILLA_VCF_BENCHMARK_DISABLE_PWM)
-    Serial.println(F("VCF_BENCH: PWM=OFF; pre-listen PWM hardware and DMA interrupts disabled; I2S output unchanged."));
-#else
-    Serial.println(F("VCF_BENCH: PWM=ON"));
-#endif
-    const double cycles_per_us = static_cast<double>(F_CPU_ACTUAL) / 1000000.0;
-    for (int player = 0; player < PLAYERS; ++player)
-    {
-        const auto &timing = vcf[player];
-        if (timing.blocks == 0)
-        {
-            continue;
-        }
-        Serial.printf("VCF_PLAYER,%d,blocks=%lu", player, static_cast<unsigned long>(timing.blocks));
-        for (int stage = 0; stage < 4; ++stage)
-        {
-            Serial.printf(",mean%d_us=%.3f,peak%d_us=%.3f", stage, static_cast<double>(timing.sum[stage]) / timing.blocks / cycles_per_us, stage, timing.peak[stage] / cycles_per_us);
-        }
-        Serial.printf(",peak_type=%u,peak_mod=%u,peak_periodic=%u,peak_pitch=%.4f,peak_pivot=%.1f,peak_q=%.3f\n", timing.peak_type, timing.peak_modulation, timing.peak_periodic, timing.peak_pitch, timing.peak_cutoff, timing.peak_q);
-    }
-    Serial.println(F("VCF_BENCH: v=reset CPU/VCF without read instrumentation; c=report; stage and voice peaks need not coincide; VCF stage includes 3 quarter-block coefficient updates."));
-#endif
-    Serial.println(F("AUDIO_COST: peaks are since d/reset; individual Player peaks need not coincide. c=CPU report, p=CPU+read report, d=reset/start, D=disable read diagnostics."));
-}
-
 FLASHMEM void loop()
 {
     static bool recording_limit_notified = false;
@@ -1088,56 +991,15 @@ FLASHMEM void loop()
     P_Service_patch_cache();
 
 
-#if defined(LILLA_AUDIO_DIAGNOSTICS) || defined(LILLA_READ_BENCHMARK)
+#if defined(LILLA_READ_BENCHMARK)
     if (Serial.available() > 0)
     {
         const int command = Serial.read();
-#if defined(LILLA_READ_BENCHMARK)
         if (command == 'b')
         {
             ReadBenchmark::Run(PatchCache_Manager, Audio_tables, Trigger.Is_running() && (Lilla_state != DIRECT_SAMPLING || DS_state == DS_waiting_state));
         }
-        else
-#endif
-        if (command == 'v')
-        {
-            const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-
-            AudioNoInterrupts();
-            Players_Manager.Enable_read_diagnostics(false);
-            Reset_audio_cost_diagnostics();
-            if (audio_enabled)
-            {
-                AudioInterrupts();
-            }
-
-            Serial.println(F("VCF/CPU measurement reset; read instrumentation disabled; play test, then send c."));
-        }
-        else if (command == 'd' || command == 'D')
-        {
-            const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-            AudioNoInterrupts();
-            Players_Manager.Enable_read_diagnostics(command == 'd');
-            if (command == 'd')
-            {
-                Reset_audio_cost_diagnostics();
-            }
-            if (audio_enabled)
-            {
-                AudioInterrupts();
-            }
-            Serial.println(command == 'd' ? F("READ_DIAG: enabled/reset; play notes, then send p; D disables") : F("READ_DIAG: disabled; last/peak retained"));
-        }
-        else if (command == 'c')
-        {
-            Print_audio_cost_diagnostics();
-        }
-        else if (command == 'p')
-        {
-            Print_player_read_diagnostics();
-        }
     }
-
 #endif
 
     if (audio_tables_error_pending)
@@ -1382,13 +1244,6 @@ FLASHMEM void loop()
         }
     }
 
-#if defined(LILLA_AUDIO_DIAGNOSTICS)
-    // Print AudioProcessorUsage
-    if (Read_pushbutton(EN_PB_PreListenVol))
-    {
-        Print_audio_cost_diagnostics();
-    }
-#endif
 
 #pragma endregion // parte comune
 
@@ -8238,39 +8093,7 @@ FLASHMEM void loop()
     }
 }
 
-// Startup, encoder and audio-input helper definitions.
-inline AutoTuneInput::AutoTuneInput() : AudioStream(0, nullptr)
-{
-}
-
-inline bool AutoTuneInput::Idle() const
-{
-    return position == 1024;
-}
-
-inline void AutoTuneInput::Begin(const int16_t *input) // Called with audio interrupts disabled and the previous window fully sent.
-{
-    samples = input;
-    position = 0;
-}
-
-inline void AutoTuneInput::update()
-{
-    if (Idle())
-    {
-        return;
-    }
-    audio_block_t *block = allocate();
-    if (block == nullptr)
-    {
-        return;
-    }
-    memcpy(block->data, samples + position, AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
-    transmit(block);
-    release(block);
-    position += AUDIO_BLOCK_SAMPLES;
-}
-
+// Startup and encoder helper definitions.
 inline void P_UpdatePatchOriginalAndMenu(void)
 {
     patch_original_0 = patch_original;
@@ -15345,7 +15168,7 @@ FLASHMEM void Startup_hardware_and_objects(void)
     }
 
     // CacheCycleFinalizer
-    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager, &Audio_tables, &Players_Manager);
+    CacheCycle_finalizer.Begin(&Player[0], &PatchCache_Manager, &Audio_tables);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // *******************        FRAM       **********************
@@ -15883,68 +15706,8 @@ void P_Service_patch_cache(void) // Coordinate bounded cache loading and own bot
 }
 
 
-FLASHMEM void Print_player_read_diagnostics(void)
-{
-    Print_audio_cost_diagnostics();
-    DMAMEM static PlayersManager::ReadDiagnosticsSnapshot snapshots[4];
-    const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
 
-    AudioNoInterrupts();
-    const auto budget = Players_Manager.Get_read_budget_status(); // Coherent scheduler snapshot while the audio IRQ is suspended.
-    const bool enabled = Players_Manager.Copy_read_diagnostics(snapshots[0], snapshots[1], snapshots[2], snapshots[3]);
 
-    if (audio_enabled)
-    {
-        AudioInterrupts();
-    }
-
-    Serial.printf("READ_BUDGET: limit_us=%.1f,reserved_us=%.3f,crossfade_us=%.3f,rejected_notes=%lu,retired_players=%lu,forced_protected=%lu\n", PlayerReadBudget::Limit_us, budget.reserved_us, budget.crossfade_us, static_cast<unsigned long>(budget.rejected_notes), static_cast<unsigned long>(budget.retired_players), static_cast<unsigned long>(budget.forced_protected));
-    Serial.printf("READ_DIAG: %s; observed_blocks=%lu\n", enabled ? "enabled" : "disabled", static_cast<unsigned long>(snapshots[0].blocks));
-
-    if (snapshots[0].blocks == 0)
-    {
-        Serial.println(F("READ_DIAG: send d, play notes, then p (report); D disables"));
-        return;
-    }
-
-    Serial.println(F("READ_DIAG: estimates describe reads performed in each block at actual pitch, NOT a maximum-bend reservation or full Player CPU cost"));
-    Serial.println(F("READ_DIAG: harvest_us includes assembly/reversal, counter overhead and interruptions; estimated_us models source transfers only"));
-    Serial.println(F("READ_DIAG: max_underestimate is the largest positive harvest-minus-estimate gap, including assembly/diagnostic overhead; not pure memory-model error"));
-    Serial.println(F("READ_DIAG: flags 1=RAM loop proxy, 2=Live PSRAM copy without zero-fill (proxy), 4=padding, 8=packet open unmodelled, 16=pending restart/edit, 32=restart executed"));
-    Serial.println(F("READ_DIAG: READ_DIAG_BUDGET belongs to each snapshot cycle; reserved_us covers maximum modulation; forecast_us uses current/queued bend; headroom values are before crossfades, pre_players_us includes scheduling; minimum_us is the rejected 16-sample cost"));
-    Serial.println(F("READ_DIAG: transition_kind 0=none, 1=restart, 2=edit, 3=both; mix_samples is assigned, harvests/flags describe actual execution; READ_BUDGET counters are since boot"));
-    Serial.println(F("snapshot,cycle,player,harvests,max_actual_pitch,flash_reads,flash_samples,psram_reads,psram_samples,ram_reads,ram_samples,estimated_us,harvest_us,flags,uncovered_reads,transition_kind,mix_samples,available_before_us,assigned_us,minimum_us"));
-
-    const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
-    const char *snapshot_names[] = {"last", "peak_estimate", "restart_peak", "max_underestimate"};
-
-    for (uint8_t snapshot = 0; snapshot < 4; ++snapshot)
-    {
-        const auto &data = snapshots[snapshot];
-        const char *name = snapshot_names[snapshot];
-
-        if (data.blocks == 0)
-        {
-            Serial.printf("READ_DIAG: %s not observed in this window\n", name);
-            continue;
-        }
-
-        const auto &scheduled = data.budget; // Historical allocation travels with the same last/peak/restart/gap snapshot.
-        Serial.printf("READ_DIAG_BUDGET,%s,cycle=%lu,valid=%u,limit_us=%.1f,reserved_us=%.3f,forecast_us=%.3f,read_headroom_us=%.3f,deadline_headroom_us=%.3f,scheduler_elapsed_us=%.3f,pre_players_us=%.3f,available_us=%.3f,crossfade_us=%.3f,first_player=%u\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(scheduled.valid), PlayerReadBudget::Limit_us, scheduled.reserved_us, scheduled.forecast_us, scheduled.read_headroom_us, scheduled.deadline_headroom_us, scheduled.scheduler_elapsed_us, scheduled.pre_players_us, scheduled.available_us, scheduled.crossfade_us, static_cast<unsigned int>(scheduled.first_player));
-
-        for (uint8_t player = 0; player < PLAYERS; ++player)
-        {
-            const auto &usage = data.players[player];
-            const auto &flash = usage.sources[0];
-            const auto &psram = usage.sources[1];
-            const auto &ram = usage.sources[2];
-            const uint32_t uncovered = flash.uncovered_operations + psram.uncovered_operations + ram.uncovered_operations;
-            Serial.printf("%s,%lu,%u,%u,%.4f,%lu,%lu,%lu,%lu,%lu,%lu,%.3f,%.3f,%u,%lu,%u,%u,%.3f,%.3f,%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<unsigned int>(player), static_cast<unsigned int>(usage.harvests), static_cast<double>(usage.maximum_pitch), static_cast<unsigned long>(flash.operations), static_cast<unsigned long>(flash.samples), static_cast<unsigned long>(psram.operations), static_cast<unsigned long>(psram.samples), static_cast<unsigned long>(ram.operations), static_cast<unsigned long>(ram.samples), static_cast<double>(data.estimated_us[player]), static_cast<double>(usage.harvest_cycles / cycles_per_us), static_cast<unsigned int>(usage.flags), static_cast<unsigned long>(uncovered), static_cast<unsigned int>(scheduled.transition[player]), static_cast<unsigned int>(scheduled.mix_samples[player]), scheduled.available_before_us[player], scheduled.assigned_us[player], scheduled.minimum_us[player]);
-        }
-
-        Serial.printf("READ_DIAG_TOTAL,%s,cycle=%lu,estimated_us=%.3f,harvest_us=%.3f,uncovered_reads=%lu,restarted_players=%u,harvest_minus_estimate_us=%.3f\n", name, static_cast<unsigned long>(data.cycle), static_cast<double>(data.total_estimated_us), static_cast<double>(data.total_harvest_us), static_cast<unsigned long>(data.uncovered_operations), static_cast<unsigned int>(data.restarted_players), static_cast<double>(data.total_harvest_us - data.total_estimated_us));
-    }
-}
 
 FLASHMEM void SET_Prepare_user_audio(void)
 {

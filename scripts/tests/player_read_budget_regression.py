@@ -138,9 +138,6 @@ struct PlayersManager
     float Get_cross_mix_time(int, int);
 };
 '''
-budget_header = (ROOT / 'lib/PlayersManager/PlayersManager.h').read_text(encoding='utf-8')
-budget_type = re.search(r'    struct ReadBudgetDiagnostics[^\n]*\n    \{.*?\n    \};', budget_header, re.S).group(0)
-production = production.replace('struct PlayersManager\n{', 'struct PlayersManager\n{\n' + budget_type + '\n    bool read_diagnostics_enabled = true; // Exercise diagnostic capture alongside real scheduling decisions.\n    ReadBudgetDiagnostics read_budget_diagnostics; // Production scheduling evidence.\n')
 
 production += ''.join(method(manager, signature) for signature in [
     'PlayerReadBudget::Plan PlayersManager::New_read_plan',
@@ -297,9 +294,9 @@ int main()
     spare.voices[0].forecast = spare.voices[1].forecast = 450;
     spare.voices[0].pending = spare.voices[1].pending = true;
     spare.Prepare_read_budget();
-    assert(spare.budget_reserved_us == 1750 && spare.read_budget_diagnostics.forecast_us == 900);
+    assert(spare.budget_reserved_us == 1750);
     assert(spare.voices[0].mix == 64 && spare.voices[1].mix == 64);
-    assert(spare.budget_retired_players == 0 && spare.read_budget_diagnostics.read_headroom_us == 900);
+    assert(spare.budget_retired_players == 0);
 
     // Insufficient eligible budget rejects atomically: no partial voice theft.
     PlayersManager denied;
@@ -354,24 +351,13 @@ int main()
     fades.Prepare_read_budget();
     assert(fades.budget_reserved_us + fades.budget_crossfade_us <= Limit_us);
     assert(fades.voices[0].mix == 64 && fades.voices[1].mix == 0);
-    const auto scheduled = fades.read_budget_diagnostics; // Allocation evidence must explain the accepted and rejected tiers.
-    assert(scheduled.valid && scheduled.cycle == audio_update_cycle && scheduled.reserved_us == 1750);
-    assert(scheduled.read_headroom_us == 50 && scheduled.deadline_headroom_us == 250 && scheduled.available_us == 50);
-    assert(scheduled.transition[0] == 1 && scheduled.transition[1] == 2 && scheduled.first_player == 0);
-    assert(scheduled.mix_samples[0] == 64 && scheduled.mix_samples[1] == 0);
-    assert(std::abs(scheduled.assigned_us[0] - 44.8f) < .001f);
-    assert(scheduled.minimum_us[1] > scheduled.available_before_us[1] && scheduled.minimum_us[0] == 0);
-    assert(scheduled.crossfade_us == fades.budget_crossfade_us && scheduled.pre_players_us == 0);
+    assert(std::abs(fades.budget_crossfade_us - 44.8f) < .001f);
     audio_update_time_micros = 1000;
     fades.Prepare_read_budget();
     assert(fades.voices[0].mix == 0 && fades.voices[1].mix == 0);
-    assert(fades.read_budget_diagnostics.read_headroom_us == 50 && fades.read_budget_diagnostics.deadline_headroom_us == -750);
-    assert(fades.read_budget_diagnostics.available_us == 0 && fades.read_budget_diagnostics.scheduler_elapsed_us == 1000 && fades.read_budget_diagnostics.pre_players_us == 1000);
-    assert(fades.read_budget_diagnostics.mix_samples[0] == 0 && fades.read_budget_diagnostics.assigned_us[0] == 0);
     fades.voices[0].playing = fades.voices[1].playing = false;
     fades.voices[0].pending = fades.voices[1].editing = false;
     fades.Prepare_read_budget(); assert(fades.Reserved_read_us() == 0);
-    assert(fades.read_budget_diagnostics.transition[0] == 0 && fades.read_budget_diagnostics.minimum_us[1] == 0 && fades.read_budget_diagnostics.crossfade_us == 0);
     audio_update_time_micros = 0;
 
     // Randomized admission: either commit a fitting set or leave every incumbent intact.

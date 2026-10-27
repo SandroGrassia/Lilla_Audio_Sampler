@@ -2,9 +2,10 @@
 
 #include <cmath>
 #include <stdint.h>
-#include "PlayerReadDiagnostics.h"
 #include "PlayerInterpolator.h"
 #include "PlayerAntialias.h"
+
+enum class PlayerReadSource : uint8_t { Flash, Psram, Ram }; // Storage classes used by the source-read budget.
 
 namespace PlayerReadBudget
 {

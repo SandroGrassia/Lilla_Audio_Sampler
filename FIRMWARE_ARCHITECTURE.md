@@ -38,7 +38,7 @@ Audio blocks contain 128 samples, approximately 2.9 ms at the nominal 44.1 kHz s
 
 1. [LillaClock](lib/LillaClock/LillaClock.cpp), instantiated as `Trigger`, resets the cycle timer and advances the cycle counter. While its control callbacks are running, it updates the common filter manager, delay manager and MIDI reader. It also prepares the player read budget.
 2. The 16 `AudioPlayer` objects render their voices; the left and right routers collect their output.
-3. [CacheCycleFinalizer](lib/CacheCycleFinalizer/CacheCycleFinalizer.cpp) collects diagnostics and player reference masks, then releases retired caches and table banks that no voice still references.
+3. [CacheCycleFinalizer](lib/CacheCycleFinalizer/CacheCycleFinalizer.cpp) collects player reference masks, then releases retired caches and table banks that no voice still references.
 4. The remaining input, recording, effect and output objects process their blocks according to their construction order and connections.
 
 The logical signal-flow diagram below is not an execution-order diagram. Feedback paths also cross audio updates; changing object order can change behavior even when the connections are unchanged.
@@ -196,7 +196,7 @@ These structures are defined in [SharedElements.h](lib/SharedElements/SharedElem
 
 [PlaybackProfile.h](lib/config/PlaybackProfile.h) sets final pitch-ratio ceilings of 5 for Flash playback and 35 for PSRAM and wavetable playback. These ceilings include tuning, pitch bend and vibrato; they are not guarantees that every voice can run simultaneously at the maximum ratio.
 
-The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h), [PlayerReadDiagnostics.h](lib/AudioPlayer/PlayerReadDiagnostics.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
+The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
 
 ## 7. Pitch-dependent polyphony
 
@@ -210,7 +210,7 @@ The table and graph are calculated from [PlayerReadBudget.h](lib/AudioPlayer/Pla
 
 The model reserves up to **1.515 times the requested base pitch** for positive pitch bend and vibrato, subject to the PSRAM pitch ceiling of 35. It applies a 10% cost margin and a combined source-read budget of **1800 microseconds per block**, leaving approximately 1100 microseconds for remaining processing and safety margin. Thus +48 semitones means a requested pitch of 16, with a reserved pitch of 24.24 before the ceiling applies. Requested pitch is expressed as semitones from the root key: `pitch = 2^(semitones / 12)`.
 
-VCF+LFO belongs to the remaining processing allowance; its cost must not also be subtracted from the 1800-microsecond source-read budget. Measurements in the tested configurations suggest approximately 10 microseconds per voice per block, with 15 microseconds used as a provisional conservative allowance, not an established maximum for every configuration. The table is unchanged with antialias option A enabled: the model still admits 16 voices through +12 semitones, and A does not enable source antialiasing for base pitches above 2. Bend and vibrato do not switch that upper-threshold eligibility.
+VCF+LFO belongs to the remaining processing allowance; its cost must not also be subtracted from the 1800-microsecond source-read budget. The table is unchanged with antialias option A enabled: the model still admits 16 voices through +12 semitones, and A does not enable source antialiasing for base pitches above 2. Bend and vibrato do not switch that upper-threshold eligibility.
 
 ### Maximum polyphony predicted by the budget
 
@@ -236,7 +236,7 @@ xychart-beta
     line [16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 15, 14, 13, 12, 12, 11, 10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
 ```
 
-Each plotted value corresponds to an integer semitone; the table groups consecutive semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. In particular, diagnostic measurements at fixed pitch with read-budget enforcement disabled must not be interpreted as the production limit with bend/vibrato headroom. The VCF benchmark build deliberately bypasses budget admission and retirement; normal firmware retains them. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
+Each plotted value corresponds to an integer semitone; the table groups consecutive semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
 
 ## 8. Memory and persistence
 

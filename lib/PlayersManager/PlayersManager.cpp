@@ -55,113 +55,9 @@ bool PlayersManager::Get_read_time_us(ReadSource source, uint32_t samples, float
     return true;
 }
 
-bool PlayersManager::Get_read_usage_time_us(ReadSource source, const PlayerReadUsage &usage, float &time_us)
-{
-    time_us = INFINITY;
-    if (usage.uncovered_operations != 0)
-    {
-        return false;
-    }
-    if (usage.operations == 0)
-    {
-        time_us = 0.0f;
-        return true;
-    }
-    // Each individual operation was range-checked by Add(); their combined sample count may exceed 4500.
-    const float extra_operations = static_cast<float>(usage.operations - 1u);
-    switch (source)
-    {
-        case ReadSource::Flash:
-            time_us = Flash_read_time_us(usage.model_samples) + extra_operations * Flash_read_time_us(0);
-            break;
-        case ReadSource::Psram:
-            time_us = Psram_read_time_us(usage.model_samples) + extra_operations * Psram_read_time_us(0);
-            break;
-        case ReadSource::Ram:
-            time_us = Ram_read_time_us(usage.model_samples) + extra_operations * Ram_read_time_us(0);
-            break;
-    }
-    return true;
-}
 
-void PlayersManager::Enable_read_diagnostics(bool enabled)
-{
-    read_diagnostics_enabled = enabled;
-    AudioPlayer::Enable_read_diagnostics(enabled);
-    if (enabled)
-    {
-        ARM_DEMCR |= ARM_DEMCR_TRCENA;
-        ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
-        read_budget_diagnostics = {}; // A new observation window must not inherit an earlier allocation.
-        read_diagnostics_last = {};
-        read_diagnostics_peak = {};
-        read_diagnostics_restart = {};
-        read_diagnostics_gap = {};
-    }
-}
 
-void PlayersManager::Collect_read_diagnostics(void)
-{
-    if (!read_diagnostics_enabled)
-    {
-        return;
-    }
-    read_diagnostics_last.cycle = audio_update_cycle;
-    read_diagnostics_last.budget = read_budget_diagnostics.valid && read_budget_diagnostics.cycle == audio_update_cycle ? read_budget_diagnostics : ReadBudgetDiagnostics{}; // Never attach the latest budget to a different historical block.
-    ++read_diagnostics_last.blocks;
-    read_diagnostics_last.total_estimated_us = 0.0f;
-    read_diagnostics_last.total_harvest_us = 0.0f;
-    read_diagnostics_last.uncovered_operations = 0;
-    read_diagnostics_last.restarted_players = 0;
-    const float cycles_per_us = static_cast<float>(F_CPU_ACTUAL) / 1000000.0f;
-    for (uint8_t player = 0; player < PLAYERS; ++player)
-    {
-        const PlayerReadDiagnostics &usage = Player_ptr[player].Get_read_diagnostics();
-        read_diagnostics_last.players[player] = usage.cycle == audio_update_cycle ? usage : PlayerReadDiagnostics{}; // Never mix observations from different blocks.
-        const PlayerReadDiagnostics &current = read_diagnostics_last.players[player];
-        if ((current.flags & PlayerReadDiagnostics::RestartExecuted) != 0)
-        {
-            ++read_diagnostics_last.restarted_players;
-        }
-        float estimated = 0.0f;
-        for (uint8_t source = 0; source < 3; ++source)
-        {
-            float source_us;
-            if (!Get_read_usage_time_us(static_cast<ReadSource>(source), current.sources[source], source_us))
-            {
-                source_us = INFINITY;
-            }
-            estimated += source_us;
-            read_diagnostics_last.uncovered_operations += current.sources[source].uncovered_operations;
-        }
-        read_diagnostics_last.estimated_us[player] = estimated;
-        read_diagnostics_last.total_estimated_us += estimated;
-        read_diagnostics_last.total_harvest_us += static_cast<float>(current.harvest_cycles) / cycles_per_us;
-    }
-    if (read_diagnostics_peak.blocks == 0 || read_diagnostics_last.total_estimated_us > read_diagnostics_peak.total_estimated_us)
-    {
-        read_diagnostics_peak = read_diagnostics_last;
-    }
-    if (read_diagnostics_last.restarted_players != 0 && (read_diagnostics_restart.blocks == 0 || read_diagnostics_last.total_estimated_us > read_diagnostics_restart.total_estimated_us))
-    {
-        read_diagnostics_restart = read_diagnostics_last;
-    }
-    const float gap_us = read_diagnostics_last.total_harvest_us - read_diagnostics_last.total_estimated_us;
-    const float previous_gap_us = read_diagnostics_gap.total_harvest_us - read_diagnostics_gap.total_estimated_us;
-    if (read_diagnostics_last.uncovered_operations == 0 && gap_us > 0.0f && (read_diagnostics_gap.blocks == 0 || gap_us > previous_gap_us))
-    {
-        read_diagnostics_gap = read_diagnostics_last;
-    }
-}
 
-bool PlayersManager::Copy_read_diagnostics(ReadDiagnosticsSnapshot &last, ReadDiagnosticsSnapshot &peak, ReadDiagnosticsSnapshot &restart, ReadDiagnosticsSnapshot &gap) const
-{
-    last = read_diagnostics_last;
-    peak = read_diagnostics_peak;
-    restart = read_diagnostics_restart;
-    gap = read_diagnostics_gap;
-    return read_diagnostics_enabled;
-}
 
 void PlayersManager::Set_ADSR_ptr(AudioADSR *ptr)
 {
@@ -450,9 +346,6 @@ float PlayersManager::Reserved_read_us(void) const
 
 bool PlayersManager::Admit_read_budget(int target, uint8_t instrument, float incoming_us)
 {
-#if defined(LILLA_VCF_BENCHMARK)
-    return std::isfinite(incoming_us); // Benchmark all 16 voices without cost-based retirement; invalid source geometry remains rejected.
-#endif
     if (!std::isfinite(incoming_us) || incoming_us > PlayerReadBudget::Limit_us)
     {
         ++budget_rejected_notes;
@@ -532,7 +425,6 @@ void PlayersManager::Prepare_read_budget(void)
 {
     // Main-loop edits and cache promotion can change the forecast without a NoteOn.
     float total = Reserved_read_us(); // Fresh full-block cost, including pending edits and replacements.
-#if !defined(LILLA_VCF_BENCHMARK)
     while (total > PlayerReadBudget::Limit_us)
     {
         int best = -1; // Release tails first, then unprotected held voices, protected voices only as a last resort.
@@ -563,16 +455,11 @@ void PlayersManager::Prepare_read_budget(void)
         ++budget_retired_players;
         total = Reserved_read_us();
     }
-#endif
     budget_reserved_us = total;
     const bool previous_batch = midi_batch_active; // Include elapsed preparation time when scheduling from the audio clock.
     midi_batch_active = true;
     Calculate_and_set_mix_samples();
     midi_batch_active = previous_batch;
-    if (read_diagnostics_enabled)
-    {
-        read_budget_diagnostics.pre_players_us = static_cast<float>(audio_update_time_micros); // Include the scheduler itself in the time spent before Player rendering.
-    }
 }
 
 void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track) // after receiving a NoteOn command
@@ -1496,24 +1383,15 @@ float PlayersManager::Get_cross_mix_time(int player, int mix_samples)
 
 int PlayersManager::Get_span_for_all_cross_mix(void)
 {
-    const float reserved = Reserved_read_us(); // Admission retains maximum bend and vibrato.
     float forecast = 0.0f;
     for (int player = 0; player < PLAYERS; ++player)
     {
         forecast += Player_ptr[player].Next_block_read_us();
     }
     const float read_headroom = PlayerReadBudget::Limit_us - forecast; // Spend only the next block forecast plus crossfades.
-    const float elapsed = midi_batch_active ? static_cast<float>(audio_update_time_micros) : 0.0f; // Sample once so diagnostics describe the exact deadline decision.
+    const float elapsed = midi_batch_active ? static_cast<float>(audio_update_time_micros) : 0.0f; // Sample once for the deadline decision.
     const float deadline_headroom = midi_batch_active ? AUDIO_PLAYER_DEADLINE_US - elapsed - forecast - 700.0f : INFINITY; // Keep the existing processing allowance and main-loop behavior.
     const float available = fminf(read_headroom, deadline_headroom); // The tighter constraint determines the crossfade pool.
-    if (read_diagnostics_enabled)
-    {
-        read_budget_diagnostics.reserved_us = reserved;
-        read_budget_diagnostics.forecast_us = forecast;
-        read_budget_diagnostics.read_headroom_us = read_headroom;
-        read_budget_diagnostics.deadline_headroom_us = deadline_headroom;
-        read_budget_diagnostics.scheduler_elapsed_us = elapsed;
-    }
     return available > 0.0f ? static_cast<int>(available) : 0;
 }
 
@@ -1568,19 +1446,8 @@ void PlayersManager::Update_players_stistics(void)
 
 void PlayersManager::Calculate_and_set_mix_samples(void)
 {
-    if (read_diagnostics_enabled)
-    {
-        read_budget_diagnostics = {}; // Clear decisions from the previous block, including idle Player entries.
-        read_budget_diagnostics.cycle = audio_update_cycle;
-        read_budget_diagnostics.valid = true;
-        read_budget_diagnostics.first_player = restart_mix_first_player;
-    }
     float available = Get_span_for_all_cross_mix(); // Shared pool for note restarts and geometry edits.
     budget_crossfade_us = 0.0f;
-    if (read_diagnostics_enabled)
-    {
-        read_budget_diagnostics.available_us = available; // Preserve the rounded pool actually consumed below.
-    }
     const uint8_t first = restart_mix_first_player; // Rotate scarce crossfade time without changing note selection.
     bool assigned = false; // Advance fairness only when a transition is present.
     for (int offset = 0; offset < PLAYERS; ++offset) // Account each additional outgoing harvest exactly once.
@@ -1592,11 +1459,6 @@ void PlayersManager::Calculate_and_set_mix_samples(void)
             continue;
         }
         assigned = true;
-        if (read_diagnostics_enabled)
-        {
-            read_budget_diagnostics.transition[player] = (voice.Needs_restart_mix() ? 1u : 0u) | (voice.Has_pending_edit() ? 2u : 0u);
-            read_budget_diagnostics.available_before_us[player] = available;
-        }
         uint8_t chosen = 0; // A zero-mix restart uses separate blocks and never needs two source harvests.
         for (const uint8_t samples : {64, 48, 32, 24, 16}) // Longest affordable outgoing fade.
         {
@@ -1606,28 +1468,12 @@ void PlayersManager::Calculate_and_set_mix_samples(void)
                 chosen = samples;
                 available -= cost;
                 budget_crossfade_us += cost;
-                if (read_diagnostics_enabled)
-                {
-                    read_budget_diagnostics.assigned_us[player] = cost;
-                }
                 break;
             }
-            if (read_diagnostics_enabled && samples == 16)
-            {
-                read_budget_diagnostics.minimum_us[player] = cost; // No extra forecast call: record the minimum tier only when it was rejected.
-            }
-        }
-        if (read_diagnostics_enabled)
-        {
-            read_budget_diagnostics.mix_samples[player] = chosen;
         }
         voice.Set_mix_samples(chosen);
         voice.Set_edit_mix_samples(chosen);
         restart_Player[player] = false;
-    }
-    if (read_diagnostics_enabled)
-    {
-        read_budget_diagnostics.crossfade_us = budget_crossfade_us;
     }
     players_to_restart = 0;
     if (assigned)

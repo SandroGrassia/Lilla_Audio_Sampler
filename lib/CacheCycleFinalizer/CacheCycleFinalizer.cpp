@@ -8,14 +8,12 @@
 #include "AudioPlayer.h"
 #include "PatchCacheManager.h"
 #include "AudioTables.h"
-#include "PlayersManager.h"
 
-void CacheCycleFinalizer::Begin(AudioPlayer *players_ptr, PatchCacheManager *cache_manager_ptr, AudioTables *audio_tables_ptr, PlayersManager *players_manager_ptr)
+void CacheCycleFinalizer::Begin(AudioPlayer *players_ptr, PatchCacheManager *cache_manager_ptr, AudioTables *audio_tables_ptr)
 {
     players = players_ptr;
     cache_manager = cache_manager_ptr;
     audio_tables = audio_tables_ptr;
-    players_manager = players_manager_ptr;
     active = true;
 }
 
@@ -26,10 +24,6 @@ void CacheCycleFinalizer::update()
         return;
     }
 
-    if (players_manager != nullptr)
-    {
-        players_manager->Collect_read_diagnostics();
-    }
 
     uint16_t referenced_cache_mask = 0;
     uint8_t referenced_banks_mask = 0;

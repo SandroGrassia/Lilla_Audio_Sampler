@@ -23,7 +23,6 @@
 #include "Functions.h"
 #include "AudioADSR.h"
 #include "AudioTables.h"
-#include "PlayerReadDiagnostics.h"
 #include "PlayerReadBudget.h"
 #include "PlayerInterpolator.h"
 #include "PlayerToneFilter.h"
@@ -295,9 +294,6 @@ private:
     int16_t *FIFO;
     int FIFO_dim;
 
-    inline static bool read_diagnostics_enabled = false;
-    PlayerReadDiagnostics read_diagnostics;
-    void Record_read(PlayerReadSource source, int count, uint16_t flags = 0);
     float interpolation_mix = 0.0f; // Full sinc below 0.75x; blend continuously to linear at 1x.
     PlayerAntialias::Settings antialias;
     static float resampled_basket[AUDIO_BLOCK_SAMPLES]; // Each harvest is consumed before the next.
@@ -333,28 +329,11 @@ private:
     void My_LED(bool on);
 
 public:
-#if defined(LILLA_VCF_BENCHMARK)
-    struct VcfTiming // Cycle counts from actual rendered VCF blocks; copy/reset only with audio interrupts disabled.
-    {
-        uint32_t blocks = 0;
-        uint64_t sum[4] = {}; // LFO, frequency mapping, VCF update, complete chain.
-        uint32_t peak[4] = {}; // Independent stage maxima; do not add these to estimate a simultaneous peak.
-        float peak_pitch = 0.0f;
-        float peak_cutoff = 0.0f;
-        float peak_q = 0.0f;
-        uint8_t peak_type = 0;
-        uint8_t peak_modulation = 0;
-        uint8_t peak_periodic = 0;
-    };
-    VcfTiming vcf_timing; // Diagnostic-only per-voice statistics; no Serial calls in the audio interrupt.
-#endif
     AudioPlayer(void) : AudioStream(0, NULL)
     {
         begin();
     }
 
-    static void Enable_read_diagnostics(bool enabled) { read_diagnostics_enabled = enabled; }
-    const PlayerReadDiagnostics &Get_read_diagnostics(void) const { return read_diagnostics; } // Read from audio IRQ or with audio IRQ disabled.
     PlayerReadBudget::Plan Get_read_plan(bool pending = false, bool edited = false, bool reserve_modulation = true) const;     // Capture source geometry without reading samples; caller owns the audio IRQ.
     float Reserved_read_us(void) const;                                                        // Maximum current/pending/edited full-block cost, with idle voices excluded.
     float Next_block_read_us(void) const; // Current/queued bend with bounded vibrato; admission keeps the full modulation reserve.

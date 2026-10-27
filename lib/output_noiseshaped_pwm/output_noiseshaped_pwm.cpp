@@ -46,9 +46,6 @@ void AudioOutputNoiseShapedPWM::begin(uint8_t pin)
 	block = NULL;
 	update_responsibility = false;
 
-#if defined(LILLA_VCF_BENCHMARK) && defined(LILLA_VCF_BENCHMARK_DISABLE_PWM)
-    return; // Diagnostic comparison: do not start PWM hardware, DMA or its interrupts.
-#endif
 
 	if (pin >= 64)
 	{
@@ -323,14 +320,6 @@ void AudioOutputNoiseShapedPWM::handle_interrupt(void)
 
 void AudioOutputNoiseShapedPWM::update(void)
 {
-#if defined(LILLA_VCF_BENCHMARK) && defined(LILLA_VCF_BENCHMARK_DISABLE_PWM)
-    audio_block_t *discarded_block = receiveReadOnly(); // Drain upstream audio while the PWM hardware is disabled.
-    if (discarded_block)
-    {
-        release(discarded_block);
-    }
-    return;
-#endif
 	if (!active)
 	{
 		return;

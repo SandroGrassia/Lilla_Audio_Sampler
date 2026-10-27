@@ -8,8 +8,9 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
-feeder = re.search(r'^class AutoTuneInput : public AudioStream\n\{.*?^\};', source, re.M | re.S).group(0)
-feeder += '\n' + '\n'.join(re.findall(r'^inline (?:[\w:*&]+ )?AutoTuneInput::[^\n]+\n\{.*?^\}', source, re.M | re.S))
+feeder_header = (ROOT / 'lib/AutoTuneInput/AutoTuneInput.h').read_text(encoding='utf-8')
+feeder_source = (ROOT / 'lib/AutoTuneInput/AutoTuneInput.cpp').read_text(encoding='utf-8')
+feeder = re.sub(r'^#(?:pragma|include)[^\n]*\n', '', feeder_header + '\n' + feeder_source, flags=re.M)
 tune = re.search(r'^FLASHMEM const char \*S_Auto_tune_pitch\(int sound_id\)\n\{.*?^\}', source, re.M | re.S).group(0)
 
 prefix = r'''

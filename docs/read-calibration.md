@@ -1,6 +1,6 @@
 # Source-read calibration
 
-The production build (`teensy41`) excludes the benchmark and its buffers. Read-budget enforcement and the `d`, `D`, `p` diagnostic commands remain available.
+The production build (`teensy41`) excludes the benchmark and its buffers. Read-budget enforcement remains active.
 
 ## Build and run
 

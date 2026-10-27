@@ -70,6 +70,8 @@ struct Transport
 } Serial1;
 midi::MidiInterface<Transport> MIDI(Serial1);
 constexpr int CC_SETTINGS = 1, MIDI_LOOP = 2;
+constexpr int MASTER_TRACK = 0;
+constexpr uint32_t LOOP_MAX_DURATION_MS = 120000;
 int Lilla_state = 0, LOOP_learning_track = 0;
 bool display_wait = false, LOOP_learn_flag = false;
 uint32_t LOOP_elements = 0, LOOP_learn_clock = 0, LOOP_time = 1000;
@@ -113,6 +115,7 @@ struct AudioPlayer
     int update_time = 0, mix_samples = 0;
     bool wavetable = false;
     float Current_read_us(uint32_t samples) { return 0.4f * pitch * samples; }
+    float Next_block_read_us() const { return 0; } // Isolate batching and crossfade assignment from source reservation costs.
     bool Has_pending_edit() { return main_settings_editing_flag; }
     void Set_edit_mix_samples(uint8_t) {}
     float Read_pitch() { return pitch; }
@@ -171,9 +174,6 @@ struct PlayersManager
 };
 '''
 
-budget_header = (ROOT / 'lib/PlayersManager/PlayersManager.h').read_text(encoding='utf-8')
-budget_type = re.search(r'    struct ReadBudgetDiagnostics[^\n]*\n    \{.*?\n    \};', budget_header, re.S).group(0)
-prefix = prefix.replace('struct PlayersManager\n{', 'struct PlayersManager\n{\n' + budget_type + '\n    bool read_diagnostics_enabled = false; // Host defaults preserve the non-diagnostic scheduler tests.\n    ReadBudgetDiagnostics read_budget_diagnostics; // Production scheduling evidence.\n')
 
 production = '\n'.join(line for line in config.splitlines() if line.startswith('static constexpr int AUDIO_')) + '\n'
 production += method(clock_source, 'void LillaClock::update')
