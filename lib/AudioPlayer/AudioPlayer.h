@@ -291,7 +291,7 @@ private:
     bool live_forward_end = false;                              // Fade the final block when FWD reaches never-recorded samples.
     bool live_forward_empty = false;
     int16_t live_forward_last_sample = 0;
-    bool live_start_pending = false; // Resolve the mobile start with the first rendered block's pitch.
+    bool live_start_pending = false; // Resolve the mobile or fixed start with the first rendered block's pitch.
     bool live_restart_pending = false; // Complete the booked restart even if recording stops.
     bool live_fade_out = false; // Fade the current output block before the booked jump.
     bool live_fade_in = false; // Fade the first output block after the booked jump.

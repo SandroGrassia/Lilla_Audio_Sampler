@@ -113,7 +113,7 @@ int main()
     }
     int16_t original[4096];
     std::copy_n(memory, 4096, original);
-    // Mobile starts: zero/nonzero offset, wrap and fractional pitch. Fixed and first-fill starts stay intact.
+    // Mobile starts: zero/nonzero offset, wrap and fractional pitch. Unaffected starts stay intact.
     for (int q : {127, 1023, 4095})
     {
         recorder.Q_sample = q;
@@ -144,68 +144,111 @@ int main()
     LS_X_delta = 0;
     recorder.writing = true;
     recorder.first_write_flag = false;
-    // Exact actual read endpoints differ with antialias when b_sample is an integer.
-    for (bool filtered : {false, true})
-    {
-        AudioPlayer p;
-        p.tone_filter_level = filtered ? 0x81 : 0;
-        p.pitch = p.pitch_note = 2;
-        p.a_first_sample = 769; // b=1023, the last written sample.
-        recorder.Q_sample = 1023;
-        p.Render();
-        assert(p.live_last_read_sample == 1023 + filtered);
-        assert(p.live_fade_out == !filtered);
-        assert(p.live_restart_pending == !filtered);
-    }
-    // Exercise ramps and saved destinations with real interpolation/filtering, including wrap and STOP.
-    for (bool filtered : {false, true})
-    {
-        for (int q : {127, 1023, 4095})
-        {
-            for (bool stop : {false, true})
-            {
-                recorder.Q_sample = q;
-                recorder.writing = true;
-                LS_state = REC;
-                AudioPlayer p;
-                p.tone_filter_level = filtered ? 0x81 : 0;
-                p.a_first_sample = q - 200;
-                p.A_Flash_sample = q - 200;
-                p.B_Flash_sample = -999; // Full-cache FWD must never use B, including after STOP.
-                p.Render();
-                assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
-                const int destination = (q + 129) % LS_buffer_dim;
-                assert(p.live_restart_sample == destination);
-                recorder.Q_sample = (q + 128) % LS_buffer_dim;
-                recorder.writing = !stop;
-                LS_state = stop ? 0 : REC;
-                p.Render();
-                assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
-                assert((static_cast<int>(p.a_sample) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim == destination);
-                assert(p.state == 1 && p.closes == 0);
-            }
-        }
-    }
-    // Endpoint inclusion is circular: Q and Q-127 belong, Q+1 and Q-128 do not.
-    recorder.writing = true;
-    LS_state = REC;
-    for (int q : {0, 63, 127, 4095})
+    // FIXED attacks move only when the prepared start belongs to the latest written block.
+    LS_XY_lock = true;
+    for (int q : {0, 63, 127, 1023, 4095})
     {
         recorder.Q_sample = q;
-        for (int distance : {-1, 0, 127, 128})
+        for (int distance : {-1, 0, 1, 127, 128, 256})
         {
+            const int fixed_start = (q - distance + LS_buffer_dim) % LS_buffer_dim;
             AudioPlayer p;
-            p.live_last_read_sample = q - distance;
-            p.Check_live_forward_boundary();
-            assert(p.live_restart_pending == (distance >= 0 && distance < 128));
+            p.A_Flash_sample = fixed_start;
+            p.B_Flash_sample = fixed_start + LS_buffer_dim - 1;
+            p.a_first_sample = fixed_start;
+            p.live_start_pending = true;
+            LS_X_delta = 777; // A stale mobile offset must not affect FIXED.
+            p.Prepare_live_forward_block();
+            const int expected = distance >= 0 && distance < 128 ? (q + 1) % LS_buffer_dim : fixed_start;
+            assert(p.A_Flash_sample == expected && p.a_first_sample == expected);
+            assert(p.B_Flash_sample == expected + LS_buffer_dim - 1);
+            assert(!p.live_restart_pending && !p.live_fade_in && !p.live_fade_out);
         }
     }
-    AudioPlayer changed;
-    changed.live_restart_pending = true;
-    changed.mode_player = LOOP_FWD;
-    changed.a_first_sample = 333;
-    changed.Prepare_live_forward_block();
-    assert(!changed.live_restart_pending && !changed.live_fade_in && changed.a_first_sample == 333);
+    for (int scenario = 0; scenario < 4; ++scenario)
+    {
+        AudioPlayer p;
+        recorder.Q_sample = 1023;
+        recorder.first_write_flag = scenario == 0;
+        recorder.writing = scenario != 1;
+        LS_state = scenario == 3 ? 0 : REC;
+        p.pitch = scenario == 2 ? 1.0f : 1.5f;
+        p.A_Flash_sample = 1000;
+        p.a_first_sample = 1000;
+        p.live_start_pending = true;
+        p.Prepare_live_forward_block();
+        assert(p.a_first_sample == 1000 && p.A_Flash_sample == 1000);
+    }
+    recorder.first_write_flag = false;
+    recorder.writing = true;
+    LS_state = REC;
+    for (bool fixed : {false, true})
+    {
+        LS_XY_lock = fixed;
+        // Exact actual read endpoints differ with antialias when b_sample is an integer.
+        for (bool filtered : {false, true})
+        {
+            AudioPlayer p;
+            p.tone_filter_level = filtered ? 0x81 : 0;
+            p.pitch = p.pitch_note = 2;
+            p.a_first_sample = 769; // b=1023, the last written sample.
+            recorder.Q_sample = 1023;
+            p.Render();
+            assert(p.live_last_read_sample == 1023 + filtered);
+            assert(p.live_fade_out == !filtered);
+            assert(p.live_restart_pending == !filtered);
+        }
+        // Exercise ramps and saved destinations with real interpolation/filtering, including wrap and STOP.
+        for (bool filtered : {false, true})
+        {
+            for (int q : {127, 1023, 4095})
+            {
+                for (bool stop : {false, true})
+                {
+                    recorder.Q_sample = q;
+                    recorder.writing = true;
+                    LS_state = REC;
+                    AudioPlayer p;
+                    p.tone_filter_level = filtered ? 0x81 : 0;
+                    p.a_first_sample = q - 200;
+                    p.A_Flash_sample = q - 200;
+                    p.B_Flash_sample = -999; // Full-cache FWD must never use B, including after STOP.
+                    p.Render();
+                    assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
+                    const int destination = (q + 129) % LS_buffer_dim;
+                    assert(p.live_restart_sample == destination);
+                    recorder.Q_sample = (q + 128) % LS_buffer_dim;
+                    recorder.writing = !stop;
+                    LS_state = stop ? 0 : REC;
+                    p.Render();
+                    assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
+                    assert((static_cast<int>(p.a_sample) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim == destination);
+                    assert(p.state == 1 && p.closes == 0);
+                }
+            }
+        }
+        // Endpoint inclusion is circular: Q and Q-127 belong, Q+1 and Q-128 do not.
+        recorder.writing = true;
+        LS_state = REC;
+        for (int q : {0, 63, 127, 4095})
+        {
+            recorder.Q_sample = q;
+            for (int distance : {-1, 0, 127, 128})
+            {
+                AudioPlayer p;
+                p.live_last_read_sample = q - distance;
+                p.Check_live_forward_boundary();
+                assert(p.live_restart_pending == (distance >= 0 && distance < 128));
+            }
+        }
+        AudioPlayer changed;
+        changed.live_restart_pending = true;
+        changed.mode_player = LOOP_FWD;
+        changed.a_first_sample = 333;
+        changed.Prepare_live_forward_block();
+        assert(!changed.live_restart_pending && !changed.live_fade_in && changed.a_first_sample == 333);
+    }
+    LS_XY_lock = false;
     // Ramps include exact endpoints, work for either sign, and leave the cache untouched.
     for (bool up : {false, true})
     {
@@ -295,7 +338,7 @@ int main()
             }
         }
     }
-    std::cout << "PASS: live starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes and first fill\n";
+    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes and first fill\n";
 }
 '''
 signatures = [

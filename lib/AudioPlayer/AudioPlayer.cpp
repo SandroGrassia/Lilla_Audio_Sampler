@@ -1951,12 +1951,17 @@ void AudioPlayer::Prepare_live_forward_block(void)
     {
         live_start_pending = false;
         const bool cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
-        if (cache_full && LS_state == REC && !LS_XY_lock && Live_Sampler->Is_writing() && pitch > 1.0f)
+        if (cache_full && LS_state == REC && Live_Sampler->Is_writing() && pitch > 1.0f)
         {
-            const int start_offset = LS_X_delta == 0 ? 1 : LS_X_delta;
-            A_Flash_sample = (Live_Sampler->Q_sample + start_offset) % LS_buffer_dim;
-            B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
-            a_first_sample = A_Flash_sample;
+            const int write_position = Live_Sampler->Q_sample;
+            // FIXED keeps its prepared attack unless it falls inside the latest written block.
+            if (!LS_XY_lock || (write_position - A_Flash_sample + LS_buffer_dim) % LS_buffer_dim < AUDIO_BLOCK_SAMPLES)
+            {
+                const int start_offset = (LS_XY_lock || LS_X_delta == 0) ? 1 : LS_X_delta;
+                A_Flash_sample = (write_position + start_offset) % LS_buffer_dim;
+                B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
+                a_first_sample = A_Flash_sample;
+            }
         }
     }
 
@@ -1972,7 +1977,7 @@ void AudioPlayer::Prepare_live_forward_block(void)
 
 void AudioPlayer::Check_live_forward_boundary(void)
 {
-    if (!LS_flag || mode_player != ONCE_FWD || LS_state != REC || LS_XY_lock || pitch <= 1.0f || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
+    if (!LS_flag || mode_player != ONCE_FWD || LS_state != REC || pitch <= 1.0f || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
     {
         return;
     }

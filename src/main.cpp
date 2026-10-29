@@ -5445,7 +5445,7 @@ FLASHMEM void loop()
         root_key = 60
         midi_ch = 0 (midi channel 1)
 
-        Se la registrazione ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
+        Se la registrazione è mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
 
         */
 
@@ -6797,7 +6797,7 @@ FLASHMEM void loop()
                     }
 
                     // Learnig closed. From here: LOOP_learn_flag == false
-                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ vuoto e non viene eseguito
+                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
 
                     Clear_UI_events();
 
@@ -11220,7 +11220,7 @@ void LOOP_set_time_order(int track)
         }
 
         /*
-        Gli eventi sono cosÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¬ ordinati:
+        Gli eventi sono così ordinati:
         LOOP_time_order[track][0] = evento con time minimo
         LOOP_time_order[track][0] = evento successivo
         */
@@ -15549,7 +15549,7 @@ FLASHMEM bool TEST_Current_Patch_SD_round_trip(void)
     Serial.println(F("Patch successfully saved"));
 
     // 2. Alterazione intenzionale della Patch in RAM.
-    // Serve a dimostrare che Resume non ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ un semplice no-op.
+    // Serve a dimostrare che Resume non è un semplice no-op.
     Patch[test_patch_id].used = !Original_Patch.used;
 
     if (Patch[test_patch_id] == Original_Patch)
@@ -15578,7 +15578,7 @@ FLASHMEM bool TEST_Current_Patch_SD_round_trip(void)
     const bool data_match = Patch[test_patch_id] == Original_Patch;
 
     // Ripristino finale garantito.
-    // In caso di successo l'assegnazione ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ ridondante ma innocua.
+    // In caso di successo l'assegnazione è ridondante ma innocua.
     Patch[test_patch_id] = Original_Patch;
 
     if (!data_match)
