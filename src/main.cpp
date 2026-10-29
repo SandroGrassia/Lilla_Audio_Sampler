@@ -666,7 +666,7 @@ int LS_sound_id;                                     // Live Sound whose wavefor
 int LS_instrument;                                   // Selected Live Sampler instrument: 0 for mono/left, 1 for right.
 int LS_COMB = 64;                                    // Divisor used to derive the play-point step from the waveform window width.
 int LS_window_step;                                  // Step used when changing the waveform window width.
-const int LS_XY_DELTA_MIN = 4 * AUDIO_BLOCK_SAMPLES; // Minimum Live Sampler playback interval, equal to four audio blocks.
+const int LS_XY_DELTA_MIN = static_cast<int>(ceilf(AUDIO_SAMPLE_RATE / 10.0f)); // Minimum Live Sampler playback interval: 100 ms, rounded up to whole samples.
 
 EXTMEM int16_t LS_buffer_storage[LS_CACHE_TOTAL_SAMPLES];                      // Shared PSRAM storage for the mono or stereo Live Sampler circular buffer.
 int16_t *const LS_buffer_mono_ptr = LS_buffer_storage;                         // Mono view spanning the shared Live Sampler storage.
@@ -5110,17 +5110,47 @@ FLASHMEM void loop()
                     Pointer_LiveSampler.Show_pointer(true);
                 }
             }
+            break;
+            case value_LS_Channel:
+            {
+                result = Read_encoder_simple(EN_PB_Value);
+                const bool toggle_channel = Read_pushbutton(EN_PB_Value);
+                if (LS_stereo && (result != 0 || toggle_channel))
+                {
+                    LS_instrument = toggle_channel ? 1 - LS_instrument : (result == 1 ? 1 : 0);
+                    LS_sound_id = SOUNDS_MAX + LS_instrument;
+                    Display_LiveSampler.Channel(LS_sound_id);
+                    if (LS_state != REC)
+                    {
+                        if (!LS_XY_lock)
+                        {
+                            LS_update_both_X_Y_samples();
+                        }
+                        else
+                        {
+                            LS_update_Q_sample();
+                        }
+                        Display_LiveSampler.Show_wave(LS_sound_id);
+                    }
+                }
+            }
+            break;
             }
         }
 
-        // Change LS_X_sample o LS_X_delta
+        // Change or reset the start point without changing the selected channel.
         result = Read_encoder_simple(EN_PB_From);
-        if (result != 0)
+        const bool reset_live_start = Read_pushbutton(EN_PB_From);
+        if (result != 0 || reset_live_start)
         {
             // si usa LS_X_sample
             if (LS_XY_lock)
             {
-                if (result == 1)
+                if (reset_live_start)
+                {
+                    LS_X_sample = 0;
+                }
+                else if (result == 1)
                 {
                     LS_X_sample += LS_X_step;
                 }
@@ -5143,7 +5173,12 @@ FLASHMEM void loop()
             // si usa LS_X_delta
             else
             {
-                if (result == 1)
+                if (reset_live_start)
+                {
+                    LS_X_delta = 0;
+                    Info.LS_restart_antiflicker();
+                }
+                else if (result == 1)
                 {
                     LS_X_delta += LS_X_step;
                 }
@@ -5309,32 +5344,9 @@ FLASHMEM void loop()
             }
         }
 
-        // Toggle wave Left/Right and VCF
+        // Retain the TO shortcut for the right waveform and VCF.
         if (LS_stereo)
         {
-            // Display Left wave or VCF
-            if (Read_pushbutton(EN_PB_From))
-            {
-                if (LS_instrument == 1) // Right
-                {
-                    LS_instrument = 0;        // Left
-                    LS_sound_id = SOUNDS_MAX; // Left
-                    if (LS_state != REC)
-                    {
-                        if (!LS_XY_lock)
-                        {
-                            LS_update_both_X_Y_samples();
-                        }
-                        else // altrimenti e' gia' stato calcolato
-                        {
-                            LS_update_Q_sample();
-                        }
-
-                        Display_LiveSampler.Show_wave(LS_sound_id);
-                    }
-                }
-            }
-
             // Display Right wave or VCF
             if (Read_pushbutton(EN_PB_To))
             {

@@ -112,6 +112,10 @@ FLASHMEM void DisplayLiveSampler::Page(void)
     Window();
 
     tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(display_coordinate_x(LS_column_row_element[value_LS_Channel][0] - sizeof("CHANNEL")), display_coordinate_y(LS_column_row_element[value_LS_Channel][1]));
+    tft.print("CHANNEL");
+
+    tft.setTextColor(TEXT_COLOR);
     tft.setCursor(display_coordinate_x(LS_column_row_START_POINT[0]), display_coordinate_y(LS_column_row_START_POINT[1]));
     tft.print("START POINT");
     Start_point();
@@ -220,6 +224,13 @@ FLASHMEM void DisplayLiveSampler::Window(void)
     tft.print("sec");
 
     LS_chars_window = (tft.getCursorX() - display_coordinate_x(LS_column_row_window[0])) / 6;
+}
+
+FLASHMEM void DisplayLiveSampler::Channel(int sound_id)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_element[value_LS_Channel][0]), display_coordinate_y(LS_column_row_element[value_LS_Channel][1]), 5);
+    tft.setTextColor(LS_stereo ? ILI9341_YELLOW : ILI9341_WHITE);
+    tft.print(!LS_stereo ? "MONO" : (sound_id == SOUNDS_MAX ? "LEFT" : "RIGHT"));
 }
 
 FLASHMEM void DisplayLiveSampler::Loop_time(void)
@@ -444,23 +455,7 @@ FLASHMEM void DisplayLiveSampler::Show_wave(const int sound_id)
         }
     }
 
-    canvas.setTextColor(ILI9341_WHITE);
-
-    if (!LS_stereo)
-    {
-        canvas.setCursor((WAVEBOARD_WIDTH / 2) - 12, display_coordinate_y(0));
-        canvas.print("MONO");
-    }
-    else if (sound_id == SOUNDS_MAX)
-    {
-        canvas.setCursor((WAVEBOARD_WIDTH / 2) - 63, display_coordinate_y(0));
-        canvas.print("(STEREO) LEFT CHANNEL");
-    }
-    else
-    {
-        canvas.setCursor((WAVEBOARD_WIDTH / 2) - 66, display_coordinate_y(0));
-        canvas.print("(STEREO) RIGHT CHANNEL");
-    }
+    Channel(sound_id);
 
     canvas.setTextColor(TEXT_COLOR);
     canvas.setCursor((WAVEBOARD_WIDTH / 2) - 30, Y_FOOTER_TEXT);
@@ -575,6 +570,10 @@ FLASHMEM void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct 
 
         case value_LS_Compressor:
             Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], 6, show);
+            break;
+
+        case value_LS_Channel:
+            Frame_by_col_row(LS_column_row_element[pointer.value_element][0], LS_column_row_element[pointer.value_element][1], 5, show);
             break;
 
         case value_LS_Window:

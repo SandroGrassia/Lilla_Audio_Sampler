@@ -18,7 +18,7 @@
 // Handles all display rendering for the Live Sampler page on the ILI9341 TFT.
 // Responsibilities:
 //   - Full page layout: title, parameter labels and values, menu row.
-//   - Waveform canvas: draws min/max sample envelopes with colour-coded age gradient, X/Y playback markers, REC LED blink, and stereo label.
+//   - Waveform canvas: draws min/max sample envelopes with colour-coded age gradient, X/Y playback markers, REC LED blink, and recording indicator.
 //   - Pointer frame: draws or erases a highlight rectangle around the currently selected menu item or parameter value.
 //   - LED indicator: reflects mute state and recording state.
 
@@ -69,9 +69,9 @@ private:
     static constexpr float LS_column_row_FEEDBACK[2] = {0, LS_ROW_VALUES + 1};
     static constexpr float LS_column_row_WINDOW[2] = {0, LS_ROW_VALUES + 5};
     static constexpr float LS_column_row_START_POINT[2] = {0, LS_ROW_VALUES + 4};
-    static constexpr float LS_column_row_LOOP[2] = {29, LS_ROW_VALUES + 4};
+    static constexpr float LS_column_row_LOOP[2] = {34, LS_ROW_VALUES + 4};
     static constexpr float LS_column_row_COMPRESSOR[2] = {0, LS_ROW_VALUES + 2};
-    static constexpr float LS_column_row_STEP[2] = {LS_column_row_LOOP[0], LS_ROW_VALUES + 5};
+    static constexpr float LS_column_row_STEP[2] = {19, LS_ROW_VALUES + 5};
 
     static constexpr float LS_column_row_buffer[2] = {27, 0};
     static constexpr float LS_column_row_volume[2] = {48, 0};
@@ -85,7 +85,7 @@ private:
     static constexpr float LS_column_row_loop_time_mode_3[2] = {23, LS_ROW_VALUES};
 
     static constexpr float LS_column_row_start_point[2] = {12, LS_ROW_VALUES + 4};
-    static constexpr float LS_column_row_loop_time[2] = {34, LS_ROW_VALUES + 4};
+    static constexpr float LS_column_row_loop_time[2] = {LS_column_row_LOOP[0] + sizeof("LOOP"), LS_ROW_VALUES + 4};
     static constexpr float LS_column_row_step[2] = {LS_column_row_STEP[0] + sizeof("STEP"), LS_column_row_STEP[1]};
 
     static constexpr float LS_column_row_element[LS_value_names][2] = {
@@ -93,7 +93,8 @@ private:
         {LS_column_row_feedback[0], LS_column_row_feedback[1]},
         {LS_column_row_compressor[0], LS_column_row_compressor[1]},
         {LS_column_row_play_mode[0], LS_column_row_play_mode[1]},
-        {LS_column_row_window[0], LS_column_row_window[1]}};
+        {LS_column_row_window[0], LS_column_row_window[1]},
+        {42, LS_ROW_VALUES + 5}};
 
     int LS_chars_play_mode;
     int LS_chars_feedback;
@@ -101,7 +102,7 @@ private:
 
     static constexpr int LS_chars_loop_time = 9;
     static constexpr int LS_chars_start_point = 15;
-    static constexpr int LS_chars_step = 16;
+    static constexpr int LS_chars_step = 7;
 
     // elapsedMicros localtimer;
     //  int memo[2];
@@ -138,6 +139,7 @@ public:
 
     // Redraws the Window width value (in seconds).
     FLASHMEM void Window(void);
+    FLASHMEM void Channel(int sound_id); // Display MONO or the selectable LEFT/RIGHT waveform channel.
 
     // Redraws the Loop Time value; shows "--" when looping is inactive.
     FLASHMEM void Loop_time(void);
@@ -150,7 +152,7 @@ public:
 
     // Draws a highlight frame around the menu item at the given display position.
 
-    // Renders the waveform canvas for the given sound channel (min/max envelope, colour gradient by buffer age, X/Y markers, REC LED, stereo label), then blits the canvas to the TFT.
+    // Renders the waveform canvas for the given sound channel (min/max envelope, colour gradient by buffer age, X/Y markers, REC LED), then blits the canvas to the TFT.
     FLASHMEM void Show_wave(const int sound_id);
 
     // Returns the RGB565 colour for a canvas pixel at column `point',

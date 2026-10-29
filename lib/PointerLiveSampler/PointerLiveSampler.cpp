@@ -16,6 +16,7 @@ void PointerLiveSampler::Set_pointer_to_first_menu_element(void)
 FLASHMEM void PointerLiveSampler::Move_pointer(const int value)
 {
     pointer_old = pointer;
+    const LS_value_name last_value = LS_stereo ? value_LS_Channel : value_LS_Window; // MONO has no editable channel.
 
     switch (pointer.field_name)
     {
@@ -44,7 +45,7 @@ FLASHMEM void PointerLiveSampler::Move_pointer(const int value)
             else
             {
                 pointer.field_name = field_LS_Value;
-                pointer.value_element = static_cast<LS_value_name>(LS_value_names - 1);
+                pointer.value_element = last_value;
             }
         }
     }
@@ -54,7 +55,7 @@ FLASHMEM void PointerLiveSampler::Move_pointer(const int value)
     {
         if (value == 1)
         {
-            if (pointer.value_element < LS_value_names - 1)
+            if (pointer.value_element < last_value)
             {
                 pointer.value_element = static_cast<LS_value_name>(pointer.value_element + 1);
             }

@@ -30,8 +30,9 @@ int LS_menu_max = 1, position_Menu_LS[4] = {0,0,1,0}, element_Menu_LS[4] = {0,2}
 int LOOP_menu_max = 1, position_Menu_LOOP[4] = {0,0,0,1}, element_Menu_LOOP[4] = {0,3};
 enum LS_field_name { field_LS_Menu, field_LS_Value };
 enum LS_menu_element_name { value_LS_Recording, value_LS_Stop, value_LS_MonoStereo, value_LS_Erase };
-constexpr int LS_value_names = 5;
-enum LS_value_name { value_LS_Gain, value_LS_Play_mode, value_LS_Feedback, value_LS_Compressor, value_LS_Window };
+bool LS_stereo = true;
+constexpr int LS_value_names = 6;
+enum LS_value_name { value_LS_Gain, value_LS_Feedback, value_LS_Compressor, value_LS_Play_mode, value_LS_Window, value_LS_Channel };
 struct LS_pointer_struct { LS_field_name field_name; LS_menu_element_name menu_element; LS_value_name value_element; };
 enum LOOP_field_name { field_LOOP_Menu, field_LOOP_TrackValues };
 enum LOOP_menu_element_name : int { value_LOOP_Menu_none = -1, value_LOOP_New, value_LOOP_Save, value_LOOP_SaveAsNew, value_LOOP_Delete };
@@ -105,21 +106,43 @@ int main()
     PointerLiveSampler live;
     live.Set_pointer_to_first_menu_element();
     live.Move_pointer(-1);
-    assert(live.Get_pointer().field_name == field_LS_Value && live.Get_pointer().value_element == value_LS_Window);
+    assert(live.Get_pointer().field_name == field_LS_Value && live.Get_pointer().value_element == value_LS_Channel);
+    live.Move_pointer(-1);
+    assert(live.Get_pointer().value_element == value_LS_Window);
+    live.Move_pointer(-1);
+    assert(live.Get_pointer().value_element == value_LS_Play_mode);
     live.Move_pointer(-1);
     assert(live.Get_pointer().value_element == value_LS_Compressor);
-    live.Move_pointer(-1);
-    assert(live.Get_pointer().value_element == value_LS_Feedback);
     live.Move_pointer(1);
-    assert(live.Get_pointer().value_element == value_LS_Compressor);
+    assert(live.Get_pointer().value_element == value_LS_Play_mode);
     live.Move_pointer(1);
     assert(live.Get_pointer().value_element == value_LS_Window);
+    live.Move_pointer(1);
+    assert(live.Get_pointer().value_element == value_LS_Channel);
     live.Move_pointer(1);
     assert(live.Get_pointer().field_name == field_LS_Menu && live.Get_pointer().menu_element == value_LS_Recording);
     for (int i = 0; i < LS_menu_max + 1 + LS_value_names; ++i) { live.Move_pointer(1); }
     assert(live.Get_pointer().field_name == field_LS_Menu && live.Get_pointer().menu_element == value_LS_Recording);
     for (int i = 0; i < LS_menu_max + 1 + LS_value_names; ++i) { live.Move_pointer(-1); }
     assert(live.Get_pointer().field_name == field_LS_Menu && live.Get_pointer().menu_element == value_LS_Recording);
+    LS_stereo = false;
+    live.Set_pointer_to_first_menu_element();
+    live.Move_pointer(-1);
+    assert(live.Get_pointer().field_name == field_LS_Value && live.Get_pointer().value_element == value_LS_Window);
+    live.Move_pointer(1);
+    assert(live.Get_pointer().field_name == field_LS_Menu && live.Get_pointer().menu_element == value_LS_Recording);
+    for (int direction : {-1, 1})
+    {
+        for (int i = 0; i < LS_menu_max + LS_value_names; ++i)
+        {
+            live.Move_pointer(direction);
+            assert(live.Get_pointer().field_name != field_LS_Value || live.Get_pointer().value_element != value_LS_Channel);
+        }
+        assert(live.Get_pointer().field_name == field_LS_Menu && live.Get_pointer().menu_element == value_LS_Recording);
+    }
+    LS_stereo = true;
+    live.Move_pointer(-1);
+    assert(live.Get_pointer().value_element == value_LS_Channel);
     PointerMidiLoop loop;
     loop.Set_pointer_to_first_menu_element();
     loop.Move_pointer(-1);
