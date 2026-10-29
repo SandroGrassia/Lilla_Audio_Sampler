@@ -335,14 +335,10 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
         // LS_X_sample va calcolato da zero utilizzando LS_X_delta
         else
         {
-            LS_Q_sample = LiveSampler_ptr->Q_sample;
+            LS_Q_sample = Live_Sampler->Q_sample;
             if (mode_player_wait == ONCE_FWD)
             {
-                A_Flash_sample_wait = LS_Q_sample + LS_X_delta - AUDIO_BLOCK_SAMPLES;
-                if (A_Flash_sample_wait > (LS_buffer_dim - 1))
-                {
-                    A_Flash_sample_wait -= LS_buffer_dim;
-                }
+                A_Flash_sample_wait = (LS_Q_sample + LS_X_delta + 1) % LS_buffer_dim;
                 B_Flash_sample_wait = A_Flash_sample_wait + live_span;
                 a_first_sample_wait = A_Flash_sample_wait;
             }
@@ -696,6 +692,10 @@ void AudioPlayer::Start_playing(void)
 {
     char packet_filename[NAME_PACKET_SIZE];
     live_forward_last_sample = 0;
+    live_start_pending = true;
+    live_restart_pending = false;
+    live_fade_out = false;
+    live_fade_in = false;
     patch_release_pending = false; // A replacement note must not inherit the previous patch deadline.
     Close_source();
     source_now = source_wait;
@@ -1466,6 +1466,7 @@ void AudioPlayer::update(void)
 
         // Harvest for samples
         live_forward_end = false;
+        Prepare_live_forward_block();
         a_sample = a_first_sample;
         initial_index_offset = a_sample - floor(a_sample);
         b_sample = a_sample + (pitch * (AUDIO_BLOCK_SAMPLES - 1));
@@ -1482,6 +1483,7 @@ void AudioPlayer::update(void)
         }
 
         Harvest_samples();
+        Check_live_forward_boundary();
 
         if (volume_gain_warmup_flag)
         {
@@ -1626,7 +1628,12 @@ void AudioPlayer::update(void)
 
         if (live_forward_end)
         {
+            live_restart_pending = false;
             Fade_live_forward_end();
+        }
+        else
+        {
+            Shape_live_forward_block();
         }
 
         for (auto sample = 0; sample < AUDIO_BLOCK_SAMPLES; sample++)
@@ -1813,18 +1820,18 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
     if (LS_flag && mode_player == ONCE_FWD)
     {
         const int position = (original_first % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
-        const bool first_pass = LiveSampler_ptr->first_write_flag && LiveSampler_ptr->Q_sample < LS_buffer_dim - 1;
-        const bool writing = LiveSampler_ptr->Is_writing();
+        const bool first_pass = Live_Sampler->first_write_flag && Live_Sampler->Q_sample < LS_buffer_dim - 1;
+        const bool writing = Live_Sampler->Is_writing();
         if (first_pass)
         {
-            const int available = LiveSampler_ptr->Q_sample >= position ? LiveSampler_ptr->Q_sample - position + 1 : 0;
+            const int available = Live_Sampler->Q_sample >= position ? Live_Sampler->Q_sample - position + 1 : 0;
             live_forward_end = static_cast<int>(ceilf(b_sample)) - original_first + 1 > available;
             live_forward_empty = available == 0;
             const int window_first = position - left;
             const int trim_first = !writing && !live_forward_end ? A_Flash_sample - original_first + position : 0;
-            const int trim_last = !writing && !live_forward_end ? B_Flash_sample - original_first + position : LiveSampler_ptr->Q_sample;
+            const int trim_last = !writing && !live_forward_end ? B_Flash_sample - original_first + position : Live_Sampler->Q_sample;
             const int valid_first = trim_first > 0 ? trim_first : 0;
-            const int valid_last = trim_last < LiveSampler_ptr->Q_sample ? trim_last : LiveSampler_ptr->Q_sample;
+            const int valid_last = trim_last < Live_Sampler->Q_sample ? trim_last : Live_Sampler->Q_sample;
             const int begin = window_first < valid_first ? valid_first - window_first : 0;
             const int available_end = valid_last - window_first + 1;
             const int end = available_end < count ? available_end : count;
@@ -1832,7 +1839,7 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
             if (end > begin)
             {
                 Read_samples(samples_basket + begin, window_first + begin, end - begin);
-                if (valid_last == LiveSampler_ptr->Q_sample && trim_last >= LiveSampler_ptr->Q_sample)
+                if (valid_last == Live_Sampler->Q_sample && trim_last >= Live_Sampler->Q_sample)
                 {
                     for (int i = end; i < count; ++i)
                     {
@@ -1855,12 +1862,10 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
             }
             return;
         }
-        if (writing)
-        {
-            Read_samples(samples_basket, first, count);
-            a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));
-            return;
-        }
+        Read_samples(samples_basket, first, count);
+        live_last_read_sample = first + count - 1;
+        a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));
+        return;
     }
 
     const bool reverse = mode_player == ONCE_REV;
@@ -1901,7 +1906,7 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
 
 bool AudioPlayer::Harvest_live_forward_end(void)
 {
-    if (!LS_flag || mode_player != ONCE_FWD || !LiveSampler_ptr->first_write_flag || LiveSampler_ptr->Q_sample >= LS_buffer_dim - 1)
+    if (!LS_flag || mode_player != ONCE_FWD || !Live_Sampler->first_write_flag || Live_Sampler->Q_sample >= LS_buffer_dim - 1)
     {
         return false;
     }
@@ -1909,7 +1914,7 @@ bool AudioPlayer::Harvest_live_forward_end(void)
     const int first = static_cast<int>(floorf(a_sample));
     const int count = static_cast<int>(ceilf(b_sample)) - first + 1;
     const int position = ((first % LS_buffer_dim) + LS_buffer_dim) % LS_buffer_dim;
-    const int available = LiveSampler_ptr->Q_sample >= position ? LiveSampler_ptr->Q_sample - position + 1 : 0;
+    const int available = Live_Sampler->Q_sample >= position ? Live_Sampler->Q_sample - position + 1 : 0;
     if (count <= available)
     {
         return false;
@@ -1931,9 +1936,81 @@ bool AudioPlayer::Harvest_live_forward_end(void)
     return true;
 }
 
+void AudioPlayer::Prepare_live_forward_block(void)
+{
+    live_fade_out = false;
+    live_fade_in = false;
+    if (!LS_flag || mode_player != ONCE_FWD)
+    {
+        live_start_pending = false;
+        live_restart_pending = false;
+        return;
+    }
+
+    if (live_start_pending)
+    {
+        live_start_pending = false;
+        const bool cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
+        if (cache_full && LS_state == REC && !LS_XY_lock && Live_Sampler->Is_writing() && pitch > 1.0f)
+        {
+            const int start_offset = LS_X_delta == 0 ? 1 : LS_X_delta;
+            A_Flash_sample = (Live_Sampler->Q_sample + start_offset) % LS_buffer_dim;
+            B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
+            a_first_sample = A_Flash_sample;
+        }
+    }
+
+    if (live_restart_pending)
+    {
+        live_restart_pending = false;
+        const int relative_start = ((live_restart_sample - A_Flash_sample) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+        a_first_sample = A_Flash_sample + relative_start;
+        live_fade_in = true;
+    }
+}
+
+
+void AudioPlayer::Check_live_forward_boundary(void)
+{
+    if (!LS_flag || mode_player != ONCE_FWD || LS_state != REC || LS_XY_lock || pitch <= 1.0f || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
+    {
+        return;
+    }
+    if (Live_Sampler->first_write_flag && Live_Sampler->Q_sample < LS_buffer_dim - 1)
+    {
+        return;
+    }
+
+    const int last_position = (live_last_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+    const int write_position = Live_Sampler->Q_sample;
+    const int distance_from_write = (write_position - last_position + LS_buffer_dim) % LS_buffer_dim;
+    if (distance_from_write < AUDIO_BLOCK_SAMPLES)
+    {
+        live_fade_out = true;
+        live_restart_sample = (write_position + 1 + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
+        live_restart_pending = true;
+    }
+}
+
+void AudioPlayer::Shape_live_forward_block(void)
+{
+    if (live_fade_out || live_fade_in)
+    {
+        for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+        {
+            const int ramp_sample = live_fade_in ? sample : AUDIO_BLOCK_SAMPLES - 1 - sample;
+            block[sample] = static_cast<int16_t>(static_cast<int32_t>(block[sample]) * ramp_sample / (AUDIO_BLOCK_SAMPLES - 1));
+        }
+    }
+}
+
 bool AudioPlayer::Harvest_live_continuous(void)
 {
-    if (!LS_flag || mode_player != ONCE_FWD || !LiveSampler_ptr->Is_writing())
+    if (!LS_flag || mode_player != ONCE_FWD)
+    {
+        return false;
+    }
+    if (!Live_Sampler->Is_writing() && Live_Sampler->first_write_flag && Live_Sampler->Q_sample < LS_buffer_dim - 1)
     {
         return false;
     }
@@ -1942,6 +2019,7 @@ bool AudioPlayer::Harvest_live_continuous(void)
     const int count = static_cast<int>(ceilf(b_sample)) - first + 1;
     const int position = ((first % LS_buffer_dim) + LS_buffer_dim) % LS_buffer_dim;
     Read_samples(samples_basket, position, count);
+    live_last_read_sample = first + count - 1;
     // Keep the fractional phase and original start reference, also for FWD after recording stops.
     a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));
     return true;

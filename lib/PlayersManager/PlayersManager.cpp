@@ -489,7 +489,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     }
     Player_booked[id_player] = true;
 
-    if (Player_ptr[id_player].State() > 0 && !restart_Player[id_player]) // sta inviando sample, cioÃ¨ !idle
+    if (Player_ptr[id_player].State() > 0 && !restart_Player[id_player]) // sta inviando sample, cioe' idle = false
     {
         restart_Player[id_player] = true;
         ++players_to_restart;
@@ -501,21 +501,6 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     Player_ptr[id_player].Set_source(Preset[instrument_id].source);
 
     ADSR[id_player].Setup(Preset[instrument_id].attack, Preset[instrument_id].decay, Preset[instrument_id].sustain, Preset[instrument_id].release, Preset[instrument_id].attack_type);
-
-    /*
-    Serial.print("id_player: ");
-    Serial.print(id_player);
-    Serial.print(" ");
-    Serial.print(Preset[instrument_id].attack);
-    Serial.print(" ");
-    Serial.print( Preset[instrument_id].decay);
-    Serial.print(" ");
-    Serial.print(Preset[instrument_id].sustain);
-    Serial.print(" ");
-    Serial.print(Preset[instrument_id].release);
-    Serial.print(" ");
-    Serial.println(Preset[instrument_id].attack_type);
-    */
 
     Player_ptr[id_player].Write_loop_track(track);
     if (track >= 0)

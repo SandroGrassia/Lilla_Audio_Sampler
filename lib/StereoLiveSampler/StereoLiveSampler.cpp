@@ -26,7 +26,6 @@ void StereoLiveSampler::Start(bool stereo_in)
     decay_gain_flag = false;
     attack_gain_flag = true;
     samples_counter = Slope_samples;
-    cancel_beyond = true;
 
     // Record!!
     writing = true;
@@ -81,27 +80,6 @@ void StereoLiveSampler::update(void)
     }
 
     Q_sample += AUDIO_BLOCK_SAMPLES; // ultimo Q_sample scritto al ciclo ATTUALE
-
-    if (cancel_beyond)
-    {
-        int start_sample = Q_sample + 1;
-
-        if (start_sample == LS_buffer_dim)
-        {
-            start_sample = 0;
-        }
-
-        // The buffer and write position are block-aligned; clear exactly the next block.
-        if (stereo)
-        {
-            memset(LS_buffer_L_ptr + start_sample, 0, AUDIO_BLOCK_BYTES);
-            memset(LS_buffer_R_ptr + start_sample, 0, AUDIO_BLOCK_BYTES);
-        }
-        else
-        {
-            memset(LS_buffer_mono_ptr + start_sample, 0, AUDIO_BLOCK_BYTES);
-        }
-    }
 
     /*
     if (Q_sample < 10000 || Q_sample > LS_buffer_dim - 10000)

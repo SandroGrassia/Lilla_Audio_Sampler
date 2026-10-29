@@ -291,6 +291,12 @@ private:
     bool live_forward_end = false;                              // Fade the final block when FWD reaches never-recorded samples.
     bool live_forward_empty = false;
     int16_t live_forward_last_sample = 0;
+    bool live_start_pending = false; // Resolve the mobile start with the first rendered block's pitch.
+    bool live_restart_pending = false; // Complete the booked restart even if recording stops.
+    bool live_fade_out = false; // Fade the current output block before the booked jump.
+    bool live_fade_in = false; // Fade the first output block after the booked jump.
+    int live_restart_sample = 0; // Physical destination computed from the write head that triggered the fade.
+    int live_last_read_sample = 0; // Last source sample actually harvested, including filter lookahead.
     int16_t *FIFO;
     int FIFO_dim;
 
@@ -306,7 +312,10 @@ private:
     void Update_pan_gain(void);
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
-    bool Harvest_live_continuous(void);  // Circular FWD reading while recording, for SYNC and FIXED alike.
+    void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
+    void Check_live_forward_boundary(void); // Book a jump when the last harvested sample lies in the latest written block.
+    void Shape_live_forward_block(void); // Apply the output ramp after effects without changing cached audio.
+    bool Harvest_live_continuous(void); // Circular FWD reading continues after STOP when the live cache is full.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.
     void Fade_live_forward_end(void);
     void Flash_memory_harvest(void);
@@ -349,7 +358,7 @@ public:
     void Set_identity(uint8_t value);
     AudioVCF *VCF_ptr = nullptr;
     WaveLFO *LFO_ptr = nullptr;
-    StereoLiveSampler *LiveSampler_ptr = nullptr;        // meglio static!
+    StereoLiveSampler *Live_Sampler = nullptr;        // meglio static!
     PlayersStatistics *Players_statistics_ptr = nullptr; // meglio static!
 
     // Received when Live Sampler buffer is created

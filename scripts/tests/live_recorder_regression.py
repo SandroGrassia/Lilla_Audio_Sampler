@@ -56,6 +56,9 @@ int main()
         int16_t mono[4096] = {};
         int16_t left[4096] = {};
         int16_t right[4096] = {};
+        std::fill_n(mono, 4096, 3210);
+        std::fill_n(left, 4096, 4567);
+        std::fill_n(right, 4096, -6789);
         recorder.LS_buffer_mono_ptr = mono;
         recorder.LS_buffer_L_ptr = left;
         recorder.LS_buffer_R_ptr = right;
@@ -63,6 +66,11 @@ int main()
         recorder.Start(stereo);
         auto run = [&]()
         {
+            const int next = (recorder.Q_sample + 1 + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
+            int16_t saved_mono[AUDIO_BLOCK_SAMPLES], saved_left[AUDIO_BLOCK_SAMPLES], saved_right[AUDIO_BLOCK_SAMPLES];
+            std::copy_n(mono + next, AUDIO_BLOCK_SAMPLES, saved_mono);
+            std::copy_n(left + next, AUDIO_BLOCK_SAMPLES, saved_left);
+            std::copy_n(right + next, AUDIO_BLOCK_SAMPLES, saved_right);
             audio_block_t input_l;
             audio_block_t input_r;
             std::fill(std::begin(input_l.data), std::end(input_l.data), 12001);
@@ -70,6 +78,10 @@ int main()
             recorder.pending[0] = &input_l;
             recorder.pending[1] = &input_r;
             recorder.update();
+            // Recording must preserve the next block during first fill, wrap, restart and stop fades.
+            assert(std::equal(saved_mono, saved_mono + AUDIO_BLOCK_SAMPLES, mono + next));
+            assert(std::equal(saved_left, saved_left + AUDIO_BLOCK_SAMPLES, left + next));
+            assert(std::equal(saved_right, saved_right + AUDIO_BLOCK_SAMPLES, right + next));
             assert(input_l.references == 1 && input_r.references == 1);
             for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
             {
@@ -101,7 +113,7 @@ int main()
         }
         assert(recorder.Q_sample == 127 && !recorder.first_write_flag);
         assert(stereo ? left[0] == 12001 && right[0] == -3001 : mono[0] == 4499);
-        assert((stereo ? left[128] : mono[128]) == 0);
+        assert((stereo ? left[128] : mono[128]) != 0);
         audio_block_t only_left = {};
         recorder.pending[0] = &only_left;
         recorder.update();
@@ -114,6 +126,24 @@ int main()
             recorder.update();
         }
         assert(!recorder.Is_writing());
+        recorder.Reset();
+        recorder.Start(stereo);
+        for (int block = 0; block < 96; ++block)
+        {
+            run();
+            if (block >= 64)
+            {
+                // SYNC FWD at high pitch crosses Q into the previous pass, including buffer wrap.
+                for (int pitch : {2, 4, 8})
+                {
+                    for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
+                    {
+                        const int position = (recorder.Q_sample - AUDIO_BLOCK_SAMPLES + sample * pitch + LS_buffer_dim) % LS_buffer_dim;
+                        assert(stereo ? left[position] == 12001 && right[position] == -3001 : mono[position] == 4499);
+                    }
+                }
+            }
+        }
         for (int mask = 0; mask < 4; ++mask)
         {
             recorder.Reset();

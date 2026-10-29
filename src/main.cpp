@@ -4740,98 +4740,77 @@ FLASHMEM void loop()
         }
 
         /*
-        Live Sampling (LIVE SAMPLER) consente la registrazione sia Mono che Stereo. Prevede l'uso della Patch PATCHES_MAX.
+        Live Sampling (LIVE SAMPLER) consente la registrazione mono o stereo nella cache circolare in PSRAM.
+        Utilizza la Patch riservata PATCHES_MAX.
 
-        Se la registrazione ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
-        - Patch[PATCHES_MAX].Instrument[0].sound_id == PATCHES_MAX
+        REGISTRAZIONE MONO
+        La Patch comprende un Instrument e il Sound SOUNDS_MAX:
+        Patch[PATCHES_MAX].Instrument[0].sound_id = SOUNDS_MAX
+        Sound[SOUNDS_MAX].file = FIRST_LIVE_SAMPLING_FILE (Mono.liv)
 
-        L'Instrument ha:
-        from_note = 0
-        to_note = 127
-        root_key = 60
-        midi_ch = 0 (midi channel 1)
-
-        Il Sound ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ associato al file Mono.liv:
-        Sound[SOUNDS_MAX].file = FIRST_LIVE_SAMPLING_FILE;
-
-
-        Se la registrazione ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ mono, PATCHES_MAX comprende 1 Instrument e il Sound SOUNDS_MAX:
-        - Patch[PATCHES_MAX].Instrument[0].sound_id == SOUNDS_MAX --> associato a ch. Left
-        - Patch[PATCHES_MAX].Instrument[1].sound_id == SOUNDS_MAX + 1 --> associato a ch. Right
-
-        Entrambi gli Instrument hanno:
-        from_note = 0
-        to_note = 127
-        root_key = 60
-        midi_ch = 0 (midi channel 1)
-
-
-        I due Sound sono associati ai file .liv:
+        REGISTRAZIONE STEREO
+        La Patch comprende due Instrument e due Sound:
+        Patch[PATCHES_MAX].Instrument[0].sound_id = SOUNDS_MAX (canale sinistro)
+        Patch[PATCHES_MAX].Instrument[1].sound_id = SOUNDS_MAX + 1 (canale destro)
         Sound[SOUNDS_MAX].file = FIRST_LIVE_SAMPLING_FILE + 1 (Left.liv)
         Sound[SOUNDS_MAX + 1].file = FIRST_LIVE_SAMPLING_FILE + 2 (Right.liv)
 
-        Fisicamente, i campioni sono salvati su due buffer "virtual tape" (int16_t LS_buffer_L e int16_t LS_buffer_R) istanziati dinamicamente
-        nei PSRAM chip; entrambi i buffer comprendono LS_buffer_dim campioni, con indirizzo da 0 a (LS_buffer_dim -1):
-        0......................................................................................(LS_buffer_dim -1)
+        In entrambi i casi, ciascun Instrument viene inizializzato con:
+        from_note = 0, to_note = 127, root_key = 60, midi_ch = 0 (canale MIDI 1).
 
-        L'ultimo campione scritto e' Q_sample; esempio di prima scrittura del buffer:
+        MEMORIA E SCRITTURA
+        LS_buffer_storage è l'area condivisa, allocata staticamente in PSRAM.
+        LS_buffer_mono_ptr identifica la vista mono; LS_buffer_L_ptr e LS_buffer_R_ptr identificano i due canali stereo.
+        Ogni vista attiva contiene LS_buffer_dim campioni, con indici fisici da 0 a LS_buffer_dim - 1.
+        Dopo l'ultimo indice si riparte da zero: il buffer si comporta come un nastro circolare.
+
+        LiveSampler.Q_sample è l'indice dell'ultimo campione scritto; LS_Q_sample ne conserva una copia per la UI.
+        Dopo il reset Q_sample vale -1. Durante il primo riempimento, la parte successiva a Q non è ancora registrata.
+        Dopo un giro completo, quella parte contiene l'audio precedente, fino alla sua sovrascrittura.
+        La scrittura non azzera preventivamente il blocco successivo.
+
+        Prima scrittura della cache:
                                                                          Q_sample
-        0>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>..................(LS_buffer_dim -1)
+        0>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>..................(LS_buffer_dim - 1)
 
-        La porzione di LS_buffer_L/R visualizzata (window) mostra la waveform registrata; con riferimento agli elementi di LS_buffer_L
-        i samples visualizzati vanno da LS_window_A_sample a LS_window_B_sample; l'ampiezza della window e' LS_window_width.
+        FINESTRA VISUALIZZATA
+        La waveform mostra i campioni da LS_window_A_sample a LS_window_B_sample.
+        LS_window_width è l'ampiezza della finestra; LS_X_sample si trova al suo centro.
+        LS_window_A_sample = LS_constrain_position(LS_X_sample - (LS_window_width - 1) / 2)
+        LS_window_B_sample = LS_window_A_sample + LS_window_width - 1
+        Il limite destro resta una coordinata logica e può superare la fine fisica della cache.
 
-
-        LS_X_sample - LS_Y_sample ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ l'intervallo di esecuzione:
-        - FWD e REV : parte da LS_X_sample
-        - Loop FWD e Loop FWD/REV : da LS_X_sample a LS_Y_sample.
-
-
-        LS_X_sample e' sempre al centro della window; al primo accesso a LIVE SAMPLER ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ sul sample 0:
-        .................................(LS_X_sample).........................................(LS_buffer_dim -1)
+        .................................(LS_X_sample)..........(LS_Y_sample)...................(LS_buffer_dim - 1)
                   (LS_window_A_sample)+++++++++|+++++++(LS_window_B_sample)
 
-        LS_Y_sample e' definito come LS_X_sample + LS_XY_delta. LS_Y_sample puo' essere anche esterno alla window:
+        PUNTI DI RIFERIMENTO
+        LS_X_sample identifica il riferimento iniziale mostrato dalla UI.
+        LS_Y_sample = LS_X_sample + LS_XY_delta identifica l'altro estremo del segmento per i modi loop.
+        LS_Y_sample può trovarsi fuori dalla finestra visualizzata o oltre l'ultimo indice fisico della cache.
+        Il punto effettivo di lettura della voce viene calcolato separatamente da AudioPlayer in base al modo.
 
-        .................................(LS_X_sample)..........(LS_Y_sample)..................(LS_buffer_dim -1)
-                  (LS_window_A_sample)+++++++++|+++++++(LS_window_B_sample)
-
-        VINCOLI
-        0 <= LS_window_A_sample <= (LS_buffer_dim -1)
-        LS_window_A_sample < LS_window_B_sample (LS_buffer_L/R viene comunque letto come un ring tape)
-        0 <= LS_X_sample <= (LS_buffer_dim -1)
-        LS_Y_sample > LS_X_sample (da verificare)
-        LS_XY_delta spazia da valori negativi a positivi (per consentire qualsiasi posizionamento a LS_Y_sample): -(LS_buffer_dim -1) < LS_XY_delta < (LS_buffer_dim -1)
-
-        Live Sampler prevede che i punti di lettura LS_X_sample/LS_Y_sample possano essere:
-        1) fissi su un punto del buffer (se fosse un tape sono solidali al tape, solidali ai campioni registrati): LS_XY_lock == true.
-        2) spostarsi lungo il buffer (se fosse un tape sono solidali con la testa di registrazione, i campioni sottostanti cambiano con continuita'): LS_XY_lock == false
-
-        In entrambi i casi, con il NoteOn le posizioni di partenza (modi FWD e REV) e di arrivo (modi loop FWD, loop FWD/REV) sono congelate sul buffer (non sono piÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹ mobili). Importante notare
-        che nel modo loop il suono sambia se il segmento di buffer LS_X_sample/LS_Y_sample viene riscritto.
-
-        Calcolo degli estremi della window
-        LS_window_A_sample = LS_X_sample - (LS_window_width - 1)/2 (poi scalato ad un valore positivo: 0 <= LS_window_A_sample <= (LS_buffer_dim -1))
-        LS_window_B_sample = LS_window_A_sample + LS_window_width - 1 (NON scalato se supera (LS_buffer_dim -1))
-
-        1) Caso LS_XY_lock == true
-        LS_X_sample ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ fisso su una certa posizione del buffer; la waveform cresce verso DESTRA (nuovi campioni a DESTRA)
-        0 <= LS_X_sample <= (LS_buffer_dim -1)
+        FIXED: LS_XY_lock == true
+        LS_X_sample rimane fisso rispetto ai campioni nella cache.
+        La registrazione procede verso destra nella waveform e, a ogni giro, sostituisce il contenuto precedente.
         LS_Y_sample = LS_X_sample + LS_XY_delta
 
-        2) LS_XY_lock == false
-        LS_X_sample segue un determinato campione registrato, quindi scorre lungo il buffer; la waveform cresce verso SINISTRA (vecchi campioni a SINISTRA)
-        Tutti i valori operativi sono in movimento, LS_X_sample e LS_Y_sample vanno continuamente aggiornati:
-        LS_X_sample = LS_Q_sample + LS_X_delta (poi scalato per rispettare il vincolo 0 <= LS_X_sample <= (LS_buffer_dim -1)
+        PUNTO MOBILE: LS_XY_lock == false
+        Il riferimento della UI segue la posizione di scrittura, mantenendo l'offset LS_X_delta.
+        LS_X_sample = LS_constrain_position(LS_Q_sample + LS_X_delta)
         LS_Y_sample = LS_X_sample + LS_XY_delta
+        Con LS_X_delta = 0 la UI mostra SYNC; la waveform scorre mostrando l'audio precedente a sinistra.
 
-        Modifica dei parametri
-        Gli step di avanzamento di:
-        LS_window_width
-        LS_X_sample
-        LS_X_delta
+        Al Note On il Player prepara la propria posizione di lettura: non segue continuamente LS_X_sample della UI.
+        In FWD, con cache piena, la lettura è circolare e non termina al limite B, anche dopo STOP della registrazione.
+        Durante il primo riempimento resta attiva la protezione che sfuma e arresta la voce quando raggiunge audio non registrato.
+        Nei modi loop il contenuto riprodotto cambia se la registrazione sovrascrive il segmento selezionato.
 
-        sono sempre PROPORZIONALI a LS_window_width.
+        VINCOLI E REGOLAZIONI
+        0 <= LS_window_A_sample < LS_buffer_dim
+        0 <= LS_X_sample < LS_buffer_dim
+        0 <= LS_X_delta < LS_buffer_dim
+        LS_XY_DELTA_MIN <= LS_XY_delta <= LS_buffer_dim - 1
+        Gli incrementi per modificare la finestra e il punto iniziale sono proporzionali a LS_window_width.
         */
 
         // Change volume_patch
@@ -15080,7 +15059,7 @@ FLASHMEM void Startup_hardware_and_objects(void)
         Player[player].Set_vibrato_pointers(Vibrato_array_pointer, Vibrato_array_last_element); // void Set_vibrato_pointers(float *p_vibrato_array_in, uint8_t *p_vibrato_array_last_element_in)
         Player[player].VCF_ptr = &VCF[player];
         Player[player].LFO_ptr = &LFO_P0[player];
-        Player[player].LiveSampler_ptr = &LiveSampler;
+        Player[player].Live_Sampler = &LiveSampler;
         Player[player].Players_statistics_ptr = &Players_statistics;
         Player[player].Set_ADSR_ptr(&ADSR[player]);
         LFO_P0[player].identity = player;

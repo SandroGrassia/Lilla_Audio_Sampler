@@ -32,10 +32,11 @@ struct AudioPlayer
     inline static volatile bool live_unrecorded_notice = false;
     bool LS_flag = true, live_forward_empty = false;
     int A_Flash_sample = 0;
+    int live_last_read_sample = 0;
     int mode_player = ONCE_FWD, state = 1, reads = 0;
     float a_sample = 128, b_sample = 382, pitch = 2, a_first_sample = 0;
     int16_t samples_basket[8192] = {}, block[AUDIO_BLOCK_SAMPLES] = {}, live_forward_last_sample = 0;
-    Recorder *LiveSampler_ptr = &recorder;
+    Recorder *Live_Sampler = &recorder;
     void Read_samples(int16_t *destination, int first, int count)
     {
         assert(first >= 0 && first < LS_buffer_dim && count > 0);
@@ -163,6 +164,9 @@ int main()
         }
     }
     recorder.writing = false;
+    assert(p.Harvest_live_continuous());
+    recorder.first_write_flag = true;
+    recorder.Q_sample = 255;
     assert(!p.Harvest_live_continuous());
     recorder.writing = true;
     p.mode_player = 2;

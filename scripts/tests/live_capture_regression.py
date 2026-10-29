@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from file_registry_fixture import REGISTRY_FIXTURE
+from production_source import method
 
 root = Path(__file__).resolve().parents[2]
 
@@ -188,7 +189,7 @@ int main()
     LS_stereo=true; messages.clear(); LS_Capture_sound(2);
     assert(Capture_new_patch==1 && Patch_id_old==1 && Patch[1].used && Patch[1].instruments==2);
     assert(Capture_patch_delay.samples==37 && creates==0);
-    assert(std::count(messages.begin(),messages.end(),"           CANCEL")==1);
+    assert(std::count(messages.begin(),messages.end(),"CANCEL")==1);
     int soundL=Patch[1].Instrument[2].sound_id, soundR=Patch[1].Instrument[3].sound_id;
     int fileL=Sound[soundL].file, fileR=Sound[soundR].file;
     assert(soundL<SOUNDS_MAX && soundR<SOUNDS_MAX && fileL<FIRST_RECORDING_FILE);
@@ -299,7 +300,9 @@ int main()
 '''
 
 checks = checks.replace('int main()\n{', 'int main()\n{\n    reset_registry();')
-program = REGISTRY_FIXTURE + prefix + body('lib/CaptureSources/CaptureSources.h') + body('lib/CaptureSources/CaptureSources.cpp') + ui
+primitives = (root / 'lib/DisplayPrimitives/DisplayPrimitives.cpp').read_text(encoding='utf-8')
+popup_helpers = ''.join(method(primitives, signature) for signature in ['int display_coordinate_y(const float row)', 'int Centered_element_left(const int width)', 'int Centered_element_top(const int height)', 'void Confirm_frame_on_RED(int X, int Y, int chars, bool print)'])
+program = REGISTRY_FIXTURE + prefix + popup_helpers + body('lib/CaptureSources/CaptureSources.h') + body('lib/CaptureSources/CaptureSources.cpp') + ui
 program += body('lib/PatchCacheManager/PatchCacheManager.h') + body('lib/PatchCacheManager/PatchCacheManager.cpp')
 main_source = (root / 'src/main.cpp').read_text(encoding='utf-8')
 for name in ['P_Verify_if_Instrument_original', 'P_Verify_is_Patch_original']:

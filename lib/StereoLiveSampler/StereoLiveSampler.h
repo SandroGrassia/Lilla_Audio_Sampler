@@ -18,7 +18,6 @@ class StereoLiveSampler : public AudioStream
 {
 private:
     audio_block_t *inputQueueArray[2] = {nullptr};
-    bool cancel_beyond;
     volatile bool writing;
     bool attack_gain_flag = false;
     bool decay_gain_flag = false;
