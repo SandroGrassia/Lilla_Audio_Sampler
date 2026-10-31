@@ -9,7 +9,6 @@ enum class PlayerReadSource : uint8_t { Flash, Psram, Ram }; // Storage classes 
 
 namespace PlayerReadBudget
 {
-constexpr int Live_noclick_samples = 128; // Forward Live loops blend the current PSRAM endpoints.
 constexpr float Limit_us = 1800.0f; // Initial source-read allowance per block; leaves 1100 us of the 2900 us audio cycle for other work and safety margin.
 constexpr float Margin = 1.10f; // Initial transfer-model margin, to be validated with the full audio chain on hardware.
 constexpr float Maximum_modulation = 1.5f * 1.01f; // Current MIDI bend tops below 1.5 and full-depth vibrato below 1.01; reserve both even before they are used.

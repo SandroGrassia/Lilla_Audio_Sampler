@@ -6,6 +6,7 @@
  */
 
 #include "AudioPlayer.h"
+#include <algorithm>
 
 int16_t AudioPlayer::samples_basket[BASKET_DIM];
 float AudioPlayer::resampled_basket[AUDIO_BLOCK_SAMPLES];
@@ -27,7 +28,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, boo
     plan.crossfade = plan.pingpong ? 0 : (edited ? delta_Noclick_E : (pending ? delta_Noclick_wait : delta_Noclick));
     if (plan.live && mode == LOOP_FWD)
     {
-        plan.crossfade = PlayerReadBudget::Live_noclick_samples;
+        plan.crossfade = 0;
     }
     const float tune = pending ? pitch_tune_wait : (pitch_tune_flag && !Has_pending_note() ? fmaxf(pitch_tune, pitch_tune_wait) : pitch_tune); // A staged replacement tune must not be applied to the old voice.
     const float note_pitch = pending ? pitch_note_wait : pitch_note;                                                                           // Pitch before bend and vibrato.
@@ -289,6 +290,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
     if ((file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id_wait)))
     {
         mode_player_wait = mode_in;
+        delta_Noclick_wait = mode_in == LOOP_FWD ? 0 : delta_Noclick_in; // Live forward loops read A through B without an endpoint blend.
         use_Wavetable_wait = false;
         pitch_limit_wait = MAX_PITCH_PSRAM;
         const int live_span = LS_buffer_dim - 1;
@@ -512,6 +514,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     if ((file_id >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id)))
     {
         mode_player_E = mode_in;
+        delta_Noclick_E = mode_in == LOOP_FWD ? 0 : delta_Noclick_in; // Keep edited loop geometry consistent with the live reader.
         pitch_limit_E = MAX_PITCH_PSRAM;
         use_Wavetable_E = false;
         const int live_span = LS_buffer_dim - 1;
@@ -1447,6 +1450,10 @@ void AudioPlayer::update(void)
             pitch_limit = pitch_limit_E;
             Update_pitch();
 
+            if (mode_player != mode_player_E || A_Flash_sample != A_Flash_sample_E || B_Flash_sample != B_Flash_sample_E)
+            {
+                live_restart_pending = false; // A booked phase belongs to the previous loop geometry.
+            }
             mode_player = mode_player_E;
             a_first_sample = a_first_sample_E;
             delta_Noclick = delta_Noclick_E;
@@ -1734,6 +1741,14 @@ void AudioPlayer::Update_pan_gain(void)
 
 void AudioPlayer::Harvest_samples(int outputs)
 {
+    if (live_forward_end && LS_flag && mode_player == LOOP_FWD)
+    {
+        memset(samples_basket, 0, sizeof(samples_basket)); // Reject an unrecorded loop attack without reading the cache.
+        antialias.mix = 0.0f;
+        interpolation_mix = 0.0f;
+        initial_index_offset = 0.0f;
+        return;
+    }
     interpolation_mix = PlayerInterpolator::Mix(pitch);
     PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
     if (antialias.mix > 0.0f)
@@ -1790,7 +1805,7 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
     }
     if (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || mode_player == LOOP_REV)
     {
-        const int crossfade = LS_flag && mode_player == LOOP_FWD ? PlayerReadBudget::Live_noclick_samples : (mode_player == LOOP_FWD_REV ? 0 : delta_Noclick);
+        const int crossfade = (LS_flag && mode_player == LOOP_FWD) || mode_player == LOOP_FWD_REV ? 0 : delta_Noclick;
         const int period = Loop_period(A_Flash_sample, B_Flash_sample, crossfade, mode_player);
         const int base = mode_player == LOOP_REV ? B_Flash_sample_shifted : A_Flash_sample + crossfade;
         if (period <= 0)
@@ -1947,7 +1962,8 @@ void AudioPlayer::Prepare_live_forward_block(void)
 {
     live_fade_out = false;
     live_fade_in = false;
-    if (!LS_flag || mode_player != ONCE_FWD)
+    const bool unity_loop = mode_player == LOOP_FWD && pitch == 1.0f;
+    if (!LS_flag || (mode_player != ONCE_FWD && !unity_loop))
     {
         live_start_pending = false;
         live_restart_pending = false;
@@ -1958,7 +1974,34 @@ void AudioPlayer::Prepare_live_forward_block(void)
     {
         live_start_pending = false;
         const bool cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
-        if (cache_full && LS_state == REC && Live_Sampler->Is_writing())
+        if (unity_loop)
+        {
+            const int span = B_Flash_sample - A_Flash_sample + 1;
+            A_Flash_sample = (A_Flash_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+            B_Flash_sample = A_Flash_sample + span - 1;
+            a_first_sample = A_Flash_sample;
+            if (!cache_full)
+            {
+                int phase = 0;
+                int remaining = AUDIO_BLOCK_SAMPLES;
+                while (remaining > 0)
+                {
+                    const int position = (A_Flash_sample + phase) % LS_buffer_dim;
+                    const int chunk = std::min(remaining, std::min(span - phase, LS_buffer_dim - position));
+                    if (position + chunk - 1 > Live_Sampler->Q_sample)
+                    {
+                        live_forward_end = true;
+                        live_forward_empty = true;
+                        live_forward_last_sample = 0;
+                        live_restart_pending = false;
+                        return;
+                    }
+                    remaining -= chunk;
+                    phase = (phase + chunk) % span;
+                }
+            }
+        }
+        else if (cache_full && LS_state == REC && Live_Sampler->Is_writing())
         {
             const int write_position = Live_Sampler->Q_sample;
             if (pitch > 1.0f)
@@ -1991,10 +2034,11 @@ void AudioPlayer::Prepare_live_forward_block(void)
     if (live_restart_pending)
     {
         live_restart_pending = false;
-        float relative_start = fmodf(live_restart_sample - A_Flash_sample, static_cast<float>(LS_buffer_dim));
+        const int period = unity_loop ? B_Flash_sample - A_Flash_sample + 1 : LS_buffer_dim;
+        float relative_start = fmodf(live_restart_sample - A_Flash_sample, static_cast<float>(period));
         if (relative_start < 0.0f)
         {
-            relative_start += LS_buffer_dim;
+            relative_start += period;
         }
         a_first_sample = A_Flash_sample + relative_start;
         live_fade_in = true;
@@ -2004,7 +2048,26 @@ void AudioPlayer::Prepare_live_forward_block(void)
 
 void AudioPlayer::Check_live_forward_boundary(void)
 {
-    if (!LS_flag || mode_player != ONCE_FWD || LS_state != REC || pitch == 1.0f || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
+    if (!LS_flag || LS_state != REC || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
+    {
+        return;
+    }
+    if (mode_player == LOOP_FWD && pitch == 1.0f)
+    {
+        const int span = B_Flash_sample - A_Flash_sample + 1;
+        const int start_phase = (static_cast<int>(floorf(a_sample - A_Flash_sample)) % span + span) % span;
+        const int first_position = (A_Flash_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+        const int write_phase = (Live_Sampler->Q_sample - first_position + LS_buffer_dim) % LS_buffer_dim;
+        const int count = static_cast<int>(ceilf(b_sample)) - static_cast<int>(floorf(a_sample)) + 1;
+        if (write_phase < span && (write_phase - start_phase + span) % span < count - 1)
+        {
+            live_fade_out = true;
+            live_restart_sample = a_sample; // Repeat this phase, including a possible B-to-A wrap.
+            live_restart_pending = true;
+        }
+        return;
+    }
+    if (mode_player != ONCE_FWD || pitch == 1.0f)
     {
         return;
     }
@@ -2673,8 +2736,7 @@ int AudioPlayer::Loop_period(int first, int last, int crossfade, uint8_t mode) c
 
 bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period) // Fill repeated loop segments without crossing source or NoClick boundaries.
 {
-    const bool live_noclick = LS_flag && mode == LOOP_FWD && crossfade > 1 && crossfade <= PlayerReadBudget::Live_noclick_samples;
-    if (mode != LOOP_FWD_REV && crossfade > 0 && noclick == nullptr && !live_noclick)
+    if (mode != LOOP_FWD_REV && crossfade > 0 && noclick == nullptr)
     {
         return false;
     }
@@ -2705,19 +2767,7 @@ bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, 
             available = period - phase;
         }
         const int chunk = count < available ? count : available;
-        if (from_noclick && live_noclick)
-        {
-            int16_t head[PlayerReadBudget::Live_noclick_samples];
-            const int offset = phase - raw_count;
-            Read_samples(destination, last - crossfade + 1 + offset, chunk);
-            Read_samples(head, first + offset, chunk);
-            for (int i = 0; i < chunk; ++i)
-            {
-                const int weight = offset + i;
-                destination[i] = static_cast<int16_t>((static_cast<int32_t>(destination[i]) * (crossfade - 1 - weight) + static_cast<int32_t>(head[i]) * weight) / (crossfade - 1));
-            }
-        }
-        else if (from_noclick)
+        if (from_noclick)
         {
             for (int i = 0; i < chunk; ++i)
             {
@@ -2746,7 +2796,7 @@ bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, 
 
 void AudioPlayer::Loop_memory_harvest(void) // Assemble loop samples and preserve the fractional playback position.
 {
-    const int crossfade = LS_flag && mode_player == LOOP_FWD ? PlayerReadBudget::Live_noclick_samples : (mode_player == LOOP_FWD_REV ? 0 : delta_Noclick);
+    const int crossfade = (LS_flag && mode_player == LOOP_FWD) || mode_player == LOOP_FWD_REV ? 0 : delta_Noclick;
     const int period = Loop_period(A_Flash_sample, B_Flash_sample, crossfade, mode_player);
     const int base = mode_player == LOOP_REV ? B_Flash_sample_shifted : A_Flash_sample + crossfade;
     const float distance = b_sample - a_sample;

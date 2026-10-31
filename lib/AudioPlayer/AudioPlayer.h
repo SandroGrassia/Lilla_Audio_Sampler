@@ -313,7 +313,7 @@ private:
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
     void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
-    void Check_live_forward_boundary(void); // Book a fast-forward jump or slow-forward rewind from the actual harvested interval.
+    void Check_live_forward_boundary(void); // Book a unity-loop replay, fast-forward jump or slow-forward rewind from the harvested interval.
     void Shape_live_forward_block(void); // Apply the output ramp after effects without changing cached audio.
     bool Harvest_live_continuous(void); // Circular FWD reading continues after STOP when the live cache is full.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.

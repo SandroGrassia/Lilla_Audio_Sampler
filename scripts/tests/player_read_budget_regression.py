@@ -170,6 +170,15 @@ int main()
     p.span = 1; p.pingpong = true;
     assert(std::isinf(Estimate(p, 128)));
 
+    // Live FWD plans ignore stored NoClick lengths for active, pending and edited voices.
+    RealVoice::AudioPlayer live_loop;
+    live_loop.file_id = live_loop.file_id_wait = FIRST_LIVE_SAMPLING_FILE;
+    live_loop.mode_player = live_loop.mode_player_wait = live_loop.mode_player_E = LOOP_FWD;
+    live_loop.delta_Noclick = live_loop.delta_Noclick_wait = live_loop.delta_Noclick_E = 128;
+    assert(live_loop.Get_read_plan().crossfade == 0);
+    assert(live_loop.Get_read_plan(true).crossfade == 0);
+    assert(live_loop.Get_read_plan(false, true).crossfade == 0);
+
     // Forecast the maximum modulation and clamp it to the actual source ceiling.
     RealVoice::AudioPlayer real;
     real.pitch_note = 2;

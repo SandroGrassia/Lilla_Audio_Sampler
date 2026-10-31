@@ -32,10 +32,6 @@ float PlayerReadBudget::Estimate(const Plan &plan, uint32_t output_samples)
     if (plan.live)
     {
         operations *= 2u; // Each logical live segment may wrap the circular buffer.
-        if (plan.crossfade > 0)
-        {
-            operations *= 2u; // Dynamic NoClick reads both live endpoints.
-        }
     }
     if (plan.packets)
     {
@@ -49,10 +45,6 @@ float PlayerReadBudget::Estimate(const Plan &plan, uint32_t output_samples)
     else if (plan.crossfade > 0)
     {
         cost += Transfer_us(PlayerReadSource::Ram, samples + 9u * operations) + (operations - 1u) * Transfer_us(PlayerReadSource::Ram, 0); // Charging a full RAM span as well safely covers every possible NoClick split.
-        if (plan.live)
-        {
-            cost += Transfer_us(PlayerReadSource::Psram, samples) + 0.05f * samples; // Bound the second endpoint read and per-sample blend; validate CPU allowance on hardware.
-        }
     }
     if (plan.packets)
     {

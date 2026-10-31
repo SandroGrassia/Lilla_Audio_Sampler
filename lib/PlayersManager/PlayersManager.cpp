@@ -327,7 +327,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     plan.crossfade = plan.pingpong ? 0 : preset.Noclick;
     if (plan.live && preset.mode == LOOP_FWD)
     {
-        plan.crossfade = PlayerReadBudget::Live_noclick_samples;
+        plan.crossfade = 0;
     }
     const float ceiling = preset.file == SdSoundSource::PREVIEW ? 8.0f : Playback_pitch_limit(wavetable, preset.source.storage == Psram, plan.live); // Apply the final source ceiling, including modulation.
     plan.pitch = constrain(note_pitch * preset.pitch * PlayerReadBudget::Maximum_modulation, MIN_PITCH, ceiling);

@@ -24,7 +24,7 @@ constexpr float MIN_PITCH = 0.01f;
 namespace SdSoundSource { constexpr int PREVIEW = -1; }
 float constrain(float v, float lo, float hi) { return std::min(hi, std::max(lo, v)); }
 constexpr float VIBRATO_STEP = 1;
-namespace PlayerReadBudget { constexpr int Live_noclick_samples = 128; }
+constexpr int BASKET_DIM = 5000;
 struct Recorder
 {
     bool first_write_flag = false, writing = true;
@@ -65,10 +65,16 @@ struct AudioPlayer
     void Close_source() { ++closes; }
     void Fast_stop() { assert(false); }
     void Wavetable_harvest() { assert(false); }
-    int Loop_period(int, int, int, int) { assert(false); return 1; }
-    bool Fill_loop_samples(int16_t *, int, int, int, int, int, int, const int16_t *, int) { assert(false); return false; }
+    int Loop_period(int first, int last, int crossfade, uint8_t mode) const;
+    bool Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period);
+    void Loop_memory_harvest();
     void Flash_memory_harvest()
     {
+        if (mode_player >= LOOP_FWD)
+        {
+            Loop_memory_harvest();
+            return;
+        }
         live_forward_end = Harvest_live_forward_end();
         if (!live_forward_end)
         {
@@ -484,10 +490,203 @@ int main()
         assert(!p.pitch_tune_flag && !p.pitch_bend_flag && p.vibrato_array_element_float == 1);
         assert(std::abs(p.pitch - speed * 2 * 1.1f * 1.01f) < 0.0001f);
     }
-    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes and first fill\n";
+    // Live FWD loops start at A and wrap B directly to A, even with stale NoClick settings.
+    for (int first : {0, 4000})
+    {
+        for (int speed : {1, 2})
+        {
+            for (bool filtered : {false, true})
+            {
+                AudioPlayer p;
+                p.mode_player = LOOP_FWD;
+                p.A_Flash_sample = first;
+                p.B_Flash_sample = first + 500;
+                p.a_first_sample = first;
+                p.pitch = p.pitch_note = speed;
+                p.delta_Noclick = 128;
+                p.Noclick_ptr = nullptr;
+                p.tone_filter_level = filtered ? 0x81 : 0;
+                for (int packet = 0; packet < 24; ++packet)
+                {
+                    p.Render();
+                    const int phase = (packet * 128 * speed) % 501;
+                    const int history = p.antialias.mix > 0.0f ? p.antialias.history : 0;
+                    const int count = history + 127 * speed + 1 + (history > 0 ? 1 : 0);
+                    for (int i = 0; i < count; ++i)
+                    {
+                        const int offset = ((phase - history + i) % 501 + 501) % 501;
+                        assert(p.samples_basket[i] == memory[(first + offset) % LS_buffer_dim]);
+                    }
+                    if (!filtered || speed == 1)
+                    {
+                        for (int i = 0; i < 128; ++i)
+                        {
+                            assert(p.block[i] == memory[(first + (phase + i * speed) % 501) % LS_buffer_dim]);
+                        }
+                    }
+                    assert(p.a_first_sample == first + ((packet + 1) * 128 * speed) % 501);
+                }
+            }
+        }
+    }
+    // Unity-loop attacks require exactly 128 recorded samples, for either lock setting and after STOP.
+    for (bool fixed : {false, true})
+    {
+        LS_XY_lock = fixed;
+        for (bool full : {false, true})
+        {
+            for (int q : {-1, 126, 127, 255, 1023, 4094, 4095})
+            {
+                for (int start : {-128, 0, 128, 900, 4000, 4224})
+                {
+                    for (bool recording : {false, true})
+                    {
+                        recorder.Q_sample = q;
+                        recorder.first_write_flag = !full;
+                        recorder.writing = recording;
+                        LS_state = recording ? REC : 0;
+                        AudioPlayer::live_unrecorded_notice = false;
+                        AudioPlayer p;
+                        p.mode_player = LOOP_FWD;
+                        p.pitch = p.pitch_note = 1;
+                        p.A_Flash_sample = p.a_first_sample = start;
+                        p.B_Flash_sample = start + 500;
+                        p.live_start_pending = true;
+                        p.live_forward_last_sample = 12000;
+                        const int normalized = (start % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+                        bool valid = true;
+                        for (int i = 0; i < 128; ++i)
+                        {
+                            valid = valid && (full || (normalized + i) % LS_buffer_dim <= q);
+                        }
+                        p.Render();
+                        assert(p.live_forward_end == !valid);
+                        assert(AudioPlayer::live_unrecorded_notice == !valid);
+                        assert(p.A_Flash_sample == normalized && p.B_Flash_sample == normalized + 500);
+                        if (!valid)
+                        {
+                            assert(p.state == IDLE_REQUEST && p.read_last == -1);
+                            for (int value : p.block)
+                            {
+                                assert(value == 0);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Compare circular membership against an independent enumeration of the samples actually played.
+    recorder.first_write_flag = false;
+    recorder.writing = true;
+    LS_state = REC;
+    for (int first : {0, 50, 4000})
+    {
+        for (int span : {501, 4096})
+        {
+            for (float phase : {0.0f, 100.0f, 400.0f, 499.0f, 499.5f})
+            {
+                for (int q = 0; q < LS_buffer_dim; ++q)
+                {
+                    AudioPlayer p;
+                    p.mode_player = LOOP_FWD;
+                    p.pitch = 1;
+                    p.A_Flash_sample = first;
+                    p.B_Flash_sample = first + span - 1;
+                    p.a_sample = first + phase;
+                    p.b_sample = p.a_sample + 127;
+                    recorder.Q_sample = q;
+                    bool collision = false;
+                    const int count = phase == floorf(phase) ? 128 : 129;
+                    for (int i = 0; i < count - 1; ++i)
+                    {
+                        collision = collision || (first + (static_cast<int>(phase) + i) % span) % LS_buffer_dim == q;
+                    }
+                    p.Check_live_forward_boundary();
+                    assert(p.live_restart_pending == collision && p.live_fade_out == collision);
+                    if (collision)
+                    {
+                        assert(p.live_restart_sample == p.a_sample);
+                    }
+                }
+            }
+        }
+    }
+    // Replay the same phase after Q advances, including loop/cache wrap, STOP and a queued bend.
+    for (bool fixed : {false, true})
+    {
+        LS_XY_lock = fixed;
+        for (bool stop : {false, true})
+        {
+            for (int scenario : {0, 1, 2})
+            {
+                AudioPlayer p;
+                p.mode_player = LOOP_FWD;
+                p.pitch = p.pitch_note = 1;
+                p.A_Flash_sample = scenario == 2 ? 100 : 50;
+                p.B_Flash_sample = scenario == 2 ? 4136 : 4095;
+                p.a_first_sample = scenario == 0 ? 900 : (scenario == 1 ? 4046 : 4086);
+                recorder.Q_sample = scenario == 0 ? 950 : (scenario == 1 ? 75 : 4095);
+                recorder.writing = true;
+                LS_state = REC;
+                p.Render();
+                const float saved = p.a_sample;
+                const float next = p.a_first_sample;
+                assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
+                p.pitch_bend_wait = 1.1f;
+                p.pitch_bend_flag = true;
+                p.Apply_pitch_requests();
+                assert(p.pitch == 1 && p.pitch_bend_flag);
+                recorder.Q_sample = (recorder.Q_sample + 128) % LS_buffer_dim;
+                recorder.writing = !stop;
+                LS_state = stop ? 0 : REC;
+                p.Render();
+                assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
+                assert(p.a_sample == saved && p.a_first_sample == next && p.pitch == 1);
+                p.Apply_pitch_requests();
+                assert(!p.pitch_bend_flag && std::abs(p.pitch - 1.1f) < 0.00001f);
+            }
+        }
+    }
+    // A later collision starts another complete pair; no retrigger is performed within fade-in.
+    AudioPlayer repeated;
+    repeated.mode_player = LOOP_FWD;
+    repeated.pitch = repeated.pitch_note = 1;
+    repeated.A_Flash_sample = 50;
+    repeated.B_Flash_sample = 4095;
+    repeated.a_first_sample = 3968;
+    recorder.Q_sample = 3968;
+    recorder.writing = true;
+    LS_state = REC;
+    repeated.Render();
+    assert(repeated.live_restart_pending);
+    recorder.Q_sample = 0;
+    repeated.Render();
+    assert(repeated.live_fade_in && !repeated.live_restart_pending);
+    recorder.Q_sample = 128;
+    repeated.Render();
+    assert(repeated.a_sample == 50 && repeated.live_restart_pending && repeated.live_fade_out);
+    repeated.mode_player = LOOP_FWD_REV;
+    repeated.Prepare_live_forward_block();
+    assert(!repeated.live_restart_pending && !repeated.live_fade_in);
+    // Ordinary file loops retain their NoClick table.
+    AudioPlayer file_loop;
+    file_loop.LS_flag = false;
+    int16_t blend[2] = {123, 456};
+    int16_t loop_output[8];
+    assert(file_loop.Fill_loop_samples(loop_output, 8, 0, 0, 9, 2, LOOP_FWD, blend, 8));
+    for (int i = 0; i < 6; ++i)
+    {
+        assert(loop_output[i] == memory[i + 2]);
+    }
+    assert(loop_output[6] == 123 && loop_output[7] == 456);
+    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes, first fill and unity loop replays\n";
 }
 '''
 signatures = [
+    'int AudioPlayer::Loop_period(int first, int last, int crossfade, uint8_t mode) const',
+    'bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period)',
+    'void AudioPlayer::Loop_memory_harvest(void)',
     'void AudioPlayer::Update_pitch(void)',
     'void AudioPlayer::Prepare_live_forward_block(void)',
     'void AudioPlayer::Check_live_forward_boundary(void)',
