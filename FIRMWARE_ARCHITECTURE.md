@@ -196,6 +196,8 @@ These structures are defined in [SharedElements.h](lib/SharedElements/SharedElem
 
 [PlaybackProfile.h](lib/config/PlaybackProfile.h) sets final pitch-ratio ceilings of 5 for Flash playback, 35 for Live Sampler playback, cached PSRAM files and wavetable playback. Live Sampler loop intervals have a 120 ms minimum so a block at the maximum pitch fits inside the loop, including filter context. These ceilings include tuning, pitch bend and vibrato; they are not guarantees that every voice can run simultaneously at the maximum ratio.
 
+Live forward loops play the initial attack from A. From the first B-to-A return, the last 32 source samples are linearly mixed with the first 32 samples read from the current PSRAM cache; playback then continues at A+32. Subsequent loop periods are B-A+1-32 samples. Startup validation and write-head collision checks account for both source regions of the mix, and the read budget reserves their additional transfers.
+
 The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
 
 ## 7. Pitch-dependent polyphony

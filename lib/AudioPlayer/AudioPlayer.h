@@ -312,6 +312,8 @@ private:
     void Update_pan_gain(void);
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
+    int Live_loop_segment(int phase, int first, int last, int &source, int &blend_source) const; // Map an attack or repeated loop phase to its raw or mixed source segment.
+    bool Live_loop_contains(int phase, int count, int position) const; // Check both sources of each mixed segment for the write head.
     bool Live_loop_samples_recorded(int phase, int count, int write_position) const; // Check a loop prefetch against the recorded prefix, including loop and cache wrap.
     void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
     void Check_live_forward_boundary(void); // Book a unity-loop replay, fast-forward jump or slow-forward rewind from the harvested interval.

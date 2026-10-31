@@ -170,14 +170,14 @@ int main()
     p.span = 1; p.pingpong = true;
     assert(std::isinf(Estimate(p, 128)));
 
-    // Live FWD plans ignore stored NoClick lengths for active, pending and edited voices.
+    // Live FWD plans reserve the dynamic 32-sample mix for active, pending and edited voices.
     RealVoice::AudioPlayer live_loop;
     live_loop.file_id = live_loop.file_id_wait = FIRST_LIVE_SAMPLING_FILE;
     live_loop.mode_player = live_loop.mode_player_wait = live_loop.mode_player_E = LOOP_FWD;
     live_loop.delta_Noclick = live_loop.delta_Noclick_wait = live_loop.delta_Noclick_E = 128;
-    assert(live_loop.Get_read_plan().crossfade == 0);
-    assert(live_loop.Get_read_plan(true).crossfade == 0);
-    assert(live_loop.Get_read_plan(false, true).crossfade == 0);
+    assert(live_loop.Get_read_plan().crossfade == 32);
+    assert(live_loop.Get_read_plan(true).crossfade == 32);
+    assert(live_loop.Get_read_plan(false, true).crossfade == 32);
 
     // Forecast the maximum modulation and clamp it to the actual source ceiling.
     RealVoice::AudioPlayer real;
@@ -264,7 +264,7 @@ int main()
     assert(Playback_pitch_limit(false, true, false) == MAX_PITCH_PSRAM);
     assert(Playback_pitch_limit(true, true, false) == MAX_PITCH_WAVETABLE);
     const int live_prefetch = static_cast<int>(std::ceil(127 * MAX_PITCH_LIVE)) + 2 + PlayerAntialias::History(MAX_PITCH_LIVE);
-    assert(live_prefetch < 5292); // Even fractional/filter context stays below the minimum 120 ms loop.
+    assert(live_prefetch < 5292 - PlayerReadBudget::Live_noclick_samples); // Even fractional/filter context stays below the minimum 120 ms loop.
     assert(Limit_us == 1800);
     Plan high;
     high.pitch = 35; high.span = 10000;
