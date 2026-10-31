@@ -46,18 +46,30 @@ struct AudioPlayer
     int Flash_first_RAM_sample = 0, Wavetable_length = 128, delta_Noclick = 0;
     int16_t *Wavetable_ptr = memory, *Noclick_ptr = memory;
     float a_first_sample = 0, a_sample = 0, b_sample = 0, pitch = 1.5f, pitch_note = 1.5f, pitch_tune = 1;
-    float initial_index_offset = 0, interpolation_mix = 0;
+    float initial_index_offset = 0, interpolation_mix = 0, live_sinc_mix_start = 0;
+    bool live_sinc_start_pending = false, verify_recorded_reads = false;
     uint8_t tone_filter_level = 0;
     PlayerAntialias::Settings antialias;
-    int harvested_samples = 0, read_last = -1, read_count = 0;
+    int harvested_samples = 0, read_last = -1, read_count = 0, read_total = 0;
     int16_t samples_basket[5000] = {}, block[128] = {}, live_forward_last_sample = 0;
     float resampled_basket[128] = {};
     Recorder *Live_Sampler = &recorder;
     void Read_samples(int16_t *dst, int first, int count)
     {
         assert(count > 0 && count <= 5000);
+        if (verify_recorded_reads && recorder.first_write_flag && recorder.Q_sample < LS_buffer_dim - 1)
+        {
+            const int position = (first % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+            const int tail = std::min(count, LS_buffer_dim - position);
+            if (position + tail - 1 > recorder.Q_sample || count - tail - 1 > recorder.Q_sample)
+            {
+                std::cerr << "Unrecorded read: mode=" << mode_player << " pitch=" << pitch << " Q=" << recorder.Q_sample << " A=" << A_Flash_sample << " a=" << a_sample << " first=" << first << " count=" << count << " mix=" << interpolation_mix << "\n";
+                assert(false);
+            }
+        }
         read_last = first + count - 1;
         read_count = count;
+        read_total += count;
         for (int i = 0; i < count; ++i)
         {
             dst[i] = memory[((first + i) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim];
@@ -495,6 +507,98 @@ int main()
         assert(!p.pitch_tune_flag && !p.pitch_bend_flag && p.vibrato_array_element_float == 1);
         assert(std::abs(p.pitch - speed * 2 * 1.1f * 1.01f) < 0.0001f);
     }
+    // First-fill mobile SYNC: start with the available interpolation samples, never read unwritten memory.
+    LS_buffer_dim = 32768;
+    LS_XY_lock = false;
+    LS_X_delta = 0;
+    LS_state = REC;
+    recorder.writing = true;
+    for (int i = 0; i < LS_buffer_dim; ++i)
+    {
+        memory[i] = static_cast<int16_t>(12000 * sin(i * 0.03) + 3000 * cos(i * 0.1));
+    }
+    for (int mode : {ONCE_FWD, LOOP_FWD})
+    {
+        for (float speed : {0.01f, 0.25f, 0.5f, 0.9f, 0.99f, 0.9999f, 1.0f, 1.0594631f, 2.0f, 35.0f})
+        {
+            for (int q : {-1, 0, 1, 2, 63, 64, 126, 127, 128, 255, 1023, 32766})
+            {
+                recorder.Q_sample = q;
+                recorder.first_write_flag = true;
+                AudioPlayer p;
+                p.mode_player = mode;
+                p.pitch = p.pitch_note = speed;
+                p.A_Flash_sample = p.a_first_sample = mode == ONCE_FWD ? q + 1 : q - 128;
+                p.B_Flash_sample = p.A_Flash_sample + (mode == ONCE_FWD ? LS_buffer_dim - 1 : 5292);
+                p.live_start_pending = true;
+                p.verify_recorded_reads = true;
+                AudioPlayer::live_unrecorded_notice = false;
+                const int start = std::max(0, q - (speed == 1 ? 127 : 128));
+                const bool allowed = speed <= 1 && ceilf(start + 127 * speed) <= q;
+                p.Render();
+                assert(p.live_forward_end == !allowed && AudioPlayer::live_unrecorded_notice == !allowed);
+                if (allowed)
+                {
+                    assert(p.a_sample == start && p.A_Flash_sample == start && p.state == 1);
+                    assert(!p.live_fade_out && !p.live_restart_pending);
+                    if (speed == 1)
+                    {
+                        assert(p.read_total == 128 && p.read_last == q);
+                        for (int i = 0; i < 128; ++i)
+                        {
+                            assert(p.block[i] == memory[start + i]);
+                        }
+                    }
+                }
+                else
+                {
+                    assert(p.state == IDLE_REQUEST && p.read_last == -1);
+                    for (int value : p.block)
+                    {
+                        assert(value == 0);
+                    }
+                }
+            }
+        }
+        // Follow a growing cache until the sinc window is available, including pitches almost at unity.
+        for (float speed : {0.01f, 0.5f, 0.99f, 0.9999f})
+        {
+            recorder.Q_sample = 127;
+            recorder.first_write_flag = true;
+            AudioPlayer p;
+            p.mode_player = mode;
+            p.pitch = p.pitch_note = speed;
+            p.A_Flash_sample = p.a_first_sample = mode == ONCE_FWD ? 128 : -1;
+            p.B_Flash_sample = p.A_Flash_sample + (mode == ONCE_FWD ? LS_buffer_dim - 1 : 5292);
+            p.live_start_pending = true;
+            p.verify_recorded_reads = true;
+            bool restored = false;
+            for (int cycle = 0; cycle < 250; ++cycle)
+            {
+                p.Render();
+                assert(p.state == 1 && !p.live_forward_end && !p.live_restart_pending);
+                if (cycle == 0)
+                {
+                    assert(p.interpolation_mix == 0 && p.read_last <= 127);
+                }
+                if (p.live_sinc_start_pending && p.interpolation_mix > 0)
+                {
+                    const float position = p.initial_index_offset;
+                    assert(p.Read_rendered_sample(0, position) == PlayerInterpolator::Read(p.samples_basket, position, 0));
+                    assert(std::abs(p.Read_rendered_sample(127, position + 127 * speed) - PlayerInterpolator::Read(p.samples_basket, position + 127 * speed, PlayerInterpolator::Mix(speed))) < 0.01f);
+                }
+                if (!p.live_sinc_start_pending)
+                {
+                    assert(p.interpolation_mix == PlayerInterpolator::Mix(speed));
+                    restored = true;
+                    break;
+                }
+                recorder.Q_sample += 128;
+            }
+            assert(restored);
+        }
+    }
+    LS_XY_lock = true;
     // Independent source-sequence oracle: the first 32 samples are an attack-only prefix.
     LS_buffer_dim = 16384;
     for (int i = 0; i < LS_buffer_dim; ++i)

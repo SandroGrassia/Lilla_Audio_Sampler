@@ -696,6 +696,8 @@ void AudioPlayer::Start_playing(void)
     char packet_filename[NAME_PACKET_SIZE];
     live_forward_last_sample = 0;
     live_start_pending = true;
+    live_sinc_start_pending = false;
+    live_sinc_mix_start = 0.0f;
     live_restart_pending = false;
     live_fade_out = false;
     live_fade_in = false;
@@ -1741,15 +1743,47 @@ void AudioPlayer::Update_pan_gain(void)
 
 void AudioPlayer::Harvest_samples(int outputs)
 {
-    if (live_forward_end && LS_flag && mode_player == LOOP_FWD)
+    if (live_forward_end && LS_flag && (mode_player == ONCE_FWD || mode_player == LOOP_FWD))
     {
-        memset(samples_basket, 0, sizeof(samples_basket)); // Reject an unrecorded loop attack without reading the cache.
+        memset(samples_basket, 0, sizeof(samples_basket)); // Reject an unrecorded attack without reading the cache.
         memset(resampled_basket, 0, sizeof(resampled_basket)); // Preserve cached filter settings for the next note.
         interpolation_mix = 0.0f;
         initial_index_offset = 0.0f;
         return;
     }
-    interpolation_mix = PlayerInterpolator::Mix(pitch);
+    const float target_mix = PlayerInterpolator::Mix(pitch);
+    if (live_sinc_start_pending)
+    {
+        const float previous_mix = interpolation_mix;
+        bool recorded = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
+        if (!recorded)
+        {
+            const int first = static_cast<int>(floorf(a_sample));
+            const int count = static_cast<int>(floorf((a_sample - first + PlayerInterpolator::Left) + (b_sample - a_sample))) + PlayerInterpolator::Taps - PlayerInterpolator::Left;
+            if (mode_player == LOOP_FWD)
+            {
+                const int base = A_Flash_sample + PlayerReadBudget::Live_noclick_samples;
+                const int period = B_Flash_sample - base + 1;
+                const int phase = first - base - PlayerInterpolator::Left;
+                recorded = Live_loop_samples_recorded(a_sample < base ? phase : (phase % period + period) % period, count, Live_Sampler->Q_sample);
+            }
+            else
+            {
+                const int position = (first % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+                recorded = position >= PlayerInterpolator::Left && position - PlayerInterpolator::Left + count - 1 <= Live_Sampler->Q_sample;
+            }
+        }
+        interpolation_mix = recorded ? target_mix : 0.0f;
+        live_sinc_mix_start = recorded ? std::min(previous_mix, target_mix) : 0.0f;
+        if (recorded && previous_mix == target_mix)
+        {
+            live_sinc_start_pending = false;
+        }
+    }
+    else
+    {
+        interpolation_mix = target_mix;
+    }
     PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
     if (antialias.mix > 0.0f)
     {
@@ -2040,6 +2074,7 @@ void AudioPlayer::Prepare_live_forward_block(void)
     if (!LS_flag || (mode_player != ONCE_FWD && !forward_loop))
     {
         live_start_pending = false;
+        live_sinc_start_pending = false;
         live_restart_pending = false;
         return;
     }
@@ -2048,6 +2083,28 @@ void AudioPlayer::Prepare_live_forward_block(void)
     {
         live_start_pending = false;
         const bool cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
+        live_sinc_start_pending = false;
+        if (!cache_full && LS_state == REC && Live_Sampler->Is_writing() && !LS_XY_lock && LS_X_delta == 0)
+        {
+            const int span = B_Flash_sample - A_Flash_sample + 1;
+            const int write_position = Live_Sampler->Q_sample;
+            const int start_position = std::max(0, write_position - AUDIO_BLOCK_SAMPLES + (pitch == 1.0f ? 1 : 0));
+            const float last_position = start_position + (AUDIO_BLOCK_SAMPLES - 1) * pitch;
+            if (pitch > 1.0f || static_cast<int>(ceilf(last_position)) > write_position)
+            {
+                live_forward_end = true;
+                live_forward_empty = true;
+                live_forward_last_sample = 0;
+                live_restart_pending = false;
+                return;
+            }
+            A_Flash_sample = start_position;
+            B_Flash_sample = start_position + span - 1;
+            a_first_sample = start_position;
+            live_sinc_start_pending = pitch < 1.0f;
+            interpolation_mix = 0.0f;
+            live_sinc_mix_start = 0.0f;
+        }
         if (forward_loop)
         {
             const int span = B_Flash_sample - A_Flash_sample + 1;
@@ -2057,7 +2114,7 @@ void AudioPlayer::Prepare_live_forward_block(void)
             if (!cache_full)
             {
                 PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
-                const bool sinc = PlayerInterpolator::Mix(pitch) > 0.0f;
+                const bool sinc = !live_sinc_start_pending && PlayerInterpolator::Mix(pitch) > 0.0f;
                 const int history = sinc ? PlayerInterpolator::Left : (antialias.mix > 0.0f ? antialias.history : 0);
                 const float distance = (a_first_sample + (AUDIO_BLOCK_SAMPLES - 1) * pitch) - a_first_sample; // Match the reader's float rounding at large cache indices.
                 const int count = sinc ? static_cast<int>(floorf(distance)) + PlayerInterpolator::Taps : (history > 0 ? history + static_cast<int>(floorf(distance)) + 2 : static_cast<int>(ceilf(distance)) + 1);
@@ -3781,7 +3838,8 @@ void AudioPlayer::Update_tone_filter(int patch, int instrument, uint8_t level)
 
 float AudioPlayer::Read_rendered_sample(int sample, float position) const
 {
-    return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, interpolation_mix);
+    const float mix = live_sinc_start_pending ? live_sinc_mix_start + (interpolation_mix - live_sinc_mix_start) * sample / (AUDIO_BLOCK_SAMPLES - 1) : interpolation_mix;
+    return antialias.mix > 0.0f ? resampled_basket[sample] : PlayerInterpolator::Read(samples_basket, position, mix);
 }
 
 bool AudioPlayer::Has_pending_edit(void) const

@@ -301,6 +301,8 @@ private:
     int FIFO_dim;
 
     float interpolation_mix = 0.0f; // Full sinc below 0.75x; blend continuously to linear at 1x.
+    bool live_sinc_start_pending = false; // Use linear interpolation until a first-fill SYNC attack has recorded sinc context.
+    float live_sinc_mix_start = 0.0f; // Blend from the previous block mix when the complete sinc window becomes available.
     PlayerAntialias::Settings antialias;
     static float resampled_basket[AUDIO_BLOCK_SAMPLES]; // Each harvest is consumed before the next.
     int harvested_samples = 0;
