@@ -209,8 +209,8 @@ int main()
             recorder.Q_sample = 1023;
             p.Render();
             assert(p.live_last_read_sample == 1023 + filtered);
-            assert(p.live_fade_out == !filtered);
-            assert(p.live_restart_pending == !filtered);
+            assert(p.live_fade_out && p.live_restart_pending);
+            assert(p.live_restart_sample == 1152);
         }
         // Exercise ramps and saved destinations with real interpolation/filtering, including wrap and STOP.
         for (bool filtered : {false, true})
@@ -241,6 +241,44 @@ int main()
                 }
             }
         }
+        // A bend above unity crosses Q from the previous recorded block, including circular wrap.
+        recorder.writing = true;
+        LS_state = REC;
+        for (int q : {127, 1023, 4095})
+        {
+            for (float bent_pitch : {1.0594631f, 2.0f})
+            {
+                AudioPlayer p;
+                recorder.Q_sample = q;
+                p.pitch = p.pitch_note = 1.0f;
+                p.a_first_sample = q - 127;
+                p.Render();
+                assert(!p.live_restart_pending);
+                recorder.Q_sample = (q + 128) % LS_buffer_dim;
+                p.pitch = p.pitch_note = bent_pitch;
+                p.Render();
+                assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
+                const int destination = (recorder.Q_sample + 129) % LS_buffer_dim;
+                assert(p.live_restart_sample == destination);
+                recorder.Q_sample = (recorder.Q_sample + 128) % LS_buffer_dim;
+                p.Render();
+                assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
+                assert(static_cast<int>(p.a_sample) % LS_buffer_dim == destination);
+            }
+        }
+        // Full harvested intervals trigger only when crossing Q or ending in the latest written block.
+        for (int q : {0, 63, 1023, 4095})
+        {
+            recorder.Q_sample = q;
+            for (int first_offset : {-300, -127, 0, 1, 128})
+            {
+                AudioPlayer p;
+                p.harvested_samples = 136;
+                p.live_last_read_sample = q + first_offset + p.harvested_samples - 1;
+                p.Check_live_forward_boundary();
+                assert(p.live_restart_pending == (first_offset == -127 || first_offset == 0));
+            }
+        }
         // Endpoint inclusion is circular: Q and Q-127 belong, Q+1 and Q-128 do not.
         recorder.writing = true;
         LS_state = REC;
@@ -251,6 +289,7 @@ int main()
             {
                 AudioPlayer p;
                 p.live_last_read_sample = q - distance;
+                p.harvested_samples = 1;
                 p.Check_live_forward_boundary();
                 assert(p.live_restart_pending == (distance >= 0 && distance < 128));
             }
@@ -304,7 +343,8 @@ int main()
         for (int packet = 0; packet < 20; ++packet)
         {
             p.Render();
-            assert(p.a_sample > recorder.Q_sample && !p.live_restart_pending);
+            assert(p.a_sample > recorder.Q_sample);
+            assert(!p.live_restart_pending);
             for (int i = 0; i < 128; ++i)
             {
                 // The IIR history can produce a short initial tail, but not a sustained full-amplitude burst.

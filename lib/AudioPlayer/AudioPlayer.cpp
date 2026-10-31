@@ -2014,11 +2014,17 @@ void AudioPlayer::Check_live_forward_boundary(void)
     }
 
     const int write_position = Live_Sampler->Q_sample;
+    // Exclude past IIR warmup from forward crossings; retain interpolation lookahead.
+    const int boundary_samples = harvested_samples - (pitch > 1.0f && antialias.mix > 0.0f ? antialias.history : 0);
+    const int first_read_sample = live_last_read_sample - boundary_samples + 1;
+    const int first_position = (first_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+    const int distance_to_write = (write_position - first_position + LS_buffer_dim) % LS_buffer_dim;
+    const bool crosses_write_boundary = distance_to_write < boundary_samples - 1;
     if (pitch > 1.0f)
     {
         const int last_position = (live_last_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
         const int distance_from_write = (write_position - last_position + LS_buffer_dim) % LS_buffer_dim;
-        if (distance_from_write < AUDIO_BLOCK_SAMPLES)
+        if (distance_from_write < AUDIO_BLOCK_SAMPLES || crosses_write_boundary)
         {
             live_fade_out = true;
             live_restart_sample = (write_position + 1 + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
@@ -2027,11 +2033,7 @@ void AudioPlayer::Check_live_forward_boundary(void)
     }
     else
     {
-        // Detect the new-to-old boundary across the complete interpolation window.
-        const int first_read_sample = live_last_read_sample - harvested_samples + 1;
-        const int first_position = (first_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
-        const int distance_to_write = (write_position - first_position + LS_buffer_dim) % LS_buffer_dim;
-        if (distance_to_write < harvested_samples - 1)
+        if (crosses_write_boundary)
         {
             live_fade_out = true;
             live_restart_sample = a_sample - AUDIO_BLOCK_SAMPLES;
