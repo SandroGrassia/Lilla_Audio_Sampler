@@ -839,6 +839,138 @@ int main()
     stopped_loop.Edit_geometry(ONCE_FWD, 0, 2000);
     stopped_loop.Prepare_live_forward_block();
     assert(!stopped_loop.live_restart_pending && !stopped_loop.live_fade_in);
+    // Slow-loop attacks include all eight sinc taps, including history mapped to the loop tail.
+    for (float speed : {0.01f, 0.25f, 0.5f, 0.9f, 0.9999f})
+    {
+        for (int first : {0, 100, 4000})
+        {
+            for (int q : {-1, 127, 499, 500, 600, 4094, 4095})
+            {
+                for (bool full : {false, true})
+                {
+                    AudioPlayer p;
+                    p.mode_player = LOOP_FWD;
+                    p.pitch = p.pitch_note = speed;
+                    p.A_Flash_sample = p.a_first_sample = first;
+                    p.B_Flash_sample = first + 500;
+                    p.live_start_pending = true;
+                    recorder.first_write_flag = !full;
+                    recorder.Q_sample = q;
+                    recorder.writing = true;
+                    LS_state = REC;
+                    AudioPlayer::live_unrecorded_notice = false;
+                    const int count = static_cast<int>(floorf(127 * speed)) + 8;
+                    bool valid = true;
+                    for (int i = 0; i < count; ++i)
+                    {
+                        const int position = (first + (i - 3 + 501) % 501) % LS_buffer_dim;
+                        valid = valid && (full || position <= q);
+                    }
+                    p.Render();
+                    assert(p.live_forward_end == !valid && AudioPlayer::live_unrecorded_notice == !valid);
+                    if (!valid)
+                    {
+                        assert(p.read_last == -1 && p.state == IDLE_REQUEST);
+                        for (int value : p.block)
+                        {
+                            assert(value == 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Real sinc harvests detect Q even in left/right context; the final harvested sample is excluded.
+    recorder.first_write_flag = false;
+    for (float speed : {0.01f, 0.25f, 0.5f, 0.9f, 0.9999f})
+    {
+        for (int first : {0, 50, 4000})
+        {
+            for (float phase : {0.25f, 200.75f, 498.25f})
+            {
+                const int count = static_cast<int>(floorf(phase - floorf(phase) + 127 * speed)) + 8;
+                for (int q_offset : {-1, 0, 2, count - 2, count - 1, count})
+                {
+                    for (bool stop : {false, true})
+                    {
+                        AudioPlayer p;
+                        p.mode_player = LOOP_FWD;
+                        p.pitch = p.pitch_note = speed;
+                        p.A_Flash_sample = first;
+                        p.B_Flash_sample = first + 500;
+                        p.a_first_sample = first + phase;
+                        recorder.Q_sample = (first + (static_cast<int>(phase) - 3 + q_offset + 501) % 501) % LS_buffer_dim;
+                        recorder.writing = true;
+                        LS_state = REC;
+                        p.Render();
+                        const bool collision = q_offset >= 0 && q_offset < count - 1;
+                        assert(p.live_restart_pending == collision && p.live_fade_out == collision);
+                        if (!collision)
+                        {
+                            continue;
+                        }
+                        assert(p.block[127] == 0 && p.live_restart_sample == first + phase - 128);
+                        p.pitch_tune_wait = 2;
+                        p.pitch_tune_flag = true;
+                        p.Apply_pitch_requests();
+                        assert(p.pitch == speed && p.pitch_tune_flag);
+                        recorder.Q_sample = (recorder.Q_sample + 128) % LS_buffer_dim;
+                        recorder.writing = !stop;
+                        LS_state = stop ? 0 : REC;
+                        p.Render();
+                        const float destination = first + fmodf(phase - 128 + 501, 501);
+                        assert(p.a_sample == destination && p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
+                        assert(p.pitch == speed);
+                        p.Apply_pitch_requests();
+                        assert(!p.pitch_tune_flag && std::abs(p.pitch - 2 * speed) < 0.00001f);
+                    }
+                }
+            }
+        }
+    }
+    // Fractional replays need one extra sinc sample: reject if that last sample is still unrecorded.
+    for (int q : {267, 268})
+    {
+        AudioPlayer p;
+        p.mode_player = LOOP_FWD;
+        p.pitch = p.pitch_note = 0.5f;
+        p.B_Flash_sample = 500;
+        p.live_restart_pending = true;
+        p.live_restart_sample = 200.75f;
+        recorder.first_write_flag = true;
+        recorder.Q_sample = q;
+        recorder.writing = false;
+        LS_state = 0;
+        AudioPlayer::live_unrecorded_notice = false;
+        p.Render();
+        assert(p.live_forward_end == (q == 267));
+        assert(AudioPlayer::live_unrecorded_notice == (q == 267));
+        if (q == 267)
+        {
+            assert(p.read_last == -1 && p.state == IDLE_REQUEST && !p.live_fade_in);
+        }
+        else
+        {
+            assert(p.live_fade_in && p.a_sample == 200.75f && p.read_last == 268);
+        }
+    }
+    // At large cache indices, float rounding can add a source sample to the sinc window.
+    LS_buffer_dim = 1764096;
+    for (int q : {1000130, 1000131})
+    {
+        AudioPlayer p;
+        p.mode_player = LOOP_FWD;
+        p.pitch = p.pitch_note = 0.9999f;
+        p.B_Flash_sample = LS_buffer_dim - 1;
+        p.live_restart_pending = true;
+        p.live_restart_sample = 1000000.0f;
+        recorder.first_write_flag = true;
+        recorder.Q_sample = q;
+        p.Prepare_live_forward_block();
+        assert(p.live_forward_end == (q == 1000130));
+        assert(p.live_fade_in == (q == 1000131));
+    }
+    LS_buffer_dim = 4096;
     // Ordinary file loops retain their NoClick table.
     AudioPlayer file_loop;
     file_loop.LS_flag = false;
@@ -850,7 +982,7 @@ int main()
         assert(loop_output[i] == memory[i + 2]);
     }
     assert(loop_output[6] == 123 && loop_output[7] == 456);
-    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes, first fill, unity loop replays and fast loop jumps\n";
+    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes, first fill, unity loop replays, fast loop jumps and fractional slow-loop rewinds\n";
 }
 '''
 signatures = [
