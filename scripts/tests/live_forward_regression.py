@@ -20,6 +20,10 @@ prefix = r'''
 constexpr int AUDIO_BLOCK_SAMPLES = 128, ONCE_FWD = 0, ONCE_REV = 1, LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV = 5, IDLE_REQUEST = 2, REC = 1;
 int LS_buffer_dim = 4096, LS_X_delta = 0, LS_state = REC;
 bool LS_XY_lock = false;
+constexpr float MIN_PITCH = 0.01f;
+namespace SdSoundSource { constexpr int PREVIEW = -1; }
+float constrain(float v, float lo, float hi) { return std::min(hi, std::max(lo, v)); }
+constexpr float VIBRATO_STEP = 1;
 namespace PlayerReadBudget { constexpr int Live_noclick_samples = 128; }
 struct Recorder
 {
@@ -34,7 +38,8 @@ struct AudioPlayer
     bool live_start_pending = false, live_restart_pending = false, live_fade_out = false, live_fade_in = false;
     bool warmup_for_play_again_flag = false, idle = false, power_on = true;
     inline static volatile bool live_unrecorded_notice = false;
-    int live_restart_sample = 0, live_last_read_sample = 0;
+    float live_restart_sample = 0.0f;
+    int live_last_read_sample = 0;
     int mode_player = ONCE_FWD, state = 1, closes = 0;
     int A_Flash_sample = 0, B_Flash_sample = 4095, C_Flash_sample = 8190, B_Flash_sample_shifted = 4095;
     int Flash_first_RAM_sample = 0, Wavetable_length = 128, delta_Noclick = 0;
@@ -70,6 +75,15 @@ struct AudioPlayer
             assert(Harvest_live_continuous());
         }
     }
+    bool pitch_tune_flag = false, pitch_bend_flag = false, restart_flag = false, vibrato_flag = false;
+    float pitch_tune_wait = 1, pitch_bend_wait = 1, pitch_bend = 1, pitch_vibrato = 1, pitch_limit = 35, pitch_based_gain_correction = 1;
+    float vibrato_array_element_float = 0, modulation_depth = 1, vibrato_values[32] = {};
+    uint8_t vibrato_array_element = 0, last_vibrato = 0;
+    uint8_t *vibrato_array_last_element_ptr = &last_vibrato;
+    float *vibrato_array_ptr = vibrato_values;
+    int file_id = 320;
+    void Update_pitch();
+    void Apply_pitch_requests();
     void Prepare_live_forward_block();
     void Check_live_forward_boundary();
     void Shape_live_forward_block();
@@ -177,7 +191,7 @@ int main()
         p.a_first_sample = 1000;
         p.live_start_pending = true;
         p.Prepare_live_forward_block();
-        assert(p.a_first_sample == 1000 && p.A_Flash_sample == 1000);
+        assert(p.a_first_sample == (scenario == 2 ? 1024 : 1000) && p.A_Flash_sample == p.a_first_sample);
     }
     recorder.first_write_flag = false;
     recorder.writing = true;
@@ -338,10 +352,103 @@ int main()
             }
         }
     }
+    // Exact startup boundaries, including cache wrap, in both lock modes.
+    recorder.writing = true;
+    recorder.first_write_flag = false;
+    LS_state = REC;
+    for (bool fixed : {false, true})
+    {
+        LS_XY_lock = fixed;
+        for (float speed : {1.0f, 0.99f, 0.5f})
+        {
+            for (int q : {0, 63, 127, 1023, 4095})
+            {
+                recorder.Q_sample = q;
+                for (int distance : {-1, 0, 126, 127, 128, 254})
+                {
+                    AudioPlayer p;
+                    const int start = (q - distance + 4096) % 4096;
+                    p.A_Flash_sample = start;
+                    p.a_first_sample = start;
+                    p.live_start_pending = true;
+                    p.pitch = speed;
+                    p.Prepare_live_forward_block();
+                    const bool forbidden = distance >= 0 && distance < (speed == 1 ? 127 : 128);
+                    const int expected = forbidden ? (q + (speed == 1 ? 1 : -128) + 4096) % 4096 : start;
+                    assert(p.a_first_sample == expected);
+                }
+            }
+        }
+    }
+    // Real sinc prefetch, fractional rewind, STOP and circular restart.
+    for (float speed : {0.25f, 0.5f, 0.9f, 0.99f})
+    {
+        for (int q : {0, 63, 1023, 4095})
+        {
+            for (bool stop : {false, true})
+            {
+                recorder.Q_sample = q;
+                recorder.writing = true;
+                LS_state = REC;
+                AudioPlayer p;
+                p.pitch = p.pitch_note = speed;
+                p.a_first_sample = q + 0.25f;
+                p.Render();
+                assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
+                const float saved = q + 0.25f - 128;
+                assert(p.live_restart_sample == saved);
+                recorder.Q_sample = (q + 128) % 4096;
+                recorder.writing = !stop;
+                LS_state = stop ? 0 : REC;
+                p.Render();
+                assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
+                assert(p.a_sample == fmodf(saved + 4096, 4096));
+                const int last = (p.live_last_read_sample % 4096 + 4096) % 4096;
+                assert((recorder.Q_sample - last + 4096) % 4096 < 256);
+            }
+        }
+    }
+    // Merely ending at Q does not cross it; the first extra sample does.
+    recorder.writing = true;
+    LS_state = REC;
+    recorder.Q_sample = 1023;
+    for (int end : {1022, 1023, 1024})
+    {
+        AudioPlayer p;
+        p.pitch = 0.5f;
+        p.a_sample = 1000.25f;
+        p.live_last_read_sample = end;
+        p.harvested_samples = end - 996 + 1;
+        p.Check_live_forward_boundary();
+        assert(p.live_restart_pending == (end > 1023));
+    }
+    // Pending bend/tune and vibrato are consumed only after the fade-in block.
+    for (float speed : {0.5f, 1.5f})
+    {
+        AudioPlayer p;
+        recorder.Q_sample = 1023;
+        p.pitch = p.pitch_note = speed;
+        p.a_first_sample = speed < 1 ? 1023.25f : 823.0f;
+        p.Render();
+        assert(p.live_restart_pending);
+        p.pitch_tune_wait = 2;
+        p.pitch_bend_wait = 1.1f;
+        p.pitch_tune_flag = p.pitch_bend_flag = p.vibrato_flag = true;
+        std::fill_n(p.vibrato_values, 32, 1.01f);
+        p.Apply_pitch_requests();
+        assert(p.pitch == speed && p.pitch_tune_flag && p.pitch_bend_flag && p.vibrato_array_element_float == 0);
+        recorder.Q_sample += 128;
+        p.Render();
+        assert(p.live_fade_in && p.pitch == speed);
+        p.Apply_pitch_requests();
+        assert(!p.pitch_tune_flag && !p.pitch_bend_flag && p.vibrato_array_element_float == 1);
+        assert(std::abs(p.pitch - speed * 2 * 1.1f * 1.01f) < 0.0001f);
+    }
     std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes and first fill\n";
 }
 '''
 signatures = [
+    'void AudioPlayer::Update_pitch(void)',
     'void AudioPlayer::Prepare_live_forward_block(void)',
     'void AudioPlayer::Check_live_forward_boundary(void)',
     'void AudioPlayer::Shape_live_forward_block(void)',
@@ -358,7 +465,10 @@ env['PATH'] = str(Path(compiler).parent) + os.pathsep + env.get('PATH', '')
 with tempfile.TemporaryDirectory(prefix='lilla-live-forward-') as folder:
     cpp = Path(folder) / 'test.cpp'
     exe = Path(folder) / 'test.exe'
-    cpp.write_text(prefix + ''.join(method(source, s) for s in signatures) + checks, encoding='utf-8')
+    pitch_start = source.index('        if (!live_restart_pending)', source.index('void AudioPlayer::update(void)'))
+    pitch_end = source.index('        if (main_settings_editing_flag)', pitch_start)
+    pitch_requests = 'void AudioPlayer::Apply_pitch_requests()\n{\n' + source[pitch_start:pitch_end] + '}\n'
+    cpp.write_text(prefix + ''.join(method(source, s) for s in signatures) + pitch_requests + checks, encoding='utf-8')
     lib = ROOT / 'lib/AudioPlayer'
     subprocess.run([compiler, '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-I' + str(lib), str(cpp), str(lib / 'PlayerAntialias.cpp'), str(lib / 'PlayerInterpolator.cpp'), '-o', str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)

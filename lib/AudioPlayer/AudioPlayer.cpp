@@ -904,6 +904,10 @@ void AudioPlayer::Release_patch(int patch_id) // Apply one non-renewable deadlin
 
 void AudioPlayer::Update_pitch(void)
 {
+    if (live_restart_pending)
+    {
+        return; // Keep the fade-out pitch until the booked fade-in has been rendered.
+    }
     pitch = constrain(pitch_note * pitch_bend * pitch_tune * pitch_vibrato, MIN_PITCH, file_id == SdSoundSource::PREVIEW ? fminf(pitch_limit, 8.0f) : pitch_limit);
 
     // **** Softness Filter ****
@@ -1033,24 +1037,27 @@ void AudioPlayer::update(void)
             warmup_for_play_again_flag = false;
         }
 
-        if (pitch_tune_flag && !restart_flag) // A zero-mix restart must render the outgoing block with its original tuning.
+        if (!live_restart_pending)
         {
-            pitch_tune = pitch_tune_wait;
-            pitch_tune_flag = false;
-        }
+            if (pitch_tune_flag && !restart_flag) // A zero-mix restart must render the outgoing block with its original tuning.
+            {
+                pitch_tune = pitch_tune_wait;
+                pitch_tune_flag = false;
+            }
 
-        if (pitch_bend_flag)
-        {
-            pitch_bend = pitch_bend_wait;
-            pitch_bend_flag = false;
-        }
+            if (pitch_bend_flag)
+            {
+                pitch_bend = pitch_bend_wait;
+                pitch_bend_flag = false;
+            }
 
-        if (vibrato_flag)
-        {
-            vibrato_array_element_float += VIBRATO_STEP;
-            vibrato_array_element = ((uint8_t)vibrato_array_element_float) % 32;
-            *vibrato_array_last_element_ptr = vibrato_array_element;
-            pitch_vibrato = 1.0f + (*(vibrato_array_ptr + vibrato_array_element) - 1.0f) * modulation_depth;
+            if (vibrato_flag)
+            {
+                vibrato_array_element_float += VIBRATO_STEP;
+                vibrato_array_element = ((uint8_t)vibrato_array_element_float) % 32;
+                *vibrato_array_last_element_ptr = vibrato_array_element;
+                pitch_vibrato = 1.0f + (*(vibrato_array_ptr + vibrato_array_element) - 1.0f) * modulation_depth;
+            }
         }
 
         Update_pitch();
@@ -1951,16 +1958,32 @@ void AudioPlayer::Prepare_live_forward_block(void)
     {
         live_start_pending = false;
         const bool cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
-        if (cache_full && LS_state == REC && Live_Sampler->Is_writing() && pitch > 1.0f)
+        if (cache_full && LS_state == REC && Live_Sampler->Is_writing())
         {
             const int write_position = Live_Sampler->Q_sample;
-            // FIXED keeps its prepared attack unless it falls inside the latest written block.
-            if (!LS_XY_lock || (write_position - A_Flash_sample + LS_buffer_dim) % LS_buffer_dim < AUDIO_BLOCK_SAMPLES)
+            if (pitch > 1.0f)
             {
-                const int start_offset = (LS_XY_lock || LS_X_delta == 0) ? 1 : LS_X_delta;
-                A_Flash_sample = (write_position + start_offset) % LS_buffer_dim;
-                B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
-                a_first_sample = A_Flash_sample;
+                // FIXED keeps its prepared attack unless it falls inside the latest written block.
+                if (!LS_XY_lock || (write_position - A_Flash_sample + LS_buffer_dim) % LS_buffer_dim < AUDIO_BLOCK_SAMPLES)
+                {
+                    const int start_offset = (LS_XY_lock || LS_X_delta == 0) ? 1 : LS_X_delta;
+                    A_Flash_sample = (write_position + start_offset) % LS_buffer_dim;
+                    B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
+                    a_first_sample = A_Flash_sample;
+                }
+            }
+            else
+            {
+                const int start_position = (A_Flash_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+                const int distance_from_write = (write_position - start_position + LS_buffer_dim) % LS_buffer_dim;
+                const int forbidden_samples = pitch == 1.0f ? AUDIO_BLOCK_SAMPLES - 1 : AUDIO_BLOCK_SAMPLES;
+                if (distance_from_write < forbidden_samples)
+                {
+                    const int start_offset = pitch == 1.0f ? 1 : -AUDIO_BLOCK_SAMPLES;
+                    A_Flash_sample = (write_position + start_offset + LS_buffer_dim) % LS_buffer_dim;
+                    B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
+                    a_first_sample = A_Flash_sample;
+                }
             }
         }
     }
@@ -1968,7 +1991,11 @@ void AudioPlayer::Prepare_live_forward_block(void)
     if (live_restart_pending)
     {
         live_restart_pending = false;
-        const int relative_start = ((live_restart_sample - A_Flash_sample) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+        float relative_start = fmodf(live_restart_sample - A_Flash_sample, static_cast<float>(LS_buffer_dim));
+        if (relative_start < 0.0f)
+        {
+            relative_start += LS_buffer_dim;
+        }
         a_first_sample = A_Flash_sample + relative_start;
         live_fade_in = true;
     }
@@ -1977,7 +2004,7 @@ void AudioPlayer::Prepare_live_forward_block(void)
 
 void AudioPlayer::Check_live_forward_boundary(void)
 {
-    if (!LS_flag || mode_player != ONCE_FWD || LS_state != REC || pitch <= 1.0f || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
+    if (!LS_flag || mode_player != ONCE_FWD || LS_state != REC || pitch == 1.0f || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
     {
         return;
     }
@@ -1986,14 +2013,30 @@ void AudioPlayer::Check_live_forward_boundary(void)
         return;
     }
 
-    const int last_position = (live_last_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
     const int write_position = Live_Sampler->Q_sample;
-    const int distance_from_write = (write_position - last_position + LS_buffer_dim) % LS_buffer_dim;
-    if (distance_from_write < AUDIO_BLOCK_SAMPLES)
+    if (pitch > 1.0f)
     {
-        live_fade_out = true;
-        live_restart_sample = (write_position + 1 + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
-        live_restart_pending = true;
+        const int last_position = (live_last_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+        const int distance_from_write = (write_position - last_position + LS_buffer_dim) % LS_buffer_dim;
+        if (distance_from_write < AUDIO_BLOCK_SAMPLES)
+        {
+            live_fade_out = true;
+            live_restart_sample = (write_position + 1 + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
+            live_restart_pending = true;
+        }
+    }
+    else
+    {
+        // Detect the new-to-old boundary across the complete interpolation window.
+        const int first_read_sample = live_last_read_sample - harvested_samples + 1;
+        const int first_position = (first_read_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+        const int distance_to_write = (write_position - first_position + LS_buffer_dim) % LS_buffer_dim;
+        if (distance_to_write < harvested_samples - 1)
+        {
+            live_fade_out = true;
+            live_restart_sample = a_sample - AUDIO_BLOCK_SAMPLES;
+            live_restart_pending = true;
+        }
     }
 }
 
@@ -2024,6 +2067,7 @@ bool AudioPlayer::Harvest_live_continuous(void)
     const int count = static_cast<int>(ceilf(b_sample)) - first + 1;
     const int position = ((first % LS_buffer_dim) + LS_buffer_dim) % LS_buffer_dim;
     Read_samples(samples_basket, position, count);
+    harvested_samples = count;
     live_last_read_sample = first + count - 1;
     // Keep the fractional phase and original start reference, also for FWD after recording stops.
     a_first_sample = A_Flash_sample + fmodf(b_sample + pitch - A_Flash_sample, static_cast<float>(LS_buffer_dim));

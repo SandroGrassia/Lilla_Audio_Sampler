@@ -295,7 +295,7 @@ private:
     bool live_restart_pending = false; // Complete the booked restart even if recording stops.
     bool live_fade_out = false; // Fade the current output block before the booked jump.
     bool live_fade_in = false; // Fade the first output block after the booked jump.
-    int live_restart_sample = 0; // Physical destination computed from the write head that triggered the fade.
+    float live_restart_sample = 0.0f; // Saved restart position, preserving the fractional playback phase.
     int live_last_read_sample = 0; // Last source sample actually harvested, including filter lookahead.
     int16_t *FIFO;
     int FIFO_dim;
@@ -313,7 +313,7 @@ private:
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
     void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
-    void Check_live_forward_boundary(void); // Book a jump when the last harvested sample lies in the latest written block.
+    void Check_live_forward_boundary(void); // Book a fast-forward jump or slow-forward rewind from the actual harvested interval.
     void Shape_live_forward_block(void); // Apply the output ramp after effects without changing cached audio.
     bool Harvest_live_continuous(void); // Circular FWD reading continues after STOP when the live cache is full.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.

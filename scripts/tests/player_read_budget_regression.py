@@ -62,6 +62,7 @@ struct AudioPlayer
     float pitch = 1; // Already applied pitch can survive until an outgoing crossfade is harvested.
     float pitch_tune = 1, pitch_tune_wait = 1, pitch_note = 1, pitch_note_wait = 1;
     float pitch_limit = 2.8f, pitch_limit_wait = 16, pitch_limit_E = 24;
+    bool live_restart_pending = false;
     bool pitch_tune_flag = false, warmup_for_play_again_flag = false, restart_flag = false, main_settings_editing_flag = false;
     bool idle = false, power_on = true, pending_note_released = false, patch_release_pending = false;
     bool rendered_block_valid = true, budget_tail_pending = false;

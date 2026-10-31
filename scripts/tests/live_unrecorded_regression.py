@@ -32,7 +32,7 @@ struct AudioPlayer
     inline static volatile bool live_unrecorded_notice = false;
     bool LS_flag = true, live_forward_empty = false;
     int A_Flash_sample = 0;
-    int live_last_read_sample = 0;
+    int live_last_read_sample = 0, harvested_samples = 0;
     int mode_player = ONCE_FWD, state = 1, reads = 0;
     float a_sample = 128, b_sample = 382, pitch = 2, a_first_sample = 0;
     int16_t samples_basket[8192] = {}, block[AUDIO_BLOCK_SAMPLES] = {}, live_forward_last_sample = 0;
