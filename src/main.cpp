@@ -662,6 +662,7 @@ FLASHMEM int Get_raw_files_volume(void);               // Sum the sizes of store
 LS_pointer_struct LS_local_pointer; // Current Live Sampler menu or parameter selection.
 
 // variables
+bool LS_stop_reverse_pending = false; // Complete STOP+REVERSE after the recorder finishes its stop ramp.
 int LS_sound_id;                                     // Live Sound whose waveform is displayed; selects left or right in stereo mode.
 int LS_instrument;                                   // Selected Live Sampler instrument: 0 for mono/left, 1 for right.
 int LS_COMB = 64;                                    // Divisor used to derive the play-point step from the waveform window width.
@@ -682,6 +683,7 @@ static int8_t Capture_pair[INSTRUMENTS] = {-1, -1, -1, -1, -1, -1, -1, -1}; // S
 // functions
 void LS_refresh_LS_page(void);                                                      // Redraw Live Sampler, restore its controls and discard notices from the previous page.
 bool LS_ask_if_exit_from_LS(void);                                                  // Ask whether to stop Live Sampler recording and leave the page.
+void LS_complete_stop_reverse(void); // Apply the final recorded position and reverse mode without blocking the UI.
 void LS_update_menu_elements(void);                                                 // Enable Live Sampler menu entries for the empty, recording or playback state.
 int LS_constrain_position(int value);                                               // Wrap a sample position into the Live Sampler circular buffer.
 void LS_lock_X_sample(void);                                                        // Capture the current play point from the write position and lock it.
@@ -988,6 +990,7 @@ FLASHMEM void loop()
     char audio_filename[NAME_FILE_SIZE];
 #pragma region Area_Comune [rgba(118,110,2,0.1)]
 
+    LS_complete_stop_reverse();
     P_Service_patch_cache();
 
 
@@ -4843,6 +4846,7 @@ FLASHMEM void loop()
                 {
                 case value_LS_Recording:
                 {
+                    LS_stop_reverse_pending = false;
                     LS_state = REC;
 
                     LS_update_menu_elements();
@@ -4859,7 +4863,9 @@ FLASHMEM void loop()
                 }
                 break;
                 case value_LS_Stop:
+                case value_LS_StopReverse:
                 {
+                    LS_stop_reverse_pending = LS_local_pointer.menu_element == value_LS_StopReverse;
                     LS_state = PLAYONLY;
                     LiveSampler.Stop();
 
@@ -4872,6 +4878,7 @@ FLASHMEM void loop()
                     Clear_UI_events();
 
                     delay(20);
+                    LS_complete_stop_reverse();
                     if (!LS_XY_lock)
                     {
                         LS_update_both_X_Y_samples();
@@ -13609,34 +13616,56 @@ bool LS_ask_if_exit_from_LS(void)
     return (action == 0 ? false : true);
 }
 
+void LS_complete_stop_reverse(void)
+{
+    if (!LS_stop_reverse_pending || LiveSampler.Is_writing())
+    {
+        return;
+    }
+
+    AudioNoInterrupts();
+    LS_stop_reverse_pending = false;
+    LS_Q_sample = LiveSampler.Q_sample;
+    LS_X_sample = LS_Q_sample;
+    LS_X_delta = 0;
+    LS_Y_sample = LS_X_sample + LS_XY_delta;
+    LS_XY_lock = true;
+    LS_mode = ONCE_REV;
+    for (int instrument = 0; instrument < (LS_stereo ? 2 : 1); ++instrument)
+    {
+        Sound[SOUNDS_MAX + instrument].mode = LS_mode;
+        if (Patch_id == PATCHES_MAX)
+        {
+            Players_Manager.Update_Preset_mode(Patch_id, instrument);
+            Players_Manager.Multicast_main_settings_editing(Patch_id, instrument);
+        }
+    }
+    AudioInterrupts();
+
+    if (Lilla_state == LIVE_SAMPLING)
+    {
+        Pointer_LiveSampler.Show_pointer(false);
+        Display_LiveSampler.Play_mode();
+        Display_LiveSampler.Start_point();
+        Display_LiveSampler.Loop_time();
+        Display_LiveSampler.Show_wave(LS_sound_id);
+        Pointer_LiveSampler.Show_pointer(true);
+    }
+}
+
 void LS_update_menu_elements(void)
 {
-    // voices that can be displayed
-    Menu_LS[0] = true; // Open
-    Menu_LS[1] = true; // Close
-    Menu_LS[2] = true; // Mono/Stereo
-    Menu_LS[3] = true; // Erase FIFO
+    Menu_LS[value_LS_Recording] = LS_state != REC;
+    Menu_LS[value_LS_Stop] = LS_state == REC;
+    Menu_LS[value_LS_StopReverse] = LS_state == REC;
+    Menu_LS[value_LS_MonoStereo] = LS_state == EMPTY;
+    Menu_LS[value_LS_Erase] = LS_state == PLAYONLY;
 
-    if (LS_state == EMPTY) // nessuna registrazione
+    LS_menu_max = -1;
+    for (int element = 0; element < LS_menu_elements; ++element)
     {
-        Menu_LS[1] = false; // Close
-        Menu_LS[3] = false; // Erase FIFO
+        LS_menu_max += Menu_LS[element];
     }
-
-    if (LS_state == REC) // fase di registrazione
-    {
-        Menu_LS[0] = false; // Open
-        Menu_LS[2] = false; // Mono/Stereo
-        Menu_LS[3] = false; // Erase FIFO
-    }
-
-    if (LS_state == PLAYONLY) // registrazione disponibile
-    {
-        Menu_LS[1] = false; // Close
-        Menu_LS[2] = false; // Mono/Stereo
-    }
-
-    LS_menu_max = Menu_LS[0] + Menu_LS[1] + Menu_LS[2] + Menu_LS[3] - 1;
 }
 
 void LS_lock_X_sample(void)
@@ -13677,6 +13706,7 @@ void LS_update_Q_sample(void)
 
 FLASHMEM void LS_Reset_buffer(void)
 {
+    LS_stop_reverse_pending = false;
     memset(LS_buffer_storage, 0, sizeof(LS_buffer_storage));
 
     LiveSampler.LS_buffer_mono_ptr = LS_buffer_mono_ptr;

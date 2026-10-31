@@ -14,9 +14,9 @@
 static constexpr int FIRST_LIVE_SAMPLING_FILE = 320;
 
 // Menu
-constexpr int LS_menu_elements = 4;
+constexpr int LS_menu_elements = 5;
 extern bool Menu_LS[LS_menu_elements];
-extern const char Menu_LS_char[LS_menu_elements][12];
+extern const char Menu_LS_char[LS_menu_elements][13];
 extern const uint8_t dimension_voice_Menu_LS[LS_menu_elements];
 extern uint8_t X_position_Menu_LS[LS_menu_elements]; // argument is position
 extern uint8_t element_Menu_LS[LS_menu_elements];    // argument is position
@@ -67,11 +67,11 @@ enum LS_field_name
     field_LS_Menu,
     field_LS_Value
 };
-// constexpr int LS_menu_elements = 4;
 enum LS_menu_element_name
 {
     value_LS_Recording,
     value_LS_Stop,
+    value_LS_StopReverse, // Stop recording and fix the reverse attack at the final recorded sample.
     value_LS_MonoStereo,
     value_LS_Erase
 };

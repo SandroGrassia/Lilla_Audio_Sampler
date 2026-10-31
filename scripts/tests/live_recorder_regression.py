@@ -47,6 +47,88 @@ public:
 };
 '''
 
+
+stop_reverse = r"""
+constexpr int EMPTY = 0, REC = 1, PLAYONLY = 2, ONCE_FWD = 0, ONCE_REV = 1, LIVE_SAMPLING = 2, PATCHES_MAX = 10, SOUNDS_MAX = 10, LS_menu_elements = 5;
+enum { value_LS_Recording, value_LS_Stop, value_LS_StopReverse, value_LS_MonoStereo, value_LS_Erase };
+bool LS_stop_reverse_pending = false, LS_XY_lock = false, LS_stereo = false, Menu_LS[5] = {};
+int LS_state = REC, LS_menu_max = 0, LS_Q_sample = 0, LS_X_sample = 0, LS_X_delta = 0, LS_Y_sample = 0, LS_XY_delta = 500, LS_mode = ONCE_FWD, LS_sound_id = SOUNDS_MAX;
+int Patch_id = PATCHES_MAX, Lilla_state = LIVE_SAMPLING;
+StereoLiveSampler LiveSampler;
+struct SoundValue { int mode = ONCE_FWD; } Sound[SOUNDS_MAX + 2];
+struct Manager
+{
+    int updates = 0, edits = 0;
+    void Update_Preset_mode(int patch, int instrument) { assert(patch == PATCHES_MAX && instrument < (LS_stereo ? 2 : 1)); ++updates; }
+    void Multicast_main_settings_editing(int, int) { ++edits; }
+} Players_Manager;
+struct Display
+{
+    int draws = 0;
+    void Play_mode() { ++draws; }
+    void Start_point() { ++draws; }
+    void Loop_time() { ++draws; }
+    void Show_wave(int) { ++draws; }
+} Display_LiveSampler;
+struct Pointer { void Show_pointer(bool) {} } Pointer_LiveSampler;
+void AudioNoInterrupts() {}
+void AudioInterrupts() {}
+"""
+main_source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
+for name in ['LS_complete_stop_reverse', 'LS_update_menu_elements']:
+    stop_reverse += re.search(r'^void ' + name + r'\(void\)\n\{.*?^\}', main_source, re.M | re.S).group(0) + '\n'
+stop_reverse += r"""
+void Check_stop_reverse()
+{
+    for (int state : {EMPTY, REC, PLAYONLY})
+    {
+        LS_state = state;
+        LS_update_menu_elements();
+        assert(Menu_LS[value_LS_StopReverse] == (state == REC));
+        assert(Menu_LS[value_LS_Stop] == (state == REC));
+        assert(LS_menu_max == 1);
+    }
+    static int16_t mono[4096] = {}, left[4096] = {}, right[4096] = {};
+    LiveSampler.LS_buffer_mono_ptr = mono;
+    LiveSampler.LS_buffer_L_ptr = left;
+    LiveSampler.LS_buffer_R_ptr = right;
+    for (bool stereo : {false, true})
+    {
+        for (bool immediate : {false, true})
+        {
+            LS_stereo = stereo;
+            LS_mode = ONCE_FWD;
+            LS_XY_lock = false;
+            LS_X_sample = 42;
+            LS_stop_reverse_pending = true;
+            Players_Manager.updates = Players_Manager.edits = 0;
+            LiveSampler.Reset();
+            LiveSampler.Start(stereo);
+            if (!immediate)
+            {
+                for (int i = 0; i < 3; ++i) { LiveSampler.update(); }
+                LiveSampler.Q_sample = LS_buffer_dim - 129; // The stop ramp crosses the circular boundary.
+            }
+            LiveSampler.Stop();
+            for (int i = 0; i < (immediate ? 6 : 3); ++i)
+            {
+                LS_complete_stop_reverse();
+                assert(LS_stop_reverse_pending && LS_X_sample == 42 && LS_mode == ONCE_FWD);
+                LiveSampler.update();
+            }
+            assert(!LiveSampler.Is_writing());
+            LS_complete_stop_reverse();
+            assert(!LS_stop_reverse_pending && LS_XY_lock && LS_mode == ONCE_REV);
+            assert(LS_X_sample == (immediate ? 767 : 255) && LS_X_sample == LiveSampler.Q_sample);
+            assert(LS_Y_sample == LS_X_sample + LS_XY_delta);
+            assert(Players_Manager.updates == (stereo ? 2 : 1) && Players_Manager.edits == Players_Manager.updates);
+            LS_complete_stop_reverse();
+            assert(Players_Manager.updates == (stereo ? 2 : 1)); // Completion is consumed once.
+        }
+    }
+}
+"""
+
 checks = r'''
 int main()
 {
@@ -189,7 +271,8 @@ int main()
             assert(!recorder.Is_writing() && recorder.Q_sample == 767);
         }
     }
-    std::cout << "PASS: shared inputs unchanged/released, mono rounding, stereo separation, fades, wrap and missing inputs\n";
+    Check_stop_reverse();
+    std::cout << "PASS: STOP+REVERSE final position and menu visibility; shared inputs unchanged/released, mono rounding, stereo separation, fades, wrap and missing inputs\n";
 }
 '''
 
@@ -200,6 +283,6 @@ production = source('lib/StereoLiveSampler/StereoLiveSampler.h') + source('lib/S
 with tempfile.TemporaryDirectory(prefix='lilla-live-recorder-') as folder:
     cpp = Path(folder) / 'test.cpp'
     exe = Path(folder) / 'test.exe'
-    cpp.write_text(prefix + production + checks, encoding='utf-8', newline='\r\n')
+    cpp.write_text(prefix + production + stop_reverse + checks, encoding='utf-8', newline='\r\n')
     subprocess.run([compiler, '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=environment)
     subprocess.run([str(exe)], check=True, env=environment)

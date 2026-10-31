@@ -26,10 +26,10 @@ struct DisplayStub
 } Display_VCF, Display_LiveSampler, Display_MidiLoop, Display_Manager, Display_Setup;
 constexpr int TRACKS = 2, INSTRUMENTS = 1;
 int LOOP_events[TRACKS] = {};
-int LS_menu_max = 1, position_Menu_LS[4] = {0,0,1,0}, element_Menu_LS[4] = {0,2};
+int LS_menu_max = 1, position_Menu_LS[5] = {0,0,0,1,0}, element_Menu_LS[5] = {0,3};
 int LOOP_menu_max = 1, position_Menu_LOOP[4] = {0,0,0,1}, element_Menu_LOOP[4] = {0,3};
 enum LS_field_name { field_LS_Menu, field_LS_Value };
-enum LS_menu_element_name { value_LS_Recording, value_LS_Stop, value_LS_MonoStereo, value_LS_Erase };
+enum LS_menu_element_name { value_LS_Recording, value_LS_Stop, value_LS_StopReverse, value_LS_MonoStereo, value_LS_Erase };
 bool LS_stereo = true;
 constexpr int LS_value_names = 6;
 enum LS_value_name { value_LS_Gain, value_LS_Feedback, value_LS_Compressor, value_LS_Play_mode, value_LS_Window, value_LS_Channel };
