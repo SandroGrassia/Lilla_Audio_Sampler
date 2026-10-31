@@ -666,7 +666,7 @@ int LS_sound_id;                                     // Live Sound whose wavefor
 int LS_instrument;                                   // Selected Live Sampler instrument: 0 for mono/left, 1 for right.
 int LS_COMB = 64;                                    // Divisor used to derive the play-point step from the waveform window width.
 int LS_window_step;                                  // Step used when changing the waveform window width.
-const int LS_XY_DELTA_MIN = static_cast<int>(ceilf(AUDIO_SAMPLE_RATE / 10.0f)); // Minimum Live Sampler playback interval: 100 ms, rounded up to whole samples.
+const int LS_XY_DELTA_MIN = static_cast<int>(ceilf(AUDIO_SAMPLE_RATE * 120.0f / 1000.0f)); // Minimum Live Sampler playback interval: 120 ms, rounded up to whole samples.
 
 EXTMEM int16_t LS_buffer_storage[LS_CACHE_TOTAL_SAMPLES];                      // Shared PSRAM storage for the mono or stereo Live Sampler circular buffer.
 int16_t *const LS_buffer_mono_ptr = LS_buffer_storage;                         // Mono view spanning the shared Live Sampler storage.

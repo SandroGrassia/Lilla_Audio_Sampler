@@ -292,7 +292,7 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
         mode_player_wait = mode_in;
         delta_Noclick_wait = mode_in == LOOP_FWD ? 0 : delta_Noclick_in; // Live forward loops read A through B without an endpoint blend.
         use_Wavetable_wait = false;
-        pitch_limit_wait = MAX_PITCH_PSRAM;
+        pitch_limit_wait = MAX_PITCH_LIVE;
         const int live_span = LS_buffer_dim - 1;
 
         // il codice Main deve garantire che:
@@ -515,7 +515,7 @@ void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_v
     {
         mode_player_E = mode_in;
         delta_Noclick_E = mode_in == LOOP_FWD ? 0 : delta_Noclick_in; // Keep edited loop geometry consistent with the live reader.
-        pitch_limit_E = MAX_PITCH_PSRAM;
+        pitch_limit_E = MAX_PITCH_LIVE;
         use_Wavetable_E = false;
         const int live_span = LS_buffer_dim - 1;
 
@@ -1744,7 +1744,7 @@ void AudioPlayer::Harvest_samples(int outputs)
     if (live_forward_end && LS_flag && mode_player == LOOP_FWD)
     {
         memset(samples_basket, 0, sizeof(samples_basket)); // Reject an unrecorded loop attack without reading the cache.
-        antialias.mix = 0.0f;
+        memset(resampled_basket, 0, sizeof(resampled_basket)); // Preserve cached filter settings for the next note.
         interpolation_mix = 0.0f;
         initial_index_offset = 0.0f;
         return;
@@ -1958,12 +1958,30 @@ bool AudioPlayer::Harvest_live_forward_end(void)
     return true;
 }
 
+bool AudioPlayer::Live_loop_samples_recorded(int phase, int count, int write_position) const
+{
+    const int span = B_Flash_sample - A_Flash_sample + 1;
+    int remaining = std::min(count, span); // Repeated turns touch the same source samples.
+    while (remaining > 0)
+    {
+        const int position = (A_Flash_sample + phase) % LS_buffer_dim;
+        const int chunk = std::min(remaining, std::min(span - phase, LS_buffer_dim - position));
+        if (position + chunk - 1 > write_position)
+        {
+            return false;
+        }
+        remaining -= chunk;
+        phase = (phase + chunk) % span;
+    }
+    return true;
+}
+
 void AudioPlayer::Prepare_live_forward_block(void)
 {
     live_fade_out = false;
     live_fade_in = false;
-    const bool unity_loop = mode_player == LOOP_FWD && pitch == 1.0f;
-    if (!LS_flag || (mode_player != ONCE_FWD && !unity_loop))
+    const bool forward_loop = mode_player == LOOP_FWD && pitch >= 1.0f;
+    if (!LS_flag || (mode_player != ONCE_FWD && !forward_loop))
     {
         live_start_pending = false;
         live_restart_pending = false;
@@ -1974,7 +1992,7 @@ void AudioPlayer::Prepare_live_forward_block(void)
     {
         live_start_pending = false;
         const bool cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1;
-        if (unity_loop)
+        if (forward_loop)
         {
             const int span = B_Flash_sample - A_Flash_sample + 1;
             A_Flash_sample = (A_Flash_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
@@ -1982,22 +2000,16 @@ void AudioPlayer::Prepare_live_forward_block(void)
             a_first_sample = A_Flash_sample;
             if (!cache_full)
             {
-                int phase = 0;
-                int remaining = AUDIO_BLOCK_SAMPLES;
-                while (remaining > 0)
+                PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
+                const int history = antialias.mix > 0.0f ? antialias.history : 0;
+                const int count = history > 0 ? history + static_cast<int>(floorf((AUDIO_BLOCK_SAMPLES - 1) * pitch)) + 2 : static_cast<int>(ceilf((AUDIO_BLOCK_SAMPLES - 1) * pitch)) + 1;
+                if (!Live_loop_samples_recorded((span - history % span) % span, count, Live_Sampler->Q_sample))
                 {
-                    const int position = (A_Flash_sample + phase) % LS_buffer_dim;
-                    const int chunk = std::min(remaining, std::min(span - phase, LS_buffer_dim - position));
-                    if (position + chunk - 1 > Live_Sampler->Q_sample)
-                    {
-                        live_forward_end = true;
-                        live_forward_empty = true;
-                        live_forward_last_sample = 0;
-                        live_restart_pending = false;
-                        return;
-                    }
-                    remaining -= chunk;
-                    phase = (phase + chunk) % span;
+                    live_forward_end = true;
+                    live_forward_empty = true;
+                    live_forward_last_sample = 0;
+                    live_restart_pending = false;
+                    return;
                 }
             }
         }
@@ -2034,11 +2046,24 @@ void AudioPlayer::Prepare_live_forward_block(void)
     if (live_restart_pending)
     {
         live_restart_pending = false;
-        const int period = unity_loop ? B_Flash_sample - A_Flash_sample + 1 : LS_buffer_dim;
+        const int period = forward_loop ? B_Flash_sample - A_Flash_sample + 1 : LS_buffer_dim;
         float relative_start = fmodf(live_restart_sample - A_Flash_sample, static_cast<float>(period));
         if (relative_start < 0.0f)
         {
             relative_start += period;
+        }
+        if (forward_loop && pitch > 1.0f && Live_Sampler->first_write_flag && Live_Sampler->Q_sample < LS_buffer_dim - 1)
+        {
+            const int history = antialias.mix > 0.0f ? antialias.history : 0;
+            const int count = history > 0 ? history + static_cast<int>(floorf((AUDIO_BLOCK_SAMPLES - 1) * pitch)) + 2 : static_cast<int>(ceilf((AUDIO_BLOCK_SAMPLES - 1) * pitch)) + 1;
+            const int phase = (static_cast<int>(relative_start) - history % period + period) % period;
+            if (!Live_loop_samples_recorded(phase, count, Live_Sampler->Q_sample))
+            {
+                live_forward_end = true;
+                live_forward_empty = true;
+                live_forward_last_sample = 0;
+                return;
+            }
         }
         a_first_sample = A_Flash_sample + relative_start;
         live_fade_in = true;
@@ -2052,17 +2077,43 @@ void AudioPlayer::Check_live_forward_boundary(void)
     {
         return;
     }
-    if (mode_player == LOOP_FWD && pitch == 1.0f)
+    if (mode_player == LOOP_FWD && pitch >= 1.0f)
     {
         const int span = B_Flash_sample - A_Flash_sample + 1;
         const int start_phase = (static_cast<int>(floorf(a_sample - A_Flash_sample)) % span + span) % span;
         const int first_position = (A_Flash_sample % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
         const int write_phase = (Live_Sampler->Q_sample - first_position + LS_buffer_dim) % LS_buffer_dim;
-        const int count = static_cast<int>(ceilf(b_sample)) - static_cast<int>(floorf(a_sample)) + 1;
+        const int history = antialias.mix > 0.0f ? antialias.history : 0;
+        const int count = history > 0 ? harvested_samples - history : static_cast<int>(ceilf(b_sample)) - static_cast<int>(floorf(a_sample)) + 1;
         if (write_phase < span && (write_phase - start_phase + span) % span < count - 1)
         {
             live_fade_out = true;
             live_restart_sample = a_sample; // Repeat this phase, including a possible B-to-A wrap.
+            if (pitch > 1.0f)
+            {
+                const int next_write = (Live_Sampler->Q_sample + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
+                const int next_write_phase = (next_write - first_position + LS_buffer_dim) % LS_buffer_dim;
+                const int next_count = history > 0 ? history + static_cast<int>(floorf((AUDIO_BLOCK_SAMPLES - 1) * pitch)) + 2 : static_cast<int>(ceilf((AUDIO_BLOCK_SAMPLES - 1) * pitch)) + 1;
+                const bool next_cache_full = !Live_Sampler->first_write_flag || Live_Sampler->Q_sample + AUDIO_BLOCK_SAMPLES >= LS_buffer_dim - 1;
+                int restart_phase = static_cast<int>(floorf(a_first_sample - A_Flash_sample));
+                if (next_write_phase < span)
+                {
+                    // At full capacity start the entire prefetch after Q; first fill must end at Q instead.
+                    restart_phase = next_cache_full ? (next_write_phase + 1 + history) % span : (next_write_phase - (next_count - 1) % span + history + span) % span;
+                }
+                if (!next_cache_full && !Live_loop_samples_recorded((restart_phase - history % span + span) % span, next_count, next_write))
+                {
+                    restart_phase = history % span;
+                    if (!Live_loop_samples_recorded(0, next_count, next_write))
+                    {
+                        live_forward_end = true; // No recorded window can supply this block; use the existing notice and stop ramp.
+                        live_forward_empty = false;
+                        return;
+                    }
+                }
+                // If the prefetch spans more than a whole loop, no phase excludes Q: keep the ramp and retry after fade-in.
+                live_restart_sample = A_Flash_sample + restart_phase;
+            }
             live_restart_pending = true;
         }
         return;

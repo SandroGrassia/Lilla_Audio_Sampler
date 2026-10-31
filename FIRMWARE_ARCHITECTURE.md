@@ -194,7 +194,7 @@ These structures are defined in [SharedElements.h](lib/SharedElements/SharedElem
 
 ### Timing and source limits
 
-[PlaybackProfile.h](lib/config/PlaybackProfile.h) sets final pitch-ratio ceilings of 5 for Flash playback and 35 for PSRAM and wavetable playback. These ceilings include tuning, pitch bend and vibrato; they are not guarantees that every voice can run simultaneously at the maximum ratio.
+[PlaybackProfile.h](lib/config/PlaybackProfile.h) sets final pitch-ratio ceilings of 5 for Flash playback, 35 for Live Sampler playback, cached PSRAM files and wavetable playback. Live Sampler loop intervals have a 120 ms minimum so a block at the maximum pitch fits inside the loop, including filter context. These ceilings include tuning, pitch bend and vibrato; they are not guarantees that every voice can run simultaneously at the maximum ratio.
 
 The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
 
@@ -208,7 +208,7 @@ LILLA adapts the number of active Players to the estimated processing cost of th
 
 The table and graph are calculated from [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) for samples cached in PSRAM, MODE **FW-REV** (ping-pong), neutral tuning and a long A-B region. An A-B span of at least 4500 source samples is sufficient for the long-loop assumption throughout the tabulated range. Ping-pong does not use the NoClick crossfade. Shorter loops, different source storage and other playback geometries require their own cost estimates.
 
-The model reserves up to **1.515 times the requested base pitch** for positive pitch bend and vibrato, subject to the PSRAM pitch ceiling of 35. It applies a 10% cost margin and a combined source-read budget of **1800 microseconds per block**, leaving approximately 1100 microseconds for remaining processing and safety margin. Thus +48 semitones means a requested pitch of 16, with a reserved pitch of 24.24 before the ceiling applies. Requested pitch is expressed as semitones from the root key: `pitch = 2^(semitones / 12)`.
+The model reserves up to **1.515 times the requested base pitch** for positive pitch bend and vibrato, subject to the Live Sampler and cached-file PSRAM pitch ceiling of 35. It applies a 10% cost margin and a combined source-read budget of **1800 microseconds per block**, leaving approximately 1100 microseconds for remaining processing and safety margin. Thus +48 semitones means a requested pitch of 16, with a reserved pitch of 24.24 before the ceiling applies. Requested pitch is expressed as semitones from the root key: `pitch = 2^(semitones / 12)`.
 
 VCF+LFO belongs to the remaining processing allowance; its cost must not also be subtracted from the 1800-microsecond source-read budget. The table is unchanged with antialias option A enabled: the model still admits 16 voices through +12 semitones, and A does not enable source antialiasing for base pitches above 2. Bend and vibrato do not switch that upper-threshold eligibility.
 

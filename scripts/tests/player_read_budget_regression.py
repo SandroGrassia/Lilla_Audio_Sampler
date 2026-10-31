@@ -231,7 +231,7 @@ int main()
     bend_test.pitch_tune_wait = 1.2f;
     assert(bend_test.Get_read_plan().antialias); // Keep the outgoing filtered block reserved.
     RealVoice::AudioPlayer limit_test;
-    for (const float ceiling : {MAX_PITCH_FLASH, MAX_PITCH_PSRAM, MAX_PITCH_WAVETABLE})
+    for (const float ceiling : {MAX_PITCH_FLASH, MAX_PITCH_PSRAM, MAX_PITCH_WAVETABLE, MAX_PITCH_LIVE})
     {
         limit_test.pitch_limit = ceiling;
         limit_test.pitch_note = 30;
@@ -257,6 +257,14 @@ int main()
     preview_limit.Update_pitch();
     assert(preview_limit.pitch == MAX_PITCH_PSRAM);
     assert(MAX_PITCH_FLASH == 5 && MAX_PITCH_PSRAM == 35 && MAX_PITCH_WAVETABLE == 35);
+    assert(MAX_PITCH_LIVE == 35);
+    assert(Playback_pitch_limit(false, false, true) == MAX_PITCH_LIVE);
+    assert(Playback_pitch_limit(false, true, true) == MAX_PITCH_LIVE);
+    assert(Playback_pitch_limit(true, true, true) == MAX_PITCH_LIVE);
+    assert(Playback_pitch_limit(false, true, false) == MAX_PITCH_PSRAM);
+    assert(Playback_pitch_limit(true, true, false) == MAX_PITCH_WAVETABLE);
+    const int live_prefetch = static_cast<int>(std::ceil(127 * MAX_PITCH_LIVE)) + 2 + PlayerAntialias::History(MAX_PITCH_LIVE);
+    assert(live_prefetch < 5292); // Even fractional/filter context stays below the minimum 120 ms loop.
     assert(Limit_us == 1800);
     Plan high;
     high.pitch = 35; high.span = 10000;
@@ -278,7 +286,7 @@ int main()
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Ram);
     Preset[0].file = FIRST_LIVE_SAMPLING_FILE;
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Psram);
-    assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_PSRAM);
+    assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_LIVE);
     Preset[0] = {};
 
     // A lower next-block forecast grants fades without changing admission reservations.

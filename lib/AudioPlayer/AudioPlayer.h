@@ -312,6 +312,7 @@ private:
     void Update_pan_gain(void);
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
+    bool Live_loop_samples_recorded(int phase, int count, int write_position) const; // Check a loop prefetch against the recorded prefix, including loop and cache wrap.
     void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
     void Check_live_forward_boundary(void); // Book a unity-loop replay, fast-forward jump or slow-forward rewind from the harvested interval.
     void Shape_live_forward_block(void); // Apply the output ramp after effects without changing cached audio.

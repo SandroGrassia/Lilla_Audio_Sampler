@@ -9,7 +9,7 @@ float Playback_pitch_limit(bool wavetable, bool cached, bool live)
 {
     if (live)
     {
-        return MAX_PITCH_PSRAM;
+        return MAX_PITCH_LIVE;
     }
     if (wavetable)
     {

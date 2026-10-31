@@ -90,6 +90,8 @@ struct AudioPlayer
     int file_id = 320;
     void Update_pitch();
     void Apply_pitch_requests();
+    void Edit_geometry(int mode_player_E, int A_Flash_sample_E, int B_Flash_sample_E);
+    bool Live_loop_samples_recorded(int phase, int count, int write_position) const;
     void Prepare_live_forward_block();
     void Check_live_forward_boundary();
     void Shape_live_forward_block();
@@ -302,7 +304,7 @@ int main()
         }
         AudioPlayer changed;
         changed.live_restart_pending = true;
-        changed.mode_player = LOOP_FWD;
+        changed.Edit_geometry(LOOP_FWD, changed.A_Flash_sample, changed.B_Flash_sample);
         changed.a_first_sample = 333;
         changed.Prepare_live_forward_block();
         assert(!changed.live_restart_pending && !changed.live_fade_in && changed.a_first_sample == 333);
@@ -490,6 +492,7 @@ int main()
         assert(!p.pitch_tune_flag && !p.pitch_bend_flag && p.vibrato_array_element_float == 1);
         assert(std::abs(p.pitch - speed * 2 * 1.1f * 1.01f) < 0.0001f);
     }
+    recorder.writing = false;
     // Live FWD loops start at A and wrap B directly to A, even with stale NoClick settings.
     for (int first : {0, 4000})
     {
@@ -669,6 +672,173 @@ int main()
     repeated.mode_player = LOOP_FWD_REV;
     repeated.Prepare_live_forward_block();
     assert(!repeated.live_restart_pending && !repeated.live_fade_in);
+    // Faster attacks validate every prefetched source sample, including the filter history and repeated turns.
+    for (float speed : {1.0594631f, 1.5f, 2.0f, 8.0f, 35.0f})
+    {
+        for (bool filtered : {false, true})
+        {
+            for (int first : {0, 1000, 4000})
+            {
+                for (int span : {501, 4096})
+                {
+                    for (int q : {127, 1023, 2047, 4095})
+                    {
+                        AudioPlayer p;
+                        p.mode_player = LOOP_FWD;
+                        p.pitch = speed;
+                        p.pitch_note = 1;
+                        p.tone_filter_level = filtered ? 0x81 : 0;
+                        p.A_Flash_sample = p.a_first_sample = first;
+                        p.B_Flash_sample = first + span - 1;
+                        p.live_start_pending = true;
+                        recorder.first_write_flag = true;
+                        recorder.Q_sample = q;
+                        recorder.writing = true;
+                        LS_state = REC;
+                        AudioPlayer::live_unrecorded_notice = false;
+                        const int history = filtered ? PlayerAntialias::History(speed) : 0;
+                        const int count = filtered ? history + static_cast<int>(floorf(127 * speed)) + 2 : static_cast<int>(ceilf(127 * speed)) + 1;
+                        bool valid = true;
+                        for (int i = 0; i < count; ++i)
+                        {
+                            const int offset = ((i - history) % span + span) % span;
+                            valid = valid && (first + offset) % LS_buffer_dim <= q;
+                        }
+                        p.Render();
+                        assert(p.live_forward_end == !valid);
+                        assert(AudioPlayer::live_unrecorded_notice == !valid);
+                        if (!valid)
+                        {
+                            assert(p.read_last == -1 && p.state == IDLE_REQUEST);
+                            for (int value : p.block)
+                            {
+                                assert(value == 0);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // A rejected filtered attack must not poison the cached filter settings for a later note at the same pitch.
+    AudioPlayer rejected_filter;
+    rejected_filter.mode_player = LOOP_FWD;
+    rejected_filter.pitch = rejected_filter.pitch_note = 1.5f;
+    rejected_filter.tone_filter_level = 0x81;
+    rejected_filter.live_start_pending = true;
+    recorder.first_write_flag = true;
+    recorder.Q_sample = 100;
+    rejected_filter.Render();
+    assert(rejected_filter.live_forward_end && rejected_filter.antialias.mix > 0);
+    recorder.first_write_flag = false;
+    rejected_filter.live_start_pending = true;
+    rejected_filter.state = 1;
+    rejected_filter.Render();
+    assert(!rejected_filter.live_forward_end && rejected_filter.antialias.mix > 0);
+    // Higher pitches use the saved future Q, remain inside the loop and cover both circular boundaries.
+    recorder.first_write_flag = false;
+    for (float speed : {1.0594631f, 1.5f, 2.0f, 8.0f, 35.0f})
+    {
+        for (bool filtered : {false, true})
+        {
+            for (int first : {0, 50, 4000})
+            {
+                for (int span : {501, 4096})
+                {
+                    for (int phase : {100, span - 50})
+                    {
+                        AudioPlayer p;
+                        p.mode_player = LOOP_FWD;
+                        p.pitch = speed;
+                        p.pitch_note = 1;
+                        p.tone_filter_level = filtered ? 0x81 : 0;
+                        p.A_Flash_sample = first;
+                        p.B_Flash_sample = first + span - 1;
+                        p.a_first_sample = first + phase;
+                        recorder.Q_sample = (first + (phase + 30) % span) % LS_buffer_dim;
+                        recorder.writing = true;
+                        LS_state = REC;
+                        p.Render();
+                        assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
+                        const int saved = static_cast<int>(p.live_restart_sample);
+                        assert(saved >= first && saved <= p.B_Flash_sample);
+                        const int next_q = (recorder.Q_sample + 128) % LS_buffer_dim;
+                        const int history = filtered ? PlayerAntialias::History(speed) : 0;
+                        const int count = filtered ? history + static_cast<int>(floorf(127 * speed)) + 2 : static_cast<int>(ceilf(127 * speed)) + 1;
+                        if (count <= span)
+                        {
+                            for (int i = 0; i < count - 1; ++i)
+                            {
+                                const int offset = ((saved - first - history + i) % span + span) % span;
+                                assert((first + offset) % LS_buffer_dim != next_q);
+                            }
+                        }
+                        p.pitch_bend_wait = 1.1f;
+                        p.pitch_bend_flag = true;
+                        p.Apply_pitch_requests();
+                        assert(p.pitch == speed && p.pitch_bend_flag);
+                        recorder.Q_sample = next_q;
+                        p.Render();
+                        assert(p.live_fade_in && !p.live_restart_pending && p.a_sample == saved && p.block[0] == 0);
+                        assert(p.pitch == speed);
+                        p.Apply_pitch_requests();
+                        assert(!p.pitch_bend_flag);
+                    }
+                }
+            }
+        }
+    }
+    // First fill lands behind the predicted Q; an early STOP cannot expose never-recorded memory.
+    for (bool early_stop : {false, true})
+    {
+        AudioPlayer p;
+        p.mode_player = LOOP_FWD;
+        p.pitch = p.pitch_note = 2;
+        p.A_Flash_sample = 0;
+        p.B_Flash_sample = 2000;
+        p.a_first_sample = 900;
+        recorder.first_write_flag = true;
+        recorder.writing = true;
+        recorder.Q_sample = 1000;
+        LS_state = REC;
+        p.Render();
+        assert(p.live_restart_pending && p.live_restart_sample == 874);
+        p.read_last = -1;
+        recorder.writing = !early_stop;
+        LS_state = early_stop ? 0 : REC;
+        recorder.Q_sample += early_stop ? 0 : 128;
+        p.Render();
+        if (early_stop)
+        {
+            assert(p.live_forward_end && p.state == IDLE_REQUEST && p.read_last == -1);
+        }
+        else
+        {
+            assert(p.live_fade_in && !p.live_restart_pending && p.a_sample == 874);
+            assert(p.read_last == 1128);
+        }
+    }
+    // Full-cache STOP still completes the booked forward jump; geometry edits cancel it.
+    recorder.first_write_flag = false;
+    recorder.writing = true;
+    recorder.Q_sample = 1000;
+    LS_state = REC;
+    AudioPlayer stopped_loop;
+    stopped_loop.mode_player = LOOP_FWD;
+    stopped_loop.pitch = stopped_loop.pitch_note = 2;
+    stopped_loop.B_Flash_sample = 2000;
+    stopped_loop.a_first_sample = 900;
+    stopped_loop.Render();
+    assert(stopped_loop.live_restart_pending);
+    const float saved_loop = stopped_loop.live_restart_sample;
+    recorder.writing = false;
+    LS_state = 0;
+    stopped_loop.Render();
+    assert(stopped_loop.live_fade_in && stopped_loop.a_sample == saved_loop);
+    stopped_loop.live_restart_pending = true;
+    stopped_loop.Edit_geometry(ONCE_FWD, 0, 2000);
+    stopped_loop.Prepare_live_forward_block();
+    assert(!stopped_loop.live_restart_pending && !stopped_loop.live_fade_in);
     // Ordinary file loops retain their NoClick table.
     AudioPlayer file_loop;
     file_loop.LS_flag = false;
@@ -680,10 +850,11 @@ int main()
         assert(loop_output[i] == memory[i + 2]);
     }
     assert(loop_output[6] == 123 && loop_output[7] == 456);
-    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes, first fill and unity loop replays\n";
+    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes, first fill, unity loop replays and fast loop jumps\n";
 }
 '''
 signatures = [
+    'bool AudioPlayer::Live_loop_samples_recorded(int phase, int count, int write_position) const',
     'int AudioPlayer::Loop_period(int first, int last, int crossfade, uint8_t mode) const',
     'bool AudioPlayer::Fill_loop_samples(int16_t *destination, int count, int phase, int first, int last, int crossfade, uint8_t mode, const int16_t *noclick, int period)',
     'void AudioPlayer::Loop_memory_harvest(void)',
@@ -707,7 +878,10 @@ with tempfile.TemporaryDirectory(prefix='lilla-live-forward-') as folder:
     pitch_start = source.index('        if (!live_restart_pending)', source.index('void AudioPlayer::update(void)'))
     pitch_end = source.index('        if (main_settings_editing_flag)', pitch_start)
     pitch_requests = 'void AudioPlayer::Apply_pitch_requests()\n{\n' + source[pitch_start:pitch_end] + '}\n'
-    cpp.write_text(prefix + ''.join(method(source, s) for s in signatures) + pitch_requests + checks, encoding='utf-8')
+    edit_start = source.index('            if (mode_player != mode_player_E || A_Flash_sample != A_Flash_sample_E')
+    edit_end = source.index('            a_first_sample = a_first_sample_E;', edit_start)
+    edit_geometry = 'void AudioPlayer::Edit_geometry(int mode_player_E, int A_Flash_sample_E, int B_Flash_sample_E)\n{\n' + source[edit_start:edit_end] + 'A_Flash_sample = A_Flash_sample_E; B_Flash_sample = B_Flash_sample_E;\n}\n'
+    cpp.write_text(prefix + ''.join(method(source, s) for s in signatures) + pitch_requests + edit_geometry + checks, encoding='utf-8')
     lib = ROOT / 'lib/AudioPlayer'
     subprocess.run([compiler, '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-I' + str(lib), str(cpp), str(lib / 'PlayerAntialias.cpp'), str(lib / 'PlayerInterpolator.cpp'), '-o', str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)
