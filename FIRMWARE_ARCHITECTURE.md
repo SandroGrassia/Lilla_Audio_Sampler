@@ -4,7 +4,24 @@ This document describes the LILLA Audio Sampler firmware architecture and the co
 
 For operating instructions, see the [User Guide](User%20Guide.md). For the project overview and build command, see the [README](README.md).
 
+## Contents
+
+- [1. Platform and organization](#1-platform-and-organization)
+- [2. Execution model and synchronization](#2-execution-model-and-synchronization)
+- [3. Audio signal flow](#3-audio-signal-flow)
+- [4. AudioPlayer](#4-audioplayer)
+- [5. Delay](#5-delay)
+- [6. Patch, sound and voice model](#6-patch-sound-and-voice-model)
+- [7. Pitch-dependent polyphony](#7-pitch-dependent-polyphony)
+- [8. Memory and persistence](#8-memory-and-persistence)
+- [9. Recording and capture workflows](#9-recording-and-capture-workflows)
+- [10. MIDI and loop scheduling](#10-midi-and-loop-scheduling)
+- [11. User interface](#11-user-interface)
+- [12. Maintenance guide](#12-maintenance-guide)
+
 ## 1. Platform and organization
+
+> *Introduces the hardware platform, build configuration and source layout, identifying the main application entry point and the responsibilities of each module family.*
 
 The firmware runs on a Teensy 4.1 at 600 MHz using the Arduino framework and the Teensy Audio processing model. The application combines a foreground `loop()` with interrupt-driven audio updates. Its principal integration point is [src/main.cpp](src/main.cpp): audio objects and connections, hardware initialization, shared application state, page event handling, and storage workflows are assembled there.
 
@@ -25,6 +42,8 @@ The firmware runs on a Teensy 4.1 at 600 MHz using the Arduino framework and the
 The separation is practical rather than a strict layered framework: modules use shared state and supplied object pointers/references, and substantial coordination remains in `main.cpp`.
 
 ## 2. Execution model and synchronization
+
+> *Explains startup, foreground tasks and audio interrupt scheduling. Describes execution order and the critical sections used to publish shared state safely.*
 
 ### Startup and foreground work
 
@@ -52,6 +71,8 @@ Stopping `Trigger` pauses its control callbacks while players continue rendering
 Keep protected sections short. Display operations, serial reporting and bulk storage transfers must not extend a short state-publication section into a long audio stall. The cache loader demonstrates the intended pattern: reserve work under protection, transfer outside the critical section, then publish completion under protection.
 
 ## 3. Audio signal flow
+
+> *Maps the main audio routes from voices and line input through effects, monitoring, recording and outputs. Distinguishes signal connections from processing order.*
 
 The following diagram summarizes the `AudioConnection` declarations in [main.cpp](src/main.cpp). The delay box includes its linked stereo compressor/summing stage, independent left/right feedback low-pass filters and feedback gain stages.
 
@@ -84,6 +105,8 @@ The input gain stage also feeds peak detection, direct sampling and live samplin
 Per-voice processing is implemented by [AudioPlayer](lib/AudioPlayer/AudioPlayer.h) together with ADSR, VCF, modulation and table helpers. The graph-level common filter and delay are separate from these per-voice operations.
 
 ## 4. AudioPlayer
+
+> *Describes each playback voice: source readers, pitch interpolation, amplitude shaping, downsampling, resolution, TONE filtering, VCF and modulation.*
 
 Each of the 16 [AudioPlayer](lib/AudioPlayer/AudioPlayer.cpp) voices combines a source reader, playback-position and pitch processing, amplitude shaping, timbre effects and stereo output. The source paths and processing order are:
 
@@ -141,6 +164,8 @@ TONE enables a post-resampling LPF for upward-pitch timbre correction and offers
 
 ## 5. Delay
 
+> *Explains the stereo delay signal path, linked compressor, feedback filters and time modulation, including parameter storage and memory allocation.*
+
 The stereo delay has independent left/right PSRAM delay lines, feedback filters and feedback multipliers, with a shared stereo compressor gain. The diagram represents both channels in parallel. The input/feedback summers are implemented inside `D_Compressor`, before its dynamics processing.
 
 ```mermaid
@@ -178,6 +203,8 @@ Each Delay channel allocates two seconds, rounded up to an audio-block boundary,
 
 ## 6. Patch, sound and voice model
 
+> *Defines patches, instruments, sounds, presets and playback voices. Covers their relationships, shared voice capacity, pitch limits, loop smoothing and timing constraints.*
+
 [config.h](lib/config/config.h) sets 16 players, eight instruments per patch, 200 stored patches and 800 stored sounds. Temporary preview/capture entries extend some runtime arrays beyond those persistent capacities.
 
 | Model | Role |
@@ -201,6 +228,8 @@ Live forward loops play the initial attack from A. From the first B-to-A return,
 The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
 
 ## 7. Pitch-dependent polyphony
+
+> *Explains how source-read cost limits simultaneous voices as pitch increases. Presents the budget assumptions and predicted polyphony for the reference playback configuration.*
 
 LILLA adapts the number of active Players to the estimated processing cost of the requested pitches, up to a maximum of 16. Raising pitch requires more source samples for each 128-sample output block. The voice manager therefore limits the combined source-read workload to help keep processing within the approximately 2.9 ms audio deadline and avoid CPU overload and resulting audio interruptions. This concerns processing time, rather than clipping of the audio signal amplitude.
 
@@ -233,6 +262,8 @@ VCF+LFO belongs to the remaining processing allowance; its cost must not also be
 The table groups consecutive integer semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
 
 ## 8. Memory and persistence
+
+> *Describes RAM, PSRAM, Flash, FRAM and SD responsibilities. Covers cache lifetime, persistent formats, sample identity and SD library organization.*
 
 | Memory/storage | Main firmware use | Survives power-off? |
 | --- | --- | --- |
@@ -272,6 +303,8 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 ## 9. Recording and capture workflows
 
+> *Covers direct recording, Live Sampler capture and audio import/export. Explains safe live playback starts and read/write transitions, with animated examples.*
+
 ### Sampler
 
 [StereoSampler](lib/StereoSampler/StereoSampler.h) receives the amplified line input and writes mono or stereo recording data through the Flash packet/storage layer. The foreground checks its storage-error status even after the user leaves the Sampler page. Conversion into playable RAW material and WAV export are coordinated by the application workflows. Before capture, an incomplete-recording marker is written to FRAM and read back for verification. Packet progress stays in RAM during capture; the foreground verifies final metadata after recording stops, keeping FRAM writes outside audio capture.
@@ -310,6 +343,8 @@ The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate
 
 ## 10. MIDI and loop scheduling
 
+> *Explains bounded MIDI input processing and four-track loop scheduling, including event capacity, timing, storage formats and dependencies on patches and samples.*
+
 [MidiReader](lib/MidiReader/MidiReader.h) wraps the MIDI library's serial interface and coordinates incoming messages with loop playback. It is updated by `LillaClock` in the audio processing cycle.
 
 [MidiInputBatch](lib/MidiReader/MidiInputBatch.h) bounds incoming work: currently eight ordered messages, up to 64 received bytes and an 80 microsecond parsing limit per batch. Note events preserve order. Pitch bend, channel pressure and modulation use the last value collected for each channel within the batch; other control changes remain ordered. These bounds protect audio processing from bursts of input.
@@ -320,6 +355,8 @@ Saving a loop stores MIDI events rather than rendered audio. Reproducing a sessi
 
 ## 11. User interface
 
+> *Describes control scanning, page navigation and display responsibilities. Covers parameter publication, popup conventions and confirmation workflows.*
+
 The control path starts with the SPI-connected control expanders and the encoder, pushbutton and switch managers. The foreground interprets those events according to the current page.
 
 `Pointer*` classes represent page selection/navigation behavior; `Display*` classes render page content. SETUP uses `SET_menu` and foreground encoder handling directly, with `DisplaySetup::SETUP_show_frame()` rendering its selection; there is no `PointerSetup` class. `Shared*` modules carry the associated values and state. `main.cpp` connects these pieces to audio and archive operations. When adding a field, review its navigation, drawing, parameter mapping, audio publication and persistence together.
@@ -329,6 +366,8 @@ For text popups and red-button confirmation, reuse `Show_popup_text` and `Confir
 SETUP conversion and Flash import begin with CANCEL/GO dialogs before audio is suspended. The final Flash erase confirmation remains separate. Backup and restore have their own selection frames. `Show_popup_text()` accepts an array of lines, centers each line, sizes the popup to its content and limits its width to the display. Destructive confirmations use white on red; informational confirmations use black on green. Menu coordinates, value clearing and frame dimensions must be updated together.
 
 ## 12. Maintenance guide
+
+> *Provides starting points for common firmware changes and their required checks. Summarizes coding conventions, hardware validation and printable-guide generation.*
 
 | Intended change | Starting points and required review |
 | --- | --- |
