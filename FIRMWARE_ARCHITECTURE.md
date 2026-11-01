@@ -19,6 +19,8 @@ For operating instructions, see the [User Guide](User%20Guide.md). For the proje
 - [11. User interface](#11-user-interface)
 - [12. Maintenance guide](#12-maintenance-guide)
 
+<br><br>
+
 ## 1. Platform and organization
 
 > *Introduces the hardware platform, build configuration and source layout, identifying the main application entry point and the responsibilities of each module family.*
@@ -40,6 +42,8 @@ The firmware runs on a Teensy 4.1 at 600 MHz using the Arduino framework and the
 | `include` | Application-level declarations, display definitions and integration headers. |
 
 The separation is practical rather than a strict layered framework: modules use shared state and supplied object pointers/references, and substantial coordination remains in `main.cpp`.
+
+<br><br>
 
 ## 2. Execution model and synchronization
 
@@ -69,6 +73,8 @@ In `main.cpp`, `AudioNoInterrupts()` and `AudioInterrupts()` disable and enable 
 Stopping `Trigger` pauses its control callbacks while players continue rendering and the audio cycle deadline continues advancing. Stopping `MidiReader` prevents its MIDI processing without stopping the entire audio graph. These operations therefore have different purposes from suspending audio updates.
 
 Keep protected sections short. Display operations, serial reporting and bulk storage transfers must not extend a short state-publication section into a long audio stall. The cache loader demonstrates the intended pattern: reserve work under protection, transfer outside the critical section, then publish completion under protection.
+
+<br><br>
 
 ## 3. Audio signal flow
 
@@ -103,6 +109,8 @@ Each player produces left and right output. The paired routers provide three des
 The input gain stage also feeds peak detection, direct sampling and live sampling. The Live Sampler feedback signal comes from the common filtered playback path. Its feedback control is separate from the delay effect's feedback controls.
 
 Per-voice processing is implemented by [AudioPlayer](lib/AudioPlayer/AudioPlayer.h) together with ADSR, VCF, modulation and table helpers. The graph-level common filter and delay are separate from these per-voice operations.
+
+<br><br>
 
 ## 4. AudioPlayer
 
@@ -162,6 +170,8 @@ TONE enables a post-resampling LPF for upward-pitch timbre correction and offers
 
 [WaveLFO](lib/WaveLFO/WaveLFO.h) supplies the modulation waveform; `PlayersManager` and `MidiReader` route its depth controls. Table-based cutoff selections are encoded as bytes 128-167; other supported encodings use an exponential frequency mapping. Manual cutoff edits reach active voices over 40 quarter-block steps (about 29 ms), with or without modulation. Cutoff and modulation-index ramps advance independently. AudioVCF reloads coefficients at quarter-block boundaries while preserving sample history. Outside manual cutoff ramps, the voice uses its established pitch reference.
 
+<br><br>
+
 ## 5. Delay
 
 > *Explains the stereo delay signal path, linked compressor, feedback filters and time modulation, including parameter storage and memory allocation.*
@@ -201,6 +211,8 @@ The compressor offers thresholds from -24 to -3 dBFS in 1 dB steps, plus `THRESH
 
 Each Delay channel allocates two seconds, rounded up to an audio-block boundary, plus one incoming audio block. `PSRAM_FUTURE_USE_RESERVE_BYTES` leaves 3,174,912 bytes (approximately 3.03 MiB) unallocated for future use. This space is excluded from the nine patch caches, and from all other application buffers. Reserved bytes 4 through 6 are ignored on load and zeroed on save. The downstream audio reserve is 200 us, giving players a 2700 us deadline within the 2900 us block budget. Worst-case headroom still requires hardware validation.
 
+<br><br>
+
 ## 6. Patch, sound and voice model
 
 > *Defines patches, instruments, sounds, presets and playback voices. Covers their relationships, shared voice capacity, pitch limits, loop smoothing and timing constraints.*
@@ -226,6 +238,8 @@ These structures are defined in [SharedElements.h](lib/SharedElements/SharedElem
 Live forward loops play the initial attack from A. From the first B-to-A return, the last 32 source samples are linearly mixed with the first 32 samples read from the current PSRAM cache; playback then continues at A+32. Subsequent loop periods are B-A+1-32 samples. Startup validation accounts for both source regions of the mix, and the read budget reserves their additional transfers. Live loops are available only while recording is stopped; they do not search for write-head-safe restart phases or apply collision ramps.
 
 The read-budget machinery accounts for the cost of source access, and players enforce an audio-cycle deadline. Current configuration uses a 2900 microsecond block budget with a 200 microsecond reserve after player processing. Review [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) and the calibration document before changing read costs or limits. Hardware measurements are needed to establish headroom under worst-case load.
+
+<br><br>
 
 ## 7. Pitch-dependent polyphony
 
@@ -260,6 +274,8 @@ VCF+LFO belongs to the remaining processing allowance; its cost must not also be
 | +52...+61 | 6 |
 
 The table groups consecutive integer semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
+
+<br><br>
 
 ## 8. Memory and persistence
 
@@ -301,6 +317,8 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 [SdSoundSource](lib/SdSoundSource/SdSoundSource.h) reads catalog records on demand and resolves persistent source references independently of alphabetical positions. The identity range starts at 1024; this is not the catalog capacity. Sound Edit loads a selected window into the existing PSRAM cache for audition through the 16 Players. Saved portions retain an SD reference; the complete `/AUDIO_FILES` directory must be preserved separately from the normal backup. See [user audio preparation](docs/user-audio-preparation.md).
 
+<br><br>
+
 ## 9. Recording and capture workflows
 
 > *Covers direct recording, Live Sampler capture and audio import/export. Explains safe live playback starts and read/write transitions, with animated examples.*
@@ -341,6 +359,8 @@ At **-1 octave**, the reader advances by 64 source samples per 128-sample output
 
 The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate. Import and export workflows bridge this representation to microSD files. [WavImport](lib/WavImport/WavImport.h) validates RIFF chunks and converts PCM 8/16/24/32-bit and float 32/64-bit mono/stereo WAV, including extensible headers, from 8-192 kHz to mono 16-bit at 44.1 kHz. SD preparation and Flash import share this decoder. Non-native rates use a 128-tap Blackman-windowed sinc with 129 phase tables and interpolation, allocating 64.5 KiB of coefficients only during conversion. Streaming input/history buffers keep memory independent of file duration. PCM16 WAV at 44.1 kHz bypasses sample-rate conversion. The known RIFF +4 size error is tolerated only with complete chunks ending at the actual file boundary; originals are never rewritten. MP3 decoding and conversion are implemented in [Mp3Import.cpp](src/Mp3Import.cpp); supported formats and conversion details are documented in [MP3 import](docs/mp3-import.md).
 
+<br><br>
+
 ## 10. MIDI and loop scheduling
 
 > *Explains bounded MIDI input processing and four-track loop scheduling, including event capacity, timing, storage formats and dependencies on patches and samples.*
@@ -353,6 +373,8 @@ MIDI Loop uses four tracks. [SharedLoop.h](lib/SharedLoop/SharedLoop.h) defines 
 
 Saving a loop stores MIDI events rather than rendered audio. Reproducing a session also requires the relevant patch and sample material.
 
+<br><br>
+
 ## 11. User interface
 
 > *Describes control scanning, page navigation and display responsibilities. Covers parameter publication, popup conventions and confirmation workflows.*
@@ -364,6 +386,8 @@ The control path starts with the SPI-connected control expanders and the encoder
 For text popups and red-button confirmation, reuse `Show_popup_text` and `Confirm_frame_on_RED` where applicable. The [User Guide](User%20Guide.md) documents the resulting user-visible behavior.
 
 SETUP conversion and Flash import begin with CANCEL/GO dialogs before audio is suspended. The final Flash erase confirmation remains separate. Backup and restore have their own selection frames. `Show_popup_text()` accepts an array of lines, centers each line, sizes the popup to its content and limits its width to the display. Destructive confirmations use white on red; informational confirmations use black on green. Menu coordinates, value clearing and frame dimensions must be updated together.
+
+<br><br>
 
 ## 12. Maintenance guide
 
