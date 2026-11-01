@@ -8,3 +8,4 @@ AGENTS.md
 /.vscode/
 __pycache__/
 *.py[cod]
+/output/

@@ -208,7 +208,7 @@ LILLA adapts the number of active Players to the estimated processing cost of th
 
 ### Reference conditions and budget
 
-The table and graph are calculated from [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) for samples cached in PSRAM, MODE **FW-REV** (ping-pong), neutral tuning and a long A-B region. An A-B span of at least 4500 source samples is sufficient for the long-loop assumption throughout the tabulated range. Ping-pong does not use the NoClick crossfade. Shorter loops, different source storage and other playback geometries require their own cost estimates.
+The table is calculated from [PlayerReadBudget.h](lib/AudioPlayer/PlayerReadBudget.h) for samples cached in PSRAM, MODE **FW-REV** (ping-pong), neutral tuning and a long A-B region. An A-B span of at least 4500 source samples is sufficient for the long-loop assumption throughout the tabulated range. Ping-pong does not use the NoClick crossfade. Shorter loops, different source storage and other playback geometries require their own cost estimates.
 
 The model reserves up to **1.515 times the requested base pitch** for positive pitch bend and vibrato, subject to the Live Sampler and cached-file PSRAM pitch ceiling of 35. It applies a 10% cost margin and a combined source-read budget of **1800 microseconds per block**, leaving approximately 1100 microseconds for remaining processing and safety margin. Thus +48 semitones means a requested pitch of 16, with a reserved pitch of 24.24 before the ceiling applies. Requested pitch is expressed as semitones from the root key: `pitch = 2^(semitones / 12)`.
 
@@ -216,7 +216,7 @@ VCF+LFO belongs to the remaining processing allowance; its cost must not also be
 
 ### Maximum polyphony predicted by the budget
 
-| Semitoni dalla root | Polifonia |
+| Semitones from the root key | Polyphony |
 | ---: | ---: |
 | 0...+37 | 16 |
 | +38 | 15 |
@@ -230,15 +230,7 @@ VCF+LFO belongs to the remaining processing allowance; its cost must not also be
 | +50...+51 | 7 |
 | +52...+61 | 6 |
 
-```mermaid
-xychart-beta
-    title "Polifonia massima prevista dal budget - PSRAM, FW-REV"
-    x-axis "Semitoni dalla root" 0 --> 61
-    y-axis "Polifonia" 0 --> 16
-    line [16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 15, 14, 13, 12, 12, 11, 10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
-```
-
-Each plotted value corresponds to an integer semitone; the table groups consecutive semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
+The table groups consecutive integer semitones with the same result. These are model predictions for the stated conditions, not a completed hardware guarantee across all pitches and effects. A separate emergency Player deadline remains a fallback, not proof that the entire audio graph always meets its deadline.
 
 ## 8. Memory and persistence
 
@@ -288,13 +280,29 @@ Index construction uses merge sorting through temporary files on SD with only tw
 
 [StereoLiveSampler](lib/StereoLiveSampler/StereoLiveSampler.h) records into circular PSRAM storage. Playback can refer to this live source while recording continues. Read/write positioning, wrap behavior and the initial partially filled buffer must remain consistent when changing playback logic.
 
-During the first recording pass, mobile SYNC starts (lock off, zero start offset) in ONCE FWD are allowed at pitch <= 1 when the first output block has enough recorded source samples. At unity the attack is Q-127; below unity it is Q-128, clamped to zero when recording has only just begun. Q is the last recorded sample. Slow playback initially uses linear interpolation if the eight-tap sinc context is unavailable, then blends into sinc over one output block once the entire context is recorded. Mobile SYNC starts above unity are rejected during this first pass with the existing unrecorded-audio notice. Full-cache startup and other start-point configurations retain their existing rules.
+During the first recording pass, mobile SYNC starts (lock off, zero start offset) in ONCE FWD are allowed at pitch <= 1 when the first output block has enough recorded source samples. At unity the attack is Q-127; below unity it is Q-128, clamped to zero when recording has only just begun. Q is the last recorded sample. Slow playback initially uses linear interpolation if the eight-tap sinc context is unavailable, then blends into sinc over one output block once the entire context is recorded. Mobile SYNC starts above unity are rejected during this first pass with the existing unrecorded-audio notice. Once the cache is full, slow ONCE FWD attacks also keep their complete sinc prefetch outside the latest written block; an unsafe start is moved backward before reading.
 
-During recording (including its final stop ramp), attempting to select a loop mode displays `STOP RECORDING FOR LOOP MODES` for four seconds and keeps REV selected. With recording stopped, REV advances to LOOP FWD and then LOOP FWD-REV. Starting recording from either loop mode selects ONCE FWD, resumes active live loop voices at the saved `(Q+1) % cache_size` through the existing forward fade-in, and preserves their A reference and the UI start point. Queued live loop notes are also converted to ONCE FWD. The recorder resumes from its existing write position. ONCE FWD protections against never-recorded audio still apply during the first pass.
+During recording (including its final stop ramp), attempting to select a loop mode displays `STOP RECORDING FOR LOOP MODES` for four seconds and keeps REV selected. With recording stopped, REV advances to LOOP FWD and then LOOP FWD-REV. Starting recording from either loop mode selects ONCE FWD, requests a restart of active live loop voices at the saved `(Q+1) % cache_size` through the existing forward fade-in, and preserves their A reference and the UI start point. The slow-playback safety check below can redirect this restart when its sinc context would touch the latest written block. Queued live loop notes are also converted to ONCE FWD. The recorder resumes from its existing write position. ONCE FWD protections against never-recorded audio still apply during the first pass.
 
 `LS_Compressor` uses the same [LillaCompressor](lib/LillaCompressor/LillaCompressor.h) class with `Profile::LiveSampler` and combines the input and feedback paths using wider intermediate values and linked stereo dynamics. Like the Delay profile, this profile uses 32 samples of lookahead (about 0.73 ms) and a ceiling of approximately -1 dBFS. The two instances share the immutable gain tables and DSP implementation, while maintaining independent histories, envelopes and thresholds. Live Sampler starts at -6 dBFS; its threshold is session state, not patch data. The `FEEDBACK COMPRESSOR` field is adjusted with Value across -24 to -3 dBFS and OFF. It is connected before the live recorder. Processing is skipped when recording is inactive.
 
 [CaptureSources](lib/CaptureSources/CaptureSources.h) represents captured regions with ordinary RAW identifiers while their audio backing is still temporary. Saving a captured patch persists the required audio to Flash. A captured region available for playback in PSRAM is therefore not, by itself, a durable recording.
+
+#### ONCE FWD read/write transitions
+
+The following animations show a held note during recording into an already full cache. Orange **WRITE** marks the latest 128 recorded samples, ending at Q; blue **READ** marks the useful source interval. The higher-frequency sine wave to the right represents audio from the previous recording pass. The lower row accumulates output in 128-sample frames, including one preceding frame, on the same horizontal scale. Waveforms are illustrative, not device captures, and the animation pauses exaggerate the duration of each audio update. Interpolation context is checked by the player but omitted from the blue outline. Download the [interactive examples](docs/animations/live-sampler-forward.html) and open the file in a browser to use the independent Previous/Play/Next controls; the GIF versions below play directly in the document.
+
+#### One octave up: pitch = 2
+
+At **+1 octave**, each 128-sample output block advances the reader by 256 source samples, while the recorder advances by 128. The reader therefore catches up with the write area. The existing fast-playback rule fades out the current block when its last fetched sample falls inside the latest written block, or its fetched interval crosses Q. It saves `(Q + 1 + 128) % cache_size` using Q from that fade-out update. On the following update, playback jumps to the saved position and fades in while reading previous-pass audio ahead of the writer. The output remains contiguous and is compressed to half the source duration. In this example Q is 1311 during fade-out and the saved destination is 1440; when fade-in starts, Q has advanced to 1439. This fast case retains its current overlap rule; the anticipatory protection in the next example applies only below unity pitch.
+
+![ONCE FWD at one octave up: partial read/write overlap, fade-out, forward jump and fade-in, with each output block compressed to 128 samples.](docs/animations/live-forward-plus-octave.gif)
+
+#### One octave down: pitch = 0.5
+
+At **-1 octave**, the reader advances by 64 source samples per 128-sample output block, so the writer can catch up with it. The player predicts whether the **next** read window, including the eight-tap sinc context, would overlap the block that will be written next. It fades out the **current, still-safe** block instead of reading through that future overlap. For the following fade-in it initially rewinds 128 source samples from the fade-out block's start, moving farther back if necessary to keep the complete prefetch outside the next written block. In the animation, fade-out reads from 1184 with Q at 1151; normal continuation from 1248 would be unsafe after Q reaches 1279, so fade-in restarts at 1056. The 64-sample source interval expands to 128 output samples, and neither ramp reads the latest written area. If a pitch or position change, or a missed update, makes the current window unexpectedly unsafe, the pre-read guard fetches no cache audio: it fades the last valid output value to zero and schedules a safe fade-in. These full-cache protections preserve the existing first-fill behavior and defer pitch changes until the booked fade-in has completed. The implementation is in [AudioPlayer.cpp](lib/AudioPlayer/AudioPlayer.cpp), principally `Live_slow_read_rewind`, `Check_live_forward_boundary` and `Harvest_samples`.
+
+![ONCE FWD at one octave down: predictive fade-out before overlap, backward restart and safe fade-in, with each 64-sample source interval expanded to 128 output samples.](docs/animations/live-forward-minus-octave.gif)
 
 ### Import and export
 
