@@ -701,6 +701,7 @@ void AudioPlayer::Start_playing(void)
     live_restart_pending = false;
     live_fade_out = false;
     live_fade_in = false;
+    live_slow_read_blocked = false;
     patch_release_pending = false; // A replacement note must not inherit the previous patch deadline.
     Close_source();
     source_now = source_wait;
@@ -1751,6 +1752,21 @@ void AudioPlayer::Harvest_samples(int outputs)
         initial_index_offset = 0.0f;
         return;
     }
+    if (LS_flag && mode_player == ONCE_FWD && pitch < 1.0f && LS_state == REC && Live_Sampler->Is_writing() && (!Live_Sampler->first_write_flag || Live_Sampler->Q_sample == LS_buffer_dim - 1) && Live_slow_read_rewind(a_sample, outputs, Live_Sampler->Q_sample) > 0)
+    {
+        // A pitch/position change or a missed update can invalidate the previous prediction. Never fetch the unsafe window.
+        live_slow_read_blocked = true;
+        live_fade_out = true;
+        live_fade_in = false;
+        live_restart_sample = a_sample - AUDIO_BLOCK_SAMPLES;
+        live_restart_sample -= Live_slow_read_rewind(live_restart_sample, AUDIO_BLOCK_SAMPLES, (Live_Sampler->Q_sample + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim);
+        live_restart_pending = true;
+        memset(samples_basket, 0, sizeof(samples_basket));
+        memset(resampled_basket, 0, sizeof(resampled_basket));
+        interpolation_mix = 0.0f;
+        initial_index_offset = 0.0f;
+        return;
+    }
     const float target_mix = PlayerInterpolator::Mix(pitch);
     if (live_sinc_start_pending)
     {
@@ -2061,6 +2077,7 @@ void AudioPlayer::Prepare_live_forward_block(void)
 {
     live_fade_out = false;
     live_fade_in = false;
+    live_slow_read_blocked = false;
     const bool forward_loop = mode_player == LOOP_FWD;
     if (!LS_flag || (mode_player != ONCE_FWD && !forward_loop))
     {
@@ -2155,6 +2172,16 @@ void AudioPlayer::Prepare_live_forward_block(void)
                     a_first_sample = A_Flash_sample;
                 }
             }
+            if (pitch < 1.0f)
+            {
+                const int rewind = Live_slow_read_rewind(a_first_sample, AUDIO_BLOCK_SAMPLES, write_position);
+                if (rewind > 0)
+                {
+                    A_Flash_sample = (A_Flash_sample - rewind + LS_buffer_dim) % LS_buffer_dim;
+                    B_Flash_sample = A_Flash_sample + LS_buffer_dim - 1;
+                    a_first_sample = A_Flash_sample;
+                }
+            }
         }
     }
 
@@ -2172,9 +2199,19 @@ void AudioPlayer::Prepare_live_forward_block(void)
 }
 
 
+int AudioPlayer::Live_slow_read_rewind(float start, int outputs, int write_position) const
+{
+    const int first = static_cast<int>(floorf(start)) - PlayerInterpolator::Left;
+    const int last = static_cast<int>(floorf(start + (outputs - 1) * pitch)) + PlayerInterpolator::Taps - PlayerInterpolator::Left - 1;
+    const int count = last - first + 1;
+    const int first_position = (first % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+    const int distance_to_write = (write_position - first_position + LS_buffer_dim) % LS_buffer_dim;
+    return distance_to_write < count + AUDIO_BLOCK_SAMPLES - 1 ? count + AUDIO_BLOCK_SAMPLES - 1 - distance_to_write : 0;
+}
+
 void AudioPlayer::Check_live_forward_boundary(void)
 {
-    if (!LS_flag || LS_state != REC || live_fade_in || live_forward_end || !Live_Sampler->Is_writing())
+    if (!LS_flag || LS_state != REC || live_fade_in || live_slow_read_blocked || live_forward_end || !Live_Sampler->Is_writing())
     {
         return;
     }
@@ -2207,10 +2244,12 @@ void AudioPlayer::Check_live_forward_boundary(void)
     }
     else
     {
-        if (crosses_write_boundary)
+        const int next_write_position = (write_position + AUDIO_BLOCK_SAMPLES) % LS_buffer_dim;
+        if (Live_slow_read_rewind(a_first_sample, AUDIO_BLOCK_SAMPLES, next_write_position) > 0)
         {
             live_fade_out = true;
             live_restart_sample = a_sample - AUDIO_BLOCK_SAMPLES;
+            live_restart_sample -= Live_slow_read_rewind(live_restart_sample, AUDIO_BLOCK_SAMPLES, next_write_position);
             live_restart_pending = true;
         }
     }
@@ -2223,7 +2262,8 @@ void AudioPlayer::Shape_live_forward_block(void)
         for (int sample = 0; sample < AUDIO_BLOCK_SAMPLES; ++sample)
         {
             const int ramp_sample = live_fade_in ? sample : AUDIO_BLOCK_SAMPLES - 1 - sample;
-            block[sample] = static_cast<int16_t>(static_cast<int32_t>(block[sample]) * ramp_sample / (AUDIO_BLOCK_SAMPLES - 1));
+            const int16_t value = live_slow_read_blocked ? live_forward_last_sample : block[sample];
+            block[sample] = static_cast<int16_t>(static_cast<int32_t>(value) * ramp_sample / (AUDIO_BLOCK_SAMPLES - 1));
         }
     }
 }

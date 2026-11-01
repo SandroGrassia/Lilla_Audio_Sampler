@@ -295,6 +295,7 @@ private:
     bool live_restart_pending = false; // Complete the booked restart even if recording stops.
     bool live_fade_out = false; // Fade the current output block before the booked jump.
     bool live_fade_in = false; // Fade the first output block after the booked jump.
+    bool live_slow_read_blocked = false; // Fade the last output value if an unpredicted slow collision prevents a cache read.
     float live_restart_sample = 0.0f; // Saved restart position, preserving the fractional playback phase.
     int live_last_read_sample = 0; // Last source sample actually harvested, including filter lookahead.
     int16_t *FIFO;
@@ -317,7 +318,8 @@ private:
     int Live_loop_segment(int phase, int first, int last, int &source, int &blend_source) const; // Map an attack or repeated loop phase to its raw or mixed source segment.
     bool Live_loop_samples_recorded(int phase, int count, int write_position) const; // Check a loop prefetch against the recorded prefix, including loop and cache wrap.
     void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
-    void Check_live_forward_boundary(void); // Book an ONCE FWD jump or rewind from the harvested interval.
+    int Live_slow_read_rewind(float start, int outputs, int write_position) const; // Return the backward shift needed to keep the full sinc window outside the latest written block.
+    void Check_live_forward_boundary(void); // Predict slow ONCE FWD collisions one block ahead; retain the fast crossing rule.
     void Shape_live_forward_block(void); // Apply the output ramp after effects without changing cached audio.
     bool Harvest_live_continuous(void); // Circular FWD reading continues after STOP when the live cache is full.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.

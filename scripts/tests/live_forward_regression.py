@@ -37,6 +37,7 @@ struct AudioPlayer
 {
     bool LS_flag = true, use_Wavetable = false, live_forward_end = false, live_forward_empty = false;
     bool live_start_pending = false, live_restart_pending = false, live_fade_out = false, live_fade_in = false;
+    bool live_slow_read_blocked = false;
     bool warmup_for_play_again_flag = false, idle = false, power_on = true;
     inline static volatile bool live_unrecorded_notice = false;
     float live_restart_sample = 0.0f;
@@ -72,6 +73,11 @@ struct AudioPlayer
         read_total += count;
         for (int i = 0; i < count; ++i)
         {
+            if (LS_flag && mode_player == ONCE_FWD && pitch < 1.0f && LS_state == REC && recorder.writing && (!recorder.first_write_flag || recorder.Q_sample == LS_buffer_dim - 1))
+            {
+                const int position = ((first + i) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim;
+                assert((recorder.Q_sample - position + LS_buffer_dim) % LS_buffer_dim >= 128);
+            }
             dst[i] = memory[((first + i) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim];
         }
     }
@@ -112,6 +118,7 @@ struct AudioPlayer
     int Live_loop_segment(int phase, int first, int last, int &source, int &blend_source) const;
     bool Live_loop_samples_recorded(int phase, int count, int write_position) const;
     void Prepare_live_forward_block();
+    int Live_slow_read_rewind(float start, int outputs, int write_position) const;
     void Check_live_forward_boundary();
     void Shape_live_forward_block();
     void Harvest_samples(int outputs = 128);
@@ -142,6 +149,7 @@ struct AudioPlayer
         {
             Shape_live_forward_block();
         }
+        live_forward_last_sample = block[127];
     }
 };
 '''
@@ -442,12 +450,24 @@ int main()
                     p.Prepare_live_forward_block();
                     const bool forbidden = distance >= 0 && distance < (speed == 1 ? 127 : 128);
                     const int expected = forbidden ? (q + (speed == 1 ? 1 : -128) + 4096) % 4096 : start;
-                    assert(p.a_first_sample == expected);
+                    if (speed == 1.0f)
+                    {
+                        assert(p.a_first_sample == expected);
+                    }
+                    else
+                    {
+                        for (int sample = static_cast<int>(floorf(p.a_first_sample))-3; sample <= static_cast<int>(floorf(p.a_first_sample+127*speed))+4; ++sample)
+                        {
+                            const int position = (sample % 4096 + 4096) % 4096;
+                            assert((q-position+4096)%4096 >= 128);
+                        }
+                        assert(p.A_Flash_sample == p.a_first_sample);
+                    }
                 }
             }
         }
     }
-    // Real sinc prefetch, fractional rewind, STOP and circular restart.
+    // Fade the last safe sinc block before the NEXT recorded block reaches the next prefetch.
     for (float speed : {0.25f, 0.5f, 0.9f, 0.99f})
     {
         for (int q : {0, 63, 1023, 4095})
@@ -459,36 +479,112 @@ int main()
                 LS_state = REC;
                 AudioPlayer p;
                 p.pitch = p.pitch_note = speed;
-                p.a_first_sample = q + 0.25f;
+                p.a_first_sample = q + 128*(1-speed) + 3.25f;
+                const float original_start = p.a_first_sample;
                 p.Render();
                 assert(p.live_fade_out && p.live_restart_pending && p.block[127] == 0);
-                const float saved = q + 0.25f - 128;
-                assert(p.live_restart_sample == saved);
+                assert(!p.live_slow_read_blocked && p.read_total > 0);
+                const float saved = p.live_restart_sample;
+                assert(saved <= original_start-128);
+                assert(std::abs((saved-floorf(saved))-(original_start-floorf(original_start))) < 0.001f);
                 recorder.Q_sample = (q + 128) % 4096;
                 recorder.writing = !stop;
                 LS_state = stop ? 0 : REC;
                 p.Render();
                 assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
-                assert(p.a_sample == fmodf(saved + 4096, 4096));
+                assert(std::abs(p.a_sample-fmodf(saved + 4096, 4096)) < 0.001f);
                 const int last = (p.live_last_read_sample % 4096 + 4096) % 4096;
                 assert((recorder.Q_sample - last + 4096) % 4096 < 256);
             }
         }
     }
-    // Merely ending at Q does not cross it; the first extra sample does.
+    // The prediction includes a sinc history sample exactly at the future Q, before that sample is fetched.
     recorder.writing = true;
     LS_state = REC;
     recorder.Q_sample = 1023;
-    for (int end : {1022, 1023, 1024})
+    for (int offset : {-1, 0, 1})
     {
         AudioPlayer p;
         p.pitch = 0.5f;
-        p.a_sample = 1000.25f;
-        p.live_last_read_sample = end;
-        p.harvested_samples = end - 996 + 1;
+        p.a_first_sample = 1023+128+3+offset;
+        p.a_sample = p.a_first_sample-64;
+        p.live_last_read_sample = static_cast<int>(floorf(p.a_sample+63.5f))+4;
+        p.harvested_samples = 71;
         p.Check_live_forward_boundary();
-        assert(p.live_restart_pending == (end > 1023));
+        assert(p.live_restart_pending == (offset <= 0));
     }
+    // Repeated circular recording: no actual source read, including sinc context, may enter the latest write block.
+    for (float speed : {0.01f, 0.25f, 0.5f, 0.8f, 0.99f, 0.9999f})
+    {
+        for (int q : {63, 1023, 4095})
+        {
+            recorder.Q_sample = q;
+            AudioPlayer p;
+            p.pitch = p.pitch_note = speed;
+            p.a_first_sample = q+132.25f;
+            int fades = 0;
+            for (int cycle = 0; cycle < 1000; ++cycle)
+            {
+                p.Render();
+                assert(!p.live_slow_read_blocked);
+                fades += p.live_fade_out;
+                if (p.live_fade_in)
+                {
+                    assert(p.block[0] == 0);
+                }
+                recorder.Q_sample = (recorder.Q_sample+128)%4096;
+            }
+            if (speed <= 0.8f)
+            {
+                assert(fades > 0);
+            }
+        }
+    }
+    // An abrupt bend or skipped render can leave an unsafe current window: fade the held output without a cache read.
+    recorder.Q_sample = 1023;
+    AudioPlayer interrupted;
+    interrupted.pitch = interrupted.pitch_note = 0.5f;
+    interrupted.a_first_sample = 1024;
+    interrupted.live_forward_last_sample = 12000;
+    interrupted.Render();
+    assert(interrupted.read_total == 0 && interrupted.live_slow_read_blocked && interrupted.live_restart_pending);
+    assert(interrupted.block[0] == 12000 && interrupted.block[127] == 0);
+    recorder.Q_sample += 128;
+    interrupted.Render();
+    assert(interrupted.live_fade_in && !interrupted.live_slow_read_blocked && interrupted.read_total > 0 && interrupted.block[0] == 0);
+    // Check the circular overlap calculation against individual source addresses, including production-sized float indices.
+    for (int dimension : {4096, 1764096})
+    {
+        LS_buffer_dim = dimension;
+        for (float speed : {0.01f, 0.5f, 0.8f, 0.9999f})
+        {
+            AudioPlayer p;
+            p.pitch = speed;
+            for (int q : {0, 63, dimension-1})
+            {
+                for (int offset = -300; offset <= 160; ++offset)
+                {
+                    const float start = dimension+q+offset+0.25f;
+                    const auto overlaps = [&](float candidate)
+                    {
+                        for (int sample = static_cast<int>(floorf(candidate))-3; sample <= static_cast<int>(floorf(candidate+127*speed))+4; ++sample)
+                        {
+                            const int position = (sample%dimension+dimension)%dimension;
+                            if ((q-position+dimension)%dimension < 128)
+                            {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    const int rewind = p.Live_slow_read_rewind(start, 128, q);
+                    assert((rewind > 0) == overlaps(start));
+                    assert(!overlaps(start-rewind));
+                }
+            }
+        }
+    }
+    LS_buffer_dim = 4096;
     // Pending bend/tune and vibrato are consumed only after the fade-in block.
     for (float speed : {0.5f, 1.5f})
     {
@@ -762,8 +858,21 @@ int main()
                     assert(p.mode_player == ONCE_FWD && p.A_Flash_sample == first);
                     assert(p.live_restart_pending && p.live_restart_sample == (q + 1) % LS_buffer_dim);
                     p.Render();
-                    assert(p.live_fade_in && !p.live_restart_pending && !p.live_fade_out);
-                    assert(static_cast<int>(p.a_sample) % LS_buffer_dim == (q + 1) % LS_buffer_dim);
+                    if (speed < 1.0f)
+                    {
+                        assert(p.live_slow_read_blocked && p.live_fade_out && p.live_restart_pending && p.read_total == 0);
+                        recorder.Q_sample = (q+128)%LS_buffer_dim;
+                        p.Render();
+                        assert(p.live_fade_in && !p.live_slow_read_blocked && !p.live_restart_pending);
+                    }
+                    else
+                    {
+                        assert(p.live_fade_in && !p.live_restart_pending && !p.live_fade_out);
+                    }
+                    if (speed >= 1.0f)
+                    {
+                        assert(static_cast<int>(p.a_sample) % LS_buffer_dim == (q + 1) % LS_buffer_dim);
+                    }
                     assert(p.A_Flash_sample == first);
                 }
             }
@@ -829,7 +938,7 @@ int main()
         assert(loop_output[i] == memory[i + 2]);
     }
     assert(loop_output[6] == 123 && loop_output[7] == 456);
-    std::cout << "PASS: mobile/fixed starts, actual filtered endpoints, circular collisions, ramps, STOP, mode changes, first fill, stopped-loop cross-mix and recording resumption\n";
+    std::cout << "PASS: safe starts, predictive slow collisions, no latest-block prefetch, held-tail fallback, circular ramps, STOP, bend, first fill, stopped loops and recording resumption\n";
 }
 '''
 signatures = [
@@ -842,6 +951,7 @@ signatures = [
     'void AudioPlayer::Loop_memory_harvest(void)',
     'void AudioPlayer::Update_pitch(void)',
     'void AudioPlayer::Prepare_live_forward_block(void)',
+    'int AudioPlayer::Live_slow_read_rewind(float start, int outputs, int write_position) const',
     'void AudioPlayer::Check_live_forward_boundary(void)',
     'void AudioPlayer::Shape_live_forward_block(void)',
     'void AudioPlayer::Harvest_samples(int outputs)',
