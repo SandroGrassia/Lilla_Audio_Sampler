@@ -34,7 +34,7 @@ enum DELAY_element_name
 class DisplayDelay
 {
 private:
-    static constexpr int DEL_ROW_SOUND = 5;
+    static constexpr int DEL_ROW_SOUND = 6;
     static constexpr int DEL_COL_MODULATION = 30;
 
     static constexpr float DELAY_column_row_VOLUME[2] = {41, 0};
@@ -56,9 +56,9 @@ private:
     static constexpr float DELAY_column_row_delay_time[2] = {10, DEL_ROW_SOUND + 4.5};
     static constexpr float DELAY_column_row_delay_time_LR[2] = {20, DEL_ROW_SOUND + 5.5};
     static constexpr float DELAY_column_row_modulation_source[2] = {DELAY_column_row_MODULATION_SOURCE[0] + 11, DELAY_column_row_MODULATION_SOURCE[1]};
-    static constexpr float DELAY_column_row_modulation_frequency[2] = {DELAY_column_row_MODULATION_FREQUENCY[0] + 13, DELAY_column_row_MODULATION_FREQUENCY[1]};
+    static constexpr float DELAY_column_row_modulation_frequency[2] = {DELAY_column_row_MODULATION_FREQUENCY[0] + 14, DELAY_column_row_MODULATION_FREQUENCY[1]};
     static constexpr float DELAY_column_row_modulation_depth[2] = {DELAY_column_row_MODULATION_DEPTH[0] + 10, DELAY_column_row_MODULATION_DEPTH[1]};
-    static constexpr float DELAY_column_row_modulation_phase_LR[2] = {DELAY_column_row_MODULATION_PHASE_LR[0] + 13, DELAY_column_row_MODULATION_PHASE_LR[1]};
+    static constexpr float DELAY_column_row_modulation_phase_LR[2] = {DELAY_column_row_MODULATION_PHASE_LR[0] + 14, DELAY_column_row_MODULATION_PHASE_LR[1]};
 
     static constexpr int DELAY_chars_sounds = 23;
     static constexpr int DELAY_chars_feedback = 3;
