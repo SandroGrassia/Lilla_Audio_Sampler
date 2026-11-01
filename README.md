@@ -16,11 +16,11 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.9
+## New in firmware 7.2.10
 
-**Switch antialiasing on or off with Value.** In Performance, select an Instrument's `TONE` field, choose a cutoff from 3.0 to 8.0 kHz, then press **Value** to toggle antialiasing for upward playback pitch from 1 to 2 (up to one octave). The `A` suffix shows that the option is enabled. Save the patch to retain the setting.
+**Smoother Live Sampler playback while recording.** Forward playback now uses safer start positions and short fade-out/fade-in transitions when reading approaches or crosses the recording position. Below the original pitch, the fade-out is anticipated before the next read would overlap newly written audio. Loop modes are available after recording stops.
 
-See the [7.2.9 release notes](docs/release-notes-7.2.9.md) and the illustrated [User Guide](User%20Guide.md#tone-consistent-timbre-when-transposing-upwards).
+See the [7.2.10 release notes](docs/release-notes-7.2.10.md), the [Live Sampler instructions](User%20Guide.md#live-sampler) and the [animated technical explanation](FIRMWARE_ARCHITECTURE.md#once-fwd-readwrite-transitions).
 
 ## SD folder layout
 
@@ -158,7 +158,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.9 (25 October 2026)**: download [Lilla_v7_2_9.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.9/Lilla_v7_2_9.hex) from [release v7.2.9](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.9). See the [7.2.9 release notes](docs/release-notes-7.2.9.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.2.10 (1 November 2026)**: download [Lilla_v7_2_10.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.10/Lilla_v7_2_10.hex) from [release v7.2.10](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.10). See the [7.2.10 release notes](docs/release-notes-7.2.10.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

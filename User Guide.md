@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.9**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.10**
 
-Guide edition: **25 October 2026**
+Guide edition: **1 November 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.9](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.2.10](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -615,7 +615,7 @@ The live buffer is temporary and is lost at power-off. Use the capture-to-patch 
 1. Set the Modes selector to **Live Sampler**.
 2. Choose `MONO/STEREO` before recording. Changing this setting clears the buffer.
 3. Select `CAPTURE` to start recording the input into the live buffer.
-4. Select `STOP` to freeze recording and work with the recorded audio.
+4. Select `STOP` to freeze recording and work with the recorded audio. During recording, `STOP+REVERSE` also stops recording, selects **Once REV**, and fixes the start point at the last recorded sample.
 5. Choose a playback mode and play from your MIDI controller.
 6. Turn From to adjust the region's start and To to adjust its length.
 7. Turn Step to change the editing increment.
@@ -629,8 +629,9 @@ The live buffer is temporary and is lost at power-off. Use the capture-to-patch 
 | `PLAY MODE` | Direction and looping behavior. Live capture into a sound requires a loop mode. |
 | `FEEDBACK` | Amount of previous material fed back into the circular buffer during live recording. |
 | `WINDOW` | Amount of audio time visible in the waveform view. |
+| `CHANNEL` | LEFT or RIGHT for stereo playback/editing; MONO is displayed but cannot be selected or changed in mono. |
 | `START POINT` | Start-position behavior and its displayed position or relationship to recording. |
-| `LOOP` | Duration of the selected repeating region. |
+| `LOOP` | Duration of the selected repeating region; minimum 120 ms. |
 | `STEP` | Increment used to move the region controls. |
 | `FEEDBACK COMPRESSOR` | Compression threshold from -24 to -3 dB, or OFF. |
 
@@ -640,15 +641,25 @@ Start with modest feedback and adjust while listening. Feedback changes the reco
 
 Pressing Step switches the live start-point lock behavior. **FIXED** holds a location in the circular buffer. The unlocked behavior follows the recording position, and the page can show **SYNC**, **BEHIND** or another relative position according to the offset.
 
+Press **From** to reset only the Start Point: **FIXED 0.00** with the lock enabled, or **SYNC** with the lock disabled. This does not change the selected channel.
+
 For your first capture, stop recording and work on a fixed region. Once you are comfortable finding and trimming material, experiment with a moving start point while recording. As the buffer wraps, old material is replaced.
 
 `DELETE` clears the recorded buffer. Changing mono/stereo also resets it, so choose the layout before recording material you want to keep.
 
-### Continuous FWD playback while recording
+### Forward playback while recording
 
-While Live Sampler is recording, held notes in **LOOP FWD** continue around the circular buffer instead of stopping after one buffer length. This applies to **SYNC**, relative start positions and **FIXED**, in mono and stereo. Lower notes can therefore remain active beyond 40 seconds in mono (80 seconds at half speed). Note-off and the sound envelope still control the voice.
+**Once FWD** can continue around the circular buffer while a note is held; the selected loop length does not act as an end point. Note-off and the sound envelope still control the voice. This applies to **SYNC**, relative start positions and **FIXED**, in mono and stereo. With a completely recorded buffer, stopping recording does not impose the loop end point on a held forward voice.
 
-During the first fill, reaching audio that has not yet been recorded still fades and stops the voice. Once recording stops, FWD resumes its normal one-shot behavior from the current playback position. Reverse and loop modes are unchanged.
+During the first fill, playback can start only when enough source audio has been recorded. With the lock disabled and **SYNC** selected, notes at the original pitch or below can start as soon as enough samples are available; notes above the original pitch must wait until the buffer has completed its first pass. At the original pitch, playback can use the latest complete 128-sample block. Reaching audio that has not yet been recorded still fades and stops the voice.
+
+Once the buffer is full, forward playback uses short fade-out/fade-in transitions and adjusts its read position to reduce clicks and roughness when playback meets the recording area. Above the original pitch, playback can jump ahead of the recorder. Below the original pitch, it anticipates the next overlap, fades the current safe block, then restarts farther back with a fade-in. Pitch changes are deferred until the paired fade-in has completed. These transitions may briefly alter the playback position; they are part of keeping live playback smooth.
+
+### Loop modes and recording
+
+**LOOP FWD** and **LOOP FWD-REV** are available only when recording is stopped. If you turn the playback-mode control beyond REV while recording, the four-second message `STOP RECORDING FOR LOOP MODES` appears and REV remains selected. Stop recording to select a loop mode. The minimum loop length is **120 ms**.
+
+If you resume recording from either loop mode, playback switches to **Once FWD**. Active loop voices request a restart immediately after the last recorded sample, using the forward playback safety rules; the selected start point A is preserved. The slow-playback protection can move the actual read position farther back when needed.
 
 ### Stereo recording compressor
 
@@ -704,7 +715,8 @@ You are not being asked to save patch 200. The warning protects edits to the pre
 | Message | Next action |
 | --- | --- |
 | `NO RECORDED AUDIO` | Record some input before playing or capturing it. |
-| `STOP REC AND SELECT LOOP MODE` | Stop recording and select a looping playback mode. |
+| `STOP REC AND SELECT LOOP MODE` | Stop recording and select a looping playback mode before capturing a sound. |
+| `STOP RECORDING FOR LOOP MODES` | Stop recording before selecting LOOP FWD or LOOP FWD-REV. |
 | `LOOP TOO LONG FOR CACHE` | Shorten the selected region. |
 | `NO FREE PATCH` | Free a normal patch slot after preserving anything you need. |
 | `NO FREE SOUND / CACHE / FILE` | Save pending work and review available sound, audio-cache and file resources. |
@@ -1013,7 +1025,7 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.9. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.10. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1067,7 +1079,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.9.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.10.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 

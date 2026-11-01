@@ -1826,10 +1826,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     #live-fwd-sketch .viz-controls .btn { font-family: &quot;Segoe Print&quot;, &quot;Comic Sans MS&quot;, sans-serif; font-size: 18px; font-style: italic; color: #000; background: color-mix(in srgb, var(--blue) 35%, var(--background)); border: 0; box-shadow: none; border-radius: 6px; padding: 6px 12px; }
     #live-fwd-sketch .viz-controls .btn:disabled { opacity: 1; }
   &lt;/style&gt;
-  &lt;section id=&quot;live-fwd-fast&quot; class=&quot;pitch-example&quot; aria-label=&quot;Once forward, più una ottava&quot;&gt;
+  &lt;section id=&quot;live-fwd-fast&quot; class=&quot;pitch-example&quot; aria-label=&quot;Once forward, one octave up&quot;&gt;
   &lt;h3&gt;Play mode &quot;Once forward&quot;&lt;/h3&gt;
   &lt;div class=&quot;sketch-stage&quot;&gt;
-    &lt;svg class=&quot;sketch-svg&quot; role=&quot;img&quot; aria-label=&quot;Una cache con WRITE arancio e READ blu; sotto, l&#x27;uscita audio cumulativa in azzurro chiaro, comprese le dissolvenze&quot;&gt;&lt;/svg&gt;
+    &lt;svg class=&quot;sketch-svg&quot; role=&quot;img&quot; aria-label=&quot;Cache with orange WRITE and blue READ blocks; below, accumulated audio output in light blue, including fades&quot;&gt;&lt;/svg&gt;
   &lt;/div&gt;
   &lt;div class=&quot;viz-controls&quot;&gt;
     &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-prev aria-label=&quot;Previous frame&quot;&gt;Previous&lt;/button&gt;
@@ -1837,10 +1837,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-next aria-label=&quot;Next frame&quot;&gt;Next&lt;/button&gt;
   &lt;/div&gt;
   &lt;/section&gt;
-  &lt;section id=&quot;live-fwd-slow&quot; class=&quot;pitch-example&quot; aria-label=&quot;Once forward, meno una ottava&quot;&gt;
+  &lt;section id=&quot;live-fwd-slow&quot; class=&quot;pitch-example&quot; aria-label=&quot;Once forward, one octave down&quot;&gt;
     &lt;h3&gt;Play mode &quot;Once forward&quot;&lt;/h3&gt;
     &lt;div class=&quot;sketch-stage&quot;&gt;
-      &lt;svg class=&quot;sketch-svg&quot; role=&quot;img&quot; aria-label=&quot;Meno una ottava: fade-out anticipato sull&#x27;ultimo blocco sicuro, prima che la scrittura raggiunga la lettura. Arretramento reale di 128 campioni e fade-in con l&#x27;intera finestra sinc fuori dall&#x27;ultimo blocco scritto.&quot;&gt;&lt;/svg&gt;
+      &lt;svg class=&quot;sketch-svg&quot; role=&quot;img&quot; aria-label=&quot;One octave down: anticipatory fade-out on the last safe block before writing catches up with reading. Rewind by 128 samples and fade-in with the complete sinc window outside the latest written block.&quot;&gt;&lt;/svg&gt;
     &lt;/div&gt;
     &lt;div class=&quot;viz-controls&quot;&gt;
       &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-prev aria-label=&quot;Previous frame&quot;&gt;Previous&lt;/button&gt;
@@ -1904,11 +1904,11 @@ html&gt;body{padding:0}&lt;/style&gt;
         };
         svg.setAttribute(&#x27;viewBox&#x27;, `0 35 ${w} 255`);
         svg.setAttribute(&#x27;height&#x27;, &#x27;255&#x27;);
-        let art = `&lt;title&gt;${f.title}&lt;/title&gt;&lt;desc&gt;Pitch ${pitch}. Blocco ${f.block}. Scrittura da ${f.q-127} a ${f.q}; prelievo da ${readFirst} a ${readLast}. ${f.gain===&#x27;out&#x27; ? &#x27;Uscita sfumata da cento a zero per cento.&#x27; : f.gain===&#x27;in&#x27; ? &#x27;Uscita sfumata da zero a cento per cento.&#x27; : &#x27;Uscita a livello pieno.&#x27;}&lt;/desc&gt;`;
+        let art = `&lt;title&gt;${f.title}&lt;/title&gt;&lt;desc&gt;Pitch ${pitch}. Block ${f.block}. Write from ${f.q-127} to ${f.q}; fetch from ${readFirst} to ${readLast}. ${f.gain===&#x27;out&#x27; ? &#x27;Output fades from one hundred to zero percent.&#x27; : f.gain===&#x27;in&#x27; ? &#x27;Output fades from zero to one hundred percent.&#x27; : &#x27;Output at full level.&#x27;}&lt;/desc&gt;`;
         art += text(8, 92, &#x27;Live Sampler&#x27;, &#x27;start&#x27;, &#x27;row-title&#x27;);
         art += text(8, 116, &#x27;Cache&#x27;, &#x27;start&#x27;, &#x27;row-title&#x27;);
         art += text(8, 216, &#x27;Audio Output&#x27;, &#x27;start&#x27;, &#x27;row-title&#x27;);
-        art += text(8, 240, pitch &gt; 1 ? &#x27;+1 ottava&#x27; : &#x27;−1 ottava&#x27;, &#x27;start&#x27;, &#x27;row-title&#x27;);
+        art += text(8, 240, pitch &gt; 1 ? &#x27;+1 octave&#x27; : &#x27;−1 octave&#x27;, &#x27;start&#x27;, &#x27;row-title&#x27;);
         art += line(left, 100, right, 100, neutral);
         art += wave(512, 1952, 100, ink, &#x27;normal&#x27;, .20);
         art += box(f.q-127, f.q, 100, writeColor);
@@ -1986,18 +1986,18 @@ html&gt;body{padding:0}&lt;/style&gt;
       draw();
       }
       createExample(document.getElementById(&#x27;live-fwd-fast&#x27;), 2, [
-        { q: 1055, a: 512, gain: &#x27;normal&#x27;, title: &#x27;Avvicinamento&#x27;, block: &#x27;j − 2&#x27; },
-        { q: 1183, a: 768, gain: &#x27;normal&#x27;, title: &#x27;La lettura si avvicina&#x27;, block: &#x27;j − 1&#x27; },
-        { q: 1311, a: 1024, gain: &#x27;out&#x27;, title: &#x27;Intersezione parziale e fade-out&#x27;, block: &#x27;j&#x27; },
-        { q: 1439, a: 1440, gain: &#x27;in&#x27;, title: &#x27;Salto avanti e fade-in&#x27;, block: &#x27;j + 1&#x27; },
-        { q: 1567, a: 1696, gain: &#x27;normal&#x27;, title: &#x27;Lettura oltre la scrittura&#x27;, block: &#x27;j + 2&#x27; }
+        { q: 1055, a: 512, gain: &#x27;normal&#x27;, title: &#x27;Approaching the write area&#x27;, block: &#x27;j − 2&#x27; },
+        { q: 1183, a: 768, gain: &#x27;normal&#x27;, title: &#x27;Reading approaches writing&#x27;, block: &#x27;j − 1&#x27; },
+        { q: 1311, a: 1024, gain: &#x27;out&#x27;, title: &#x27;Partial overlap and fade-out&#x27;, block: &#x27;j&#x27; },
+        { q: 1439, a: 1440, gain: &#x27;in&#x27;, title: &#x27;Forward jump and fade-in&#x27;, block: &#x27;j + 1&#x27; },
+        { q: 1567, a: 1696, gain: &#x27;normal&#x27;, title: &#x27;Reading ahead of writing&#x27;, block: &#x27;j + 2&#x27; }
       ]);
       createExample(document.getElementById(&#x27;live-fwd-slow&#x27;), 0.5, [
-        { q: 895, a: 1056, gain: &#x27;normal&#x27;, title: &#x27;La scrittura si avvicina alla lettura&#x27;, block: &#x27;j − 2&#x27; },
-        { q: 1023, a: 1120, gain: &#x27;normal&#x27;, title: &#x27;La prossima lettura è ancora sicura&#x27;, block: &#x27;j − 1&#x27; },
-        { q: 1151, a: 1184, gain: &#x27;out&#x27;, title: &#x27;Fade-out anticipato: il blocco corrente è sicuro, quello successivo si sovrapporrebbe&#x27;, block: &#x27;j&#x27; },
-        { q: 1279, a: 1056, gain: &#x27;in&#x27;, title: &#x27;Ripartenza reale: arretramento di 128 campioni, finestra sinc sicura e fade-in&#x27;, block: &#x27;j + 1&#x27; },
-        { q: 1407, a: 1120, gain: &#x27;normal&#x27;, title: &#x27;Lettura alle spalle della scrittura, senza sovrapposizione&#x27;, block: &#x27;j + 2&#x27; }
+        { q: 895, a: 1056, gain: &#x27;normal&#x27;, title: &#x27;Writing approaches reading&#x27;, block: &#x27;j − 2&#x27; },
+        { q: 1023, a: 1120, gain: &#x27;normal&#x27;, title: &#x27;The next read is still safe&#x27;, block: &#x27;j − 1&#x27; },
+        { q: 1151, a: 1184, gain: &#x27;out&#x27;, title: &#x27;Anticipatory fade-out: the current block is safe, the next would overlap&#x27;, block: &#x27;j&#x27; },
+        { q: 1279, a: 1056, gain: &#x27;in&#x27;, title: &#x27;Actual restart: rewind by 128 samples, safe sinc window and fade-in&#x27;, block: &#x27;j + 1&#x27; },
+        { q: 1407, a: 1120, gain: &#x27;normal&#x27;, title: &#x27;Reading behind writing without overlap&#x27;, block: &#x27;j + 2&#x27; }
       ]);
     })();
   &lt;/script&gt;
