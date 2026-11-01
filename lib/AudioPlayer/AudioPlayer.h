@@ -315,10 +315,9 @@ private:
     void Start_playing(void); // Acquire the prepared source and replace the old note without leaking its SPI lease.
 
     int Live_loop_segment(int phase, int first, int last, int &source, int &blend_source) const; // Map an attack or repeated loop phase to its raw or mixed source segment.
-    bool Live_loop_contains(int phase, int count, int position) const; // Check both sources of each mixed segment for the write head.
     bool Live_loop_samples_recorded(int phase, int count, int write_position) const; // Check a loop prefetch against the recorded prefix, including loop and cache wrap.
     void Prepare_live_forward_block(void); // Resolve the initial start and consume a booked jump before harvesting.
-    void Check_live_forward_boundary(void); // Book a unity-loop replay, fast-forward jump or slow-forward rewind from the harvested interval.
+    void Check_live_forward_boundary(void); // Book an ONCE FWD jump or rewind from the harvested interval.
     void Shape_live_forward_block(void); // Apply the output ramp after effects without changing cached audio.
     bool Harvest_live_continuous(void); // Circular FWD reading continues after STOP when the live cache is full.
     bool Harvest_live_forward_end(void); // Read only valid first-pass samples and hold the last value for the fade.
@@ -410,6 +409,7 @@ public:
     void Set_vibrato_flag(bool value);
     void Set_mix_samples(uint8_t value);
 
+    void Resume_live_recording(int position); // Switch active or queued Live loops to ONCE FWD at position, preserving A; call with audio interrupts disabled.
     void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);         // Prepare the next start from precomputed preset parameters and table references.
     void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in);                                                                     // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
     void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.

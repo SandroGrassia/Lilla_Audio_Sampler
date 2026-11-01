@@ -32,6 +32,7 @@ private:
     int LS_window_B_sample;            // last  sample index of the visible window
 
     bool no_recorded_audio_visible = false;
+    bool loop_modes_notice = false; // Give the four-second recording warning priority over missing-audio notices.
     uint32_t no_recorded_audio_started_ms = 0;
 
     elapsedMillis LS_blink_timer; // drives the 500 ms REC LED blink period
@@ -49,7 +50,7 @@ private:
 
     // Draws the X (play point) and Y (loop end) vertical lines on the canvas.
     void Draw_XY_lines(void);
-    FLASHMEM void Show_no_recorded_audio(void);
+    FLASHMEM void Show_live_notice(void); // Draw the current timed Live Sampler warning.
 
     // Erases all menu item highlight frames.
     FLASHMEM void Delete_menu_frames(void);
@@ -119,7 +120,7 @@ public:
     // Renders the full Live Sampler page (title, all labels and values).
     FLASHMEM void Page(void);
     FLASHMEM void Compressor(int threshold); // Value adjusts the threshold or selects OFF at the upper end.
-    FLASHMEM void Update_no_recorded_audio(bool requested); // Erase only the popup rectangle when it expires.
+    FLASHMEM void Update_no_recorded_audio(bool requested, bool loop_requested = false); // Show missing-audio or recording-only warnings without blocking the UI.
 
     // Redraws the Feedback parameter value.
     FLASHMEM void Feedback(void);

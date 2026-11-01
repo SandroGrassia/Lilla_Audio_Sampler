@@ -1248,6 +1248,14 @@ void PlayersManager::Multicast_IF_index(int instrument_id, float value)
     }
 }
 
+void PlayersManager::Resume_live_recording(int position)
+{
+    for (int player = 0; player < PLAYERS; ++player)
+    {
+        Player_ptr[player].Resume_live_recording(position);
+    }
+}
+
 void PlayersManager::Multicast_main_settings_editing(int patch_id, int instrument_id)
 {
     const AudioTables::Pointers table_pointers = Get_playback_tables(instrument_id); // Resolve the edited table before modifying any Player.

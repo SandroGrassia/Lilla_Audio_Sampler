@@ -4847,8 +4847,24 @@ FLASHMEM void loop()
                 case value_LS_Recording:
                 {
                     LS_stop_reverse_pending = false;
-                    LS_state = REC;
 
+                    AudioNoInterrupts();
+                    if (LS_mode == LOOP_FWD || LS_mode == LOOP_FWD_REV)
+                    {
+                        LS_mode = ONCE_FWD;
+                        for (int instrument = 0; instrument < (LS_stereo ? 2 : 1); ++instrument)
+                        {
+                            Sound[SOUNDS_MAX + instrument].mode = LS_mode;
+                            Players_Manager.Update_Preset_mode(Patch_id, instrument);
+                        }
+                    }
+                    Players_Manager.Resume_live_recording((LiveSampler.Q_sample + 1) % LS_buffer_dim);
+                    LS_state = REC;
+                    LiveSampler.Start(LS_stereo);
+                    AudioInterrupts();
+
+                    Display_LiveSampler.Play_mode();
+                    Display_LiveSampler.Loop_time();
                     LS_update_menu_elements();
                     Display_LiveSampler.Menu(); // displays the menu and updates "Value_Max_encoder.LS_menu" used by encoder_menu
 
@@ -4857,7 +4873,6 @@ FLASHMEM void loop()
 
                     Clear_UI_events();
 
-                    LiveSampler.Start(LS_stereo);
                     LS_wave_refresh_timer = 0;
                     delay(10);
                 }
@@ -4993,8 +5008,20 @@ FLASHMEM void loop()
 
             case value_LS_Play_mode:
             {
-                if (Read_encoder(EN_PB_Value, LS_mode, LOOP_FWD_REV, 0, 1))
+                int next_mode = LS_mode;
+                if (Read_encoder(EN_PB_Value, next_mode, LOOP_FWD_REV, 0, 1))
                 {
+                    if ((LS_state == REC || LiveSampler.Is_writing()) && next_mode > ONCE_REV)
+                    {
+                        next_mode = ONCE_REV;
+                        Display_LiveSampler.Update_no_recorded_audio(false, true);
+                    }
+                    if (next_mode == LS_mode)
+                    {
+                        break;
+                    }
+                    LS_mode = static_cast<LillaPlayModes>(next_mode);
+
                     AudioNoInterrupts();
                     Sound[SOUNDS_MAX].mode = LS_mode;
                     Players_Manager.Update_Preset_mode(Patch_id, 0);

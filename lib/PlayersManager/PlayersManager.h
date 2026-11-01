@@ -166,6 +166,7 @@ public:
     void Multicast_effects(float resolution, uint8_t downsampling);
     void Broadcast_reset_effect(float resolution, uint8_t downsampling, int effect);
 
+    void Resume_live_recording(int position); // Leave active and queued Live loop modes before restarting the recorder.
     void Multicast_main_settings_editing(int patch_id, int instrument_id);
 
     void Update_all_Preset(int patch_id, float volume_patch); // Publish the active instruments and refresh their pinned cache sources.

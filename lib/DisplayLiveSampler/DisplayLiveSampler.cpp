@@ -40,42 +40,47 @@ FLASHMEM void DisplayLiveSampler::Confirm_EXIT_from_LS(void)
     tft.print("YES");
 }
 
-FLASHMEM void DisplayLiveSampler::Show_no_recorded_audio(void)
+FLASHMEM void DisplayLiveSampler::Show_live_notice(void)
 {
     const int height = display_coordinate_y(1);
     const int y_offset = display_coordinate_y(LS_column_row_GAIN[1]) - 8 - Centered_element_top(height);
-    Show_popup_text("NO RECORDED AUDIO", ILI9341_WHITE, ILI9341_RED, y_offset);
+    Show_popup_text(loop_modes_notice ? "STOP RECORDING FOR LOOP MODES" : "NO RECORDED AUDIO", ILI9341_WHITE, ILI9341_RED, y_offset);
 }
 
-FLASHMEM void DisplayLiveSampler::Update_no_recorded_audio(bool requested)
+FLASHMEM void DisplayLiveSampler::Update_no_recorded_audio(bool requested, bool loop_requested)
 {
     if (Lilla_state != LIVE_SAMPLING)
     {
         no_recorded_audio_visible = false;
+        loop_modes_notice = false;
         return;
     }
-    if (requested)
+    if (loop_requested || (requested && !loop_modes_notice))
     {
-        if (!no_recorded_audio_visible)
+        const bool redraw = !no_recorded_audio_visible || loop_modes_notice != loop_requested;
+        loop_modes_notice = loop_requested;
+        if (redraw)
         {
-            Show_no_recorded_audio();
+            Show_live_notice();
         }
         no_recorded_audio_started_ms = millis();
         no_recorded_audio_visible = true;
     }
-    if (no_recorded_audio_visible && static_cast<uint32_t>(millis() - no_recorded_audio_started_ms) >= 2000u)
+    if (no_recorded_audio_visible && static_cast<uint32_t>(millis() - no_recorded_audio_started_ms) >= (loop_modes_notice ? 4000u : 2000u))
     {
         no_recorded_audio_visible = false;
-        const int width = display_coordinate_x(sizeof("NO RECORDED AUDIO") - 1 + 2);
+        const int width = display_coordinate_x((loop_modes_notice ? sizeof("STOP RECORDING FOR LOOP MODES") : sizeof("NO RECORDED AUDIO")) - 1 + 2);
         const int height = display_coordinate_y(1);
         const int top = display_coordinate_y(LS_column_row_GAIN[1]) - 8;
         tft.fillRect(Centered_element_left(width), top, width, height, ILI9341_BLACK);
+        loop_modes_notice = false;
     }
 }
 
 FLASHMEM void DisplayLiveSampler::Page(void)
 {
     no_recorded_audio_visible = false;
+    loop_modes_notice = false;
     //("012345678901234567890"); // Size 1: 21 chars
     tft.fillScreen(ILI9341_BLACK);
     Page_title();
