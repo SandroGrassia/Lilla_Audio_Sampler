@@ -16,8 +16,6 @@ For operating instructions, see the [User Guide](User%20Guide.md). Developers ca
 - [8. Memory and persistence](#8-memory-and-persistence)
 - [9. Recording and capture workflows](#9-recording-and-capture-workflows)
 - [10. MIDI and loop scheduling](#10-midi-and-loop-scheduling)
-- [11. User interface](#11-user-interface)
-- [12. Maintenance guide](#12-maintenance-guide)
 
 <br><br>
 
@@ -293,40 +291,3 @@ Incoming MIDI supplies notes, pitch bend, pressure and other controls. Processin
 MIDI Loop records these events on four tracks. The first track establishes the shared duration; the others follow it. Timing, transposition and gain adjustments let the recorded parts be varied during playback.
 
 Loop playback uses the same voice engine as live MIDI input. Saving a loop preserves the performance events, so reproducing it also requires the appropriate patches and sample audio.
-
-<br><br>
-
-## 11. User interface
-
-> *Follows an action on the physical controls through page navigation, display updates and changes to the sound.*
-
-Encoders, pushbuttons and switches report user actions to the application. The current page determines what each action means: moving a selection, editing a value or starting an operation.
-
-Navigation and drawing are handled separately. This lets the interface keep the selected field, its displayed value and the corresponding sound setting in agreement. Shared state connects these page components to the sound engine and saved settings.
-
-Popups provide short notices and confirmations. Text is centered and the frame fits its contents; destructive actions and important warnings use white text on red, while other confirmations use black on green.
-
-Loading, saving and conversion workflows also manage their effect on playback. Confirmations are presented before operations that need to suspend audio.
-
-<br><br>
-
-## 12. Maintenance guide
-
-> *Identifies the relationships to consider when extending the firmware and points to the detailed developer references.*
-
-A change often touches more than one component. A new sound control, for example, needs a place in the interface, a meaning in the playback engine and a saved representation if it should persist.
-
-| Change | Related areas to review |
-| --- | --- |
-| Playback or effects | Source reading, voice processing and time available per audio block. |
-| Patch switching | Voice lifetime and the audio memory still in use. |
-| Recording | Audio storage, completion handling and save/export behavior. |
-| MIDI | Message order, live response and loop playback. |
-| Saved data | Compatibility with existing patches and backups. |
-| Controls and pages | Navigation, drawing, sound updates and the User Guide. |
-
-Compilation and regression checks are followed by listening and operation tests on the instrument. Combinations such as layered notes, patch changes and recording are particularly useful for checking that the parts still work well together.
-
-The [implementation notes](docs/firmware-implementation-notes.md) retain the source map, exact processing and storage details, and maintenance procedures. More focused references cover [TONE processing](docs/player-tone-filter.md), [read-cost calibration](docs/read-calibration.md), [SD audio preparation](docs/user-audio-preparation.md) and [MP3 import](docs/mp3-import.md).
-
-The printable User Guide is generated from its Markdown edition. Both editions should be kept aligned with user-visible changes, and the PDF layout checked after regeneration.
