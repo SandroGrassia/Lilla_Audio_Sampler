@@ -73,7 +73,7 @@ void MidiReader::Collect_messages(void)
 void MidiReader::Update(void)
 {
     Collect_messages();
-    if (LOOP_learn_flag && Lilla_state == MIDI_LOOP && LOOP_elements > 0 && LOOP_learn_clock >= (LOOP_learning_track == MASTER_TRACK ? LOOP_MAX_DURATION_MS : LOOP_time))
+    if (LOOP_learn_flag && Lilla_state == MIDI_LOOP && LOOP_elements > 0 && (LOOP_learning_track == MASTER_TRACK ? LOOP_learn_clock >= LOOP_MAX_DURATION_MS : static_cast<int32_t>(static_cast<uint32_t>(LOOP_Clock()) - LOOP_learn_end_time) >= 0))
     {
         LOOP_learn_flag = false;
     }
@@ -139,6 +139,12 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
                 {
                     // Chiede a Main l'accensione del primo led del metronomo
                     LOOP_metronomo_flag_IN[0] = true;
+                }
+                else
+                {
+                    // Close at the next master restart after the first recorded note.
+                    const uint32_t master_time = LOOP_Clock();
+                    LOOP_learn_end_time = master_time - master_time % LOOP_time + LOOP_time;
                 }
 
                 // Si azzera il contatempo

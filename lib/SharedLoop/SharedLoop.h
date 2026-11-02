@@ -48,6 +48,7 @@ extern int LOOP_learning_track;
 extern bool LOOP_learn_flag;
 extern uint32_t LOOP_elements;
 extern elapsedMillis LOOP_learn_clock; // utilizzato per calcolare la durata di track learn
+extern uint32_t LOOP_learn_end_time; // Virtual master boundary that ends recording of a secondary track.
 extern int LOOP_clock_memo;
 extern uint32_t LOOP_last_event;
 

@@ -177,7 +177,7 @@ for signature in ['bool LOOP_Look_for_midi_loop_in_SD(int loop_id)', 'int LOOP_G
     production += method(signature)
 
 reader = (ROOT / 'lib/MidiReader/MidiReader.cpp').read_text(encoding='utf-8')
-production += 'constexpr int MIDI_LOOP = 1; int Lilla_state = MIDI_LOOP; unsigned long LOOP_Clock() { return 123; }\n'
+production += 'constexpr int MIDI_LOOP = 1; int Lilla_state = MIDI_LOOP; uint32_t master_clock = 123; unsigned long LOOP_Clock() { return master_clock; }\n'
 timeout = re.search(r'    if \(LOOP_learn_flag && Lilla_state == MIDI_LOOP.*?\n    \}', reader, re.S).group(0)
 production += 'void Check_recording_timeout()\n{\n' + timeout + '\n}\n'
 for name, condition in [('Learn_on', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag)'), ('Learn_off', 'if ((Lilla_state == MIDI_LOOP) && LOOP_learn_flag && LOOP_elements > 0)')]:
@@ -479,13 +479,19 @@ int main()
     {
         LOOP_learning_track = track;
         LOOP_time = 90000;
-        LOOP_elements = 1;
+        LOOP_elements = 0;
+        LOOP_learn_flag = true;
+        master_clock = 30000;
+        Learn_on(0, 60, 100);
+        assert(track == MASTER_TRACK || LOOP_learn_end_time == 90000);
         const uint32_t limit = track == MASTER_TRACK ? LOOP_MAX_DURATION_MS : LOOP_time;
         LOOP_learn_flag = true;
         LOOP_learn_clock = limit - 1;
+        master_clock = 89999;
         Check_recording_timeout();
         assert(LOOP_learn_flag);
-        LOOP_learn_clock = limit;
+        LOOP_learn_clock = track == MASTER_TRACK ? limit : 60000;
+        master_clock = 90000;
         Check_recording_timeout();
         assert(!LOOP_learn_flag);
         LOOP_elements = 0;
@@ -493,6 +499,21 @@ int main()
         Check_recording_timeout();
         assert(LOOP_learn_flag);
     }
+    // Starting exactly at a boundary records until the following master cycle.
+    LOOP_learning_track = 1;
+    LOOP_time = 8000;
+    LOOP_elements = 0;
+    LOOP_learn_flag = true;
+    master_clock = 16000;
+    Learn_on(0, 60, 100);
+    assert(LOOP_learn_end_time == 24000);
+    master_clock = 23999;
+    LOOP_learn_clock = 16000; // Real elapsed time does not override the stretched master clock.
+    Check_recording_timeout();
+    assert(LOOP_learn_flag);
+    master_clock = 24001; // The callback may run just after the exact boundary.
+    Check_recording_timeout();
+    assert(!LOOP_learn_flag);
     // Exercise production recording conditions: the last slot is usable and no later event writes past it.
     LOOP_learning_track = 0;
     LOOP_elements = 0;

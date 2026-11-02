@@ -34,6 +34,7 @@ int LOOP_learning_track;
 bool LOOP_learn_flag;
 uint32_t LOOP_elements;
 elapsedMillis LOOP_learn_clock;
+uint32_t LOOP_learn_end_time;
 int LOOP_clock_memo;
 uint32_t LOOP_last_event;
 

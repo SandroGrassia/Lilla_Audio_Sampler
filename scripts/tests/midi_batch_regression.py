@@ -74,7 +74,8 @@ constexpr int MASTER_TRACK = 0;
 constexpr uint32_t LOOP_MAX_DURATION_MS = 120000;
 int Lilla_state = 0, LOOP_learning_track = 0;
 bool display_wait = false, LOOP_learn_flag = false;
-uint32_t LOOP_elements = 0, LOOP_learn_clock = 0, LOOP_time = 1000;
+uint32_t LOOP_elements = 0, LOOP_learn_clock = 0, LOOP_time = 1000, LOOP_learn_end_time = 1000;
+unsigned long LOOP_Clock() { return 0; }
 uint8_t CC_midi_controller = 0;
 struct FakeManager
 {
