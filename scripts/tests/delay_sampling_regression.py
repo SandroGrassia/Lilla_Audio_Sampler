@@ -13,7 +13,7 @@ header = (root / 'lib/DisplayDelay/DisplayDelay.h').read_text(encoding='utf-8')
 header = re.sub(r'^#(?:include|pragma).*$', '', header, flags=re.M)
 
 def method(source, signature):
-    return re.search(r'^' + re.escape(signature) + r'[^\n]*\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
+    return re.search(r'^(?:FLASHMEM )?' + re.escape(signature) + r'[^\n]*\n\{.*?^\}', source, re.M | re.S).group(0) + '\n'
 
 start = main.index('    if (Lilla_state == DELAY_SETTINGS', main.index('#pragma region Delay'))
 end = main.index('    // Navigation remains available', start)
@@ -149,7 +149,8 @@ void Cancel_text_reset_cursor(int col, int row, int chars)
     clear_row = row;
     clear_chars = chars;
 }
-int frame_col, frame_row, frame_chars;
+float frame_col, frame_row;
+int frame_chars;
 void Frame_by_col_row(float col, float row, int chars, bool)
 {
     frame_col = col;
@@ -157,7 +158,7 @@ void Frame_by_col_row(float col, float row, int chars, bool)
     frame_chars = chars;
 }
 int display_coordinate_x(float v) { return v; }
-int display_coordinate_y(float v) { return v; }
+int display_coordinate_y(float v) { return v * 2; }
 void Backgorund_red(int, int, int) {}
 void Show_popup_text(const char *text, int, int) { popup = text; }
 struct Common
@@ -239,7 +240,7 @@ int main()
         assert(Delay_data.loop_gain == 7 && Delay_values.loop_gain == 7);
     }
     assert(pointer_sets == 3);
-    const int expected_frames[DELAY_element_names][3] = {{13, 6, 3}, {9, 7, 7}, {11, 8, 6}, {10, 9, 6}, {20, 10, 7}, {41, 6, 6}, {43, 7, 7}, {40, 8, 6}, {43, 9, 6}};
+    const float expected_frames[DELAY_element_names][3] = {{13, 7.5f, 3}, {9, 8.5f, 7}, {11, 9.5f, 6}, {10, 10.5f, 6}, {20, 11.5f, 7}, {41, 7.5f, 6}, {44, 8.5f, 7}, {40, 9.5f, 6}, {44, 10.5f, 6}};
     for (int item = 0; item < DELAY_element_names; ++item)
     {
         Display_Delay.DELAY_show_pointer_frame(static_cast<DELAY_element_name>(item), true);
@@ -256,7 +257,7 @@ int main()
         Delay_data.compressor_threshold = enabled ? -6 : LillaCompressor::THRESHOLD_OFF;
         labels.clear();
         Display_Delay.D_feedback_compressor();
-        assert(clear_col == 11 && clear_row == 8 && clear_chars == 6);
+        assert(clear_col == 11 && clear_row == 19 && clear_chars == 6);
         assert(labels[0] == (enabled ? "-6" : "OFF"));
         assert(enabled ? labels.size() == 2 && labels[1] == "dB" : labels.size() == 1);
     }
@@ -265,7 +266,7 @@ int main()
         Delay_data.lpf_cutoff = cutoff;
         labels.clear();
         Display_Delay.D_feedback_lpf();
-        assert(clear_col == 9 && clear_row == 7 && clear_chars == 7);
+        assert(clear_col == 9 && clear_row == 17 && clear_chars == 7);
         assert(labels.size() == 2 && labels[0].size() + labels[1].size() <= 7);
         assert(labels[0] == std::to_string(lowpass_value[cutoff]));
         assert(labels[1] == "Hz");

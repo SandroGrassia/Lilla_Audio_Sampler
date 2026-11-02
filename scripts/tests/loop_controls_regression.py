@@ -74,7 +74,7 @@ int main()
             for (int track : {0, 1, 2, 3})
             {
                 pressed = true;
-                assert(Can_record(track) == (track == MASTER_TRACK || (running && master_events > 0)));
+                assert(Can_record(track) == ((track == MASTER_TRACK && master_events == 0) || (running && master_events > 0)));
                 pressed = false;
                 assert(!Can_record(track));
             }

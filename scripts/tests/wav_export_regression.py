@@ -9,12 +9,13 @@ import wave
 
 root = Path(__file__).resolve().parents[2]
 main = (root / 'src/main.cpp').read_text(encoding='utf-8')
-production = re.search(r'^bool DS_export_wav_to_SD\(void\)\n\{.*?^\}', main, re.M | re.S).group(0)
+production = re.search(r'^(?:FLASHMEM )?bool DS_export_wav_to_SD\(void\)\n\{.*?^\}', main, re.M | re.S).group(0)
 trim_source = (root / 'lib/SharedSampler/SharedSampler.cpp').read_text(encoding='utf-8')
 production = re.search(r'^DS_Trim DS_get_trim.*?^\}', trim_source, re.M | re.S).group(0) + '\n' + production
-production += '\n' + re.search(r'^bool DS_convert_channel_to_raw.*?^\}', main, re.M | re.S).group(0)
+production += '\n' + re.search(r'^(?:FLASHMEM )?bool DS_convert_channel_to_raw[^\n;]*\n\{.*?^\}', main, re.M | re.S).group(0)
 prefix = r'''
 #include <cassert>
+#define FLASHMEM
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

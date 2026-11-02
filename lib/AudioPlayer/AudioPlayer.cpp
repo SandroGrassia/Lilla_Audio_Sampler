@@ -828,6 +828,7 @@ void AudioPlayer::Start_playing(void)
     volume_flag = false;
     sliding = 0;
     track = track_wait;
+    loop_layer = loop_layer_wait;
     Start_VCF();
 
     idle = false;
@@ -3202,9 +3203,10 @@ void AudioPlayer::Set_pitch_bend(float pitch_bend_in) // 0.5= half speed, 1.0= n
     pitch_bend_flag = true;
 }
 
-void AudioPlayer::Write_loop_track(int track)
+void AudioPlayer::Write_loop_track(int track, int layer)
 {
     track_wait = track;
+    loop_layer_wait = layer;
 }
 
 int AudioPlayer::Read_loop_track(void)
@@ -3834,6 +3836,11 @@ bool AudioPlayer::Needs_restart_mix(void) const
 int AudioPlayer::Assigned_note(void) const
 {
     return Has_pending_note() ? note_wait : note;
+}
+
+int AudioPlayer::Assigned_layer(void) const
+{
+    return Has_pending_note() ? loop_layer_wait : loop_layer;
 }
 
 int AudioPlayer::Assigned_track(void) const

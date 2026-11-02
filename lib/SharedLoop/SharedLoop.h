@@ -12,6 +12,7 @@
 static constexpr int NEW_LOOP = -1;
 static constexpr int NO_TRACK = -1; // track virtuale per note suonate da tastiera nello stato MIDI_LOOP
 static constexpr int MASTER_TRACK = 0;
+static constexpr int LOOP_LAYERS = 4; // Maximum independent recording layers per track.
 static constexpr uint32_t LOOP_EVENTS = 1000; // Note On and Note Off each occupy one event.
 static constexpr uint32_t LOOP_MAX_DURATION_MS = 120000;
 static constexpr int LOOP_UI_A = 1;    // primo encoder prima fila
@@ -30,21 +31,24 @@ struct LOOP_struct // verificata 8 byte
 };
 static constexpr int LOOP_struct_bytes = sizeof(LOOP_struct);
 
-extern LOOP_struct LOOP_element[TRACKS][LOOP_EVENTS]; // Loop events stored in RAM2 by the definition in SharedLoop.cpp.
-extern uint32_t LOOP_events[TRACKS];
+extern LOOP_struct LOOP_element[TRACKS][LOOP_LAYERS][LOOP_EVENTS]; // Loop events stored in RAM2 by the definition in SharedLoop.cpp.
+extern uint32_t LOOP_events[TRACKS]; // Total committed events across all layers of each track.
+extern uint32_t LOOP_layer_events[TRACKS][LOOP_LAYERS]; // Committed event counts; an empty layer is available for recording.
+extern uint32_t LOOP_time_order[TRACKS][LOOP_LAYERS][LOOP_EVENTS]; // Circular timestamp order within each layer.
 extern int LOOP_slide[TRACKS]; // slittamento temporale in ms
 extern int LOOP_pitch_int[TRACKS]; // pitch shift in semitones, -24 through +24
 extern float LOOP_stretch; // stretch comune a tutti i track
 
 // LOOP play/stop
 extern bool LOOP_track_run[TRACKS]; // se "true" il track e' in esecuzione
-extern uint32_t LOOP_play_event[TRACKS]; // indice del prossimo evento da eseguire
-extern uint32_t LOOP_play_time[TRACKS]; // (ms) istante di esecuzione del prossimo evento da eseguire rispetto a LOOP_Clock
+extern uint32_t LOOP_play_event[TRACKS][LOOP_LAYERS]; // indice del prossimo evento da eseguire
+extern uint32_t LOOP_play_time[TRACKS][LOOP_LAYERS]; // (ms) istante di esecuzione del prossimo evento da eseguire rispetto a LOOP_Clock
 extern float LOOP_volume[TRACKS];
 extern uint32_t LOOP_time; // (ms) durata del track master (0) comune a tutti i track
 
 // LOOP learn
-extern int LOOP_learning_track;
+extern int LOOP_learning_track; // Track currently armed for recording.
+extern int LOOP_learning_layer; // Layer currently armed for recording.
 extern bool LOOP_learn_flag;
 extern uint32_t LOOP_elements;
 extern elapsedMillis LOOP_learn_clock; // utilizzato per calcolare la durata di track learn
@@ -69,6 +73,14 @@ extern uint8_t element_Menu_LOOP[LOOP_menu_values]; // argument is position
 extern uint8_t position_Menu_LOOP[LOOP_menu_values]; // argument is element
 
 // Functions
+int LOOP_First_free_layer(int track); // Return the first empty layer, or -1 when all four are occupied.
+bool LOOP_Is_master_recording(void); // Only master layer zero establishes the loop duration.
+void LOOP_Begin_recording(int track, int layer); // Arm an empty layer with audio interrupts disabled.
+bool LOOP_Finish_recording(bool cancel); // Commit or discard the armed layer with audio interrupts disabled.
+void LOOP_set_time_order(int track); // Build circular event ordering independently for every layer.
+void LOOP_restart_layer(int track, int layer); // Schedule a nonempty layer from the current master position.
+void LOOP_restart_procedure(int track); // Schedule all nonempty layers and enable track playback.
+void LOOP_Shift_track(int track, int jump); // Shift every committed layer by the same virtual time offset.
 unsigned long LOOP_Clock_time_from_virtual_time(int T_evento); // definita in main.cpp
 unsigned long LOOP_Clock(void); // definita in main.cpp
 

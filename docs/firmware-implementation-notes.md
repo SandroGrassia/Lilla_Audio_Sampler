@@ -1,6 +1,6 @@
 # Firmware Implementation Notes
 
-These developer notes retain the implementation details behind the [Firmware Architecture overview](../FIRMWARE_ARCHITECTURE.md). They describe firmware **7.2.10** and cover source organization, scheduling, processing limits, storage formats and maintenance procedures.
+These developer notes retain the implementation details behind the [Firmware Architecture overview](../FIRMWARE_ARCHITECTURE.md). They describe firmware **7.3.0** and cover source organization, scheduling, processing limits, storage formats and maintenance procedures.
 
 Chapter numbers follow the overview. For the signal-flow diagrams and Live Sampler animations, start with the overview. For operating instructions, use the [User Guide](../User%20Guide.md).
 
@@ -223,7 +223,13 @@ The project works internally with signed 16-bit PCM at the nominal 44.1 kHz rate
 
 [MidiInputBatch](../lib/MidiReader/MidiInputBatch.h) bounds incoming work: currently eight ordered messages, up to 64 received bytes and an 80 microsecond parsing limit per batch. Note events preserve order. Pitch bend, channel pressure and modulation use the last value collected for each channel within the batch; other control changes remain ordered. These bounds protect audio processing from bursts of input.
 
-MIDI Loop uses four tracks. [SharedLoop.h](../lib/SharedLoop/SharedLoop.h) defines the event records, timing state and current capacity of 1,000 events per track; both note-on and note-off records consume event capacity. The first track is the master. Timing stretch, track offsets, transposition and gain affect playback through the same player system used by incoming notes. Loop-event processing has a separate per-track budget in `MidiReader`. The master recording stops at 120,000 ms or at the event limit; other tracks stop at the master duration or their event limit. `LOOP_time` is 32-bit. Playback stretch can extend the original duration. Event storage and time-order indices occupy 48,000 bytes in RAM2 across four tracks. SD format v2 stores a 32-bit duration; the reader retains support for v1 and legacy 16-bit durations. The playback budget is two events per track per audio block.
+MIDI Loop uses four tracks with four independent layers per track. [SharedLoop.h](../lib/SharedLoop/SharedLoop.h) defines `LOOP_element[TRACKS][LOOP_LAYERS][LOOP_EVENTS]`, per-layer event counts, circular timestamp order and playback cursors. Each layer holds 1,000 events; both NoteOn and NoteOff consume capacity. Event storage and time-order indices occupy 192,000 bytes in RAM2. `LOOP_events[track]` is the total committed event count across its layers.
+
+Master layer 0 defines the original duration, up to 120,000 ms, starting on its first NoteOn and closing on REC, duration limit or event capacity. Every other layer is armed only during group playback and records from its first NoteOn until the next master boundary, or until its event capacity is reached. REC discards an armed or recording non-master layer. All armed layers time out after 20 seconds without a NoteOn. Commit and discard operations publish state with audio interrupts disabled. Existing active layers retain their playback cursors; a muted track resumes all its layers from the current master position after a successful overdub.
+
+The audio callback budgets two events per layer per block, separately from external MIDI. Track and layer ownership travel with both current and pending player notes. NoteOff dispatch and the release of lingering notes are scoped to that pair. Lingering notes are released before the layer's first chronological event, not at a global master boundary. LEVEL, SHIFT and TRANSP remain track-wide. Timing stretch uses the shared virtual master clock; `LOOP_time` remains 32-bit.
+
+The `LILLALOOP 3` SD format stores track and layer dimensions, 32-bit duration and per-layer counts, shared slide/pitch/stretch settings, followed by 8-byte events in track/layer order. Each byte is represented by a decimal text line. Readers reject previous format versions. Both validation and load passes bound each layer's count before accessing event arrays.
 
 Saving a loop stores MIDI events rather than rendered audio. Reproducing a session also requires the relevant patch and sample material.
 

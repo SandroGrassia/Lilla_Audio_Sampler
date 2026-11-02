@@ -22,6 +22,7 @@
 class DisplayMidiLoop
 {
 private:
+    int popup_text_length = 11; // Character width of the currently displayed timed notice.
     bool save_failed_visible = false;
     uint32_t save_failed_started_ms = 0;
     static constexpr int Loop_sound_id_column = 5;
@@ -106,6 +107,7 @@ public:
     void Loop_led(const int track, const int instrument_id, const bool on);
     void Loop_led_metronomo(const int Xled, const int Yled, const bool ONled);
     FLASHMEM void Show_menu(void);
+    FLASHMEM void Show_layers_full(void); // Show a timed notice when all recording layers are occupied.
     FLASHMEM void Show_save_failed(void);
     FLASHMEM bool Update_save_failed(void); // True when track data was restored; the caller must redraw the pointer.
 

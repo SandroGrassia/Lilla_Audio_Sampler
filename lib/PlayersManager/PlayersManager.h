@@ -68,7 +68,7 @@ private:
     int Find_player(const Player_filter &filter, Selection_order order);
     int Find_free_player(void);
     int Find_other_patch_player(bool sample_only, bool prefer_last);
-    int Select_player_for_note(uint8_t instrument_id, uint8_t note_number, int track);
+    int Select_player_for_note(uint8_t instrument_id, uint8_t note_number, int track, int layer = -1); // Select a voice without retriggering another layer.
     bool restart_Player[PLAYERS] = {false}; // questo array serve per contare, ad ogni ciclo, il numero di Player che devono ripartire; la ripartenza richiede una doppia lettura di campioni da vecchio e nuovo file ed il calcolo di mix_samples fatto dalla funzione Calculate_and_set_mix_samples
 
     static float Calc_pitch(float value); // Convert tuning steps to a pitch ratio.
@@ -117,12 +117,13 @@ public:
     */
 
     void MX_multicast_change_routing(int instrument_id);
-    void Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track);
+    void Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track, int layer = -1); // Start a note with independent track and layer ownership.
 
     void Calculate_and_set_mix_samples(void);
-    void Multicast_stop_players_for_NoteOff(int midi_channel, int note_number, int track);
+    void Multicast_stop_players_for_NoteOff(int midi_channel, int note_number, int track, int layer = -1); // Release only notes belonging to the same input layer.
     void Broadcast_pitch_bend(int midi_channel, float value);
     void Multicast_all_notes_off(int midi_channel);
+    void Multicast_stop_players_for_loop_layer(int track, int layer); // Release lingering notes only in the layer restarting its cycle.
     void Multicast_stop_players_for_loop_track(int track);
 
     void Update_players_stistics(void); // Count Wavetable, Flash and PSRAM readers separately.

@@ -704,7 +704,6 @@ FLASHMEM void LS_Capture_finish_save(void);                                     
 
 // >>>>>>>>>>>>>>>>>>>>>>>  MIDI_LOOP
 // variables
-DMAMEM uint32_t LOOP_time_order[TRACKS][LOOP_EVENTS]; // Initialized by LOOP_set_time_order before use.
 elapsedMillis LOOP_clock = 0;                         // Physical elapsed-time counter underlying the MIDI Loop clock.
 int LOOP_volume_int[TRACKS] = {0};                    // Per-track integer volume settings.
 bool LOOP_run_button_state;                           // Whether the global loop run control is enabled.
@@ -725,8 +724,6 @@ unsigned long LOOP_Clock(void);                                                 
 unsigned long LOOP_zero_time(void);                                                      // Return the virtual start time of the current loop iteration.
 int LOOP_normalized_time(void);                                                          // Return the current virtual time within one loop iteration.
 unsigned long LOOP_Clock_time_from_virtual_time(int T_evento);                           // Convert an event's loop-relative time to its next absolute virtual time.
-void LOOP_restart_procedure(int track);                                                  // Prepare the selected track to restart playback.
-void LOOP_set_time_order(int track);                                                     // Build the event playback order for a track.
 FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id);                                    // Read and print all data from a stored MIDI Loop file.
 FLASHMEM bool LOOP_Compile_midi_loop_file(FsFile &file);                                          // Serialize the current MIDI Loop data into the supplied file.
 FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load);                                  // Validate a MIDI Loop file and optionally load its data into RAM.
@@ -6616,7 +6613,7 @@ FLASHMEM void loop()
                     // Set first event for each track
                     for (auto track = 0; track < TRACKS; ++track)
                     {
-                        LOOP_play_event[track] = 0;
+                        memset(LOOP_play_event[track], 0, sizeof(LOOP_play_event[track]));
                     }
 
                     // Sort events by timestamp
@@ -6670,321 +6667,119 @@ FLASHMEM void loop()
         // Recording
         for (auto track = 0; track < TRACKS; ++track)
         {
-            if (Read_pushbutton(PB_Rec[track]) && (track == MASTER_TRACK || (LOOP_run_button_state && LOOP_events[MASTER_TRACK] != 0)))
+            if (Read_pushbutton(PB_Rec[track]) && ((track == MASTER_TRACK && LOOP_events[MASTER_TRACK] == 0) || (LOOP_run_button_state && LOOP_events[MASTER_TRACK] != 0)))
             {
-                LOOP_learning_track = track; // LOOP_learning_track e' il nuovo loop
-
-                // High priority
-                AudioNoInterrupts();
-                if (LOOP_events[LOOP_learning_track] != 0)
+                const int layer = LOOP_First_free_layer(track);
+                if (layer < 0)
                 {
-                    // se si tratta di MASTER_TRACK si fermano e cancellano tutti i track
-                    if (LOOP_learning_track == MASTER_TRACK)
-                    {
-                        // Interrompi i Player che eseguono note di qualsiasi track
-                        Players_Manager.Release_all_players_loop();
-
-                        for (auto local_track = 0; local_track < TRACKS; ++local_track)
-                        {
-                            // Interrompe la lettura
-                            LOOP_track_run[local_track] = false;
-
-                            // Cancella il loop
-                            LOOP_events[local_track] = 0;
-
-                            // Resetta slide
-                            LOOP_slide[local_track] = 0;
-
-                            // Resetta pitch
-                            LOOP_pitch_int[local_track] = 0;
-                        }
-
-                        // ferma il metronomo
-                        LOOP_metronomo_run = false;
-                        // LOOP_metronomo_flag_OUT = false; // da eliminare
-
-                        // Annulla (se ci fosse) l'ultima richiesta di aggiornamento del metronomo proveniente da MidiReader
-                        LOOP_metronomo_flag_IN[1] = false;
-
-                        // Nuovo loop
-                        LOOP_original = true;
-                    }
-                    else
-                    {
-                        if (LOOP_track_run[LOOP_learning_track])
-                        {
-                            // Interrompi i Player di LOOP_learning_track
-                            Players_Manager.Release_all_players_loop(LOOP_learning_track);
-                        }
-                        // Interrompe la lettura
-                        LOOP_track_run[LOOP_learning_track] = false;
-
-                        // Cancella il loop
-                        LOOP_events[LOOP_learning_track] = 0; // Loop cancellato
-
-                        // Resetta slide
-                        LOOP_slide[LOOP_learning_track] = 0;
-
-                        // Resetta pitch
-                        LOOP_pitch_int[LOOP_learning_track] = 0;
-
-                        // loop esistente
-                        LOOP_original = false;
-                    }
+                    Display_MidiLoop.Show_layers_full();
+                    continue;
                 }
-                LOOP_run_button_state = true; // REC from STOP is allowed only for the master track.
-                AudioInterrupts();
-
-                // LED_Rec ON
-                Shifters_manager.Switch_led(LED_Rec[LOOP_learning_track], true);
-
-                // Display update, and other low priority procedures
-                if (LOOP_learning_track == MASTER_TRACK)
+                const bool defining_master = track == MASTER_TRACK && layer == 0;
+                if (defining_master)
                 {
-                    // Spegni i led del metronomo
-                    LOOP_metronomo.Leds_off(); // va eseguito fuori da AudioNoInterrupt()
-
-                    // nomina loop_id
+                    LOOP_run_button_state = true;
+                    LOOP_metronomo.Leds_off();
                     LOOP_id = NEW_LOOP;
                     LOOP_suggested_id = LOOP_Get_first_loop_id_free();
                     Display_MidiLoop.Show_loop_id();
-
                     LOOP_time = 0;
-                    Display_MidiLoop.Loop_total_time(); // accanto ai led del metronomo appare il tempo totale 0.0s
+                    Display_MidiLoop.Loop_total_time();
                 }
 
-                // Se si tratta del track master (0) non ancora esistente, oppure si tratta di un altro track ma con track master esistente
-                if (LOOP_learning_track == MASTER_TRACK || LOOP_events[MASTER_TRACK] != 0)
+                Clear_UI_events();
+
+                AudioNoInterrupts();
+                LOOP_Begin_recording(track, layer);
+                AudioInterrupts();
+
+                Shifters_manager.Switch_led(LED_Rec[track], true);
+                Display_MidiLoop.Loop_REC_advice(track, true);
+                Pointer_MidiLoop.Show_pointer(false);
+                bool cancel_layer = false;
+                while (LOOP_learn_flag)
                 {
-                    // Show (or delete) all tracks infos
-                    for (auto track = 0; track < TRACKS; ++track)
+                    if (Display_MidiLoop.Update_save_failed())
                     {
-                        Display_MidiLoop.Show_track_all_data(track);
-
-                        if (LOOP_events[track] == 0)
-                        {
-                            Pointer_MidiLoop.Show_pointerTrack(track, false);
-                        }
+                        Display_MidiLoop.Loop_REC_advice(track, true);
                     }
-
-                    // Display "n-REC"
-                    Display_MidiLoop.Loop_REC_advice(LOOP_learning_track, true);
-
-                    // Switch off all tracks LEDs
-                    Loop_led_set.Request_all_LED_switch_off();
-
-                    // Update menu and pointer
-                    Pointer_MidiLoop.Show_pointer(false);
-                    LOOP_select_menu_elements();
-                    Display_MidiLoop.Show_menu();
-                    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
-                    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
-
-                    Clear_UI_events();
-
-                    // Prepare learning
-                    LOOP_learn_clock = 0;
-                    LOOP_elements = 0;      // ancora nessun evento
-                    LOOP_learn_flag = true; // avvia il learning
-
-                    // Feedback
-                    Serial.println(F("Learning inizializzato!"));
-
-                    // Learning
-                    while (LOOP_learn_flag)
+                    Shifters_manager.Update();
+                    if (Read_pushbutton(PB_Rec[track]))
                     {
-                        if (Display_MidiLoop.Update_save_failed())
-                        {
-                            Pointer_MidiLoop.Show_pointer(true);
-                        }
-                        Shifters_manager.Update();
-
-                        // Stop learning
-                        if (Read_pushbutton(PB_Rec[LOOP_learning_track]))
-                        {
-                            // Chiude il learning
-                            LOOP_learn_flag = false;
-
-                            // Feedback
-                            Serial.println("Loop correttamente chiuso manualmente!");
-                            break;
-                        }
-
-                        // After 20 secons without events --> cancel track
-                        else if (LOOP_elements == 0 && LOOP_learn_clock > 20000)
-                        {
-                            // Close learning
-                            LOOP_learn_flag = false;
-
-                            // Feedback
-                            Serial.println(F("Loop chiuso e cancellato perche' dimenticato aperto!"));
-                            break;
-                        }
-
-                        // se si tratta del track master (0), MidiReader chiede l'accensione del primo led del metronomo quando riceve il primo NoteOn
-                        else if (LOOP_learning_track == MASTER_TRACK && LOOP_metronomo_flag_IN[0])
-                        {
-                            LOOP_metronomo_flag_IN[0] = false;
-
-                            // Ask metronomo to switch on first led (metronomo is not runnig)
-                            LOOP_metronomo.Led_ON(0);
-                        }
-
-                        // Continously update LEDs
-                        Update_instruments_leds();
-
-                        // se NON si tratta del track master (0) c'e' l'aggiornamento continuo del metronomo
-                        if (LOOP_metronomo_flag_IN[1])
-                        {
-                            LOOP_metronomo_flag_IN[1] = false;
-                            LOOP_metronomo.Update();
-                            LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
-                        }
+                        // Only the first master layer is committed by pressing REC again.
+                        cancel_layer = !defining_master;
+                        LOOP_learn_flag = false;
+                        break;
                     }
-
-                    // Learnig closed. From here: LOOP_learn_flag == false
-                    LOOP_events[LOOP_learning_track] = LOOP_elements; // se LOOP_events[LOOP_learning_track] == 0 significa che il LOOP_learning_track è vuoto e non viene eseguito
-
-                    Clear_UI_events();
-
-                    // LED_Rec OFF
-                    Shifters_manager.Switch_led(LED_Rec[LOOP_learning_track], false);
-
-                    // Feedback
-                    Serial.println("Learning closed!");
-
-                    // The new track is valid (contains events)
-                    if (LOOP_events[LOOP_learning_track] > 0)
+                    if (LOOP_elements == 0 && LOOP_learn_clock > 20000)
                     {
-                        // If MASTER_TRACK
-                        if (LOOP_learning_track == MASTER_TRACK)
-                        {
-                            // Setup di LOOP_time (durata di tutti i loop)
-                            LOOP_time = min(static_cast<uint32_t>(LOOP_learn_clock), LOOP_MAX_DURATION_MS);
-
-                            // Restart clock
-                            LOOP_restart_clock();
-
-                            // Reset stretch
-                            LOOP_stretch_int = 100;
-                            LOOP_stretch = 1.0;
-
-                            // Report
-                            Serial.print("LOOP_time:");
-                            Serial.println(LOOP_time);
-                        }
-
-                        // aggiungi info di slide
-                        LOOP_slide[LOOP_learning_track] = 0; // ms
-
-                        // aggiungi info di pitch
-                        LOOP_pitch_int[LOOP_learning_track] = 0; // 0 --> pitch = 1.0
-
-                        // evento di avvio
-                        LOOP_play_event[LOOP_learning_track] = 0;
-
-                        // calcolo istante esecuzione evento di avvio (LOOP_play_time) e prossimo switch del metronomo rispetto a LOOP_Clock
-                        if (LOOP_learning_track == MASTER_TRACK)
-                        {
-                            LOOP_play_time[LOOP_learning_track] = 0;
-
-                            // setup metronomo
-                            LOOP_metronomo.Setup(LOOP_time);
-
-                            // set next metronomo step
-                            LOOP_metronomo.metro_time = 0 + LOOP_metronomo.Read_metro_delta_ms();
-
-                            // metronomo switch-on
-                            LOOP_metronomo_run = true;
-                        }
-                        else
-                        {
-                            LOOP_play_time[LOOP_learning_track] = LOOP_Clock_time_from_virtual_time(LOOP_element[LOOP_learning_track][0].time);
-                        }
-
-                        // effettua l'ordinamento temporale degli eventi
-                        LOOP_set_time_order(LOOP_learning_track);
-
-                        // avvio
-                        LOOP_track_run[LOOP_learning_track] = true;
-
-                        // update menu
-                        if (LOOP_id == NEW_LOOP)
-                        {
-                            LOOP_original = true;
-                        }
-
-                        else if (LOOP_learning_track == MASTER_TRACK && LOOP_original)
-                        {
-                            LOOP_original = false;
-                        }
-
-                        else if (LOOP_learning_track > MASTER_TRACK)
-                        {
-                            LOOP_original = false;
-                        }
-
-                        // Update menu and pointer on display
-                        Pointer_MidiLoop.Show_pointer(false);
-                        LOOP_select_menu_elements();
-                        Display_MidiLoop.Show_menu();
-
-                        // Report
-                        Serial.println(" **************** ");
-                        Serial.print("eventi:");
-                        Serial.println(LOOP_events[LOOP_learning_track]);
-                        for (uint32_t event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
-                        {
-                            Serial.print(event);
-                            Serial.print(" time:");
-                            Serial.print(LOOP_element[LOOP_learning_track][event].time);
-                            Serial.print(" midi_channel:");
-                            Serial.print(LOOP_element[LOOP_learning_track][event].midi_channel);
-                            Serial.print(" note_number:");
-                            Serial.print(LOOP_element[LOOP_learning_track][event].note_number);
-                            Serial.print(" velocity:");
-                            Serial.print(LOOP_element[LOOP_learning_track][event].velocity);
-                            Serial.print(" note_on:");
-                            Serial.println(LOOP_element[LOOP_learning_track][event].note_on ? "NoteOn" : "NoteOff");
-                        }
-
-                        Serial.print("Ordine temporale degli eventi: ");
-                        for (uint32_t event = 0; event < LOOP_events[LOOP_learning_track]; ++event)
-                        {
-                            Serial.print(LOOP_time_order[LOOP_learning_track][event]);
-                            Serial.print(" - ");
-                        }
-                        Serial.println();
-                        Serial.print("Si inizia con l'evento:");
-                        Serial.println(LOOP_play_event[LOOP_learning_track]);
-                        Serial.print("Tra ms:");
-                        Serial.println(LOOP_play_time[LOOP_learning_track] - LOOP_Clock());
-                        Serial.println("*************");
+                        cancel_layer = true;
+                        LOOP_learn_flag = false;
+                        break;
                     }
-
-                    else if (LOOP_events[MASTER_TRACK] == 0)
+                    if (defining_master && LOOP_metronomo_flag_IN[0])
                     {
-                        // spegni il primo led se acceso
-                        LOOP_metronomo.Leds_off();
-
-                        // cancella la richiesta per il primo led se arrivata (non dovrebbe essere possibile)
                         LOOP_metronomo_flag_IN[0] = false;
+                        LOOP_metronomo.Led_ON(0);
                     }
-
-                    Display_MidiLoop.Show_track_all_data(track);
-
-                    // pointer
-                    Pointer_MidiLoop.Set_pointer_to_first_menu_element();
-                    LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
-
-                    // Display loop time
-                    if (LOOP_learning_track == MASTER_TRACK)
+                    Update_instruments_leds();
+                    if (LOOP_metronomo_flag_IN[1])
                     {
-                        Display_MidiLoop.Loop_total_time();
+                        LOOP_metronomo_flag_IN[1] = false;
+                        LOOP_metronomo.Update();
+                        LOOP_metronomo.metro_time += LOOP_metronomo.Read_metro_delta_ms();
                     }
-
-                    Clear_UI_events();
                 }
+
+                Shifters_manager.Switch_led(LED_Rec[track], false);
+                Clear_UI_events();
+
+                AudioNoInterrupts();
+                const bool recorded = LOOP_Finish_recording(cancel_layer);
+                if (recorded)
+                {
+                    if (defining_master)
+                    {
+                        LOOP_time = max(1u, min(static_cast<uint32_t>(LOOP_learn_clock), LOOP_MAX_DURATION_MS));
+                        LOOP_restart_clock();
+                        LOOP_stretch_int = 100;
+                        LOOP_stretch = 1.0f;
+                        LOOP_metronomo.Setup(LOOP_time);
+                        LOOP_metronomo.metro_time = LOOP_metronomo.Read_metro_delta_ms();
+                        LOOP_metronomo_run = true;
+                    }
+                    LOOP_set_time_order(track);
+                    if (LOOP_track_run[track])
+                    {
+                        // Existing playing layers retain their cursors throughout overdubbing.
+                        LOOP_restart_layer(track, layer);
+                    }
+                    else
+                    {
+                        // A muted track resumes every layer from the current master position.
+                        LOOP_restart_procedure(track);
+                    }
+                    LOOP_track_run_memo[track] = true;
+                    LOOP_original = LOOP_id == NEW_LOOP;
+                }
+                AudioInterrupts();
+
+                if (defining_master && !recorded)
+                {
+                    LOOP_metronomo.Leds_off();
+                    LOOP_metronomo_flag_IN[0] = false;
+                }
+                Display_MidiLoop.Loop_REC_advice(track, false);
+                Display_MidiLoop.Show_track_all_data(track);
+                if (defining_master)
+                {
+                    Display_MidiLoop.Loop_total_time();
+                }
+                LOOP_select_menu_elements();
+                Display_MidiLoop.Show_menu();
+                Pointer_MidiLoop.Set_pointer_to_first_menu_element();
+                LOOP_local_pointer = Pointer_MidiLoop.Get_pointer();
+                Clear_UI_events();
             }
 
             // Change values
@@ -7071,10 +6866,7 @@ FLASHMEM void loop()
                             Serial.println(jump);
 
                             AudioNoInterrupts();
-                            for (uint32_t event = 0; event < LOOP_events[track]; ++event)
-                            {
-                                LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
-                            }
+                            LOOP_Shift_track(track, jump);
 
                             // Stop Players for this track
                             Players_Manager.Release_all_players_loop(track);
@@ -7099,10 +6891,7 @@ FLASHMEM void loop()
                             int jump = LOOP_time - LOOP_slide[track];
 
                             AudioNoInterrupts();
-                            for (uint32_t event = 0; event < LOOP_events[track]; ++event)
-                            {
-                                LOOP_element[track][event].time = (LOOP_element[track][event].time + jump) % LOOP_time;
-                            }
+                            LOOP_Shift_track(track, jump);
 
                             // Stop all track Players
                             Players_Manager.Release_all_players_loop(track);
@@ -10438,7 +10227,7 @@ FLASHMEM void Golive_with_MIDI_LOOP(bool restart)
             }
             for (auto track = 0; track < TRACKS; ++track)
             {
-                LOOP_play_event[track] = 0;
+                memset(LOOP_play_event[track], 0, sizeof(LOOP_play_event[track]));
                 LOOP_set_time_order(track);
                 LOOP_track_run_memo[track] = LOOP_events[track] > 0;
                 LOOP_track_run[track] = false;
@@ -11100,7 +10889,10 @@ void LOOP_reset_all_data(void)
     LOOP_stretch = 1.0f;
     for (auto track = 0; track < TRACKS; ++track)
     {
-        LOOP_events[track] = 0;        // numero di eventi nel track
+        LOOP_events[track] = 0;        // Total committed events in the track.
+        memset(LOOP_layer_events[track], 0, sizeof(LOOP_layer_events[track]));
+        memset(LOOP_play_event[track], 0, sizeof(LOOP_play_event[track]));
+        memset(LOOP_play_time[track], 0, sizeof(LOOP_play_time[track]));
         LOOP_track_run[track] = false; // true --> il track va suonato
         LOOP_volume[track] = 1.0;
         LOOP_volume_int[track] = 20;
@@ -11242,79 +11034,6 @@ unsigned long LOOP_Clock_time_from_virtual_time(int T_evento)
     }
 }
 
-// Define time ordering of events
-void LOOP_set_time_order(int track)
-{
-    if (LOOP_events[track] == 1)
-    {
-        LOOP_time_order[track][0] = 0;
-        return;
-    }
-    else if (LOOP_events[track] > 1)
-    {
-        // Trova l'indice associato al primo evento rispetto al tempo normalizzato
-        uint32_t min_time_index = 0; // indice cercato
-        int min_time = LOOP_element[track][0].time;
-
-        for (uint32_t i = 1; i < LOOP_events[track]; ++i)
-        {
-            if (LOOP_element[track][i].time < min_time)
-            {
-                min_time_index = i;
-                min_time = LOOP_element[track][i].time;
-            }
-        }
-
-        /*
-        Gli eventi sono così ordinati:
-        LOOP_time_order[track][0] = evento con time minimo
-        LOOP_time_order[track][0] = evento successivo
-        */
-        for (uint32_t i = 0; i < LOOP_events[track]; ++i)
-        {
-            LOOP_time_order[track][i] = (min_time_index + i) % LOOP_events[track];
-        }
-
-        return;
-    }
-    return;
-}
-
-void LOOP_restart_procedure(int track)
-{
-    bool found = false;
-
-    // Procedura di ripartenza
-    if (LOOP_events[track] == 1)
-    {
-        LOOP_play_event[track] = 0;
-        LOOP_play_time[track] = LOOP_Clock_time_from_virtual_time(LOOP_element[track][0].time);
-        LOOP_track_run[track] = true;
-    }
-    else
-    {
-        LOOP_clock_memo = LOOP_normalized_time();
-        for (uint32_t i = 0; i < LOOP_events[track]; ++i)
-        {
-            if (LOOP_element[track][LOOP_time_order[track][i]].time >= LOOP_clock_memo)
-            {
-                LOOP_play_event[track] = LOOP_time_order[track][i];
-                LOOP_play_time[track] = LOOP_Clock_time_from_virtual_time(LOOP_element[track][LOOP_time_order[track][i]].time);
-
-                // Ferma la ricerca
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-            LOOP_play_event[track] = 0;
-            LOOP_play_time[track] = LOOP_Clock_time_from_virtual_time(LOOP_element[track][0].time);
-        }
-        LOOP_track_run[track] = true;
-    }
-}
-
 FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id)
 {
     if (false)
@@ -11355,26 +11074,29 @@ FLASHMEM bool LOOP_Print_midi_loop_complete_data(int loop_id)
     Serial.print("int LOOP_stretch : ");
     Serial.println(LOOP_stretch_int);
 
-    // LOOP_element[TRACKS][LOOP_EVENTS]
-    for (byte track = 0; track < TRACKS; ++track)
+    for (int track = 0; track < TRACKS; ++track)
     {
-        for (uint32_t event = 0; event < LOOP_events[track]; ++event)
+        for (int layer = 0; layer < LOOP_LAYERS; ++layer)
         {
-            Serial.print("*** LOOP_element[");
+            Serial.print("Track: ");
             Serial.print(track);
-            Serial.print("][");
-            Serial.print(event);
-            Serial.println("]:");
-            Serial.print("time: ");
-            Serial.println(LOOP_element[track][event].time);
-            Serial.print("midi_channel: ");
-            Serial.println(LOOP_element[track][event].midi_channel);
-            Serial.print("note_number: ");
-            Serial.println(LOOP_element[track][event].note_number);
-            Serial.print("velocity: ");
-            Serial.println(LOOP_element[track][event].velocity);
-            Serial.print("note_on: ");
-            Serial.println(LOOP_element[track][event].note_on);
+            Serial.print(" layer: ");
+            Serial.print(layer);
+            Serial.print(" events: ");
+            Serial.println(LOOP_layer_events[track][layer]);
+            for (uint32_t event = 0; event < LOOP_layer_events[track][layer]; ++event)
+            {
+                const LOOP_struct &item = LOOP_element[track][layer][event];
+                Serial.print(item.time);
+                Serial.print(" ");
+                Serial.print(item.midi_channel);
+                Serial.print(" ");
+                Serial.print(item.note_number);
+                Serial.print(" ");
+                Serial.print(item.velocity);
+                Serial.print(" ");
+                Serial.println(item.note_on);
+            }
         }
     }
     return true;
@@ -11392,11 +11114,10 @@ void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])
     snprintf(path, sizeof(path), "/LILLA_PRIVATE/MIDI_LOOPS/%s", filename);
 }
 
-// Loop SD v2: magic line, uint32_t track count, uint32_t duration, uint32_t event counts,
-// int32_t slides/pitches/stretch, then 8-byte events. Little-endian bytes, one decimal byte per line.
-// SD v1 uses a uint16_t duration.
-// Legacy files omit magic/track count and use uint8_t event counts; malformed 24-byte arrays are rejected.
-static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 2\r\n"; // Header identifying the versioned MIDI Loop SD format.
+// Loop SD v3: magic, track/layer counts, duration, per-layer event counts,
+// track slides/pitches/stretch, then 8-byte events in track/layer order.
+// Little-endian bytes are stored as one decimal byte per line.
+static constexpr char LOOP_SD_MAGIC[] = "LILLALOOP 3\r\n"; // Layered MIDI Loop SD format; previous formats are not accepted.
 static_assert(sizeof(int) == 4 && sizeof(LOOP_struct) == 8 && offsetof(LOOP_struct, note_on) == 7, "Loop SD event layout changed");
 
 FLASHMEM bool LOOP_Read_bytes(FsFile &file, void *destination, size_t size)
@@ -11442,41 +11163,29 @@ FLASHMEM bool LOOP_Write_bytes(FsFile &file, const void *source, size_t size)
 
 FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 {
-    const bool versioned = file.peek() == 'L';
-    uint8_t version = 0;
-    if (versioned)
+    for (size_t i = 0; i < sizeof(LOOP_SD_MAGIC) - 1; ++i)
     {
-        for (size_t i = 0; i < sizeof(LOOP_SD_MAGIC) - 1; ++i)
-        {
-            const int value = file.read();
-            if (i == sizeof("LILLALOOP ") - 1 && (value == '1' || value == '2'))
-            {
-                version = value - '0';
-            }
-            else if (value != LOOP_SD_MAGIC[i])
-            {
-                return false;
-            }
-        }
-        uint32_t tracks = 0;
-        if (!LOOP_Read_bytes(file, &tracks, sizeof(tracks)) || tracks != TRACKS)
+        if (file.read() != LOOP_SD_MAGIC[i])
         {
             return false;
         }
     }
-    uint32_t duration = 0;
-    uint32_t counts[TRACKS] = {};
+    uint32_t tracks = 0, layers = 0, duration = 0;
+    uint32_t counts[TRACKS][LOOP_LAYERS] = {};
     int slides[TRACKS], pitches[TRACKS], stretch;
-    if (!LOOP_Read_bytes(file, &duration, version >= 2 ? sizeof(uint32_t) : sizeof(uint16_t)))
+    if (!LOOP_Read_bytes(file, &tracks, sizeof(tracks)) || tracks != TRACKS || !LOOP_Read_bytes(file, &layers, sizeof(layers)) || layers != LOOP_LAYERS || !LOOP_Read_bytes(file, &duration, sizeof(duration)))
     {
         return false;
     }
     for (int track = 0; track < TRACKS; ++track)
     {
-        // Keep this bound in both passes: never trust an SD count as an array bound.
-        if (!LOOP_Read_bytes(file, &counts[track], versioned ? sizeof(uint32_t) : sizeof(uint8_t)) || counts[track] > LOOP_EVENTS)
+        for (int layer = 0; layer < LOOP_LAYERS; ++layer)
         {
-            return false;
+            // Validate counts in both passes before using them as array bounds.
+            if (!LOOP_Read_bytes(file, &counts[track][layer], sizeof(uint32_t)) || counts[track][layer] > LOOP_EVENTS)
+            {
+                return false;
+            }
         }
     }
     if (!LOOP_Read_bytes(file, slides, sizeof(slides)) || !LOOP_Read_bytes(file, pitches, sizeof(pitches)) || !LOOP_Read_bytes(file, &stretch, sizeof(stretch)))
@@ -11485,7 +11194,7 @@ FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
     }
     if (!load)
     {
-        if (duration == 0 || duration > LOOP_MAX_DURATION_MS || counts[MASTER_TRACK] == 0 || stretch < 1 || stretch > 198)
+        if (duration == 0 || duration > LOOP_MAX_DURATION_MS || counts[MASTER_TRACK][0] == 0 || stretch < 1 || stretch > 198)
         {
             return false;
         }
@@ -11499,22 +11208,25 @@ FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
     }
     for (int track = 0; track < TRACKS; ++track)
     {
-        for (uint32_t event = 0; event < counts[track]; ++event)
+        for (int layer = 0; layer < LOOP_LAYERS; ++layer)
         {
-            uint8_t bytes[8];
-            if (!LOOP_Read_bytes(file, bytes, sizeof(bytes)))
+            for (uint32_t event = 0; event < counts[track][layer]; ++event)
             {
-                return false;
-            }
-            int time;
-            memcpy(&time, bytes, sizeof(time));
-            if (!load && (time < 0 || static_cast<uint32_t>(time) > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
-            {
-                return false;
-            }
-            if (load)
-            {
-                LOOP_element[track][event] = {time, bytes[4], bytes[5], bytes[6], bytes[7] != 0};
+                uint8_t bytes[8];
+                if (!LOOP_Read_bytes(file, bytes, sizeof(bytes)))
+                {
+                    return false;
+                }
+                int time;
+                memcpy(&time, bytes, sizeof(time));
+                if (!load && (time < 0 || static_cast<uint32_t>(time) > duration || bytes[4] > 15 || bytes[5] > 127 || bytes[6] > 127 || bytes[7] > 1))
+                {
+                    return false;
+                }
+                if (load)
+                {
+                    LOOP_element[track][layer][event] = {time, bytes[4], bytes[5], bytes[6], bytes[7] != 0};
+                }
             }
         }
     }
@@ -11525,7 +11237,15 @@ FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
     if (load)
     {
         LOOP_time = duration;
-        memcpy(LOOP_events, counts, sizeof(counts));
+        memcpy(LOOP_layer_events, counts, sizeof(counts));
+        for (int track = 0; track < TRACKS; ++track)
+        {
+            LOOP_events[track] = 0;
+            for (int layer = 0; layer < LOOP_LAYERS; ++layer)
+            {
+                LOOP_events[track] += counts[track][layer];
+            }
+        }
         memcpy(LOOP_slide, slides, sizeof(slides));
         memcpy(LOOP_pitch_int, pitches, sizeof(pitches));
         LOOP_stretch_int = stretch;
@@ -11537,21 +11257,25 @@ FLASHMEM bool LOOP_Read_midi_loop_file(FsFile &file, bool load)
 FLASHMEM bool LOOP_Compile_midi_loop_file(FsFile &file)
 {
     const uint32_t tracks = TRACKS;
-    if (file.write(LOOP_SD_MAGIC, sizeof(LOOP_SD_MAGIC) - 1) != sizeof(LOOP_SD_MAGIC) - 1 || !LOOP_Write_bytes(file, &tracks, sizeof(tracks)))
+    const uint32_t layers = LOOP_LAYERS;
+    if (file.write(LOOP_SD_MAGIC, sizeof(LOOP_SD_MAGIC) - 1) != sizeof(LOOP_SD_MAGIC) - 1 || !LOOP_Write_bytes(file, &tracks, sizeof(tracks)) || !LOOP_Write_bytes(file, &layers, sizeof(layers)))
     {
         return false;
     }
-    if (!LOOP_Write_bytes(file, &LOOP_time, sizeof(LOOP_time)) || !LOOP_Write_bytes(file, LOOP_events, sizeof(LOOP_events)) || !LOOP_Write_bytes(file, LOOP_slide, sizeof(LOOP_slide)) || !LOOP_Write_bytes(file, LOOP_pitch_int, sizeof(LOOP_pitch_int)) || !LOOP_Write_bytes(file, &LOOP_stretch_int, sizeof(LOOP_stretch_int)))
+    if (!LOOP_Write_bytes(file, &LOOP_time, sizeof(LOOP_time)) || !LOOP_Write_bytes(file, LOOP_layer_events, sizeof(LOOP_layer_events)) || !LOOP_Write_bytes(file, LOOP_slide, sizeof(LOOP_slide)) || !LOOP_Write_bytes(file, LOOP_pitch_int, sizeof(LOOP_pitch_int)) || !LOOP_Write_bytes(file, &LOOP_stretch_int, sizeof(LOOP_stretch_int)))
     {
         return false;
     }
     for (int track = 0; track < TRACKS; ++track)
     {
-        for (uint32_t event = 0; event < LOOP_events[track]; ++event)
+        for (int layer = 0; layer < LOOP_LAYERS; ++layer)
         {
-            if (!LOOP_Write_bytes(file, &LOOP_element[track][event], sizeof(LOOP_struct)))
+            for (uint32_t event = 0; event < LOOP_layer_events[track][layer]; ++event)
             {
-                return false;
+                if (!LOOP_Write_bytes(file, &LOOP_element[track][layer][event], sizeof(LOOP_struct)))
+                {
+                    return false;
+                }
             }
         }
     }

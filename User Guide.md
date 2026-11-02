@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.2.10**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.3.0**
 
-Guide edition: **1 November 2026**
+Guide edition: **2 November 2026**
 
-Printable edition: [User Guide PDF for firmware 7.2.10](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.3.0](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -51,7 +51,7 @@ LILLA is a polyphonic, multitimbral hardware sampler with up to 16 playback voic
 | Play a keyboard split, layered instrument or multitimbral setup | **Performance** | A patch with up to eight sound slots. |
 | Record a take, keep it in recording memory, or export a WAV | **Sampler** | A mono or stereo audio recording in Flash. |
 | Explore incoming audio and capture a selected fragment | **Live Sampler** | A temporary circular audio buffer. |
-| Record and replay phrases played on your MIDI controller | **MIDI Loop** | Four tracks of MIDI events using the current patch. |
+| Record and replay phrases played on your MIDI controller | **MIDI Loop** | Four MIDI tracks, each with four independent layers, using the current patch. |
 
 Use Sampler for a take you intend to audition, convert or export. Use Live Sampler when the interesting sound is something you want to find inside an ongoing stream of audio.
 
@@ -180,7 +180,7 @@ Use the last shortcut when you need to stop sounding notes quickly. In MIDI Loop
 | Sound | A source file plus playback settings such as trimming, pitch, envelope, pan and gain. |
 | Instrument / sound slot | One of up to eight positions in a patch, with MIDI mapping, root key, keyboard range and filter settings. |
 | Patch | The group of sounds and settings used for a performance. |
-| MIDI loop | Recorded MIDI events, arranged into four tracks. It does not contain the audio samples played by those events. |
+| MIDI loop | Recorded MIDI events, arranged into four tracks with up to four layers each. It does not contain the audio samples played by those events. |
 | Live buffer | Temporary audio held in PSRAM for Live Sampler. |
 
 The firmware provides storage for up to 200 patches and 800 sound records. These are storage capacities; the instrument has up to 16 simultaneous playback voices. Available polyphony also depends on playback workload.
@@ -726,27 +726,46 @@ You are not being asked to save patch 200. The warning protects edits to the pre
 
 ## MIDI Loop
 
-MIDI Loop records MIDI events NoteOn and NoteOff into four tracks and plays them through the current patch. Track 1 is the master track and establishes the loop duration.
+MIDI Loop records NoteOn and NoteOff events into **four tracks**, each with up to **four independent layers**, and plays them through the current patch. Track 1 is the master. Its first layer, **layer 0**, establishes the duration shared by all tracks and layers.
+
+A layer is one recorded part within a track. Layers are numbered **0, 1, 2 and 3** and keep their own NoteOn/NoteOff events. Adding a layer preserves the parts already recorded. Level, shift and transposition apply to the whole track.
 
 ### Record your first loop
 
 1. Insert a microSD card for saving loops.
 2. Choose a patch and check that your controller plays the intended sounds.
-3. Set the Modes selector to **MIDI Loop**.
-4. Press **Rec 1**, play your phrase, and press Rec 1 again to close recording.
-5. Listen to the repeating master track.
-6. Press Rec 2, Rec 3 or Rec 4 to record another track; press that same Rec button again to finish.
-7. Use the menu to save the loop.
+3. Set the Modes selector to **MIDI Loop**. Select `NEW` if you want to start a fresh arrangement.
+4. Press **Rec 1** to arm layer 0 of the master. The REC LED lights; timing starts with your first NoteOn, not with the button press.
+5. Play your phrase, then press **Rec 1** again to close it and establish the loop duration.
+6. Listen to the repeating master track, then add parts as described below.
+7. Use the menu to save the arrangement.
 
-Recording into an occupied track replaces its events. **Recording Track 1 again also clears the other tracks**, because it creates a new master loop. Save an existing loop before replacing its master track.
+Only layer 0 of the master is completed by pressing REC a second time. For every other layer, a second REC press **cancels** the new part.
 
-Each track holds up to **1,000 MIDI events**. Note On and Note Off count separately, so a complete note normally uses two events. Track 1 sets the original loop duration, up to **120 seconds** from the first note. Recording stops automatically when the duration or event limit is reached. Other tracks are limited to the master duration and their own event capacity. Tempo adjustment can extend playback beyond the original 120-second maximum.
+The master can define an original loop duration of up to **120 seconds**. It closes automatically at this duration or when its layer reaches the event limit. Tempo adjustment can extend playback beyond the original 120-second duration.
 
-A recording armed without any events is cancelled after approximately 20 seconds.
+### Add layers to any track
 
-### Add parts without replacing the master
+1. Keep group playback running. The master layer must already exist.
+2. Press the REC button of the track you want to add to: **Rec 1, Rec 2, Rec 3 or Rec 4**.
+3. The first free layer is armed and the REC LED lights. The display identifies the track and recording layer: for example, `1-R1` means Track 1, layer 1.
+4. Start playing when ready. **Recording begins with the first NoteOn.** Master restarts while waiting for that note do not close the layer.
+5. Continue playing until the **next return of the master to the beginning**. Recording then closes automatically, the REC LED switches off, and the new layer joins playback.
+6. Repeat to add more parts, up to four layers on each track.
 
-Record the part that defines the phrase length on Track 1 first. Once it repeats correctly, add a second part on Track 2, then continue on Tracks 3 and 4. Use a different controller MIDI channel if the new part should address another sound in a multitimbral patch.
+For example, if the master lasts 8 seconds and your first note arrives at second 3, the new layer records the remaining 5 seconds of that cycle. Its notes keep their positions within the master loop. This timing follows Tempo changes as well.
+
+Existing layers continue playing while you record a new one. Two layers can contain the same note without a NoteOff in one layer releasing the other's note. All parts still share LILLA's playback voices.
+
+If you record onto an individually stopped track while group playback is running, completing the new layer resumes the track's layers at the current master position.
+
+### Cancel a new layer and understand the limits
+
+- **Press the same REC button again** while a new layer is waiting or recording to discard only that layer and switch off its LED. Previously recorded layers are kept. The exception is master layer 0: its second REC press completes the master instead.
+- If no NoteOn arrives within approximately **20 seconds**, the armed layer is cancelled and its LED switches off. This also applies to the first master layer.
+- Each layer holds up to **1,000 events**. NoteOn and NoteOff count separately, so a complete note normally uses two events. Reaching the limit closes and keeps the layer automatically.
+- When all four layers of a track are occupied, REC shows `ALL LAYERS USED`. It does not replace any layer.
+- Selective deletion of an already completed layer is **not yet available**. Use `NEW` to start a fresh arrangement, saving your current loop first if you want to keep it.
 
 The recorded events trigger the patch's current sounds. Changing a source, keyboard range or MIDI assignment can therefore change how an existing loop sounds. Preserve the patch and audio library alongside the loop when you want to reproduce the arrangement later.
 
@@ -754,8 +773,8 @@ The recorded events trigger the patch's current sounds. Changing a source, keybo
 
 - At the first MIDI Loop entry after startup, the lowest saved loop ID is selected, with playback stopped. If no loops exist, the first free ID is displayed.
 - Turn **Loop** to browse saved loops. After NEW, browsing starts from the displayed free ID.
-- Press Loop to stop or restart the group of tracks. While stopped, only Rec 1 can start a new recording: it clears the current loop and starts again from zero. Recording other tracks requires group playback to be enabled.
-- Press a **Track** encoder to stop or start that individual track.
+- Press Loop to stop or restart the group of tracks. With an existing master, recording additional layers requires group playback to be running. For an empty new loop, Rec 1 can start the master from STOP.
+- Press a **Track** encoder to stop or start all layers of that individual track together.
 - Turn **Tempo** to change playback timing; press it to reset the timing adjustment.
 - Use Select to choose the track parameter row, then turn each Track encoder to change that track's level, pitch or time shift.
 
@@ -763,19 +782,21 @@ The recorded events trigger the patch's current sounds. Changing a source, keybo
 
 | Row | What it changes | Starting point |
 | --- | --- | --- |
-| `LEVEL` | The playback level of that track. | 1.0 for an unadjusted level. |
-| `SHIFT` | The track's timing offset within the loop. | 0.00 seconds for no shift. |
-| `TRANSP` | The track's note transposition. | 0 keys for the original notes. |
+| `LEVEL` | Playback level of all layers in the track. | 1.0 for an unadjusted level. |
+| `SHIFT` | Timing offset of all layers within the loop. | 0.00 seconds for no shift. |
+| `TRANSP` | Note transposition of all layers in the track. | 0 keys for the original notes. |
 
 Use a small Shift to move a part ahead of or behind the other tracks. Listen at the loop boundary as well as in the middle of the phrase. Use Transposition to try a different pitch for a part, then return it to zero to compare with the original.
 
 Turning Tempo changes the timing of the MIDI sequence. It does not rewrite a sample's waveform or automatically time-stretch a recorded audio phrase.
 
+Recorded NoteOff events release their notes at the stored positions. If a layer has notes left open, they receive a release immediately before that layer's first event on the next pass, which may occur after the master has returned to zero. Release follows the sound's ADSR settings rather than cutting the sound instantly. Closing a recording does not send a general NoteOff to notes still held on your MIDI controller.
+
 ### Save loops
 
-Use `SAVE` to update a saved loop and `SAVE_AS_NEW` to keep another version. `NEW` starts a new loop; `DELETE` removes a saved loop.
+Use `SAVE` to update a saved loop and `SAVE_AS_NEW` to keep another version. Both preserve all tracks and their layers. `NEW` starts a new loop; `DELETE` removes a saved loop.
 
-Firmware 7.2.6 can load loops saved by earlier firmware. Loops saved with 7.2.6 use a new format and require 7.2.6 or later to load.
+**Firmware 7.3.0 uses a new layered loop format. MIDI loop files saved by earlier firmware cannot be loaded, and older firmware cannot read the new files.** Keep older loop files separately if you need to return to an earlier firmware version.
 
 Loop files are stored in `/LILLA_PRIVATE/MIDI_LOOPS`. Keep a copy of this folder when archiving your work. Loop files contain MIDI data, so preserve the required patch and source audio as well.
 
@@ -994,17 +1015,17 @@ The firmware is the program that runs LILLA. To load a compiled firmware on Wind
 - Your LILLA instrument, which uses a Teensy 4.1.
 - A Windows 10 or 11 computer.
 - A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
-- The LILLA firmware file, for example `Lilla_v7_1_1.hex`.
+- The LILLA firmware file, for example `Lilla_v7_3_0.hex`.
 - Teensy Loader, downloaded from PJRC.
 
 ### Download the firmware
 
 1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_1_1.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_3_0.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
 3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
 4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
 
-The version numbers in `Lilla_v7_1_1.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+The version numbers in `Lilla_v7_3_0.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
 
 ### Download Teensy Loader
 
@@ -1021,11 +1042,11 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
-2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_1_1.hex`. Confirm the filename shown in the loader.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_3_0.hex`. Confirm the filename shown in the loader.
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.2.10. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.3.0. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1052,7 +1073,7 @@ On macOS, use the standalone **Teensy Loader** application and the published LIL
 ### Download the firmware on Mac
 
 1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_1_1.hex`.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_3_0.hex`.
 3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
 4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
 
@@ -1079,7 +1100,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.2.10.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.3.0.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1127,7 +1148,9 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Live audio disappears | The live buffer is temporary. Capture the desired loop into a patch and save it before power-off. |
 | Live Sampler asks to open Performance and save | The previous normal patch has unsaved edits. Return to Performance, save it, then retry capture. |
 | Live capture is refused | Stop recording, select loop mode, shorten the region if necessary, and save existing patch changes. |
-| Tracks disappear after re-recording Track 1 | Track 1 establishes a new loop and clears the other tracks. |
+| A new MIDI layer disappears after pressing REC again | Except for master layer 0, a second REC press cancels the new layer. Let the master restart close it automatically. |
+| REC does not add another layer | Enable group playback and check for a free layer. Each track has four slots; a full track shows ALL LAYERS USED. |
+| An older MIDI loop cannot be loaded | Firmware 7.3.0 uses a new layered format and cannot load earlier loop files. |
 | Restore cannot find the backup | Place `LILLA_CONFIG.fram` and its matching recording files directly in `/RESTORE_FROM_BACKUP`. |
 | Restored patch cannot play its source | Restore or re-import the required source library; configuration backup does not include all imported audio. |
 
@@ -1195,7 +1218,8 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | Export a recording | Sampler > EXPORT_WAV_TO_SD > SD `/EXPORTED_AUDIO_FILES`. |
 | Record temporary live audio | Live Sampler > CAPTURE > STOP. |
 | Preserve a live loop | Stop live recording > loop mode > S1-S8 > set root key > save patch. |
-| Record a MIDI loop | MIDI Loop > Rec 1 > play > Rec 1 again. |
+| Record the master layer | MIDI Loop > NEW > Rec 1 > play > Rec 1 again. |
+| Add a MIDI layer | During loop playback, press the track's REC > play > let the master restart close the layer. Press REC again to cancel it. |
 | Back up configuration and recordings | Tools > Setup > CONFIGURATION BACKUP. |
 | Restore a numbered backup | Copy its contents to SD `/RESTORE_FROM_BACKUP` > Tools > Setup > RESTORE CONFIGURATION FROM BACKUP. |
 
@@ -1224,6 +1248,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 25 October 2026*
+*LILLA User Guide - English edition - 2 November 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

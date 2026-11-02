@@ -108,7 +108,7 @@ int PlayersManager::Count_sample_voices(void) const
     return count;
 }
 
-int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_number, int track)
+int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_number, int track, int layer)
 {
     // Se e' una nota appartenente ad un track: track >= -1
     // Altrimenti: track = NO_TRACK
@@ -121,7 +121,7 @@ int PlayersManager::Select_player_for_note(uint8_t instrument_id, uint8_t note_n
     // Caso NoteOn da tastiera reale (track == NO_TRACK) if a Player is_playing with same patch_id, instrument_id and note_number, and track, this Player must be taken
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if ((Player_ptr[player].Assigned_patch() == Patch_id) && (Player_ptr[player].Assigned_note() == note_number) && (Player_ptr[player].Assigned_instrument() == instrument_id) && Player_ptr[player].isPlaying() && Player_ptr[player].Assigned_track() == track) // isPlaying() significa !idle
+        if ((Player_ptr[player].Assigned_patch() == Patch_id) && (Player_ptr[player].Assigned_note() == note_number) && (Player_ptr[player].Assigned_instrument() == instrument_id) && Player_ptr[player].isPlaying() && Player_ptr[player].Assigned_track() == track && Player_ptr[player].Assigned_layer() == layer) // isPlaying() significa !idle
         {
             id_player = player;
             finished = true;
@@ -462,7 +462,7 @@ void PlayersManager::Prepare_read_budget(void)
     midi_batch_active = previous_batch;
 }
 
-void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track) // after receiving a NoteOn command
+void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float velocity_float, int track, int layer) // after receiving a NoteOn command
 {
     if (instrument_id >= INSTRUMENTS || !Preset[instrument_id].active)
     {
@@ -475,7 +475,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
         return;
     }
 
-    const int id_player = Select_player_for_note(instrument_id, note_number, track);
+    const int id_player = Select_player_for_note(instrument_id, note_number, track, layer);
     if (id_player < 0)
     {
         return; // All eligible voices are occupied or reserved; never overwrite a different pending note.
@@ -502,7 +502,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
 
     ADSR[id_player].Setup(Preset[instrument_id].attack, Preset[instrument_id].decay, Preset[instrument_id].sustain, Preset[instrument_id].release, Preset[instrument_id].attack_type);
 
-    Player_ptr[id_player].Write_loop_track(track);
+    Player_ptr[id_player].Write_loop_track(track, layer);
     if (track >= 0)
     {
         Player_ptr[id_player].Set_volume(LOOP_volume[track] * Preset[instrument_id].volume);
@@ -1502,11 +1502,22 @@ void PlayersManager::Multicast_stop_players_for_loop_track(int track)
     }
 }
 
-void PlayersManager::Multicast_stop_players_for_NoteOff(int midi_channel, int note_number, int track)
+void PlayersManager::Multicast_stop_players_for_loop_layer(int track, int layer)
 {
     for (auto player = 0; player < PLAYERS; ++player)
     {
-        if (Player_ptr[player].isPoweredOn() && Player_ptr[player].Assigned_note() == note_number && Player_ptr[player].Read_midi_channel() == midi_channel && Player_ptr[player].Assigned_track() == track)
+        if (Player_ptr[player].isPoweredOn() && Player_ptr[player].Assigned_track() == track && Player_ptr[player].Assigned_layer() == layer)
+        {
+            Release_Player_noteOff(player, track);
+        }
+    }
+}
+
+void PlayersManager::Multicast_stop_players_for_NoteOff(int midi_channel, int note_number, int track, int layer)
+{
+    for (auto player = 0; player < PLAYERS; ++player)
+    {
+        if (Player_ptr[player].isPoweredOn() && Player_ptr[player].Assigned_note() == note_number && Player_ptr[player].Read_midi_channel() == midi_channel && Player_ptr[player].Assigned_track() == track && Player_ptr[player].Assigned_layer() == layer)
         {
             Release_Player_noteOff(player, track);
         }

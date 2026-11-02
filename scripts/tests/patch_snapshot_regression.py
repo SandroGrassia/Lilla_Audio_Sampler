@@ -12,10 +12,11 @@ snapshot = re.search(r'^struct PatchEditSnapshot\n\{.*?^\};', source, re.M | re.
 snapshot += '\n' + '\n\n'.join(re.findall(r'^[^\n]*PatchEditSnapshot::[^\n]+\n\{.*?^\}', source, re.M | re.S))
 
 def method(signature):
-    return re.search(r'^' + re.escape(signature) + r'\n\{.*?^\}', source, re.M | re.S).group(0)
+    return re.search(r'^(?:FLASHMEM )?' + re.escape(signature) + r'\n\{.*?^\}', source, re.M | re.S).group(0)
 
 prefix = r'''
 #include <cassert>
+#define FLASHMEM
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>

@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document explains how LILLA's firmware brings playback, recording, effects and controls together. It describes firmware **7.2.10**, focusing on the role of each part and how the parts work together.
+This document explains how LILLA's firmware brings playback, recording, effects and controls together. It describes firmware **7.3.0**, focusing on the role of each part and how the parts work together.
 
 For operating instructions, see the [User Guide](User%20Guide.md). Developers can consult the separate [implementation notes](docs/firmware-implementation-notes.md) for source references, exact limits and storage details.
 
@@ -296,6 +296,8 @@ WAV and MP3 import converts supported files into the sample format used by LILLA
 
 Incoming MIDI supplies notes, pitch bend, pressure and other controls. Processing is coordinated with the audio cycle, and the amount handled at once is limited so a burst of messages does not monopolize audio processing.
 
-MIDI Loop records these events on four tracks. The first track establishes the shared duration; the others follow it. Timing, transposition and gain adjustments let the recorded parts be varied during playback.
+MIDI Loop records NoteOn and NoteOff events on four tracks, each with four independent layers of up to 1000 events. Layer 0 of the master track establishes the shared duration: REC arms it, the first NoteOn starts timing, and REC closes it. Every subsequent layer can be armed only during playback. It waits up to 20 seconds for its first NoteOn, then closes at the next master boundary; pressing REC again discards only that armed or recording layer. Existing layers continue playing during overdubbing. A full track rejects further recording without replacing any layer.
 
-Loop playback uses the same voice engine as live MIDI input. Saving a loop preserves the performance events, so reproducing it also requires the appropriate patches and sample audio.
+Level, time shift and transposition apply to all layers of a track. Each layer has its own event count, circular timestamp order and playback cursor. Voice ownership includes both track and layer, including queued notes, so retriggering or releasing a note in one layer does not affect the same pitch in another. The audio callback processes up to two events per layer per block, separately from the external MIDI budget. Recorded NoteOff events release matching voices; any notes still open are released before the first chronological event of that same layer on its next pass, rather than by a global master-boundary NoteOff. Release follows the ADSR envelope. Closing recording alone does not release live keyboard notes.
+
+Loop playback uses the same voice engine as live MIDI input. The `LILLALOOP 3` SD format stores all layer event counts and events together with the shared track settings; previous formats are not accepted. Reproducing a saved loop also requires the appropriate patches and sample audio. Selective deletion of committed layers is not yet exposed by the UI.

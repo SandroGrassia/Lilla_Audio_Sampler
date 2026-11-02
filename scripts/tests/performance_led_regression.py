@@ -49,7 +49,7 @@ LoopLedSet Loop_led_set;
 constexpr int NEW_LOOP = -1, MASTER_TRACK = 0;
 bool LOOP_initial_selection_pending = false; // This fixture exercises returning to an already selected loop.
 int LOOP_time = 1000;
-int LOOP_play_event[TRACKS] = {};
+int LOOP_play_event[TRACKS][4] = {};
 bool LOOP_track_run_memo[TRACKS] = {}, LOOP_track_run[TRACKS] = {};
 int LOOP_Get_next_loop_id_in_SD(int) { return 3; }
 bool LOOP_Copy_midi_loop_from_SD_to_RAM(int) { return true; }
@@ -215,7 +215,7 @@ env['PATH'] = str(Path(compiler).parent) + os.pathsep + env.get('PATH', '')
 with tempfile.TemporaryDirectory() as folder:
     cpp = Path(folder) / 'led_test.cpp'
     exe = Path(folder) / 'led_test.exe'
-    cpp.write_text('#include <cstdint>\n#include <cstdlib>\n#include <cassert>\nconstexpr int INSTRUMENTS = 8;\nconstexpr int TRACKS = 4;\nuint32_t irq_mask = 0;\nuint32_t __get_primask() { return irq_mask; }\nvoid __disable_irq() { irq_mask = 1; }\nvoid __enable_irq() { irq_mask = 0; }\n' + header + '\n' + source + '\n' + checks, encoding='utf-8')
+    cpp.write_text('#include <cstdint>\n#include <cstring>\n#include <cstdlib>\n#include <cassert>\nconstexpr int INSTRUMENTS = 8;\nconstexpr int TRACKS = 4;\nuint32_t irq_mask = 0;\nuint32_t __get_primask() { return irq_mask; }\nvoid __disable_irq() { irq_mask = 1; }\nvoid __enable_irq() { irq_mask = 0; }\n' + header + '\n' + source + '\n' + checks, encoding='utf-8')
     subprocess.run([compiler, '-std=c++17', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)
 print('PASS: LED ownership, reassignment, mode changes, IRQ request consumption, redraw and all 32 MIDI Loop LEDs after tool return')

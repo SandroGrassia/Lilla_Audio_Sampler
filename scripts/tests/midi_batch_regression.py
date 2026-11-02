@@ -76,6 +76,7 @@ int Lilla_state = 0, LOOP_learning_track = 0;
 bool display_wait = false, LOOP_learn_flag = false;
 uint32_t LOOP_elements = 0, LOOP_learn_clock = 0, LOOP_time = 1000, LOOP_learn_end_time = 1000;
 unsigned long LOOP_Clock() { return 0; }
+bool LOOP_Is_master_recording() { return LOOP_learning_track == MASTER_TRACK; }
 uint8_t CC_midi_controller = 0;
 struct FakeManager
 {
@@ -133,6 +134,8 @@ struct AudioPlayer
     bool Needs_restart_mix(void) const;
     int Assigned_note(void) const;
     int Assigned_track(void) const;
+    int Assigned_layer(void) const;
+    int loop_layer = -1, loop_layer_wait = -1;
     int Assigned_instrument(void) const;
     int Assigned_patch(void) const;
     bool isPoweredOn() { return power_on; }
@@ -169,8 +172,9 @@ struct PlayersManager
     void End_midi_batch();
     void Set_modulation(uint8_t, uint8_t);
     void Release_Player_noteOff(uint8_t player, int = -1) { Player_ptr[player].Release_note(); }
-    void Multicast_stop_players_for_NoteOff(int, int, int);
+    void Multicast_stop_players_for_NoteOff(int, int, int, int = -1);
     void Multicast_stop_players_for_loop_track(int);
+    void Multicast_stop_players_for_loop_layer(int, int);
     void Multicast_all_notes_off(int);
 };
 '''
@@ -179,12 +183,12 @@ struct PlayersManager
 production = '\n'.join(line for line in config.splitlines() if line.startswith('static constexpr int AUDIO_')) + '\n'
 production += method(clock_source, 'void LillaClock::update')
 production += method(reader, 'void MidiReader::Collect_messages') + method(reader, 'void MidiReader::Update')
-for name in ['Has_pending_note', 'Needs_restart_mix', 'Assigned_note', 'Assigned_track', 'Assigned_instrument', 'Assigned_patch']:
+for name in ['Has_pending_note', 'Needs_restart_mix', 'Assigned_note', 'Assigned_track', 'Assigned_layer', 'Assigned_instrument', 'Assigned_patch']:
     return_type = 'bool' if name in ['Has_pending_note', 'Needs_restart_mix'] else 'int'
     production += method(player, return_type + ' AudioPlayer::' + name)
 for name in ['Get_ready_to_play', 'Release_note', 'Set_modulation', 'Enforce_cycle_deadline']:
     production += method(player, 'void AudioPlayer::' + name)
-for name in ['Reset_booked_and_restart_player', 'Begin_midi_batch', 'End_midi_batch', 'Set_modulation', 'Multicast_stop_players_for_NoteOff', 'Multicast_stop_players_for_loop_track', 'Multicast_all_notes_off']:
+for name in ['Reset_booked_and_restart_player', 'Begin_midi_batch', 'End_midi_batch', 'Set_modulation', 'Multicast_stop_players_for_NoteOff', 'Multicast_stop_players_for_loop_track', 'Multicast_stop_players_for_loop_layer', 'Multicast_all_notes_off']:
     production += method(manager, 'void PlayersManager::' + name)
 for signature in ['int PlayersManager::Get_span_for_all_cross_mix', 'float PlayersManager::Get_cross_mix_time', 'bool PlayersManager::Get_restart_player', 'void PlayersManager::Cancel_restart_player']:
     production += method(manager, signature)
@@ -192,7 +196,7 @@ production += method(manager, 'void PlayersManager::Calculate_and_set_mix_sample
 # Test the production pending-release completion block without mocking the complete audio renderer.
 start = method(player, 'void AudioPlayer::Start_playing')
 tail = start[start.index('    if (pending_note_released)'):]
-production += 'void AudioPlayer::Start_playing()\n{\n    note = note_wait; track = track_wait; instrument_id = instrument_id_wait; local_patch = patch_id_wait; idle = false; state = RUNNING;\n' + tail
+production += 'void AudioPlayer::Start_playing()\n{\n    note = note_wait; track = track_wait; loop_layer = loop_layer_wait; instrument_id = instrument_id_wait; local_patch = patch_id_wait; idle = false; state = RUNNING;\n' + tail
 
 tests = r'''
 void reset()
@@ -255,6 +259,33 @@ int main()
     auto &voice = pm.voices[0];
     voice.Get_ready_to_play(1, 1, 0, 0, 0, 60);
     voice.track_wait = 2; voice.Get_ready_to_play(1, 1, 0, 0, 0, 62);
+    {
+        PlayersManager layers;
+        for (int id = 0; id < 4; ++id)
+        {
+            auto &item = layers.voices[id];
+            item.state = AudioPlayer::RUNNING;
+            item.power_on = true;
+            item.note = 60;
+            item.channel = 0;
+            item.track = 1;
+            item.loop_layer = id;
+        }
+        layers.Multicast_stop_players_for_NoteOff(0, 60, 1, 2);
+        assert(!layers.voices[2].power_on);
+        assert(layers.voices[0].power_on && layers.voices[1].power_on && layers.voices[3].power_on);
+        layers.Multicast_stop_players_for_loop_layer(1, 1);
+        assert(!layers.voices[1].power_on && layers.voices[0].power_on && layers.voices[3].power_on);
+        auto &pending = layers.voices[3];
+        pending.restart_flag = true;
+        pending.track_wait = 1;
+        pending.note_wait = 60;
+        pending.loop_layer_wait = 0;
+        layers.Multicast_stop_players_for_NoteOff(0, 60, 1, 3);
+        assert(pending.power_on && !pending.pending_note_released);
+        layers.Multicast_stop_players_for_NoteOff(0, 60, 1, 0);
+        assert(!pending.power_on && pending.pending_note_released);
+    }
     assert(voice.Read_midi_channel() == 0 && voice.Assigned_note() == 62 && voice.Assigned_track() == 2);
     pm.Multicast_stop_players_for_NoteOff(0, 62, -1); assert(voice.power_on);
     pm.Multicast_stop_players_for_NoteOff(0, 60, 2); assert(voice.power_on);

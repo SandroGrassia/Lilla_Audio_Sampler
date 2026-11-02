@@ -45,6 +45,8 @@ struct Voice
     int Assigned_patch() const { return pending ? pending_patch : patch; }
     int Assigned_instrument() const { return pending ? pending_instrument : instrument; }
     int Assigned_note() const { return pending ? pending_note : note; }
+    int layer = -1, pending_layer = -1;
+    int Assigned_layer() const { return pending ? pending_layer : layer; }
     int Assigned_track() const { return pending ? pending_track : track; }
 };
 struct PlayersManager
@@ -59,7 +61,7 @@ struct PlayersManager
         for (const auto &voice : voices) { players_playing += voice.playing; }
     }
     int Count_sample_voices() const;
-    int Select_player_for_note(uint8_t, uint8_t, int);
+    int Select_player_for_note(uint8_t, uint8_t, int, int = -1);
     int Smartfind_oldest_player(uint8_t, bool, bool);
     int Simplefind_oldest_player(bool);
     int Simplefind_oldest_sample_player(bool, bool);
@@ -90,6 +92,23 @@ prefix += '};\n'
 tests = r'''
 int main()
 {
+    {
+        PlayersManager layered;
+        auto &voice = layered.voices[0];
+        voice.playing = true;
+        voice.powered = true;
+        voice.track = 0;
+        voice.layer = 0;
+        voice.note = 60;
+        assert(layered.Select_player_for_note(0, 60, 0, 0) == 0);
+        assert(layered.Select_player_for_note(0, 60, 0, 1) != 0);
+        voice.pending = true;
+        voice.pending_track = 0;
+        voice.pending_layer = 2;
+        assert(layered.Select_player_for_note(0, 60, 0, 2) == 0);
+        assert(layered.Select_player_for_note(0, 60, 0, 0) != 0);
+    }
+
     PlayersManager pm;
     assert(pm.Select_player_for_note(0, 62, -1) == 0);
     pm.Player_booked[0] = true;

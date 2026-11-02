@@ -16,11 +16,13 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.2.10
+## New in firmware 7.3.0
 
-**Smoother Live Sampler playback while recording.** Forward playback now uses safer start positions and short fade-out/fade-in transitions when reading approaches or crosses the recording position. Below the original pitch, the fade-out is anticipated before the next read would overlap newly written audio. Loop modes are available after recording stops.
+**Four layers per MIDI Loop track.** Build an arrangement with up to **16 independent layers** across the four tracks, with **1,000 NoteOn/NoteOff events per layer**. Add a new part while existing layers keep playing; LEVEL, SHIFT and TRANSP remain common to the track.
 
-See the [7.2.10 release notes](docs/release-notes-7.2.10.md), the [Live Sampler instructions](User%20Guide.md#live-sampler) and the [animated technical explanation](FIRMWARE_ARCHITECTURE.md#once-fwd-readwrite-transitions).
+After the master length has been recorded, REC arms the next free layer. Recording starts at the first NoteOn and closes at the next master restart. Press REC again to discard the new layer, or let the 20-second no-note timeout cancel it. Existing layers are preserved.
+
+Download [Lilla_v7_3_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.3.0/Lilla_v7_3_0.hex). See the [7.3.0 release notes](docs/release-notes-7.3.0.md) and the updated [MIDI Loop instructions](User%20Guide.md#midi-loop). **Saved MIDI loops from earlier firmware are not compatible with 7.3.0.** Selective deletion of completed layers is not yet available.
 
 ## SD folder layout
 
@@ -59,7 +61,7 @@ LILLA is a polyphonic, multitimbral, multi-MIDI audio sampler designed to work w
 | Performance | Up to 16 playback voices and 200 patches, each with up to eight sounds, individual MIDI channels and keyboard ranges. |
 | Sampler | Mono/stereo recording into Flash, conversion into playable sounds and WAV export to microSD. |
 | Live Sampler | Circular PSRAM recording with approximately 40 seconds in mono or 20 seconds in stereo, adjustable feedback and capture of selected regions into patches. |
-| MIDI Loop | Four tracks of MIDI events, played through the current patch and stored on microSD. |
+| MIDI Loop | Four tracks with four independent layers each, 1,000 events per layer, played through the current patch and stored on microSD. |
 
 Sound shaping includes sample trimming, forward/reverse and loop playback, envelopes, instrument filters and modulation, a common low-pass filter, stereo delay, bit reduction and downsampling. Separate main and pre-listening routes support auditioning and performance.
 
@@ -101,13 +103,13 @@ To keep a region, stop recording, choose a loop mode, refine its boundaries and 
 
 ### MIDI Loop
 
-MIDI Loop records note events into **four tracks**, with up to **1,000 events per track** and a maximum original loop duration of **120 seconds**, and plays them through the current patch. It stores the performance as MIDI data, so changing the patch's sounds, filters or keyboard mapping can change the arrangement without recording the notes again.
+MIDI Loop records note events into **four tracks with four layers each**, with up to **1,000 events per layer** and a maximum original loop duration of **120 seconds**. It plays the events through the current patch, so changing the patch's sounds, filters or keyboard mapping can change the arrangement without recording the notes again.
 
-Track 1 is the master and establishes the loop duration. Record the first phrase with **Rec 1**, close it by pressing Rec 1 again, then add parts using Rec 2, Rec 3 and Rec 4. Recording over an occupied track replaces its events; recording Track 1 again also clears the other tracks because it defines a new master loop.
+Layer 0 of Track 1 establishes the duration. Press **Rec 1**, play the first phrase, and press Rec 1 again to close it. During playback, any track's REC button arms its next free layer, numbered 0 to 3. The first NoteOn starts recording; the next master restart closes the new layer and switches off its REC LED. Pressing REC again while armed or recording cancels only the new layer. If no note arrives within 20 seconds, it is cancelled automatically. Four occupied layers produce an `ALL LAYERS USED` notice without replacing anything.
 
-Tracks can be started or stopped individually. Their **LEVEL**, **SHIFT** and **TRANSP** parameters adjust playback level, timing offset and note transposition. The Tempo control changes the timing of the MIDI sequence, while the Loop control selects saved loops and controls group playback. Tempo changes affect event timing rather than time-stretching sample audio.
+Tracks can be started or stopped individually. **LEVEL**, **SHIFT** and **TRANSP** affect every layer in the track. The Tempo control changes the timing of the MIDI sequence, while the Loop control selects saved loops and controls group playback. Tempo changes affect event timing rather than time-stretching sample audio.
 
-Save an arrangement or save a new variation to microSD in `/LILLA_PRIVATE/MIDI_LOOPS`. Preserve its patch and audio sources alongside the loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
+Save all tracks and layers to microSD in `/LILLA_PRIVATE/MIDI_LOOPS`. Firmware 7.3.0 uses a new loop format and does not load earlier loop files. Preserve the patch and audio sources alongside loop files when archiving a complete session. See [MIDI Loop](User%20Guide.md#midi-loop).
 
 ## Audio Files and Storage
 
@@ -158,7 +160,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.2.10 (1 November 2026)**: download [Lilla_v7_2_10.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.2.10/Lilla_v7_2_10.hex) from [release v7.2.10](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.2.10). See the [7.2.10 release notes](docs/release-notes-7.2.10.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.3.0 (2 November 2026)**: download [Lilla_v7_3_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.3.0/Lilla_v7_3_0.hex) from [release v7.3.0](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.3.0). See the [7.3.0 release notes](docs/release-notes-7.3.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

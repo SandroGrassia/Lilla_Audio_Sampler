@@ -11,7 +11,16 @@ static constexpr int Save_failed_y_offset = -14;
 
 FLASHMEM void DisplayMidiLoop::Show_save_failed(void)
 {
+    popup_text_length = sizeof("SAVE FAILED") - 1;
     Show_popup_text("SAVE FAILED", ILI9341_WHITE, ILI9341_RED, Save_failed_y_offset);
+    save_failed_started_ms = millis();
+    save_failed_visible = true;
+}
+
+FLASHMEM void DisplayMidiLoop::Show_layers_full(void)
+{
+    popup_text_length = sizeof("ALL LAYERS USED") - 1;
+    Show_popup_text("ALL LAYERS USED", ILI9341_BLACK, ILI9341_GREEN, Save_failed_y_offset);
     save_failed_started_ms = millis();
     save_failed_visible = true;
 }
@@ -30,7 +39,7 @@ FLASHMEM bool DisplayMidiLoop::Update_save_failed(void)
     if (static_cast<uint32_t>(millis() - save_failed_started_ms) >= 4000u)
     {
         // Match the geometry used by Show_popup_text().
-        const int width = display_coordinate_x(sizeof("SAVE FAILED") - 1 + 2);
+        const int width = display_coordinate_x(popup_text_length + 2);
         const int height = display_coordinate_y(1);
         tft.fillRect(Centered_element_left(width), Centered_element_top(height) + Save_failed_y_offset, width, height, ILI9341_BLACK);
         save_failed_visible = false;
@@ -51,7 +60,8 @@ FLASHMEM void DisplayMidiLoop::Loop_REC_advice(const int track, const bool on)
         tft.setCursor(display_coordinate_x(Loop_column_row_track[track][0]), display_coordinate_y(Loop_column_row_track[track][1]));
         tft.setTextColor(ILI9341_WHITE);
         tft.print(track + 1);
-        tft.print("-REC");
+        tft.print("-R");
+        tft.print(LOOP_learning_layer);
     }
     else
     {

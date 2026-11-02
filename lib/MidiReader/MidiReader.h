@@ -31,7 +31,7 @@ class MidiReader
 private:
     bool midi_stop_flag = true;
     MidiInputBatch batch;
-    static constexpr uint8_t Loop_events_per_track = 2; // Separate loop budget, independent of UART traffic.
+    static constexpr uint8_t Loop_events_per_layer = 2; // Per-layer playback budget, independent of UART traffic.
     void Collect_messages(void);
     void Handle_message(const MidiInputMessage &message);
     void Update_loops(void);

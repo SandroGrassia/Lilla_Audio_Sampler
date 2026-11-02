@@ -159,7 +159,7 @@ struct SDStub
 
 prefix += "struct SdStorage { static bool Begin() { return SD.begin(BUILTIN_SDCARD); } static bool Ensure() { return SD.exists(\"/LILLA_PRIVATE\") || SD.mkdir(\"/LILLA_PRIVATE\"); } };\n"
 
-globals_start = main.index('DMAMEM uint32_t LOOP_time_order')
+globals_start = main.index('elapsedMillis LOOP_clock =')
 globals_end = main.index('// Pointer', globals_start)
 production = without_includes(header) + without_includes(shared) + main[globals_start:globals_end]
 constants_start = main.index('static constexpr size_t LOOP_FILENAME_SIZE')
@@ -169,8 +169,7 @@ production += method('void LOOP_Filename_midi_loop(int loop_id, char (&filename)
 production += method('void LOOP_Path_midi_loop(int loop_id, char (&path)[LOOP_PATH_SIZE])')
 production += method('void LOOP_reset_all_data(void)')
 production += 'void LOOP_stop_and_reset_runnig_loop_data() { LOOP_reset_all_data(); }\n'
-production += method('void LOOP_set_time_order(int track)')
-codec_start = main.index('// Loop SD v2:')
+codec_start = main.index('// Loop SD v3:')
 codec_end = main.index('bool LOOP_Look_for_midi_loop_in_SD(int loop_id)\n{', codec_start)
 production += main[codec_start:codec_end]
 for signature in ['bool LOOP_Look_for_midi_loop_in_SD(int loop_id)', 'int LOOP_Get_first_loop_id_free(void)', 'int LOOP_Get_next_loop_id_in_SD(int loop_id)', 'int LOOP_Get_previous_loop_id_in_SD(int loop_id)']:
@@ -235,11 +234,12 @@ void seed(uint32_t count)
     for (int track = 0; track < TRACKS; ++track)
     {
         LOOP_events[track] = count;
+        LOOP_layer_events[track][0] = count;
         LOOP_slide[track] = 100 * track;
         LOOP_pitch_int[track] = track - 2;
         for (uint32_t event = 0; event < count; ++event)
         {
-            LOOP_element[track][event] = {int(event), uint8_t(track), uint8_t(40 + event % 80), uint8_t(event % 128), event % 2 == 0};
+            LOOP_element[track][0][event] = {int(event), uint8_t(track), uint8_t(40 + event % 80), uint8_t(event % 128), event % 2 == 0};
         }
     }
 }
@@ -253,40 +253,14 @@ String encoded()
     assert(LOOP_Compile_midi_loop_file(file));
     return file.node->text;
 }
-String legacy(bool v1 = false)
-{
-    FsFile file{std::make_shared<Node>()};
-    if (v1)
-    {
-        const String magic = "LILLALOOP 1\r\n";
-        assert(file.write(magic.data(), magic.size()) == magic.size());
-        const uint32_t tracks = TRACKS;
-        assert(LOOP_Write_bytes(file, &tracks, sizeof(tracks)));
-    }
-    const uint16_t duration = LOOP_time;
-    assert(LOOP_Write_bytes(file, &duration, sizeof(duration)));
-    for (int track = 0; track < TRACKS; ++track)
-    {
-        const uint32_t count = LOOP_events[track];
-        assert(LOOP_Write_bytes(file, &count, v1 ? sizeof(uint32_t) : sizeof(uint8_t)));
-    }
-    assert(LOOP_Write_bytes(file, LOOP_slide, sizeof(LOOP_slide)));
-    assert(LOOP_Write_bytes(file, LOOP_pitch_int, sizeof(LOOP_pitch_int)));
-    assert(LOOP_Write_bytes(file, &LOOP_stretch_int, sizeof(LOOP_stretch_int)));
-    for (int track = 0; track < TRACKS; ++track)
-    {
-        assert(LOOP_Write_bytes(file, LOOP_element[track], LOOP_events[track] * sizeof(LOOP_struct)));
-    }
-    return file.node->text;
-}
 void rejected(const String &text)
 {
     seed(1);
-    const auto previous = LOOP_element[0][0];
+    const auto previous = LOOP_element[0][0][0];
     put(path, text);
     assert(!LOOP_Copy_midi_loop_from_SD_to_RAM(3));
     assert(LOOP_id == 7 && !LOOP_original && LOOP_events[0] == 1 && LOOP_time == 10000);
-    assert(memcmp(&previous, &LOOP_element[0][0], sizeof(previous)) == 0);
+    assert(memcmp(&previous, &LOOP_element[0][0][0], sizeof(previous)) == 0);
 }
 String change_byte(String text, size_t index, const String &value)
 {
@@ -311,35 +285,47 @@ int main()
     assert(std::snprintf(longest_backup, sizeof(longest_backup), "%s.bak", longest_path) == int(sizeof(longest_backup) - 1));
     assert(std::strcmp(longest_backup, "/LILLA_PRIVATE/MIDI_LOOPS/-2147483648.loop.bak") == 0);
     static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_events[0])>, uint32_t>);
-    static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_time_order[0][0])>, uint32_t>);
-    static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_play_event[0])>, uint32_t>);
+    static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_time_order[0][0][0])>, uint32_t>);
+    static_assert(std::is_same_v<std::remove_reference_t<decltype(LOOP_play_event[0][0])>, uint32_t>);
+    seed(LOOP_EVENTS);
+    for (int track = 0; track < TRACKS; ++track)
+    {
+        for (int layer = 1; layer < LOOP_LAYERS; ++layer)
+        {
+            LOOP_layer_events[track][layer] = LOOP_EVENTS;
+            LOOP_events[track] += LOOP_EVENTS;
+            for (uint32_t event = 0; event < LOOP_EVENTS; ++event)
+            {
+                LOOP_element[track][layer][event] = {int(event + layer), uint8_t(track), uint8_t(60 + layer), 100, event % 2 == 0};
+            }
+        }
+    }
+    const String layered = encoded();
+    put(path, layered);
+    LOOP_reset_all_data();
+    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3));
+    assert(LOOP_events[3] == LOOP_LAYERS * LOOP_EVENTS && LOOP_layer_events[3][3] == LOOP_EVENTS);
+    assert(LOOP_element[3][3][LOOP_EVENTS - 1].note_number == 63 && encoded() == layered);
     seed(LOOP_EVENTS);
     const String valid = encoded();
     put(path, valid);
     LOOP_reset_all_data();
     assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3));
     assert(LOOP_events[3] == LOOP_EVENTS && LOOP_time == 10000 && LOOP_pitch_int[3] == 1 && LOOP_slide[3] == 300 && LOOP_stretch == 1.5f);
-    assert(LOOP_element[3][LOOP_EVENTS - 1].time == int(LOOP_EVENTS - 1));
+    assert(LOOP_element[3][0][LOOP_EVENTS - 1].time == int(LOOP_EVENTS - 1));
     assert(encoded() == valid);
     // Rotation uses 32-bit indices, including beyond byte range in the future-capacity build.
-    LOOP_element[0][LOOP_EVENTS - 1].time = -1;
+    LOOP_element[0][0][LOOP_EVENTS - 1].time = -1;
     LOOP_set_time_order(0);
-    assert(LOOP_time_order[0][0] == LOOP_EVENTS - 1 && LOOP_time_order[0][1] == 0);
+    assert(LOOP_time_order[0][0][0] == LOOP_EVENTS - 1 && LOOP_time_order[0][0][1] == 0);
     seed(2);
-    const String old = legacy();
-    put(path, old);
-    LOOP_reset_all_data();
-    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_events[3] == 2 && LOOP_element[3][1].note_number == 41);
-    put(path, legacy(true));
-    LOOP_reset_all_data();
-    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_time == 10000 && LOOP_events[3] == 2);
     const String small = encoded();
     seed(LOOP_EVENTS);
     LOOP_time = LOOP_MAX_DURATION_MS;
-    LOOP_element[3][LOOP_EVENTS - 1].time = 119999;
+    LOOP_element[3][0][LOOP_EVENTS - 1].time = 119999;
     put(path, encoded());
     LOOP_reset_all_data();
-    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_time == 120000 && LOOP_events[3] == LOOP_EVENTS && LOOP_element[3][LOOP_EVENTS - 1].time == 119999);
+    assert(LOOP_Copy_midi_loop_from_SD_to_RAM(3) && LOOP_time == 120000 && LOOP_events[3] == LOOP_EVENTS && LOOP_element[3][0][LOOP_EVENTS - 1].time == 119999);
     LOOP_time = LOOP_MAX_DURATION_MS + 1;
     rejected(encoded());
     for (size_t length = 0; length < small.size(); ++length)
@@ -347,35 +333,24 @@ int main()
         rejected(small.substr(0, length));
     }
     rejected(small + "0\r\n");
-    rejected("LILLALOOP 3\r\n" + small.substr(sizeof(LOOP_SD_MAGIC) - 1));
+    rejected("LILLALOOP 2\r\n" + small.substr(sizeof(LOOP_SD_MAGIC) - 1));
     rejected(change_byte(small, 0, "5")); // Track count.
+    rejected(change_byte(small, 4, "5")); // Layer count.
     for (const char *bad : {"256", "-1", "x", "", "12x", "999999", " 1"})
     {
-        rejected(change_byte(small, 4, bad));
+        rejected(change_byte(small, 8, bad));
     }
-    rejected(change_byte(change_byte(small, 4, "0"), 5, "0")); // Zero duration.
-    rejected(change_byte(small, 8, "0")); // Empty master.
-    rejected(change_byte(small, 11, "255")); // Huge 32-bit event count.
-    rejected(change_byte(small, 27, "127")); // Slide outside duration.
-    rejected(change_byte(small, 40, "25")); // Pitch.
-    rejected(change_byte(small, 56, "0")); // Stretch.
-    rejected(change_byte(small, 63, "127"));
-    rejected(change_byte(small, 64, "16")); // MIDI channel.
-    rejected(change_byte(small, 65, "128")); // Note.
-    rejected(change_byte(small, 66, "128")); // Velocity.
-    rejected(change_byte(small, 67, "2")); // Bool representation.
-    // Legacy export with the old extra 8 bytes in each array must not be accepted.
-    size_t array_end = 0;
-    for (int line = 0; line < 22; ++line)
-    {
-        array_end = old.find('\n', array_end) + 1;
-    }
-    String malformed = old;
-    for (int i = 0; i < 16; ++i)
-    {
-        malformed.insert(array_end, "0\r\n");
-    }
-    rejected(malformed);
+    rejected(change_byte(change_byte(small, 8, "0"), 9, "0")); // Zero duration.
+    rejected(change_byte(small, 12, "0")); // Empty master layer zero.
+    rejected(change_byte(small, 15, "255")); // Huge 32-bit event count.
+    rejected(change_byte(small, 79, "127")); // Slide outside duration.
+    rejected(change_byte(small, 92, "25")); // Pitch.
+    rejected(change_byte(small, 108, "0")); // Stretch.
+    rejected(change_byte(small, 115, "127")); // Event timestamp outside duration.
+    rejected(change_byte(small, 116, "16")); // MIDI channel.
+    rejected(change_byte(small, 117, "128")); // Note.
+    rejected(change_byte(small, 118, "128")); // Velocity.
+    rejected(change_byte(small, 119, "2")); // Bool representation.
     put(path, small);
     seed(1);
     faults.seek = true;
@@ -533,17 +508,17 @@ int main()
     // Completion disables recording before any subsequent MIDI event arrives.
     Learn_on(0, 61, 100);
     Learn_off(0, 61, 0);
-    assert(LOOP_elements == LOOP_EVENTS && LOOP_element[0][LOOP_EVENTS - 1].note_number == 60);
+    assert(LOOP_elements == LOOP_EVENTS && LOOP_element[0][0][LOOP_EVENTS - 1].note_number == 60);
     // The clock can cross the limit while a collected MIDI batch is handled.
     LOOP_elements = 1;
     LOOP_last_event = 0;
     LOOP_learn_flag = true;
     LOOP_learn_clock = LOOP_MAX_DURATION_MS + 1;
     Learn_on(0, 60, 100);
-    assert(!LOOP_learn_flag && LOOP_element[0][1].time == 120000);
+    assert(!LOOP_learn_flag && LOOP_element[0][0][1].time == 120000);
     LOOP_learn_flag = true;
     Learn_off(0, 60, 0);
-    assert(!LOOP_learn_flag && LOOP_element[0][2].time == 120000);
+    assert(!LOOP_learn_flag && LOOP_element[0][0][2].time == 120000);
     std::cout << "PASS: loop SD round trips, bounds, malformed/truncated files, second-pass failure, safe replacement/recovery; capacity=" << LOOP_EVENTS << '\n';
 }
 '''

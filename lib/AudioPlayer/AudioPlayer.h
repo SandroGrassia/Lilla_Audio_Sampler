@@ -131,6 +131,8 @@ private:
     // MIDI_LOOP
     int track;
     int track_wait;
+    int loop_layer = -1; // Layer owning the current loop voice, or -1 for live input.
+    int loop_layer_wait = -1; // Layer owning the queued loop voice.
 
     // VCF
     bool VCF_connect = false;
@@ -388,6 +390,7 @@ public:
     bool Has_pending_note(void) const; // Return whether an active voice has a queued replacement note.
     bool Needs_restart_mix(void) const; // Return whether the queued note needs an outgoing crossfade.
     int Assigned_note(void) const; // Return the queued note number, or the current note when none is pending.
+    int Assigned_layer(void) const; // Return the layer owning the queued or current note.
     int Assigned_track(void) const; // Return the track owning the queued or current note.
     int Assigned_instrument(void) const; // Return the instrument owning the queued or current note.
     int Assigned_patch(void) const; // Return the patch owning the queued or current note.
@@ -405,7 +408,7 @@ public:
     void Set_pitch(float pitch_tune_in);
     void Set_note(float pitch_note_in);
     void Set_pitch_bend(float pitch_bend_in);
-    void Write_loop_track(int track);
+    void Write_loop_track(int track, int layer = -1); // Queue track and layer ownership for the next note.
     void Update_pan(float pan_int_value);
     void Set_vibrato_pointers(float *p_vibrato_array_in, uint8_t *p_vibrato_array_last_element_in);
     void Set_vibrato_flag(bool value);

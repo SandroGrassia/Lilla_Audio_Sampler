@@ -73,7 +73,7 @@ void MidiReader::Collect_messages(void)
 void MidiReader::Update(void)
 {
     Collect_messages();
-    if (LOOP_learn_flag && Lilla_state == MIDI_LOOP && LOOP_elements > 0 && (LOOP_learning_track == MASTER_TRACK ? LOOP_learn_clock >= LOOP_MAX_DURATION_MS : static_cast<int32_t>(static_cast<uint32_t>(LOOP_Clock()) - LOOP_learn_end_time) >= 0))
+    if (LOOP_learn_flag && Lilla_state == MIDI_LOOP && LOOP_elements > 0 && (LOOP_Is_master_recording() ? LOOP_learn_clock >= LOOP_MAX_DURATION_MS : static_cast<int32_t>(static_cast<uint32_t>(LOOP_Clock()) - LOOP_learn_end_time) >= 0))
     {
         LOOP_learn_flag = false;
     }
@@ -135,7 +135,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
                 LOOP_elements = 1;
                 LOOP_last_event = 0;
 
-                if (LOOP_learning_track == 0)
+                if (LOOP_Is_master_recording())
                 {
                     // Chiede a Main l'accensione del primo led del metronomo
                     LOOP_metronomo_flag_IN[0] = true;
@@ -159,7 +159,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
             }
 
             // Memorizza il tempo
-            if (LOOP_learning_track == 0)
+            if (LOOP_Is_master_recording())
             {
                 LOOP_clock_memo = LOOP_learn_clock;
                 if (LOOP_clock_memo >= static_cast<int>(LOOP_MAX_DURATION_MS))
@@ -173,11 +173,11 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
                 LOOP_clock_memo = LOOP_Clock() % LOOP_time;
             }
 
-            LOOP_element[LOOP_learning_track][LOOP_last_event].time = LOOP_clock_memo;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].midi_channel = midi_channel;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].note_number = note_number;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].velocity = velocity;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].note_on = true;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].time = LOOP_clock_memo;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].midi_channel = midi_channel;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].note_number = note_number;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].velocity = velocity;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].note_on = true;
 
             // Ultimo evento accettabile
             if (LOOP_elements >= LOOP_EVENTS)
@@ -233,7 +233,7 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
             ++LOOP_last_event;
 
             // Memorizza il tempo
-            if (LOOP_learning_track == 0)
+            if (LOOP_Is_master_recording())
             {
                 LOOP_clock_memo = LOOP_learn_clock;
                 if (LOOP_clock_memo >= static_cast<int>(LOOP_MAX_DURATION_MS))
@@ -247,11 +247,11 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
                 LOOP_clock_memo = LOOP_Clock() % LOOP_time;
             }
 
-            LOOP_element[LOOP_learning_track][LOOP_last_event].time = LOOP_clock_memo;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].midi_channel = midi_channel;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].note_number = note_number;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].velocity = velocity;
-            LOOP_element[LOOP_learning_track][LOOP_last_event].note_on = false;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].time = LOOP_clock_memo;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].midi_channel = midi_channel;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].note_number = note_number;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].velocity = velocity;
+            LOOP_element[LOOP_learning_track][LOOP_learning_layer][LOOP_last_event].note_on = false;
 
             // Ultimo evento accettabile
             if (LOOP_elements >= LOOP_EVENTS)
@@ -463,80 +463,88 @@ void MidiReader::Update_loops(void)
         }
 
         // check notes to play/stop
-        for (uint8_t pass = 0; pass < Loop_events_per_track; ++pass)
+        for (uint8_t pass = 0; pass < Loop_events_per_layer; ++pass)
         {
             for (auto track = 0; track < TRACKS; ++track)
             {
-                if (LOOP_track_run[track] && LOOP_events[track] > 0 && (LOOP_Clock_frozen >= LOOP_play_time[track]))
+                for (int layer = 0; layer < LOOP_LAYERS; ++layer)
                 {
-                    uint32_t event = LOOP_play_event[track];
-
-                    // Prima del primo evento, tutti i Player di track devono aver gia' ricevuto NoteOff, altrimenti gli vengono inviati
-                    if (event == 0)
+                    if (LOOP_track_run[track] && LOOP_layer_events[track][layer] > 0 && (LOOP_Clock_frozen >= LOOP_play_time[track][layer]))
                     {
-                        Players_Manager->Multicast_stop_players_for_loop_track(track);
-                    }
-                    midi_channel = LOOP_element[track][event].midi_channel;
-                    note_number = constrain(LOOP_element[track][event].note_number + LOOP_pitch_int[track], 0, 127);
-                    velocity = LOOP_element[track][event].velocity;
-                    velocity_float = velocity / 127.0f;
+                        uint32_t event = LOOP_play_event[track][layer];
 
-                    if (LOOP_element[track][event].note_on)
-                    {
-                        if (tuning_tone_flag)
+                        // Prima del primo evento, tutti i Player di track devono aver gia' ricevuto NoteOff, altrimenti gli vengono inviati
+                        if (event == LOOP_time_order[track][layer][0])
                         {
-                            tuning_tone_last_note = note_number;
-                            Tone_generator->Frequency(pitch_from_note[note_number] * 261.63);
-                            Tone_generator->Amplitude(Volume_float[tuning_tone_volume]);
-                            Tone_generator->Start();
-                            TT_playing = true;
-                            TT_led_flag = true;
+                            Players_Manager->Multicast_stop_players_for_loop_layer(track, layer);
                         }
+                        midi_channel = LOOP_element[track][layer][event].midi_channel;
+                        note_number = constrain(LOOP_element[track][layer][event].note_number + LOOP_pitch_int[track], 0, 127);
+                        velocity = LOOP_element[track][layer][event].velocity;
+                        velocity_float = velocity / 127.0f;
 
-                        for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+                        if (LOOP_element[track][layer][event].note_on)
                         {
-                            if ((Patch[Patch_id].Instrument[instrument_id].used) && bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id))
+                            if (tuning_tone_flag)
                             {
-                                Players_Manager->Play_note(instrument_id, note_number, velocity_float, track);
+                                tuning_tone_last_note = note_number;
+                                Tone_generator->Frequency(pitch_from_note[note_number] * 261.63);
+                                Tone_generator->Amplitude(Volume_float[tuning_tone_volume]);
+                                Tone_generator->Start();
+                                TT_playing = true;
+                                TT_led_flag = true;
                             }
+
+                            for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
+                            {
+                                if ((Patch[Patch_id].Instrument[instrument_id].used) && bitRead(map_instrument_for_note[midi_channel][note_number], instrument_id))
+                                {
+                                    Players_Manager->Play_note(instrument_id, note_number, velocity_float, track, layer);
+                                }
+                            }
+
                         }
 
-                    }
-
-                    else if (!LOOP_element[track][event].note_on)
-                    {
-                        if (tuning_tone_flag && (tuning_tone_last_note == note_number))
+                        else if (!LOOP_element[track][layer][event].note_on)
                         {
-                            Tone_generator->Stop();
-                            TT_playing = false;
-                            TT_led_flag = true;
+                            if (tuning_tone_flag && (tuning_tone_last_note == note_number))
+                            {
+                                Tone_generator->Stop();
+                                TT_playing = false;
+                                TT_led_flag = true;
+                            }
+
+                            // for(auto i = 0; i < 127; ++i)
+                            // {
+                            //  Serial.print(key_state[0][i]);
+                            //  Serial.print("-");
+                            //  }
+                            // Serial.println();
+
+                            Players_Manager->Multicast_stop_players_for_NoteOff(midi_channel, note_number, track, layer);
                         }
 
-                        // for(auto i = 0; i < 127; ++i)
-                        // {
-                        //  Serial.print(key_state[0][i]);
-                        //  Serial.print("-");
-                        //  }
-                        // Serial.println();
+                        // Prossimo evento
+                        LOOP_play_event[track][layer] = (LOOP_play_event[track][layer] + 1) % LOOP_layer_events[track][layer];
+                        const uint32_t next = LOOP_play_event[track][layer];
+                        LOOP_play_time[track][layer] += LOOP_element[track][layer][next].time - LOOP_element[track][layer][event].time;
+                        if (next == LOOP_time_order[track][layer][0])
+                        {
+                            LOOP_play_time[track][layer] += LOOP_time;
+                        }
+                        // Serial.print("Prossimo evento tra ms virtuali:");
+                        // Serial.println(LOOP_play_time[track][layer] - LOOP_Clock_frozen);
 
-                        Players_Manager->Multicast_stop_players_for_NoteOff(midi_channel, note_number, track);
+                        /*
+                        Serial.print("Si prosegue con l'evento:");
+                        Serial.print(LOOP_play_event[track][layer]);
+                        Serial.print(" del track:");
+                        Serial.print(track);
+                        Serial.print(" tra ms virtuali:");
+                        Serial.println(LOOP_play_time[track][layer] - LOOP_Clock());
+                        Serial.print("*************");
+                        */
                     }
-
-                    // Prossimo evento
-                    LOOP_play_event[track] = (LOOP_play_event[track] + 1) % LOOP_events[track];
-                    LOOP_play_time[track] = LOOP_Clock_time_from_virtual_time(LOOP_element[track][LOOP_play_event[track]].time);
-                    // Serial.print("Prossimo evento tra ms virtuali:");
-                    // Serial.println(LOOP_play_time[track] - LOOP_Clock_frozen);
-
-                    /*
-                    Serial.print("Si prosegue con l'evento:");
-                    Serial.print(LOOP_play_event[track]);
-                    Serial.print(" del track:");
-                    Serial.print(track);
-                    Serial.print(" tra ms virtuali:");
-                    Serial.println(LOOP_play_time[track] - LOOP_Clock());
-                    Serial.print("*************");
-                    */
                 }
             }
         }
