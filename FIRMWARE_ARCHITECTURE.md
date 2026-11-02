@@ -83,6 +83,14 @@ Main playback passes through common output filters before being combined with in
 
 The input also supplies both recording modes. Live Sampler can combine that input with sound returning from the playback path; its feedback is separate from the delay's feedback.
 
+### Mixer
+
+The Mixer brings together the patch's eight Sound sources and the line input. Mute and gain determine each source's contribution, while pan places the Sound sources in the stereo field. The line input has its own level and routing controls.
+
+Two destinations can be selected independently: **LINEOUT** feeds the main output, and **PRE_LIST** feeds the separate pre-listening output. Pre-listening selects one source at a time, including the line input, so material can be auditioned without sending it to the main output. Choosing another source for pre-listening leaves the main-output routes unchanged.
+
+These controls act on the playback and input paths shown above. They let the performer balance the patch and decide what reaches the audience and what is heard privately. Delay sends are selected separately on the Delay page.
+
 <br><br>
 
 ## 4. AudioPlayer
