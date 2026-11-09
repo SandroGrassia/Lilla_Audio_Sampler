@@ -110,7 +110,6 @@
 #include "WaveVibrato.h"
 #include "WavetableManager.h"
 #include "AudioTables.h"
-#include "WaveLFO.h"
 #include "FilterBiquadManager.h"
 #include "LillaClock.h"
 #include "PerformanceLedSet.h"
@@ -316,9 +315,6 @@ DMAMEM AudioTables Audio_tables;                     // Store and manage wavetab
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // Create the hardware MIDI interface on Serial1.
 
 FilterBiquadManager Filter_Biquad_Manager; // Manage biquad filter configuration.
-AudioVCF VCF[PLAYERS];                     // Per-voice voltage-controlled filter processing objects.
-WaveLFO LFO_P0[PLAYERS];                   // Per-voice filter modulation oscillators.
-WaveLFO LFO_D[2];                          // Modulation oscillators for the two delay channels.
 PlayersStatistics Players_statistics;      // Track active voices and their instrument and loop-track assignments.
 FlashFileRegisterParser File_scanner;      // Scan Flash files and cache their metadata.
 
@@ -14845,17 +14841,14 @@ FLASHMEM void Startup_hardware_and_objects(void)
         ADSR[i].Set_identity(i);
     }
 
-    // Setup Player and LFO
+    // Setup players
+    AudioPlayer::Live_Sampler = &LiveSampler;
+    AudioPlayer::Players_statistics_ptr = &Players_statistics;
     for (auto player = 0; player < PLAYERS; ++player)
     {
         Player[player].Set_identity(player);
         Player[player].Set_vibrato_pointers(Vibrato_array_pointer, Vibrato_array_last_element); // void Set_vibrato_pointers(float *p_vibrato_array_in, uint8_t *p_vibrato_array_last_element_in)
-        Player[player].VCF_ptr = &VCF[player];
-        Player[player].LFO_ptr = &LFO_P0[player];
-        Player[player].Live_Sampler = &LiveSampler;
-        Player[player].Players_statistics_ptr = &Players_statistics;
         Player[player].Set_ADSR_ptr(&ADSR[player]);
-        LFO_P0[player].identity = player;
     }
 
     for (auto instrument_id = 0; instrument_id < INSTRUMENTS; ++instrument_id)
@@ -14879,10 +14872,7 @@ FLASHMEM void Startup_hardware_and_objects(void)
     Trigger.Delay_Manager_ptr = &Delay_manager;
 
     // Setup Delays
-    Delay_L.LFO_ptr = &LFO_D[0];
-    Delay_R.LFO_ptr = &LFO_D[1];
-    LFO_D[0].identity = 88;
-    LFO_D[1].identity = 99;
+    Delay_manager.Connect_delays(Delay_L, Delay_R);
 
     // Setup Infotest
     Info.LiveSampler_ptr = &LiveSampler;
@@ -14903,10 +14893,6 @@ FLASHMEM void Startup_hardware_and_objects(void)
 
     // DelayManager
     Delay_manager.Compressor_ptr = &D_Compressor;
-    Delay_manager.Delay_L_ptr = &Delay_L;
-    Delay_manager.Delay_R_ptr = &Delay_R;
-    Delay_manager.LFO_D_ptr[0] = &LFO_D[0];
-    Delay_manager.LFO_D_ptr[1] = &LFO_D[1];
     Delay_manager.D_lpf_L_ptr = &D_lpf_L;
     Delay_manager.D_lpf_R_ptr = &D_lpf_R;
     Delay_manager.D_gain_L_feedback_ptr = &D_gain_L_feedback;
@@ -15249,11 +15235,7 @@ FLASHMEM void Reload_system_state(void)
     D_gain_L_feedback.Set_gain(Delay_values.loop_gain);
     D_gain_R_n.Set_gain(Delay_values.loop_gain);
 
-    LFO_D[0].Set_amplitude(1000); // notice: modulation depth is set in Delay(0), not here.
-    LFO_D[1].Set_amplitude(1000); // notice: modulation depth is set in Delay(1), not here.
-    LFO_D[0].Set_frequency(Delay_values.modulation_frequency);
-    LFO_D[1].Set_frequency(Delay_values.modulation_frequency);
-    LFO_D[0].Set_phase(Delay_values.modulation_phase_LR);
+    Delay_manager.Initialize_LFO();
 
     // *******************   LIVE SAMPLING  **********************
     LS_stereo = false;

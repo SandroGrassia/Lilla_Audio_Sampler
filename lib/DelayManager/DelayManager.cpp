@@ -5,6 +5,25 @@
 
 #include "DelayManager.h"
 
+void DelayManager::Connect_delays(StereoDelay &left, StereoDelay &right)
+{
+    Delay_L_ptr = &left;
+    Delay_R_ptr = &right;
+    left.LFO_ptr = &D_LFO[0];
+    right.LFO_ptr = &D_LFO[1];
+    D_LFO[0].identity = 88;
+    D_LFO[1].identity = 99;
+}
+
+void DelayManager::Initialize_LFO(void)
+{
+    D_LFO[0].Set_amplitude(1000); // Modulation depth is applied by the delay channels.
+    D_LFO[1].Set_amplitude(1000);
+    D_LFO[0].Set_frequency(Delay_values.modulation_frequency);
+    D_LFO[1].Set_frequency(Delay_values.modulation_frequency);
+    D_LFO[0].Set_phase(Delay_values.modulation_phase_LR);
+}
+
 int DelayManager::Get_value(int item) const // Keep requested values separate from the effective DSP values.
 {
     switch (item)
@@ -169,13 +188,13 @@ void DelayManager::Update(void) // Apply independent transitions once per audio 
     if (flag[MODULATION_FREQUENCY])
     {
         Delay_values.modulation_frequency = New_value(MODULATION_FREQUENCY);
-        LFO_D_ptr[0]->Set_frequency(Delay_values.modulation_frequency);
-        LFO_D_ptr[1]->Set_frequency(Delay_values.modulation_frequency);
+        D_LFO[0].Set_frequency(Delay_values.modulation_frequency);
+        D_LFO[1].Set_frequency(Delay_values.modulation_frequency);
     }
     if (flag[MODULATION_PHASE_LR])
     {
         Delay_values.modulation_phase_LR = lround(New_value(MODULATION_PHASE_LR));
-        LFO_D_ptr[0]->Set_phase(Delay_values.modulation_phase_LR);
+        D_LFO[0].Set_phase(Delay_values.modulation_phase_LR);
     }
     if (flag[FEEDBACK_CUTOFF])
     {

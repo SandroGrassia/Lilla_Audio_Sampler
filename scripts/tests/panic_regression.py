@@ -1,5 +1,6 @@
 """Exercise the production Panic sequence and player cancellation with a simulated audio callback."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -18,7 +19,7 @@ fixture = r'''
 #include <algorithm>
 #include <cstdio>
 constexpr int PLAYERS = 16, TRACKS = 4, AUDIO_BLOCK_SAMPLES = 128, DELAY_CACHE_CHANNEL_SAMPLES = 512;
-constexpr int IDLE = 0, IDLE_REQUEST = 1, PLAYING = 2, EN_PB_LineOutVol = 0, MIDI_LOOP = 3, DELAY_SETTINGS = 4, DIRECT_SAMPLING = 5;
+constexpr int EN_PB_LineOutVol = 0, MIDI_LOOP = 3, DELAY_SETTINGS = 4, DIRECT_SAMPLING = 5;
 bool irq = true, LOOP_track_run[TRACKS];
 bool feedback_restored = false;
 int elapsed = 0, player_duration = 0, gain_duration = 0, Lilla_state = 0, Lilla_state_0 = 0;
@@ -47,9 +48,8 @@ class AudioPlayer
 {
 public:
     bool warmup_for_play_again_flag = true, restart_flag = true, pending_note_released = true;
-    int state = PLAYING;
+    PLAYER_STATE_MEMBERS
     Envelope *ADSR = &envelope;
-    bool isPlaying() { assert(!irq); return state != IDLE; }
     void Fast_stop(void);
     void Panic_stop(void);
 } Player[PLAYERS];
@@ -90,7 +90,7 @@ void delay(int milliseconds)
         assert(!voice.warmup_for_play_again_flag && !voice.restart_flag && !voice.pending_note_released);
         if (elapsed >= player_duration)
         {
-            voice.state = IDLE;
+            voice.state = AudioPlayer::PlayerState::Idle;
         }
     }
 }
@@ -118,7 +118,7 @@ int main()
                 {
                     voice = AudioPlayer();
                 }
-                Player[0].state = IDLE; // Cancellation must also cover an idle voice with stale pending flags.
+                Player[0].state = AudioPlayer::PlayerState::Idle; // Cancellation must also cover an idle voice with stale pending flags.
                 Panic();
                 assert(feedback_restored);
                 assert(irq && elapsed >= std::max(duration, gain_duration) + 10);
@@ -137,7 +137,7 @@ compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-panic-') as directory:
     cpp = Path(directory) / 'panic.cpp'
     exe = Path(directory) / 'panic.exe'
-    cpp.write_text(fixture + methods + '\nvoid Panic() {\n' + panic + '\n}\n' + checks, encoding='utf-8', newline='\r\n')
+    cpp.write_text(with_player_state(fixture + methods + '\nvoid Panic() {\n' + panic + '\n}\n' + checks, "Playing"), encoding='utf-8', newline='\r\n')
     subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')

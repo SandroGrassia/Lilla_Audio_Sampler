@@ -30,6 +30,18 @@
 
 class AudioPlayer : public AudioStream
 {
+public:
+    enum class PlayerState : uint8_t
+    {
+        Idle, // No active source; a cached budget-retirement tail may still be emitted.
+        Playing, // Rendering with the assigned note still on, including a queued replacement.
+        Released, // Rendering after NoteOff for the assigned current or queued note.
+        Finishing, // Complete the final block with the assigned note still on.
+        FinishingReleased, // Complete the final block after the assigned note was released.
+        Finished, // Source ended and voice is available; final block cleanup is still pending.
+        FinishedWithPendingNote // Source ended, but a new NoteOn arrived before final block cleanup.
+    };
+
 private:
     static constexpr int BASKET_DIM = PlayerAntialias::Basket_capacity; // Includes source-domain IIR history at the maximum playback pitch.
     static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + PlayerAntialias::History_base + PlayerAntialias::History_per_pitch * MAX_PITCH_WAVETABLE + 2);
@@ -46,15 +58,10 @@ private:
     float budget_tail_pan_R = 0.0f;    // Preserve outgoing routing gains across a replacement start.
     uint8_t mix_samples = 32;
     uint8_t identity;
-    enum PlayerStates
-    {
-        IDLE,        // no output available
-        RUNNING,     // running, no stop request
-        FADING,      //  stop requested, output is falling down
-        IDLE_REQUEST // last update, than go to IDLE
-    };
-
-    int state;
+    volatile PlayerState state = PlayerState::Idle; // Single source of truth for rendering, availability and assigned-note gate.
+    bool Is_finishing(void) const; // Identify every final-block state requiring cleanup.
+    void Finish_block(void); // Request final-block cleanup while preserving availability and the note gate.
+    void Set_note_on(bool on); // Change the assigned-note gate without losing pending final-block cleanup.
     bool patch_release_pending = false;
     void Enforce_cycle_deadline(void);
     uint32_t patch_release_started = 0;
@@ -65,60 +72,6 @@ private:
     int file_id;
     uint32_t samples_counter; // starting from play()
 
-    volatile bool power_on = false; // play() ONLY can set power_on = true; the stop event (Release_note(), ADSR_gain=0, end of file) coming for first sets power_on=false:
-    volatile bool idle = true;
-
-    /*
-    power_on and idle
-
-    Get_ready_to_play() sets power_on=true, than Player waits for next update() to start playing (idle=false);
-    When Player starts playing, idle is set idle=false;
-    The stop event coming for first sets power_on=false:
-        - Release_note() has less priority, it only sets power_on=false
-        - ADSR_gain=0 immediately sets power_on=false, idle=true
-        - same End-Of-File event
-
-    ** Release_note() comes first:
-    play     ______!________________________________
-    Release_note ____________________%______________
-
-    power_on ______|-----------------%______________
-    idle     ------|_______________________|--------
-
-    ADSR_gain _____|***********************|________
-    EOF      ____________________________________!__
-
-    state   0000000111111111111111111222222000000000
-
-
-
-    ** ADSR_gain=0 comes first:
-    play     ______!________________________________
-    Release_note _____________________!_____________
-
-    power_on ______|--------------%_________________
-    idle     ------|______________|-----------------
-
-    ADSR_gain______|**************%_________________
-    EOF      ____________________________________!__
-
-    state   0000000111111111111111100000000000000000
-
-
-
-    ** End-Of-File comes first:
-    play     ______!________________________________
-    Release_note ____________________!______________
-
-    power_on ______|----------%_____________________
-    idle     ------|__________|---------------------
-
-    ADSR    _______|*************************|______
-    EOF      _________________%_____________________
-
-    state   0000000111111111110000000000000000000000
-
-    */
 
     float *vibrato_array_ptr;
     float vibrato_array_element_float = 0;
@@ -135,6 +88,8 @@ private:
     int loop_layer_wait = -1; // Layer owning the queued loop voice.
 
     // VCF
+    AudioVCF VCF; // Own the filter processing state for this voice.
+    WaveLFO LFO; // Own the filter modulation oscillator for this voice.
     bool VCF_connect = false;
     bool VCF_modulated = false;
     float VCF_frequency_pivot = 5000.0;
@@ -261,7 +216,7 @@ private:
     int downsampling_wait;
 
     // flags
-    bool warmup_for_play_again_flag = false; // quando si riceve Get_ready_to_play ma il Player è !idle, il Player non puo' partire immediatamente
+    bool warmup_for_play_again_flag = false; // Queue a replacement until the outgoing crossfade can be harvested.
     bool restart_flag = false;
     bool pending_note_released = false; // A NoteOff for the replacement must survive until Start_playing().
     float modulation_depth = 0.0f;
@@ -360,19 +315,17 @@ public:
     void Update_tone_filter(int patch, int instrument, uint8_t level);
     void begin(void);
     virtual void update(void);
-    int State(void);
+    PlayerState State(void) const; // Return the named rendering and assigned-note state.
 
     // Settati alla creazione di ciascuna istanza
-    void Set_identity(uint8_t value);
-    AudioVCF *VCF_ptr = nullptr;
-    WaveLFO *LFO_ptr = nullptr;
-    StereoLiveSampler *Live_Sampler = nullptr;        // meglio static!
-    PlayersStatistics *Players_statistics_ptr = nullptr; // meglio static!
+    void Set_identity(uint8_t value); // Set the voice and its modulation oscillator identity.
+    static StereoLiveSampler *Live_Sampler; // Shared live recorder used by every voice.
+    static PlayersStatistics *Players_statistics_ptr; // Shared voice statistics service.
 
     // Received when Live Sampler buffer is created
-    int16_t *LS_buffer_mono_ptr = nullptr;
-    int16_t *LS_buffer_L_ptr = nullptr;
-    int16_t *LS_buffer_R_ptr = nullptr;
+    static int16_t *LS_buffer_mono_ptr; // Shared mono Live Sampler buffer.
+    static int16_t *LS_buffer_L_ptr; // Shared left-channel Live Sampler buffer.
+    static int16_t *LS_buffer_R_ptr; // Shared right-channel Live Sampler buffer.
 
     // Received after ADS moduls
     void Set_ADSR_ptr(AudioADSR *ptr);
@@ -385,8 +338,8 @@ public:
     void Update_LFO_index(float new_index);
     void Update_VCF_resonance(float resonance);
 
-    bool isPlaying(void);
-    bool isPoweredOn(void);
+    bool isPlaying(void) const; // Report voice occupancy, including final-block rendering before source completion.
+    bool isPoweredOn(void) const; // Report the gate of the assigned current or queued note.
     bool Has_pending_note(void) const; // Return whether an active voice has a queued replacement note.
     bool Needs_restart_mix(void) const; // Return whether the queued note needs an outgoing crossfade.
     int Assigned_note(void) const; // Return the queued note number, or the current note when none is pending.

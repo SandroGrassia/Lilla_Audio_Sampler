@@ -1,5 +1,6 @@
 """Exercise production volume ramps, exact mute, retargeting and counter rollover."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -19,7 +20,8 @@ code = r'''
 #include <cmath>
 struct AudioPlayer
 {
-    bool idle = false, volume_flag = false, volume_gain_warmup_flag = false;
+    PLAYER_STATE_MEMBERS
+    bool volume_flag = false, volume_gain_warmup_flag = false;
     STEP_DECLARATION
     float volume_gain = 0, volume_gain_wait = 0;
     uint32_t samples_counter = 0;
@@ -98,7 +100,7 @@ int main()
 compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-volume-') as directory:
     cpp, exe = Path(directory) / 'volume.cpp', Path(directory) / 'volume.exe'
-    cpp.write_text(code, encoding='utf-8')
+    cpp.write_text(with_player_state(code, "Playing"), encoding='utf-8')
     subprocess.run([compiler, '-std=c++17', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')

@@ -18,6 +18,7 @@
 class DelayManager
 {
 private:
+    WaveLFO D_LFO[2]; // Own the modulation oscillators for the left and right delay channels.
     static constexpr int steps = 30;
     static constexpr double n0 = 0.02748805251448725;
     static constexpr double n1 = 0.0178446670423745;
@@ -40,12 +41,13 @@ public:
     LillaCompressor *Compressor_ptr = nullptr;
     StereoDelay *Delay_L_ptr = nullptr;
     StereoDelay *Delay_R_ptr = nullptr;
-    WaveLFO *LFO_D_ptr[2] = {};
     AudioGain *D_gain_L_feedback_ptr = nullptr;
     AudioGain *D_gain_R_feedback_ptr = nullptr;
     AudioFilterBiquad *D_lpf_L_ptr = nullptr;
     AudioFilterBiquad *D_lpf_R_ptr = nullptr;
     PlayersManager *Players_Manager_ptr = nullptr;
+    void Connect_delays(StereoDelay &left, StereoDelay &right); // Connect both audio channels to the owned oscillators during startup.
+    void Initialize_LFO(void); // Apply initial modulation values after delay settings are loaded.
     void Update(void); // Apply pending parameters from the audio callback without serial output.
     bool New_values(const Delay_data_struct *data); // Submit a complete patch target with audio interrupts disabled.
     bool Set_value(int item, int value); // Replace one UI target without cancelling other transitions; disable audio interrupts first.

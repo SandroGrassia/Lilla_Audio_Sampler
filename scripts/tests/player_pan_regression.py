@@ -1,5 +1,6 @@
 """Exercise live PAN changes, reversals and fresh-note ramp reset using production code."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -20,7 +21,8 @@ constexpr int SAMPLES_VOLUME = 5000;
 float pan_gain_L_table[33], pan_gain_R_table[33];
 struct AudioPlayer
 {
-    bool idle = false, pan_flag = false, pan_gain_warmup_flag = false;
+    PLAYER_STATE_MEMBERS
+    bool pan_flag = false, pan_gain_warmup_flag = false;
     int pan_int = 0, pan_int_wait = 0;
     uint32_t samples_counter = 0, JP0 = 0;
     float pan_gain_L = 0, pan_gain_R = 0, pan_gain_L_wait = 0, pan_gain_R_wait = 0, K_pan_gain_L = 0, K_pan_gain_R = 0;
@@ -113,11 +115,11 @@ int main()
     player.Start();
     player.Run();
     player.Check(-16);
-    player.idle = true;
+    player.state = AudioPlayer::PlayerState::Idle;
     player.Update_pan(0);
     assert(!player.pan_gain_warmup_flag);
     player.Start();
-    player.idle = false;
+    player.state = AudioPlayer::PlayerState::Playing;
     player.Check(0);
     std::cout << "PASS: live PAN reset, ramp reversal, queued edits, exact endpoints and new-note reset\n";
 }
@@ -127,6 +129,6 @@ environment = os.environ.copy()
 environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
 with tempfile.TemporaryDirectory(prefix='player-pan-') as folder:
     cpp, exe = Path(folder) / 'test.cpp', Path(folder) / 'test.exe'
-    cpp.write_text(code, encoding='utf-8')
+    cpp.write_text(with_player_state(code, "Playing"), encoding='utf-8')
     subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True, env=environment)
     subprocess.run([str(exe)], check=True, env=environment)

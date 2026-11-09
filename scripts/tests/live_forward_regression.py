@@ -1,5 +1,6 @@
 """Exercise production Live FWD harvesting, write-head jumps and output ramps."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import shutil
 import subprocess
@@ -17,7 +18,7 @@ prefix = r'''
 #include <iostream>
 #include "PlayerAntialias.h"
 #include "PlayerInterpolator.h"
-constexpr int AUDIO_BLOCK_SAMPLES = 128, ONCE_FWD = 0, ONCE_REV = 1, LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV = 5, IDLE = 0, IDLE_REQUEST = 2, REC = 1, FIRST_LIVE_SAMPLING_FILE = 320;
+constexpr int AUDIO_BLOCK_SAMPLES = 128, ONCE_FWD = 0, ONCE_REV = 1, LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV = 5, REC = 1, FIRST_LIVE_SAMPLING_FILE = 320;
 int LS_buffer_dim = 4096, LS_X_delta = 0, LS_state = REC;
 bool LS_XY_lock = false;
 constexpr float MIN_PITCH = 0.01f;
@@ -38,11 +39,12 @@ struct AudioPlayer
     bool LS_flag = true, use_Wavetable = false, live_forward_end = false, live_forward_empty = false;
     bool live_start_pending = false, live_restart_pending = false, live_fade_out = false, live_fade_in = false;
     bool live_slow_read_blocked = false;
-    bool warmup_for_play_again_flag = false, idle = false, power_on = true;
+    bool warmup_for_play_again_flag = false;
     inline static volatile bool live_unrecorded_notice = false;
     float live_restart_sample = 0.0f;
     int live_last_read_sample = 0;
-    int mode_player = ONCE_FWD, state = 1, closes = 0;
+    PLAYER_STATE_MEMBERS
+    int mode_player = ONCE_FWD, closes = 0;
     int A_Flash_sample = 0, B_Flash_sample = 4095, C_Flash_sample = 8190, B_Flash_sample_shifted = 4095;
     int Flash_first_RAM_sample = 0, Wavetable_length = 128, delta_Noclick = 0;
     int16_t *Wavetable_ptr = memory, *Noclick_ptr = memory;
@@ -272,7 +274,7 @@ int main()
                     p.Render();
                     assert(p.live_fade_in && !p.live_restart_pending && p.block[0] == 0);
                     assert((static_cast<int>(p.a_sample) % LS_buffer_dim + LS_buffer_dim) % LS_buffer_dim == destination);
-                    assert(p.state == 1 && p.closes == 0);
+                    assert(p.state == AudioPlayer::PlayerState::Playing && p.closes == 0);
                 }
             }
         }
@@ -403,7 +405,7 @@ int main()
         p.tone_filter_level = filtered ? 0x81 : 0;
         p.a_first_sample = 200;
         p.Render();
-        assert(p.live_forward_end && p.state == IDLE_REQUEST && !p.live_restart_pending && p.block[127] == 0);
+        assert(p.live_forward_end && p.Is_finishing() && !p.live_restart_pending && p.block[127] == 0);
     }
     // Continuous full-cache reading ignores B after STOP for linear, sinc and antialias paths.
     recorder.first_write_flag = false;
@@ -422,7 +424,7 @@ int main()
             for (int i = 0; i < 150; ++i)
             {
                 p.Render();
-                assert(p.state == 1 && p.closes == 0 && !p.live_restart_pending);
+                assert(p.state == AudioPlayer::PlayerState::Playing && p.closes == 0 && !p.live_restart_pending);
                 assert(p.a_first_sample >= 4000 && p.a_first_sample < 8096);
             }
         }
@@ -639,7 +641,7 @@ int main()
                 assert(p.live_forward_end == !allowed && AudioPlayer::live_unrecorded_notice == !allowed);
                 if (allowed)
                 {
-                    assert(p.a_sample == start && p.A_Flash_sample == start && p.state == 1);
+                    assert(p.a_sample == start && p.A_Flash_sample == start && p.state == AudioPlayer::PlayerState::Playing);
                     assert(!p.live_fade_out && !p.live_restart_pending);
                     if (speed == 1)
                     {
@@ -652,7 +654,7 @@ int main()
                 }
                 else
                 {
-                    assert(p.state == IDLE_REQUEST && p.read_last == -1);
+                    assert(p.Is_finishing() && p.read_last == -1);
                     for (int value : p.block)
                     {
                         assert(value == 0);
@@ -676,7 +678,7 @@ int main()
             for (int cycle = 0; cycle < 250; ++cycle)
             {
                 p.Render();
-                assert(p.state == 1 && !p.live_forward_end && !p.live_restart_pending);
+                assert(p.state == AudioPlayer::PlayerState::Playing && !p.live_forward_end && !p.live_restart_pending);
                 if (cycle == 0)
                 {
                     assert(p.interpolation_mix == 0 && p.read_last <= 127);
@@ -819,7 +821,7 @@ int main()
                     assert(p.live_forward_end == !valid && AudioPlayer::live_unrecorded_notice == !valid);
                     if (!valid)
                     {
-                        assert(p.state == IDLE_REQUEST && p.read_last == -1);
+                        assert(p.Is_finishing() && p.read_last == -1);
                     }
                     for (int phase : {0, span - 80, span - 50})
                     {
@@ -895,7 +897,7 @@ int main()
         assert(!queued.live_restart_pending);
         AudioPlayer inactive;
         inactive.mode_player = mode;
-        inactive.state = IDLE;
+        inactive.state = AudioPlayer::PlayerState::Idle;
         inactive.Resume_live_recording(1024);
         assert(inactive.mode_player == mode && !inactive.live_restart_pending);
     }
@@ -924,7 +926,7 @@ int main()
     assert(rejected_filter.live_forward_end && rejected_filter.antialias.mix > 0);
     recorder.first_write_flag = false;
     rejected_filter.live_start_pending = true;
-    rejected_filter.state = 1;
+    rejected_filter.state = AudioPlayer::PlayerState::Playing;
     rejected_filter.Render();
     assert(!rejected_filter.live_forward_end && rejected_filter.antialias.mix > 0);
     // Ordinary file loops retain their NoClick table.
@@ -973,7 +975,7 @@ with tempfile.TemporaryDirectory(prefix='lilla-live-forward-') as folder:
     edit_start = source.index('            if (mode_player != mode_player_E || A_Flash_sample != A_Flash_sample_E')
     edit_end = source.index('            a_first_sample = a_first_sample_E;', edit_start)
     edit_geometry = 'void AudioPlayer::Edit_geometry(int mode_player_E, int A_Flash_sample_E, int B_Flash_sample_E)\n{\n' + source[edit_start:edit_end] + 'A_Flash_sample = A_Flash_sample_E; B_Flash_sample = B_Flash_sample_E;\n}\n'
-    cpp.write_text(prefix + ''.join(method(source, s) for s in signatures) + pitch_requests + edit_geometry + checks, encoding='utf-8')
+    cpp.write_text(with_player_state(prefix + ''.join(method(source, s) for s in signatures) + pitch_requests + edit_geometry + checks, "Playing"), encoding='utf-8')
     lib = ROOT / 'lib/AudioPlayer'
     subprocess.run([compiler, '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-I' + str(lib), str(cpp), str(lib / 'PlayerAntialias.cpp'), str(lib / 'PlayerInterpolator.cpp'), '-o', str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)

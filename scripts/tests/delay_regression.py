@@ -51,6 +51,9 @@ public:
  int16_t block[AUDIO_BLOCK_SAMPLES]={};
  float frequency=0;
  int phase=0;
+ int identity=100;
+ int amplitude=0;
+ void Set_amplitude(int value) { amplitude=value; }
  void Update() {} // Keep modulation deterministic.
  void Set_frequency(float value) { frequency=value; }
  void Set_phase(int value) { phase=value; }
@@ -128,10 +131,16 @@ int main() {
  StereoDelay left,right;
  std::vector<int16_t> fifo(DELAY_CACHE_CHANNEL_SAMPLES,100);
  left.DELAY_fifo=fifo.data(); right.DELAY_fifo=fifo.data();
- WaveLFO lfoL,lfoR; left.LFO_ptr=&lfoL; right.LFO_ptr=&lfoR;
  AudioGain gainL,gainR;
  PlayersManager players;
  DelayManager &m = Delay_manager;
+ m.Connect_delays(left, right);
+ m.Initialize_LFO();
+ assert(left.LFO_ptr == &m.D_LFO[0] && right.LFO_ptr == &m.D_LFO[1]);
+ assert(left.LFO_ptr->identity == 88 && right.LFO_ptr->identity == 99);
+ assert(left.LFO_ptr->amplitude == 1000 && right.LFO_ptr->amplitude == 1000);
+ assert(left.LFO_ptr->frequency == Delay_values.modulation_frequency && right.LFO_ptr->frequency == Delay_values.modulation_frequency);
+ assert(left.LFO_ptr->phase == Delay_values.modulation_phase_LR);
  LillaCompressor compressor;
  m.Compressor_ptr = &compressor;
  compressor.Set_enabled(true);
@@ -147,7 +156,7 @@ int main() {
  assert(compressor.threshold == -3);
  AudioFilterBiquad filterL, filterR;
  m.D_lpf_L_ptr = &filterL; m.D_lpf_R_ptr = &filterR;
- m.Delay_L_ptr=&left; m.Delay_R_ptr=&right; m.LFO_D_ptr[0]=&lfoL; m.LFO_D_ptr[1]=&lfoR; m.D_gain_L_feedback_ptr=&gainL; m.D_gain_R_feedback_ptr=&gainR; m.Players_Manager_ptr=&players;
+ m.D_gain_L_feedback_ptr=&gainL; m.D_gain_R_feedback_ptr=&gainR; m.Players_Manager_ptr=&players;
  assert(m.Set_value(INSTRUMENT_ROUTE,0xA4)); m.Update(); assert(players.routes.size()==8); for(int i=0;i<8;++i) assert(players.routes[i]==i);
  m.Set_value(SAMPLES,50);
  for(int offset: {-5,0,5,0,-10,10,0}) {
@@ -161,6 +170,8 @@ int main() {
  for(int i=0;i<10;++i) { m.Update(); DrainGain(gainL); DrainGain(gainR); }
  float previous=Delay_values.modulation_depth; m.Set_value(MODULATION_DEPTH,0); assert(m.y_1[MODULATION_DEPTH]==previous); assert(m.remaining[MODULATION_FREQUENCY]==20);
  for(int i=0;i<30;++i) { m.Update(); DrainGain(gainL); DrainGain(gainR); assert(Delay_values.loop_gain>=Delay_feedback(9) && Delay_values.loop_gain<=0); }
+ assert(left.LFO_ptr->frequency == Calc_delay_frequency(90) && right.LFO_ptr->frequency == Calc_delay_frequency(90));
+ assert(left.LFO_ptr->phase == 359);
  assert(Delay_values.modulation_depth==0); assert(Delay_values.modulation_frequency==Calc_delay_frequency(90)); assert(Delay_values.modulation_phase_LR==359); assert(Delay_values.loop_gain==Delay_feedback(9)); assert(gainL.gain_runtime==Delay_feedback(9));
  for(int i=0;i<DELAY_ITEMS;++i) assert(!m.flag[i]);
  float frequency=Delay_values.modulation_frequency; m.Set_value(INSTRUMENT_ROUTE,1); for(int i=0;i<40;++i) m.Update(); assert(Delay_values.modulation_frequency==frequency);

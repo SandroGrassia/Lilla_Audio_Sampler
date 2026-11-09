@@ -30,10 +30,8 @@ struct AudioPlayer
     float VCF_central_frequency = 1000, VCF_frequency_array[4] = {}, pitch = 2;
     int VCF_pivot_steps = 0, LFO_index_steps = 0;
     float LFO_index = 1, LFO_index_grain = 0;
-    Filter filter;
-    Wave wave;
-    Filter *VCF_ptr = &filter;
-    Wave *LFO_ptr = &wave;
+    Filter VCF;
+    Wave LFO;
     void Update_VCF_pivot(float);
     void Send_LFO_to_VCF();
 };
@@ -45,12 +43,12 @@ int main()
     probe.VCF_modulated = true;
     probe.pitch = 1;
     probe.Send_LFO_to_VCF();
-    assert(probe.filter.first == 1000);
+    assert(probe.VCF.first == 1000);
     probe.pitch = 2;
     probe.LFO_index_steps = 1000;
     probe.LFO_index_grain = 0.001f;
     probe.Send_LFO_to_VCF();
-    assert(probe.filter.first == 1000);
+    assert(probe.VCF.first == 1000);
     probe.Update_VCF_pivot(2000);
     for (int block = 0; block < 10; ++block)
     {
@@ -59,7 +57,7 @@ int main()
     assert(probe.VCF_central_frequency == 4000);
     probe.pitch = 0.5f;
     probe.Send_LFO_to_VCF();
-    assert(probe.filter.first == 4000);
+    assert(probe.VCF.first == 4000);
     for (bool modulated : {false, true})
     {
         AudioPlayer player;
@@ -75,7 +73,7 @@ int main()
                 const float expected = (1000 + 75 * (block * 4 + section + 1)) * (modulated ? 2 : 1);
                 assert(std::fabs(player.VCF_frequency_array[section] - expected) < 0.01f);
             }
-            assert(player.filter.first == player.VCF_frequency_array[0]);
+            assert(player.VCF.first == player.VCF_frequency_array[0]);
         }
         assert(player.VCF_frequency_pivot == 4000 && player.VCF_pivot_steps == 0);
         assert(player.LFO_index_steps == (modulated ? 960 : 1000));
@@ -95,11 +93,11 @@ int main()
         // LFO modulation is retained and constrained to the supported range.
         if (modulated)
         {
-            player.wave.block[0] = 1000;
+            player.LFO.block[0] = 1000;
             player.VCF_frequency_pivot = 1000;
             player.VCF_central_frequency = 2000;
             player.Send_LFO_to_VCF();
-            assert(std::fabs(player.filter.first - 2000 * std::exp2(player.LFO_index - 0.003f)) < 0.1f);
+            assert(std::fabs(player.VCF.first - 2000 * std::exp2(player.LFO_index - 0.003f)) < 0.1f);
         }
     }
     std::cout << "PASS: live VCF cutoff, simultaneous LFO edits, small changes and ramp retargeting\n";

@@ -1,5 +1,6 @@
 """Exercise the real MIDI parser, production collector and pending-note control methods on the host."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -104,9 +105,8 @@ struct Envelope
 };
 struct AudioPlayer
 {
-    enum { IDLE, RUNNING, FADING };
-    int state = IDLE;
-    bool idle = true, power_on = false, warmup_for_play_again_flag = false, restart_flag = false, main_settings_editing_flag = false, pending_note_released = false;
+    PLAYER_STATE_MEMBERS
+    bool warmup_for_play_again_flag = false, restart_flag = false, main_settings_editing_flag = false, pending_note_released = false;
     bool vibrato_flag = false;
     bool patch_release_pending = false;
     unsigned closes = 0;
@@ -138,7 +138,6 @@ struct AudioPlayer
     int loop_layer = -1, loop_layer_wait = -1;
     int Assigned_instrument(void) const;
     int Assigned_patch(void) const;
-    bool isPoweredOn() { return power_on; }
     int Read_midi_channel() { return channel; }
     void Write_time_stamp(uint32_t value) { time_stamp = value; }
     void My_LED(bool) {}
@@ -196,7 +195,7 @@ production += method(manager, 'void PlayersManager::Calculate_and_set_mix_sample
 # Test the production pending-release completion block without mocking the complete audio renderer.
 start = method(player, 'void AudioPlayer::Start_playing')
 tail = start[start.index('    if (pending_note_released)'):]
-production += 'void AudioPlayer::Start_playing()\n{\n    note = note_wait; track = track_wait; loop_layer = loop_layer_wait; instrument_id = instrument_id_wait; local_patch = patch_id_wait; idle = false; state = RUNNING;\n' + tail
+production += 'void AudioPlayer::Start_playing()\n{\n    note = note_wait; track = track_wait; loop_layer = loop_layer_wait; instrument_id = instrument_id_wait; local_patch = patch_id_wait; state = isPoweredOn() ? PlayerState::Playing : PlayerState::Released;\n' + tail
 
 tests = r'''
 void reset()
@@ -264,37 +263,36 @@ int main()
         for (int id = 0; id < 4; ++id)
         {
             auto &item = layers.voices[id];
-            item.state = AudioPlayer::RUNNING;
-            item.power_on = true;
+            item.state = AudioPlayer::PlayerState::Playing;
             item.note = 60;
             item.channel = 0;
             item.track = 1;
             item.loop_layer = id;
         }
         layers.Multicast_stop_players_for_NoteOff(0, 60, 1, 2);
-        assert(!layers.voices[2].power_on);
-        assert(layers.voices[0].power_on && layers.voices[1].power_on && layers.voices[3].power_on);
+        assert(!layers.voices[2].isPoweredOn());
+        assert(layers.voices[0].isPoweredOn() && layers.voices[1].isPoweredOn() && layers.voices[3].isPoweredOn());
         layers.Multicast_stop_players_for_loop_layer(1, 1);
-        assert(!layers.voices[1].power_on && layers.voices[0].power_on && layers.voices[3].power_on);
+        assert(!layers.voices[1].isPoweredOn() && layers.voices[0].isPoweredOn() && layers.voices[3].isPoweredOn());
         auto &pending = layers.voices[3];
         pending.restart_flag = true;
         pending.track_wait = 1;
         pending.note_wait = 60;
         pending.loop_layer_wait = 0;
         layers.Multicast_stop_players_for_NoteOff(0, 60, 1, 3);
-        assert(pending.power_on && !pending.pending_note_released);
+        assert(pending.isPoweredOn() && !pending.pending_note_released);
         layers.Multicast_stop_players_for_NoteOff(0, 60, 1, 0);
-        assert(!pending.power_on && pending.pending_note_released);
+        assert(!pending.isPoweredOn() && pending.pending_note_released);
     }
     assert(voice.Read_midi_channel() == 0 && voice.Assigned_note() == 62 && voice.Assigned_track() == 2);
-    pm.Multicast_stop_players_for_NoteOff(0, 62, -1); assert(voice.power_on);
-    pm.Multicast_stop_players_for_NoteOff(0, 60, 2); assert(voice.power_on);
-    pm.Multicast_stop_players_for_NoteOff(0, 62, 2); assert(!voice.power_on && voice.pending_note_released);
-    voice.Start_playing(); assert(voice.state == AudioPlayer::FADING && voice.envelope.releases == 1);
-    voice.Get_ready_to_play(1, 1, 0, 0, 0, 62); assert(voice.power_on && !voice.pending_note_released);
+    pm.Multicast_stop_players_for_NoteOff(0, 62, -1); assert(voice.isPoweredOn());
+    pm.Multicast_stop_players_for_NoteOff(0, 60, 2); assert(voice.isPoweredOn());
+    pm.Multicast_stop_players_for_NoteOff(0, 62, 2); assert(!voice.isPoweredOn() && voice.pending_note_released);
+    voice.Start_playing(); assert(voice.state == AudioPlayer::PlayerState::Released && voice.envelope.releases == 1);
+    voice.Get_ready_to_play(1, 1, 0, 0, 0, 62); assert(voice.isPoweredOn() && !voice.pending_note_released);
     pm.Begin_midi_batch(); assert(pm.Player_booked[0]);
     pm.End_midi_batch(); pm.midi_batch_active = true; pm.Calculate_and_set_mix_samples(); pm.midi_batch_active = false; assert(pm.mix_calls == 1 && pm.mixed_players == 1);
-    assert(voice.mix_samples == 64 && !pm.midi_batch_active); // The 64-sample tier must assign and account for 64 samples.
+    assert(voice.mix_samples == 128 && !pm.midi_batch_active); // The full-block tier must assign and account for 128 samples.
     audio_update_time_micros = 3000;
     pm.Begin_midi_batch(); pm.End_midi_batch(); pm.midi_batch_active = true; pm.Calculate_and_set_mix_samples(); pm.midi_batch_active = false; assert(voice.mix_samples == 0);
     assert(pm.Get_span_for_all_cross_mix() == PlayerReadBudget::Limit_us); // Main-loop edits must not subtract an old IRQ timestamp.
@@ -315,18 +313,18 @@ int main()
     clock.update(); assert(audio_update_time_micros == 0 && audio_update_cycle == 1 && callbacks.calls == 0);
     clock.stop_flag = false; clock.update(); assert(audio_update_cycle == 2 && callbacks.calls == 3);
     // Emergency protection includes time spent before Player 0 and discards queued restarts safely.
-    voice.state = AudioPlayer::RUNNING; voice.idle = false; voice.power_on = true;
+    voice.state = AudioPlayer::PlayerState::Playing;
     voice.warmup_for_play_again_flag = true; voice.restart_flag = true;
     voice.pending_note_released = true; voice.main_settings_editing_flag = true; voice.patch_release_pending = true;
     audio_update_time_micros = AUDIO_PLAYER_DEADLINE_US - 1;
-    voice.Enforce_cycle_deadline(); assert(voice.state == AudioPlayer::RUNNING && voice.closes == 0);
+    voice.Enforce_cycle_deadline(); assert(voice.state == AudioPlayer::PlayerState::Playing && voice.closes == 0);
     audio_update_time_micros = AUDIO_PLAYER_DEADLINE_US;
     voice.Enforce_cycle_deadline();
-    assert(voice.state == AudioPlayer::IDLE && voice.idle && !voice.power_on && voice.closes == 1);
+    assert(voice.state == AudioPlayer::PlayerState::Idle && !voice.isPlaying() && !voice.isPoweredOn() && voice.closes == 1);
     assert(!voice.warmup_for_play_again_flag && !voice.restart_flag && !voice.pending_note_released && !voice.main_settings_editing_flag && !voice.patch_release_pending);
     assert(audio_player_emergency_stops == 1 && audio_update_time_micros == AUDIO_PLAYER_DEADLINE_US);
     voice.Enforce_cycle_deadline(); assert(audio_player_emergency_stops == 1 && voice.closes == 1);
-    audio_player_emergency_stops = UINT32_MAX; voice.state = AudioPlayer::RUNNING;
+    audio_player_emergency_stops = UINT32_MAX; voice.state = AudioPlayer::PlayerState::Playing;
     voice.Enforce_cycle_deadline(); assert(audio_player_emergency_stops == UINT32_MAX);
     // One individual crossfade fits: rotate through all voices instead of favoring low indices.
     PlayersManager fair;
@@ -348,7 +346,7 @@ int main()
     audio_update_time_micros = 0;
     fair.Begin_midi_batch(); fair.End_midi_batch(); fair.midi_batch_active = true; fair.Calculate_and_set_mix_samples(); fair.midi_batch_active = false;
     assert(fair.restart_mix_first_player == 1); // Every scheduled transition block advances the fairness cursor.
-    for (const auto &candidate : fair.voices) { assert(candidate.mix_samples == 64); }
+    for (const auto &candidate : fair.voices) { assert(candidate.mix_samples == 128); }
     std::cout << "PASS: real MIDI parsing, bounded non-blocking collection, coalescing, order, backpressure, CC learn, pending NoteOff and batch accounting\n";
 }
 '''
@@ -357,7 +355,7 @@ compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-midi-') as directory:
     cpp = Path(directory) / 'midi.cpp'
     exe = Path(directory) / ('midi.exe' if os.name == 'nt' else 'midi')
-    cpp.write_text(prefix + production + tests, encoding='utf-8', newline='\r\n')
+    cpp.write_text(with_player_state(prefix + production + tests, "Idle"), encoding='utf-8', newline='\r\n')
     subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-I' + str(MIDI_LIB), '-I' + str(ROOT / 'lib/MidiReader'), '-I' + str(ROOT / 'lib/AudioPlayer'), str(cpp), str(ROOT / 'lib/AudioPlayer/PlayerAntialias.cpp'), str(ROOT / 'lib/AudioPlayer/PlayerReadBudget.cpp'), str(ROOT / 'lib/MidiReader/MidiInputBatch.cpp'), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')

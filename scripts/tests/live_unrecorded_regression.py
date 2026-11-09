@@ -1,5 +1,6 @@
 """Exercise the production live first-pass boundary and final output fade."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -17,7 +18,7 @@ prefix = r"""
 #include <cmath>
 #include <cstdint>
 #include <iostream>
-constexpr int AUDIO_BLOCK_SAMPLES = 128, ONCE_FWD = 0, IDLE_REQUEST = 2;
+constexpr int AUDIO_BLOCK_SAMPLES = 128, ONCE_FWD = 0;
 int LS_buffer_dim = 1024;
 bool LS_XY_lock = false;
 struct Recorder
@@ -33,7 +34,8 @@ struct AudioPlayer
     bool LS_flag = true, live_forward_empty = false;
     int A_Flash_sample = 0;
     int live_last_read_sample = 0, harvested_samples = 0;
-    int mode_player = ONCE_FWD, state = 1, reads = 0;
+    PLAYER_STATE_MEMBERS
+    int mode_player = ONCE_FWD, reads = 0;
     float a_sample = 128, b_sample = 382, pitch = 2, a_first_sample = 0;
     int16_t samples_basket[8192] = {}, block[AUDIO_BLOCK_SAMPLES] = {}, live_forward_last_sample = 0;
     Recorder *Live_Sampler = &recorder;
@@ -68,7 +70,7 @@ int main()
     }
     p.Fade_live_forward_end();
     assert(AudioPlayer::live_unrecorded_notice);
-    assert(p.block[0] == 12000 && p.block[127] == 0 && p.state == IDLE_REQUEST);
+    assert(p.block[0] == 12000 && p.block[127] == 0 && p.Is_finishing());
     for (int i = 1; i < AUDIO_BLOCK_SAMPLES; ++i)
     {
         assert(p.block[i] <= p.block[i - 1] && p.block[i] >= 0);
@@ -116,7 +118,7 @@ int main()
     assert(p.Harvest_live_forward_end() && p.live_forward_empty);
     AudioPlayer::live_unrecorded_notice = false;
     p.Fade_live_forward_end();
-    assert(AudioPlayer::live_unrecorded_notice && p.state == IDLE_REQUEST);
+    assert(AudioPlayer::live_unrecorded_notice && p.Is_finishing());
     p.a_sample = 0; p.b_sample = 127;
     assert(!p.Harvest_live_forward_end());
 
@@ -141,7 +143,7 @@ int main()
                 p.pitch = speed;
                 p.A_Flash_sample = dimension - 64;
                 p.a_first_sample = p.A_Flash_sample;
-                p.state = 1;
+                p.state = AudioPlayer::PlayerState::Playing;
                 int wraps = 0;
                 for (int packet = 0; packet < 90000; ++packet)
                 {
@@ -149,7 +151,7 @@ int main()
                     p.b_sample = p.a_sample + p.pitch * 127;
                     assert(!p.Harvest_live_forward_end());
                     assert(p.Harvest_live_continuous());
-                    assert(p.state == 1);
+                    assert(p.state == AudioPlayer::PlayerState::Playing);
                     assert(p.a_first_sample >= p.A_Flash_sample && p.a_first_sample < p.A_Flash_sample + dimension);
                     float advance = p.a_first_sample - p.a_sample;
                     if (advance < 0)
@@ -183,6 +185,6 @@ env["PATH"] = str(Path(compiler).parent) + os.pathsep + env.get("PATH", "")
 with tempfile.TemporaryDirectory(prefix="live-unrecorded-") as folder:
     cpp = Path(folder) / "test.cpp"
     exe = Path(folder) / "test.exe"
-    cpp.write_text(prefix + method("bool AudioPlayer::Harvest_live_continuous(") + method("bool AudioPlayer::Harvest_live_forward_end(") + method("void AudioPlayer::Fade_live_forward_end(") + checks, encoding="utf-8")
+    cpp.write_text(with_player_state(prefix + method("bool AudioPlayer::Harvest_live_continuous(") + method("bool AudioPlayer::Harvest_live_forward_end(") + method("void AudioPlayer::Fade_live_forward_end(") + checks, "Playing"), encoding="utf-8")
     subprocess.run([compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror", str(cpp), "-o", str(exe)], check=True, env=env)
     subprocess.run([str(exe)], check=True, env=env)

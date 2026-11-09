@@ -1,5 +1,6 @@
 ﻿"""Verify the production player update prefix skips idle work but preserves release/restart paths."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -16,17 +17,17 @@ prefix = r'''
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
-constexpr int IDLE = 0, PLAYING = 1, AUDIO_BLOCK_SAMPLES = 128;
+constexpr int AUDIO_BLOCK_SAMPLES = 128;
 constexpr uint32_t QUICK_RELEASE_TIME = 10, PATCH_RELEASE_BLOCK_MS = 3, AUDIO_PLAYER_DEADLINE_US = 2700;
 uint32_t now_ms = 0, audio_update_cycle = 42, audio_update_time_micros = 0, audio_player_emergency_stops = 0;
 uint32_t millis() { return now_ms; }
 struct audio_block_t { int16_t data[AUDIO_BLOCK_SAMPLES] = {}; };
 struct AudioPlayer
 {
-    int state = IDLE;
+    PLAYER_STATE_MEMBERS
     bool budget_tail_pending = false, patch_release_pending = false;
     bool warmup_for_play_again_flag = false, restart_flag = false, main_settings_editing_flag = false;
-    bool idle = true, power_on = false, pending_note_released = false;
+    bool pending_note_released = false;
     uint32_t patch_release_started = 0;
     float budget_tail_sample = 100, budget_tail_pan_L = 1, budget_tail_pan_R = 1;
     audio_block_t output[2];
@@ -41,7 +42,7 @@ struct AudioPlayer
     void transmit(audio_block_t *, int) { ++transmissions; }
     void Close_source() { ++closed; }
     void My_LED(bool on) { assert(!on); ++led_off; }
-    void Start_playing() { ++starts; state = PLAYING; idle = false; }
+    void Start_playing() { ++starts; state = PlayerState::Playing; }
     void update();
     void Enforce_cycle_deadline();
 };
@@ -53,26 +54,26 @@ int main()
     idle.update();
     assert(idle.allocations == 0 && idle.transmissions == 0 && idle.active_entries == 0);
     AudioPlayer active;
-    active.state = PLAYING;
+    active.state = AudioPlayer::PlayerState::Playing;
     active.update();
     assert(active.active_entries == 1);
     AudioPlayer release;
-    release.state = PLAYING;
+    release.state = AudioPlayer::PlayerState::Playing;
     release.patch_release_pending = true;
     now_ms = QUICK_RELEASE_TIME;
     release.update();
-    assert(release.state == IDLE && release.closed == 1 && release.led_off == 1 && release.allocations == 0 && release.active_entries == 0);
+    assert(release.state == AudioPlayer::PlayerState::Idle && release.closed == 1 && release.led_off == 1 && release.allocations == 0 && release.active_entries == 0);
     AudioPlayer restart;
     restart.patch_release_pending = true;
     restart.restart_flag = true;
     restart.update();
-    assert(restart.starts == 1 && restart.state == PLAYING && restart.active_entries == 1);
+    assert(restart.starts == 1 && restart.state == AudioPlayer::PlayerState::Playing && restart.active_entries == 1);
     assert(!restart.restart_flag);
     AudioPlayer deadline;
-    deadline.state = PLAYING;
+    deadline.state = AudioPlayer::PlayerState::Playing;
     audio_update_time_micros = AUDIO_PLAYER_DEADLINE_US;
     deadline.update();
-    assert(deadline.state == IDLE && deadline.closed == 1 && deadline.led_off == 1 && deadline.allocations == 0 && deadline.active_entries == 0);
+    assert(deadline.state == AudioPlayer::PlayerState::Idle && deadline.closed == 1 && deadline.led_off == 1 && deadline.allocations == 0 && deadline.active_entries == 0);
     audio_update_time_micros = 0;
     AudioPlayer tail;
     tail.budget_tail_pending = true;
@@ -99,7 +100,7 @@ compiler = shutil.which('g++') or 'C:/msys64/ucrt64/bin/g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-idle-') as directory:
     cpp = Path(directory) / 'idle.cpp'
     exe = Path(directory) / 'idle.exe'
-    cpp.write_text(prefix + production + checks, encoding='utf-8')
+    cpp.write_text(with_player_state(prefix + production + checks, "Idle"), encoding='utf-8')
     subprocess.run([compiler, '-std=c++17', '-Wall', '-Wextra', '-Werror', str(cpp), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')

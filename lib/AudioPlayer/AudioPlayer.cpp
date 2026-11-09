@@ -10,6 +10,11 @@
 
 int16_t AudioPlayer::samples_basket[BASKET_DIM];
 float AudioPlayer::resampled_basket[AUDIO_BLOCK_SAMPLES];
+StereoLiveSampler *AudioPlayer::Live_Sampler = nullptr;
+PlayersStatistics *AudioPlayer::Players_statistics_ptr = nullptr;
+int16_t *AudioPlayer::LS_buffer_mono_ptr = nullptr;
+int16_t *AudioPlayer::LS_buffer_L_ptr = nullptr;
+int16_t *AudioPlayer::LS_buffer_R_ptr = nullptr;
 
 PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, bool reserve_modulation) const
 {
@@ -46,7 +51,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, boo
 
 float AudioPlayer::Reserved_read_us(void) const
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return 0.0f;
     }
@@ -64,12 +69,12 @@ float AudioPlayer::Reserved_read_us(void) const
 
 float AudioPlayer::Current_read_us(uint32_t output_samples) const
 {
-    return state == IDLE ? 0.0f : PlayerReadBudget::Estimate(Get_read_plan(false, false, false), output_samples);
+    return state == PlayerState::Idle ? 0.0f : PlayerReadBudget::Estimate(Get_read_plan(false, false, false), output_samples);
 }
 
 float AudioPlayer::Next_block_read_us(void) const
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return 0.0f;
     }
@@ -95,7 +100,7 @@ void AudioPlayer::Set_edit_mix_samples(uint8_t value)
 
 void AudioPlayer::Retire_for_read_budget(void)
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return;
     }
@@ -109,9 +114,7 @@ void AudioPlayer::Retire_for_read_budget(void)
     }
     Close_source();
     My_LED(false);
-    state = IDLE;
-    idle = true;
-    power_on = false;
+    state = PlayerState::Idle;
     warmup_for_play_again_flag = false;
     restart_flag = false;
     pending_note_released = false;
@@ -127,9 +130,7 @@ void AudioPlayer::Set_ADSR_ptr(AudioADSR *ptr)
 
 void AudioPlayer::begin(void)
 {
-    idle = true;
-    power_on = false;
-    state = IDLE;
+    state = PlayerState::Idle;
     myLED = false;
 }
 
@@ -676,9 +677,10 @@ void AudioPlayer::Get_ready_to_play(float pitch_note_in, float velocity_in, int 
     note_wait = note_in;
     time_stamp = millis();
 
-    power_on = true;
+    const bool was_idle = state == PlayerState::Idle;
+    Set_note_on(true);
 
-    if (state == IDLE)
+    if (was_idle)
     {
         warmup_for_play_again_flag = false;
         restart_flag = false;
@@ -831,22 +833,20 @@ void AudioPlayer::Start_playing(void)
     loop_layer = loop_layer_wait;
     Start_VCF();
 
-    idle = false;
-    state = RUNNING;
+    state = isPoweredOn() ? PlayerState::Playing : PlayerState::Released;
     My_LED(true);
     if (pending_note_released)
     {
         pending_note_released = false;
         ADSR->Release_note();
-        power_on = false;
-        state = FADING;
+        state = PlayerState::Released;
         My_LED(false);
     }
 }
 
 void AudioPlayer::Enforce_cycle_deadline(void)
 {
-    if (state == IDLE || audio_update_time_micros < AUDIO_PLAYER_DEADLINE_US)
+    if (state == PlayerState::Idle || audio_update_time_micros < AUDIO_PLAYER_DEADLINE_US)
     {
         return;
     }
@@ -854,9 +854,7 @@ void AudioPlayer::Enforce_cycle_deadline(void)
     {
         audio_player_emergency_stops = audio_player_emergency_stops + 1;
     }
-    idle = true;
-    power_on = false;
-    state = IDLE;
+    state = PlayerState::Idle;
     warmup_for_play_again_flag = false;
     restart_flag = false;
     pending_note_released = false;
@@ -871,19 +869,18 @@ void AudioPlayer::Release_note(void) // release note, fires ADSR "release"
     if (Has_pending_note())
     {
         pending_note_released = true;
-        power_on = false;
+        Set_note_on(false);
         time_stamp = millis();
         return;
     }
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return;
     }
 
     ADSR->Release_note();
     time_stamp = millis();
-    power_on = false;
-    state = FADING;
+    state = PlayerState::Released;
     My_LED(false);
 }
 
@@ -894,17 +891,17 @@ void AudioPlayer::Release_patch(int patch_id) // Apply one non-renewable deadlin
         warmup_for_play_again_flag = false;
         restart_flag = false;
     }
-    if (state == IDLE || local_patch != patch_id || patch_release_pending)
+    if (state == PlayerState::Idle || local_patch != patch_id || patch_release_pending)
     {
         return;
     }
     patch_release_started = millis();
     patch_release_pending = true;
     ADSR->Limit_release((QUICK_RELEASE_TIME - 2u * PATCH_RELEASE_BLOCK_MS) / 1000.0f); // Leave two audio blocks of margin for envelope completion and voice cleanup.
-    power_on = false;
-    if (state != IDLE_REQUEST)
+    Set_note_on(false);
+    if (!Is_finishing())
     {
-        state = FADING;
+        state = PlayerState::Released;
     }
     My_LED(false);
 }
@@ -961,13 +958,11 @@ void AudioPlayer::update(void)
             warmup_for_play_again_flag = false;
             restart_flag = false;
             main_settings_editing_flag = false;
-            power_on = true;
+            Set_note_on(true);
         }
         else
         {
-            idle = true;
-            power_on = false;
-            state = IDLE;
+            state = PlayerState::Idle;
             main_settings_editing_flag = false;
             Close_source(); // Release Flash ownership before allocation, even when audio buffers are exhausted.
             My_LED(false);
@@ -975,7 +970,7 @@ void AudioPlayer::update(void)
     }
     Enforce_cycle_deadline(); // Check before allocating buffers or harvesting audio; never reset the shared clock here.
 
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return; // Routers treat missing input blocks as silence; no output allocation is needed.
     }
@@ -1429,7 +1424,7 @@ void AudioPlayer::update(void)
 
                 float volume_tmp = volume_gain * velocity_gain * ADSR_gain * pitch_based_gain_correction;
 
-                // mix_samples < AUDIO_BLOCK_SAMPLES
+                // mix_samples <= AUDIO_BLOCK_SAMPLES
                 for (auto sample = 0; sample < mix_samples; ++sample)
                 {
                     F_basket_sample = (sample * pitch) + initial_index_offset; // "initial_index_offset" may be modified in harvest function
@@ -1631,7 +1626,7 @@ void AudioPlayer::update(void)
         {
             if (VCF_modulated)
             {
-                LFO_ptr->Update();
+                LFO.Update();
             }
             if (VCF_modulated || VCF_pivot_steps > 0)
             {
@@ -1639,9 +1634,9 @@ void AudioPlayer::update(void)
             }
             else
             {
-                VCF_ptr->LFO_connect = false;
+                VCF.LFO_connect = false;
             }
-            VCF_ptr->Update();
+            VCF.Update();
         }
 
         if (live_forward_end)
@@ -1675,7 +1670,7 @@ void AudioPlayer::update(void)
 
         if ((ADSR_gain < 0.0001) && (ADSR->Get_phase() > 0))
         {
-            state = IDLE_REQUEST;
+            Finish_block();
             My_LED(false);
 
             Close_source();
@@ -1693,11 +1688,9 @@ void AudioPlayer::update(void)
             Serial.println();
         }
 
-        if (state == IDLE_REQUEST)
+        if (Is_finishing())
         {
-            idle = true;
-            power_on = false;
-            state = IDLE;
+            state = PlayerState::Idle;
             Close_source();
             My_LED(false);
         }
@@ -1838,7 +1831,7 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
             a_first_sample = b_sample + pitch;
             if (ceilf(phase + distance) > Wavetable_length - 1 && !warmup_for_play_again_flag)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
                 Close_source();
             }
         }
@@ -1921,7 +1914,7 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
             }
             if (!live_forward_end && !writing && !warmup_for_play_again_flag && ceilf(a_first_sample) >= B_Flash_sample)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
                 Close_source();
             }
             return;
@@ -1960,10 +1953,9 @@ void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
     {
         if (!reverse && ceilf(b_sample) <= upper)
         {
-            idle = true;
-            power_on = false;
+            state = PlayerState::Finished;
         }
-        state = IDLE_REQUEST;
+        Finish_block();
         Close_source();
     }
 }
@@ -2061,7 +2053,7 @@ void AudioPlayer::Resume_live_recording(int position)
         B_Flash_sample_wait = A_Flash_sample_wait + LS_buffer_dim - 1;
         a_first_sample_wait = position;
     }
-    if (LS_flag && state != IDLE && state != IDLE_REQUEST && (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || (main_settings_editing_flag && (mode_player_E == LOOP_FWD || mode_player_E == LOOP_FWD_REV))))
+    if (LS_flag && state != PlayerState::Idle && !Is_finishing() && (mode_player == LOOP_FWD || mode_player == LOOP_FWD_REV || (main_settings_editing_flag && (mode_player_E == LOOP_FWD || mode_player_E == LOOP_FWD_REV))))
     {
         mode_player = ONCE_FWD;
         delta_Noclick = 0;
@@ -2308,7 +2300,7 @@ void AudioPlayer::Fade_live_forward_end(void)
         const int16_t value = live_forward_empty ? live_forward_last_sample : block[sample];
         block[sample] = static_cast<int16_t>(value * gain);
     }
-    state = IDLE_REQUEST;
+    Finish_block();
 }
 
 void AudioPlayer::Flash_memory_harvest(void)
@@ -2358,9 +2350,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             a_first_sample = b_sample + pitch;
             if (ceil(a_first_sample) >= B_Flash_sample && !warmup_for_play_again_flag)
             {
-                idle = true;
-                power_on = false;
-                state = IDLE_REQUEST;
+                state = PlayerState::Finished;
 
                 Close_source();
             }
@@ -2380,7 +2370,7 @@ void AudioPlayer::Flash_memory_harvest(void)
 
             if (!warmup_for_play_again_flag)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
 
                 Close_source();
             }
@@ -2396,7 +2386,7 @@ void AudioPlayer::Flash_memory_harvest(void)
 
             if (!warmup_for_play_again_flag)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
 
                 Close_source();
             }
@@ -2427,7 +2417,7 @@ void AudioPlayer::Flash_memory_harvest(void)
             a_first_sample = b_sample_tmp + pitch;
             if (ceil(a_first_sample) >= C_Flash_sample)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
 
                 Close_source();
             }
@@ -2452,7 +2442,7 @@ void AudioPlayer::Flash_memory_harvest(void)
 
             if (!warmup_for_play_again_flag)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
 
                 Close_source();
             }
@@ -3050,7 +3040,7 @@ void AudioPlayer::Wavetable_harvest()
 
             if (!warmup_for_play_again_flag)
             {
-                state = IDLE_REQUEST;
+                Finish_block();
 
                 Close_source();
             }
@@ -3079,15 +3069,45 @@ void AudioPlayer::Wavetable_harvest()
 void AudioPlayer::Set_identity(uint8_t value)
 {
     identity = value;
+    LFO.identity = value;
 }
-bool AudioPlayer::isPlaying(void)
+bool AudioPlayer::Is_finishing(void) const
 {
-    return !idle;
+    return state == PlayerState::Finishing || state == PlayerState::FinishingReleased || state == PlayerState::Finished || state == PlayerState::FinishedWithPendingNote;
 }
 
-bool AudioPlayer::isPoweredOn(void)
+void AudioPlayer::Finish_block(void)
 {
-    return power_on;
+    if (isPlaying())
+    {
+        state = isPoweredOn() ? PlayerState::Finishing : PlayerState::FinishingReleased;
+    }
+}
+
+void AudioPlayer::Set_note_on(bool on)
+{
+    if (state == PlayerState::Finished || state == PlayerState::FinishedWithPendingNote)
+    {
+        state = on ? PlayerState::FinishedWithPendingNote : PlayerState::Finished;
+    }
+    else if (Is_finishing())
+    {
+        state = on ? PlayerState::Finishing : PlayerState::FinishingReleased;
+    }
+    else if (state != PlayerState::Idle || on)
+    {
+        state = on ? PlayerState::Playing : PlayerState::Released;
+    }
+}
+
+bool AudioPlayer::isPlaying(void) const
+{
+    return state != PlayerState::Idle && state != PlayerState::Finished && state != PlayerState::FinishedWithPendingNote;
+}
+
+bool AudioPlayer::isPoweredOn(void) const
+{
+    return state == PlayerState::Playing || state == PlayerState::Finishing || state == PlayerState::FinishedWithPendingNote;
 }
 
 void AudioPlayer::Set_source(const AudioFileSource &source)
@@ -3108,7 +3128,7 @@ void AudioPlayer::Close_source(void)
 
 void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
 {
-    if (state != IDLE && source_now.storage == Flash && file_id == source.file_id && A_Flash_sample >= static_cast<int>(source.first_sample) && B_Flash_sample < static_cast<int>(source.first_sample + source.samples) && (!main_settings_editing_flag || (A_Flash_sample_E >= static_cast<int>(source.first_sample) && B_Flash_sample_E < static_cast<int>(source.first_sample + source.samples))))
+    if (state != PlayerState::Idle && source_now.storage == Flash && file_id == source.file_id && A_Flash_sample >= static_cast<int>(source.first_sample) && B_Flash_sample < static_cast<int>(source.first_sample + source.samples) && (!main_settings_editing_flag || (A_Flash_sample_E >= static_cast<int>(source.first_sample) && B_Flash_sample_E < static_cast<int>(source.first_sample + source.samples))))
     {
         // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
@@ -3129,7 +3149,7 @@ void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
 
 bool AudioPlayer::Uses_sample_voice(void) const
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return false;
     }
@@ -3141,7 +3161,7 @@ bool AudioPlayer::Uses_sample_voice(void) const
 
 bool AudioPlayer::Uses_flash(void) const
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return false;
     }
@@ -3153,7 +3173,7 @@ bool AudioPlayer::Uses_flash(void) const
 
 bool AudioPlayer::Fast_stop_using_cache(uint16_t cache_mask)
 {
-    if (state == IDLE || state == IDLE_REQUEST || source_now.cache_id < 0 || warmup_for_play_again_flag || restart_flag || main_settings_editing_flag)
+    if (state == PlayerState::Idle || Is_finishing() || source_now.cache_id < 0 || warmup_for_play_again_flag || restart_flag || main_settings_editing_flag)
     {
         return false;
     }
@@ -3173,7 +3193,7 @@ void AudioPlayer::Set_volume(float volume_gain_value)
 void AudioPlayer::Update_volume(float volume_gain_value)
 {
     volume_gain_wait = volume_gain_value;
-    if (!idle && (volume_flag || volume_gain_value != volume_gain))
+    if (isPlaying() && (volume_flag || volume_gain_value != volume_gain))
     {
         volume_gain_warmup_flag = true;
     }
@@ -3216,13 +3236,13 @@ int AudioPlayer::Read_loop_track(void)
 
 void AudioPlayer::Fast_stop(void)
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return;
     }
 
     ADSR->Fast_stop();
-    state = IDLE_REQUEST;
+    Finish_block();
 }
 
 void AudioPlayer::Panic_stop(void)
@@ -3235,7 +3255,7 @@ void AudioPlayer::Panic_stop(void)
 
 bool AudioPlayer::Fast_stop_using_tables(uint8_t banks_mask)
 {
-    if (state == IDLE || state == IDLE_REQUEST || (tables_bank_mask & banks_mask) == 0)
+    if (state == PlayerState::Idle || Is_finishing() || (tables_bank_mask & banks_mask) == 0)
     {
         return false;
     }
@@ -3256,7 +3276,7 @@ void AudioPlayer::Update_pan(float pan_int_value)
     pan_gain_L_wait = pan_gain_L_table[pan_int_wait + 16];
     pan_gain_R_wait = pan_gain_R_table[pan_int_wait + 16];
 
-    if (!idle && (pan_int_wait != pan_int))
+    if (isPlaying() && (pan_int_wait != pan_int))
     {
         pan_gain_warmup_flag = true;
     }
@@ -3332,23 +3352,23 @@ void AudioPlayer::Connect_VCF(bool use, int type, float pivot, float resonance, 
 
     if (VCF_connect && VCF_modulated)
     {
-        VCF_ptr->LFO_connect = true;
-        VCF_ptr->filter_type = type;
-        VCF_ptr->q_value = resonance; // Butterworth: 0.7071
+        VCF.LFO_connect = true;
+        VCF.filter_type = type;
+        VCF.q_value = resonance; // Butterworth: 0.7071
 
-        VCF_ptr->_block = block;                   // int16_t*
-        VCF_ptr->_frequency = VCF_frequency_array; // float*
+        VCF._block = block;                   // int16_t*
+        VCF._frequency = VCF_frequency_array; // float*
     }
 
     else if (VCF_connect && !VCF_modulated)
     {
-        VCF_ptr->LFO_connect = false;
-        VCF_ptr->filter_type = type;
-        VCF_ptr->q_value = resonance;                // Butterworth: 0.7071
-        VCF_ptr->Set_filter(0, VCF_frequency_pivot); // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
+        VCF.LFO_connect = false;
+        VCF.filter_type = type;
+        VCF.q_value = resonance;                // Butterworth: 0.7071
+        VCF.Set_filter(0, VCF_frequency_pivot); // Set_filter(uint32_t stage, float frequency, float q = 0.7071)
 
-        VCF_ptr->_block = block;                   // int16_t*
-        VCF_ptr->_frequency = VCF_frequency_array; // float*
+        VCF._block = block;                   // int16_t*
+        VCF._frequency = VCF_frequency_array; // float*
     }
 }
 
@@ -3361,7 +3381,7 @@ void AudioPlayer::Connect_LFO_TO_VCF(uint8_t modulation, float index, uint8_t pe
 
     if (LFO_periodic == 1)
     {
-        LFO_ptr->Set_frequency(frequency_time);
+        LFO.Set_frequency(frequency_time);
     }
     else
     {
@@ -3385,12 +3405,12 @@ void AudioPlayer::Start_VCF(void)
             if (LFO_periodic == 1)
             {
                 // Serial.println("LFO Setup: PERIODIC");
-                LFO_ptr->Set_amplitude(3000); // amplitude <= 32767
+                LFO.Set_amplitude(3000); // amplitude <= 32767
             }
             else
             {
                 // Serial.println("LFO Setup: APERIODIC");
-                LFO_ptr->Setup_aperiodic_wave(LFO_seconds, LFO_index * 3000, LFO_modulation); // LFO_ptr->SETUP_wave(LFO_seconds, LFO_index * 1000.0 * pitch, LFO_modulation); // SETUP_wave(float seconds, float max_value, int waveform) // aperiodic wave - period: seconds  n: waveform
+                LFO.Setup_aperiodic_wave(LFO_seconds, LFO_index * 3000, LFO_modulation); // LFO.SETUP_wave(LFO_seconds, LFO_index * 1000.0 * pitch, LFO_modulation); // SETUP_wave(float seconds, float max_value, int waveform) // aperiodic wave - period: seconds  n: waveform
             }
         }
     }
@@ -3416,7 +3436,7 @@ void AudioPlayer::Update_LFO_index(float new_index)
 
 void AudioPlayer::Update_VCF_resonance(float resonance)
 {
-    VCF_ptr->q_value = resonance; // Butterworth: 0.7071
+    VCF.q_value = resonance; // Butterworth: 0.7071
 }
 
 void AudioPlayer::Send_LFO_to_VCF(void)
@@ -3442,7 +3462,7 @@ void AudioPlayer::Send_LFO_to_VCF(void)
      * block. This prevents sudden parameter changes from reaching the filter.
      */
 
-    VCF_ptr->LFO_connect = true;
+    VCF.LFO_connect = true;
     for (int section = 0; section < 4; ++section)
     {
         if (VCF_pivot_steps > 0)
@@ -3462,14 +3482,14 @@ void AudioPlayer::Send_LFO_to_VCF(void)
         }
         if (VCF_modulated)
         {
-            VCF_frequency_array[section] = constrain(VCF_central_frequency * exp2f((LFO_ptr->block[section * AUDIO_BLOCK_SAMPLES / 4] / 1000.0f) * LFO_index), 50, 15000);
+            VCF_frequency_array[section] = constrain(VCF_central_frequency * exp2f((LFO.block[section * AUDIO_BLOCK_SAMPLES / 4] / 1000.0f) * LFO_index), 50, 15000);
         }
         else
         {
             VCF_frequency_array[section] = VCF_frequency_pivot;
         }
     }
-    VCF_ptr->Set_filter(0, VCF_frequency_array[0]);
+    VCF.Set_filter(0, VCF_frequency_array[0]);
 }
 
 float AudioPlayer::Mirror(float pivot, float value)
@@ -3682,7 +3702,7 @@ int AudioPlayer::Read_use_Wavetable(void)
     return use_Wavetable;
 }
 
-int AudioPlayer::State(void)
+AudioPlayer::PlayerState AudioPlayer::State(void) const
 {
     return state;
 }
@@ -3709,7 +3729,7 @@ void AudioPlayer::Write_time_stamp(unsigned long value)
 
 uint16_t AudioPlayer::Get_cache_reference_mask(void)
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return 0;
     }
@@ -3724,7 +3744,7 @@ uint16_t AudioPlayer::Get_cache_reference_mask(void)
 
 uint8_t AudioPlayer::Get_tables_reference_mask(void)
 {
-    if (state == IDLE)
+    if (state == PlayerState::Idle)
     {
         return 0;
     }
@@ -3746,7 +3766,7 @@ uint8_t AudioPlayer::Get_tables_reference_mask(void)
 
 void AudioPlayer::Refresh_audio_table_references(AudioTables &tables)
 {
-    if (state != IDLE && tables_bank_mask != 0)
+    if (state != PlayerState::Idle && tables_bank_mask != 0)
     {
         const AudioTables::Pointers replacement = tables.Get_replacement_pointers({Noclick_ptr, Wavetable_ptr, tables_bank_mask});
         Noclick_ptr = replacement.noclick;
@@ -3777,7 +3797,7 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
         Set_source(preset.source);
         Main_settings(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
     }
-    if (state == IDLE || local_patch != patch || instrument_id != instrument || file_id != preset.file)
+    if (state == PlayerState::Idle || local_patch != patch || instrument_id != instrument || file_id != preset.file)
     {
         return false;
     }
@@ -3825,12 +3845,12 @@ void AudioPlayer::Set_tone_filter(uint8_t level)
 
 bool AudioPlayer::Has_pending_note(void) const
 {
-    return state != IDLE && (warmup_for_play_again_flag || restart_flag);
+    return state != PlayerState::Idle && (warmup_for_play_again_flag || restart_flag);
 }
 
 bool AudioPlayer::Needs_restart_mix(void) const
 {
-    return state != IDLE && warmup_for_play_again_flag;
+    return state != PlayerState::Idle && warmup_for_play_again_flag;
 }
 
 int AudioPlayer::Assigned_note(void) const

@@ -489,7 +489,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     }
     Player_booked[id_player] = true;
 
-    if (Player_ptr[id_player].State() > 0 && !restart_Player[id_player]) // sta inviando sample, cioe' idle = false
+    if (Player_ptr[id_player].State() != AudioPlayer::PlayerState::Idle && !restart_Player[id_player]) // Include voices completing their final block.
     {
         restart_Player[id_player] = true;
         ++players_to_restart;
@@ -1453,7 +1453,7 @@ void PlayersManager::Calculate_and_set_mix_samples(void)
         }
         assigned = true;
         uint8_t chosen = 0; // A zero-mix restart uses separate blocks and never needs two source harvests.
-        for (const uint8_t samples : {64, 48, 32, 24, 16}) // Longest affordable outgoing fade.
+        for (const uint8_t samples : {128, 64, 48, 32, 24, 16}) // Longest affordable outgoing fade.
         {
             const float cost = Get_cross_mix_time(player, samples); // Outgoing source with current/queued bend and bounded vibrato.
             if (cost <= available)
@@ -1526,19 +1526,13 @@ void PlayersManager::Multicast_stop_players_for_NoteOff(int midi_channel, int no
 
 void PlayersManager::Broadcast_FIFO_stereo(int16_t *LS_buffer_L_ptr, int16_t *LS_buffer_R_ptr)
 {
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        Player_ptr[player].LS_buffer_L_ptr = LS_buffer_L_ptr;
-        Player_ptr[player].LS_buffer_R_ptr = LS_buffer_R_ptr;
-    }
+    AudioPlayer::LS_buffer_L_ptr = LS_buffer_L_ptr;
+    AudioPlayer::LS_buffer_R_ptr = LS_buffer_R_ptr;
 }
 
 void PlayersManager::Broadcast_FIFO_mono(int16_t *LS_buffer_mono_ptr)
 {
-    for (auto player = 0; player < PLAYERS; ++player)
-    {
-        Player_ptr[player].LS_buffer_mono_ptr = LS_buffer_mono_ptr;
-    }
+    AudioPlayer::LS_buffer_mono_ptr = LS_buffer_mono_ptr;
 }
 
 uint8_t PlayersManager::Refresh_audio_table_references(void)

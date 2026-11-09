@@ -1,5 +1,6 @@
 """Exercise production read forecasting, atomic admission and crossfade budgeting on the host."""
 from pathlib import Path
+from player_state_fixture import with_player_state
 import os
 import re
 import shutil
@@ -48,8 +49,8 @@ namespace RealVoice
 {
 struct AudioPlayer
 {
-    static constexpr int IDLE = 0;
-    int state = 1, file_id = 0, file_id_wait = 0;
+    PLAYER_STATE_MEMBERS
+    int file_id = 0, file_id_wait = 0;
     bool use_Wavetable = false, use_Wavetable_wait = false, use_Wavetable_E = false;
     uint8_t tone_filter_level = 0, tone_filter_level_wait = 0;
     AudioFileSource source_now, source_wait;
@@ -64,7 +65,7 @@ struct AudioPlayer
     float pitch_limit = 2.8f, pitch_limit_wait = 16, pitch_limit_E = 24;
     bool live_restart_pending = false;
     bool pitch_tune_flag = false, warmup_for_play_again_flag = false, restart_flag = false, main_settings_editing_flag = false;
-    bool idle = false, power_on = true, pending_note_released = false, patch_release_pending = false;
+    bool pending_note_released = false, patch_release_pending = false;
     bool rendered_block_valid = true, budget_tail_pending = false;
     int16_t block[128] = {}, budget_tail_sample = 0;
     float pan_gain_L = .5f, pan_gain_R = .7f, budget_tail_pan_L = 0, budget_tail_pan_R = 0;
@@ -206,7 +207,7 @@ int main()
     real.Retire_for_read_budget();
     assert(real.Reserved_read_us() == 0 && real.closed == 1 && real.budget_tail_pending);
     assert(real.budget_tail_sample == 1234 && real.budget_tail_pan_L == .5f);
-    assert(!real.Has_pending_note() && !real.main_settings_editing_flag && !real.power_on);
+    assert(!real.Has_pending_note() && !real.main_settings_editing_flag && !real.isPoweredOn());
     real.Retire_for_read_budget(); assert(real.closed == 1);
     real.fail_allocation = 1; real.Render_budget_tail();
     assert(real.budget_tail_pending && real.released == 1 && real.transmitted == 0);
@@ -304,7 +305,7 @@ int main()
     bounded.main_settings_editing_flag = true;
     bounded.mode_player_E = LOOP_FWD;
     assert(bounded.Next_block_read_us() >= Estimate(bounded.Get_read_plan(false, true, false), 128));
-    bounded.state = RealVoice::AudioPlayer::IDLE;
+    bounded.state = RealVoice::AudioPlayer::PlayerState::Idle;
     assert(bounded.Next_block_read_us() == 0 && bounded.Current_read_us(64) == 0);
     PlayersManager spare;
     spare.voices[0].playing = spare.voices[1].playing = true;
@@ -313,7 +314,7 @@ int main()
     spare.voices[0].pending = spare.voices[1].pending = true;
     spare.Prepare_read_budget();
     assert(spare.budget_reserved_us == 1750);
-    assert(spare.voices[0].mix == 64 && spare.voices[1].mix == 64);
+    assert(spare.voices[0].mix == 128 && spare.voices[1].mix == 128);
     assert(spare.budget_retired_players == 0);
 
     // Insufficient eligible budget rejects atomically: no partial voice theft.
@@ -412,7 +413,7 @@ compiler = shutil.which('g++') or r'C:\msys64\ucrt64\bin\g++.exe'
 with tempfile.TemporaryDirectory(prefix='lilla-read-budget-') as directory:
     cpp = Path(directory) / 'budget.cpp'
     exe = Path(directory) / ('budget.exe' if os.name == 'nt' else 'budget')
-    cpp.write_text(prefix + production + tests, encoding='utf-8', newline='\r\n')
+    cpp.write_text(with_player_state(prefix + production + tests, "Playing"), encoding='utf-8', newline='\r\n')
     subprocess.run([compiler, '-include', str(Path(__file__).resolve().parent / 'sd_sound_source_stub.h'), '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I' + str(ROOT / 'lib/AudioPlayer'), '-I' + str(ROOT / 'lib/config'), str(cpp), str(ROOT / 'lib/AudioPlayer/PlayerReadBudget.cpp'), str(ROOT / 'lib/config/PlaybackProfile.cpp'), str(ROOT / 'lib/AudioPlayer/PlayerAntialias.cpp'), str(Path(__file__).with_name('sd_sound_source_stub.cpp').resolve()), '-o', str(exe)], check=True)
     environment = os.environ.copy()
     environment['PATH'] = str(Path(compiler).parent) + os.pathsep + environment.get('PATH', '')
