@@ -174,9 +174,8 @@ The project targets Teensy 4.1 at 600 MHz. Building does not upload firmware to 
 
 ## Links
 
-- [www.lillasampler.it](https://www.lillasampler.it/)
+- [Shop](https://www.lillasampler.com/)
 - [Facebook page](https://www.facebook.com/Lilla.audio.sampler)
-- [Tindie product page](https://www.tindie.com/products/lillasampler/lilla-audio-sampler-2/)
 
 ## Acknowledgements
 
