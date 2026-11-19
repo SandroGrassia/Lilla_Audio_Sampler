@@ -16,7 +16,13 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.3.0
+## New in firmware 7.3.1
+
+**Reduced Live Sampler display redraws.** The waveform display now updates only changed portions of the canvas, reducing unnecessary transfers and addressing flicker. Page changes and confirmation dialogs restore the full canvas. Audio buffer sizes and the 200 ms display update interval are unchanged.
+
+Download [Lilla_v7_3_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.3.1/Lilla_v7_3_1.hex). See the [7.3.1 release notes](docs/release-notes-7.3.1.md). The display improvement still requires confirmation on the Speed_shift hardware.
+
+## Introduced in firmware 7.3.0
 
 **Four layers per MIDI Loop track.** Build an arrangement with up to **16 independent layers** across the four tracks, with **1,000 NoteOn/NoteOff events per layer**. Add a new part while existing layers keep playing; LEVEL, SHIFT and TRANSP remain common to the track.
 
@@ -160,7 +166,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.3.0 (2 November 2026)**: download [Lilla_v7_3_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.3.0/Lilla_v7_3_0.hex) from [release v7.3.0](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.3.0). See the [7.3.0 release notes](docs/release-notes-7.3.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.3.1 (19 November 2026)**: download [Lilla_v7_3_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.3.1/Lilla_v7_3_1.hex) from [release v7.3.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.3.1). See the [7.3.1 release notes](docs/release-notes-7.3.1.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

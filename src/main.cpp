@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 // **********************************************************
@@ -11,13 +11,13 @@
     PCB: LILLA_2026_R2 - august 2026
 
     Hardware
-    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; external FRAM: 128 KiB)
+    - Teensy 4.1 (ARM Cortex-M7; 1MB RAM; 8MB Flash memory; external FRAM: 128KB)
     - Audio Adaptor Rev.D
     - display: SPI ILI9341 240x320
     - n.1 Mic amplifier (AD828A) module
     - n.1 SPI Flash memory chip 64MB (W25Q512JVFIM)
     - n.2 QSPI PSRAM chips 16MB (IS66WVS16M8FBLL-104NLI) tot: 32MB
-    - n.2 FRAM chips 64Mbyte tot: 128MByte
+    - n.2 FRAM chips 64Kbyte tot: 128KByte
     - n.5 Shift registers chips (MCP23S17)
 
     Microcontrolleer
@@ -38,8 +38,6 @@
     - PHONES MAIN out
     - GATE in
     - GATE out
-
-    Notes from: https://gist.github.com/somebox/d969f8a97e5a4362af5049ed554a9e69
 */
 
 // *************************************************************

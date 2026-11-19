@@ -1,6 +1,6 @@
 # Firmware Architecture
 
-This document explains how LILLA's firmware brings playback, recording, effects and controls together. It describes firmware **7.3.0**, focusing on the role of each part and how the parts work together.
+This document explains how LILLA's firmware brings playback, recording, effects and controls together. It describes firmware **7.3.1**, focusing on the role of each part and how the parts work together.
 
 For operating instructions, see the [User Guide](User%20Guide.md). Developers can consult the separate [implementation notes](docs/firmware-implementation-notes.md) for source references, exact limits and storage details.
 

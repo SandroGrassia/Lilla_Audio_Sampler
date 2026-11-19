@@ -2,10 +2,51 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #include "DisplayLiveSampler.h"
+#include <cstring>
+
+// Comparison copy only: the existing drawing canvas remains the SPI source.
+// Static storage avoids consuming the remaining internal heap.
+#ifdef __IMXRT1062__
+EXTMEM
+#endif
+static uint16_t previous_live_wave[WAVEBOARD_WIDTH * WAVEBOARD_HEIGHT];
+
+void DisplayLiveSampler::Flush_wave_canvas(void)
+{
+    const uint16_t *pixels = canvas.getBuffer();
+    if (!wave_display_valid)
+    {
+        tft.writeRect(LS_CANVAS_X, LS_CANVAS_Y, WAVEBOARD_WIDTH, WAVEBOARD_HEIGHT, pixels);
+        memcpy(previous_live_wave, pixels, sizeof(previous_live_wave));
+        wave_display_valid = true;
+        return;
+    }
+
+    // Send one changed span per row. This also erases pixels belonging to
+    // the previous waveform, without blanking the display between frames.
+    for (int y = 0; y < WAVEBOARD_HEIGHT; ++y)
+    {
+        const uint16_t *current = pixels + y * WAVEBOARD_WIDTH;
+        uint16_t *previous = previous_live_wave + y * WAVEBOARD_WIDTH;
+        int first = 0;
+        while (first < WAVEBOARD_WIDTH && current[first] == previous[first])
+            ++first;
+        if (first == WAVEBOARD_WIDTH)
+        {
+            continue;
+        }
+        int last = WAVEBOARD_WIDTH - 1;
+        while (last > first && current[last] == previous[last])
+            --last;
+        const int count = last - first + 1;
+        tft.writeRect(LS_CANVAS_X + first, LS_CANVAS_Y + y, count, 1, current + first);
+        memcpy(previous + first, current + first, count * sizeof(uint16_t));
+    }
+}
 
 void DisplayLiveSampler::Led_LIVE_SAMPLING(const bool on)
 {
@@ -22,6 +63,7 @@ void DisplayLiveSampler::Led_LIVE_SAMPLING(const bool on)
 
 FLASHMEM void DisplayLiveSampler::Confirm_EXIT_from_LS(void)
 {
+    wave_display_valid = false; // The popup covers part of the canvas.
     const int L_POPUP = 106;                 // Larghezza
     const int H_POPUP = 47;                  // Altezza
     const int X_POPUP = Centered_element_left(L_POPUP); // X posizione su display
@@ -79,6 +121,8 @@ FLASHMEM void DisplayLiveSampler::Update_no_recorded_audio(bool requested, bool 
 
 FLASHMEM void DisplayLiveSampler::Page(void)
 {
+    wave_display_valid = false;
+    displayed_channel = -1;
     no_recorded_audio_visible = false;
     loop_modes_notice = false;
     //("012345678901234567890"); // Size 1: 21 chars
@@ -233,6 +277,12 @@ FLASHMEM void DisplayLiveSampler::Window(void)
 
 FLASHMEM void DisplayLiveSampler::Channel(int sound_id)
 {
+    if (displayed_channel == sound_id && displayed_stereo == LS_stereo)
+    {
+        return;
+    }
+    displayed_channel = sound_id;
+    displayed_stereo = LS_stereo;
     Cancel_text_reset_cursor(display_coordinate_x(LS_column_row_element[value_LS_Channel][0]), display_coordinate_y(LS_column_row_element[value_LS_Channel][1]), 5);
     tft.setTextColor(LS_stereo ? ILI9341_YELLOW : ILI9341_WHITE);
     tft.print(!LS_stereo ? "MONO" : (sound_id == SOUNDS_MAX ? "LEFT" : "RIGHT"));
@@ -469,14 +519,7 @@ FLASHMEM void DisplayLiveSampler::Show_wave(const int sound_id)
     Draw_XY_lines();
     Update_REC_LED();
 
-    // memo[0] = localtimer; // 530us
-    tft.writeRect(LS_CANVAS_X, LS_CANVAS_Y, canvas.width(), canvas.height(), canvas.getBuffer());
-    // memo[1] = localtimer; // memo[1] - memo[0] = 44.000us
-
-    // Serial.print("Fill canvas, microseconds:");
-    // Serial.print(memo[0]);
-    // Serial.print(" Fill display, microseconds:");
-    // Serial.println(memo[1] - memo[0]);
+    Flush_wave_canvas();
 }
 
 void DisplayLiveSampler::Update_REC_LED(void)
@@ -594,6 +637,7 @@ FLASHMEM void DisplayLiveSampler::LS_show_pointer_frame(const LS_pointer_struct 
 
 FLASHMEM void DisplayLiveSampler::LS_Display_Confirm_capture_frame(uint8_t value)
 {
+    wave_display_valid = false;
     const int popup_width = display_coordinate_x(sizeof("REPLACE CAPTURE?") - 1 + 2);
     const int popup_height = display_coordinate_y(1) + 15;
     const int text_x = Centered_element_left(popup_width) + display_coordinate_x(1);

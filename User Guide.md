@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.3.0**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.3.1**
 
-Guide edition: **2 November 2026**
+Guide edition: **19 November 2026**
 
-Printable edition: [User Guide PDF for firmware 7.3.0](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.3.1](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -602,6 +602,8 @@ WAV export is useful when you want to edit a take on a computer, share a recordi
 
 ## Live Sampler
 
+Firmware 7.3.1 updates only the changed portions of the waveform display to reduce flicker. The display refreshes about five times per second; recording time, audio buffer capacity and operating controls are unchanged.
+
 <img src="doc/assets/images/4.jpg" alt="Live Sampler recording with adjustable feedback compressor and waveform" width="55%">
 
 *The revised layout groups input gain, feedback and its compressor above the playback controls.*
@@ -1015,17 +1017,17 @@ The firmware is the program that runs LILLA. To load a compiled firmware on Wind
 - Your LILLA instrument, which uses a Teensy 4.1.
 - A Windows 10 or 11 computer.
 - A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
-- The LILLA firmware file, for example `Lilla_v7_3_0.hex`.
+- The LILLA firmware file, for example `Lilla_v7_3_1.hex`.
 - Teensy Loader, downloaded from PJRC.
 
 ### Download the firmware
 
 1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_3_0.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_3_1.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
 3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
 4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
 
-The version numbers in `Lilla_v7_3_0.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+The version numbers in `Lilla_v7_3_1.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
 
 ### Download Teensy Loader
 
@@ -1042,11 +1044,11 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
-2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_3_0.hex`. Confirm the filename shown in the loader.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_3_1.hex`. Confirm the filename shown in the loader.
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.3.0. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.3.1. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1073,7 +1075,7 @@ On macOS, use the standalone **Teensy Loader** application and the published LIL
 ### Download the firmware on Mac
 
 1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_3_0.hex`.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_3_1.hex`.
 3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
 4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
 
@@ -1100,7 +1102,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.3.0.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.3.1.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1248,6 +1250,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 2 November 2026*
+*LILLA User Guide - English edition - 19 November 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

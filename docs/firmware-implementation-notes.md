@@ -1,6 +1,6 @@
 # Firmware Implementation Notes
 
-These developer notes retain the implementation details behind the [Firmware Architecture overview](../FIRMWARE_ARCHITECTURE.md). They describe firmware **7.3.0** and cover source organization, scheduling, processing limits, storage formats and maintenance procedures.
+These developer notes retain the implementation details behind the [Firmware Architecture overview](../FIRMWARE_ARCHITECTURE.md). They describe firmware **7.3.1** and cover source organization, scheduling, processing limits, storage formats and maintenance procedures.
 
 Chapter numbers follow the overview. For the signal-flow diagrams and Live Sampler animations, start with the overview. For operating instructions, use the [User Guide](../User%20Guide.md).
 
@@ -264,3 +264,17 @@ This document describes source-level behavior. Timing margins and hardware perfo
 ### Building the printable guide
 
 Run `python scripts/build_user_guide.py` with ReportLab and Pillow installed to regenerate `User Guide.pdf` from `User Guide.md`. The script reads the firmware version from `config.h`, embeds display photographs and fonts, and creates linked headings and a PDF outline. It uses Arial on Windows or DejaVu Sans on Linux. Render the PDF and inspect its pages before publishing.
+
+
+## Live Sampling partial canvas updates (7.3.1)
+
+`DisplayLiveSampler::Flush_wave_canvas()` compares the existing RGB565 canvas
+with a 60,140-byte previous-frame copy in PSRAM. The initial draw transfers
+the whole canvas; subsequent draws skip unchanged rows and transfer only
+the span from the first through the last changed pixel in each changed row.
+This also removes old waveform pixels without an intermediate blank frame.
+Page redraws and exit/capture confirmation popups invalidate the saved
+display state, forcing a complete restoration on the next waveform draw.
+The MONO/LEFT/RIGHT label is updated only when it changes or the page is
+rebuilt. The recording refresh interval remains 200 ms. The audio engine
+and envelope settings are unaffected by this display update.
