@@ -197,4 +197,8 @@ Special thanks to:
 
 ## License
 
-This repository includes a [LICENSE](LICENSE) file. See it for the applicable terms.
+LILLA Audio Sampler firmware, authored by Sandro Grassia, is licensed under the **GNU General Public License, version 3 only** (`GPL-3.0-only`). You may redistribute and modify the original LILLA code under those terms. See [LICENSE](LICENSE) for the complete license text.
+
+The firmware is distributed without any warranty, including the implied warranties of merchantability or fitness for a particular purpose, to the extent permitted by applicable law.
+
+Third-party code and dependencies retain their respective licenses, copyright notices and attribution requirements. The GPL-3.0-only declaration does not replace those notices or relicense third-party components. When redistributing the combined firmware, comply with the GPLv3 and the applicable terms of each included component.
