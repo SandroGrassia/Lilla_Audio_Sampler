@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "Functions.h"
 
 int16_t Lilla_saturate16(const int32_t &val)

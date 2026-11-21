@@ -1,8 +1,8 @@
 /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- *
- */
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
 
 // AudioVCF.h does NOT inherit from AudioStream.h
 

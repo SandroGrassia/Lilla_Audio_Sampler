@@ -2,7 +2,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.com
+   www.lillasampler.it
 */
 
 #include "DisplayDelay.h"

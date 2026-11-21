@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "PlayerAntialias.h"
 
 bool PlayerAntialias::Enabled(uint8_t setting, float base_pitch)

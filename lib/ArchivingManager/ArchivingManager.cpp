@@ -1,10 +1,10 @@
 #include "SdStorage.h"
 #include "SdSoundSource.h"
 /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- *
- */
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
 
 #include "CaptureSources.h"
 #include "ArchivingManager.h"

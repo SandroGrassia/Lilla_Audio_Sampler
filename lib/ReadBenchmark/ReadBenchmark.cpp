@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "ReadBenchmark.h"
 
 #if defined(LILLA_READ_BENCHMARK)

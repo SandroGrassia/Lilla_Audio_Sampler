@@ -25,9 +25,10 @@
  */
 
  /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- */
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
 
 // Lilla_AmpliOut_MuteIn offers:
 // - smooth output gain change

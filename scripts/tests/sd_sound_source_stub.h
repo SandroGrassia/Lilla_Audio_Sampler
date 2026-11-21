@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #pragma once
 #include <cstdint>
 // Legacy subsystem fixtures have no SD repository. Dedicated SD tests use the real implementation.

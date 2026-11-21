@@ -1,10 +1,12 @@
 /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- *
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
+/*
  * Credits: François Best (https://github.com/FortySevenEffects/arduino_midi_library/issues/165)
- *
- */
+*/
 
 #include "CaptureSources.h"
 #include <MidiReader.h>

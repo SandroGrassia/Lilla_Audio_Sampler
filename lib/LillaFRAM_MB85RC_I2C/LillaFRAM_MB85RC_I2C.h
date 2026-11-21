@@ -50,14 +50,15 @@
 /**************************************************************************/
 
 /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- *
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
 
+/*
 Connection using I2C with Wire2:
 SCL2 pin 24
 SDA2 pin 25
-
 */
 
 #include <Arduino.h>

@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "sd_sound_source_stub.h"
 
 bool SdSoundSource::Is_sd(int file)

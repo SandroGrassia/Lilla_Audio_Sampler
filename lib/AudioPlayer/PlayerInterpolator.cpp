@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "PlayerInterpolator.h"
 
 // Eight-tap Hann-windowed sinc, radius 4, cutoff 0.45 cycles/source sample.

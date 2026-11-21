@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 /**************************************************************************
  * Derived from FRAM_MB85RC_I2C by SOSAndroid.fr (E. Ha.).
  * Adapted for LILLA Audio Sampler to manage four MB85RC256V devices as a

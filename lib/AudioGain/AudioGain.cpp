@@ -1,8 +1,8 @@
 /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- *
- */
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
 
 // AudioGain offers:
 // - Output gain (output gain changes with no zip-effect!)

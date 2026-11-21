@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "Mp3Import.h"
 // scripts/mp3_flash.py keeps this translation unit in Flash; favor compact offline decoding.
 #pragma GCC optimize ("Os")

@@ -1,7 +1,8 @@
 /*
- * LILLA Audio Sampler
- * Author: Sandro Grassia, info@lillasampler.it
- */
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
 #pragma once
 
 // Final pitch ceilings include tuning, MIDI bend and vibrato; the read budget controls polyphony.

@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "WavImport.h"
 #include "SdStorage.h"
 #include "UserAudioImport.h"

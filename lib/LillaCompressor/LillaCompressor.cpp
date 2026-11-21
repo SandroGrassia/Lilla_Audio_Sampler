@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 /* LILLA Audio Sampler - shared stereo Live Sampler and Delay dynamics. */
 #include "LillaCompressor.h"
 #include <algorithm>

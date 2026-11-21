@@ -1,3 +1,9 @@
+/*
+   LILLA Audio Sampler
+   Author: Sandro Grassia (info@lillasampler.it)
+   www.lillasampler.it
+*/
+
 #include "PlayerReadBudget.h"
 
 float PlayerReadBudget::Transfer_us(PlayerReadSource source, uint32_t samples)
