@@ -8,7 +8,6 @@
 
 #if defined(LILLA_READ_BENCHMARK)
 #include <Arduino.h>
-#include <Audio.h>
 #include <spi_interrupt.h>
 #include <array>
 #include <cstdlib>
@@ -63,7 +62,9 @@ void ReadBenchmark::Run(PatchCacheManager &cache, AudioTables &tables, bool allo
     Serial.println(F("BENCH_ALIGN: four reads per method/case; exact versus expanded 4-byte-aligned read; audio suspended"));
     Serial.flush();
     const bool audio_enabled = NVIC_IS_ENABLED(IRQ_SOFTWARE) != 0;
-    AudioNoInterrupts();
+
+    NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
+
     const AudioFileSource source = cache.Get_source(0);
     const int16_t *table = nullptr;
     for (uint8_t instrument = 0; instrument < INSTRUMENTS; ++instrument)
@@ -159,7 +160,7 @@ void ReadBenchmark::Run(PatchCacheManager &cache, AudioTables &tables, bool allo
     file.close();
     if (audio_enabled)
     {
-        AudioInterrupts();
+        NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
     }
     free(ram_source);
     if (!ready)
