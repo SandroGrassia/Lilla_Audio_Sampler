@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 // NoclickCrossmix.h crea il vettore di cross-mix per loop Forward o loop Reverse

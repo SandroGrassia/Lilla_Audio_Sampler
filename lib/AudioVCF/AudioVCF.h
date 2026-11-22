@@ -28,7 +28,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 // AudioVCF.h does NOT inherit from AudioStream.h (unlike original filter_biquad.h)
