@@ -73,9 +73,17 @@ int main()
     Sound[799].B = 12345;
     Sound[799].pitch = -12;
     Sound[799].data = 31;
+    Sound[799].slide = -2000;
     assert(archive.Save_Sound(799) == 0);
     Sound[799] = {};
-    assert(archive.Read_Sound(799) == 0 && Sound[799].B == 12345 && Sound[799].data == 31);
+    assert(archive.Read_Sound(799) == 0 && Sound[799].B == 12345 && Sound[799].data == 31 && Sound[799].slide == -2000);
+    for (int slide : {0, 1, -1, 2000})
+    {
+        Sound[799].slide = slide;
+        assert(archive.Save_Sound(799) == 0);
+        Sound[799] = {};
+        assert(archive.Read_Sound(799) == 0 && Sound[799].slide == slide);
+    }
     Patch[199] = {};
     Patch[199].used = true;
     Patch[199].instruments = 2;

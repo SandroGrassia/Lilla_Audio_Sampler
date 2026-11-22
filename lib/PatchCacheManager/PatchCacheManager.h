@@ -60,6 +60,7 @@ public:
     int16_t *Reserve_capture(uint8_t slot, int16_t file_id, uint32_t samples); // Caller drains all players and cache readers first.
     void Set_required_files(const Preset_struct (&presets)[INSTRUMENTS]); // Pin the published file ranges and queue missing data; call with audio interrupts disabled.
     AudioFileSource Get_source(int16_t file_id, uint32_t first_sample = 0, uint32_t last_sample = 0) const; // Return only complete, pinned data, otherwise select Flash.
+    AudioFileSource Get_slide_source(int16_t file_id, uint32_t first_sample, uint32_t last_sample, int slide) const; // Sliding RAW windows require access to the complete source.
     bool Has_pending_copy(void) const; // Foreground status: queued or loading files, excluding completed and failed requests.
     bool Prepare_copy(CopyJob &job); // Reserve one bounded copy operation; call from main with audio interrupts disabled.
     bool Complete_copy(const CopyJob &job, bool success); // Publish a completed file or discard a failed copy; call with audio interrupts disabled.

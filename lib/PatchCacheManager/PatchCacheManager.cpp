@@ -266,6 +266,16 @@ AudioFileSource PatchCacheManager::Get_source(int16_t file_id, uint32_t first_sa
     return result;
 }
 
+AudioFileSource PatchCacheManager::Get_slide_source(int16_t file_id, uint32_t first_sample, uint32_t last_sample, int slide) const
+{
+    if (slide != 0 && file_id < FIRST_RECORDING_FILE)
+    {
+        const uint32_t samples = File_samples(file_id);
+        return Get_source(file_id, 0, samples == 0 ? 0 : samples - 1);
+    }
+    return Get_source(file_id, first_sample, last_sample);
+}
+
 bool PatchCacheManager::Has_pending_copy(void) const
 {
     for (uint8_t i = 0; i < required_count; ++i)

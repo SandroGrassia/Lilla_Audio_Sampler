@@ -31,6 +31,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, boo
     plan.pingpong = mode == LOOP_FWD_REV || mode == LOOP_REV_FWD;
     plan.span = edited ? B_Flash_sample_E - A_Flash_sample_E + 1 : (pending ? B_Flash_sample_wait - A_Flash_sample_wait + 1 : B_Flash_sample - A_Flash_sample + 1);
     plan.crossfade = plan.pingpong ? 0 : (edited ? delta_Noclick_E : (pending ? delta_Noclick_wait : delta_Noclick));
+    plan.dynamic_crossfade = edited ? slide_step_E != 0 : (pending ? slide_step_wait != 0 : slide_active);
     if (plan.live && mode == LOOP_FWD)
     {
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
@@ -276,8 +277,9 @@ if (downsampling_flag)
 
 */
 
-void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in)
+void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in, int16_t slide_in)
 {
+    slide_step_wait = mode_in == LOOP_FWD && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id_wait)) ? slide_in : 0;
     Noclick_wait_ptr = p_Noclick_in;
     Wavetable_wait_ptr = p_Wavetable_in;
     tables_bank_mask_wait = tables_bank_mask_in;
@@ -500,8 +502,9 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
     }
 }
 
-void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in)
+void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in, int16_t slide_in)
 {
+    slide_step_E = mode_in == LOOP_FWD && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id)) ? slide_in : 0;
     mode_player_E = (mode_in == LOOP_REV_FWD ? LOOP_FWD_REV : mode_in); // switching to mode 4 is ininfluent WHILE playing (besides, mode 4 does NOT exist in harvest functions)
     A_Flash_sample_E = A_value_in;
     B_Flash_sample_E = B_value_in;
@@ -803,6 +806,8 @@ void AudioPlayer::Start_playing(void)
     delta_Noclick = delta_Noclick_wait;
     mode_player = mode_player_wait;
     use_Wavetable = use_Wavetable_wait;
+    slide_step = slide_step_wait;
+    Reset_loop_slide();
     Flash_first_RAM_sample = Flash_first_RAM_sample_wait;
     a_first_sample = a_first_sample_wait;
     Wavetable_length = Wavetable_length_wait;
@@ -1413,6 +1418,11 @@ void AudioPlayer::update(void)
                 }
             }
 
+            if (slide_active || slide_step_E != 0)
+            {
+                snubber_flag = true; // A sliding edit restarts its geometry through the existing outgoing-note crossmix.
+            }
+
             // read HALF of samples from the old segment and old pitch and old gain
             if (snubber_flag && mix_samples > 0)
             {
@@ -1474,6 +1484,8 @@ void AudioPlayer::update(void)
                 B_Flash_sample_shifted = B_Flash_sample_shifted_E;
             }
 
+            slide_step = slide_step_E;
+            Reset_loop_slide();
             main_settings_editing_flag = false;
         }
 
@@ -1785,7 +1797,23 @@ void AudioPlayer::Harvest_samples(int outputs)
         interpolation_mix = target_mix;
     }
     PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
-    if (antialias.mix > 0.0f)
+    if (!slide_active && !LS_flag && mode_player == LOOP_FWD)
+    {
+        const int right = antialias.mix > 0.0f ? 1 : (interpolation_mix > 0.0f ? PlayerInterpolator::Taps - PlayerInterpolator::Left - 1 : 1);
+        const float last = a_sample - floorf(a_sample) + (outputs - 1) * pitch;
+        slide_rendered_ahead = static_cast<int>(floorf(last)) + right - static_cast<int>(floorf(last + pitch));
+    }
+    if (slide_active)
+    {
+        const int left = antialias.mix > 0.0f ? antialias.history : (interpolation_mix > 0.0f ? PlayerInterpolator::Left : 0);
+        const int right = antialias.mix > 0.0f ? 1 : (interpolation_mix > 0.0f ? PlayerInterpolator::Taps - PlayerInterpolator::Left - 1 : 1);
+        Harvest_slide_samples(left, right, (outputs - 1) * pitch);
+        if (antialias.mix > 0.0f)
+        {
+            PlayerAntialias::Render(samples_basket, harvested_samples, initial_index_offset, pitch, outputs, antialias, resampled_basket);
+        }
+    }
+    else if (antialias.mix > 0.0f)
     {
         Harvest_filtered_samples(antialias.history, 1, (outputs - 1) * pitch);
         PlayerAntialias::Render(samples_basket, harvested_samples, initial_index_offset, pitch, outputs, antialias, resampled_basket);
@@ -1798,6 +1826,49 @@ void AudioPlayer::Harvest_samples(int outputs)
     {
         (use_Wavetable ? Wavetable_harvest() : Flash_memory_harvest());
     }
+}
+
+void AudioPlayer::Reset_loop_slide(void)
+{
+    slide_rendered_ahead = -1;
+    slide_active = slide_step != 0;
+    if (slide_active)
+    {
+        loop_slide.Reset(A_Flash_sample, B_Flash_sample, delta_Noclick, slide_step, source_now.first_sample, source_now.first_sample + source_now.samples - 1);
+    }
+}
+
+void AudioPlayer::Harvest_slide_samples(int left, int right, float distance)
+{
+    left = loop_slide.History(left);
+    initial_index_offset = left + loop_slide.Fraction();
+    harvested_samples = static_cast<int>(floorf(initial_index_offset + distance)) + right + 1;
+    int written = 0;
+    int16_t head[32]; // Temporary endpoint scratch; no per-voice crossfade arrays survive update().
+    while (written < harvested_samples)
+    {
+        const auto segment = loop_slide.Describe(written - left);
+        int count = std::min(segment.count, harvested_samples - written);
+        if (segment.head >= 0)
+        {
+            count = std::min(count, 32);
+        }
+        int16_t *destination = samples_basket + written;
+        Read_samples(destination, segment.source, count);
+        if (segment.head >= 0)
+        {
+            Read_samples(head, segment.head, count);
+            for (int i = 0; i < count; ++i)
+            {
+                const float weight = static_cast<float>(segment.weight + i) / (delta_Noclick - 1);
+                destination[i] = static_cast<int16_t>(destination[i] * (1.0f - weight) + head[i] * weight);
+            }
+        }
+        written += count;
+    }
+    loop_slide.Commit_lookahead(harvested_samples - left - 1);
+    loop_slide.Advance(distance + pitch);
+    a_first_sample = A_Flash_sample + delta_Noclick + loop_slide.Phase(); // Keep legacy edit geometry in the initial window's coordinate system.
 }
 
 void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
@@ -3128,7 +3199,7 @@ void AudioPlayer::Close_source(void)
 
 void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
 {
-    if (state != PlayerState::Idle && source_now.storage == Flash && file_id == source.file_id && A_Flash_sample >= static_cast<int>(source.first_sample) && B_Flash_sample < static_cast<int>(source.first_sample + source.samples) && (!main_settings_editing_flag || (A_Flash_sample_E >= static_cast<int>(source.first_sample) && B_Flash_sample_E < static_cast<int>(source.first_sample + source.samples))))
+    if ((!slide_active || (source.first_sample == 0 && source.samples >= source_now.samples)) && (slide_step_E == 0 || !main_settings_editing_flag || (source.first_sample == 0 && source.samples >= source_now.samples)) && state != PlayerState::Idle && source_now.storage == Flash && file_id == source.file_id && A_Flash_sample >= static_cast<int>(source.first_sample) && B_Flash_sample < static_cast<int>(source.first_sample + source.samples) && (!main_settings_editing_flag || (A_Flash_sample_E >= static_cast<int>(source.first_sample) && B_Flash_sample_E < static_cast<int>(source.first_sample + source.samples))))
     {
         // Keep the playhead and edit geometry; only the reader and its pitch ceiling change.
         Close_source();
@@ -3140,7 +3211,7 @@ void AudioPlayer::Refresh_cached_source(const AudioFileSource &source)
         }
         Update_pitch();
     }
-    if ((warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id && A_Flash_sample_wait >= static_cast<int>(source.first_sample) && B_Flash_sample_wait < static_cast<int>(source.first_sample + source.samples))
+    if ((slide_step_wait == 0 || (source.first_sample == 0 && source.samples >= source_wait.samples)) && (warmup_for_play_again_flag || restart_flag) && source_wait.storage == Flash && file_id_wait == source.file_id && A_Flash_sample_wait >= static_cast<int>(source.first_sample) && B_Flash_sample_wait < static_cast<int>(source.first_sample + source.samples))
     {
         source_wait = source;
         pitch_limit_wait = Playback_pitch_limit(use_Wavetable_wait, true, (file_id_wait >= FIRST_LIVE_SAMPLING_FILE && !SdSoundSource::Is_sd(file_id_wait)));
@@ -3795,23 +3866,46 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
     if ((warmup_for_play_again_flag || restart_flag) && patch_id_wait == patch && instrument_id_wait == instrument && file_id_wait == preset.file)
     {
         Set_source(preset.source);
-        Main_settings(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
+        Main_settings(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask, preset.slide);
     }
     if (state == PlayerState::Idle || local_patch != patch || instrument_id != instrument || file_id != preset.file)
     {
         return false;
     }
-    if (source_now.storage == Psram && file_id < FIRST_RECORDING_FILE && (static_cast<uint32_t>(preset.A) < source_now.first_sample || static_cast<uint32_t>(preset.B) >= source_now.first_sample + source_now.samples))
+    if (source_now.storage == Psram && file_id < FIRST_RECORDING_FILE && (static_cast<uint32_t>(preset.A) < source_now.first_sample || static_cast<uint32_t>(preset.B) >= source_now.first_sample + source_now.samples || (preset.slide != 0 && preset.source.storage == Flash)))
     {
-        source_now = {};
-        source_now.file_id = file_id;
+        source_now = preset.source;
+        source_now.storage = Flash;
+        source_now.psram_ptr = nullptr;
+        source_now.cache_id = -1;
         rawfile.fast_open(file_id);
         AudioStartUsingSPI();
         spi_in_use = true;
         pitch_limit = Playback_pitch_limit(use_Wavetable, false, false);
         Update_pitch();
     }
-    Main_settings_editing(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask);
+    if (!main_settings_editing_flag && !LS_flag && mode_player == LOOP_FWD && preset.mode == LOOP_FWD && preset.A == A_Flash_sample && preset.B == B_Flash_sample && preset.Noclick == delta_Noclick && (slide_active || preset.slide != 0))
+    {
+        if (!slide_active)
+        {
+            const int period = B_Flash_sample - A_Flash_sample + 1 - delta_Noclick;
+            const float phase = fmaxf(0.0f, a_first_sample - (A_Flash_sample + delta_Noclick));
+            loop_slide.Reset(A_Flash_sample, B_Flash_sample, delta_Noclick, 0, source_now.first_sample, source_now.first_sample + source_now.samples - 1);
+            loop_slide.Advance(fmodf(phase, static_cast<float>(period)));
+            loop_slide.Commit_lookahead(slide_rendered_ahead); // Preserve only the static reader's already rendered interpolation tail.
+            slide_active = true;
+            use_Wavetable = false;
+            pitch_limit = file_id == SdSoundSource::PREVIEW ? 8.0f : Sample_pitch_limit(source_now.storage == Psram);
+            Update_pitch();
+        }
+        slide_step = preset.slide;
+        loop_slide.Queue_step(slide_step);
+        Noclick_ptr = tables.noclick;
+        Wavetable_ptr = tables.wavetable;
+        tables_bank_mask = tables.bank_mask; // Release obsolete table banks even though this voice now mixes directly from its source.
+        return false; // No geometry reset or note crossfade: the scheduled junction applies the new step.
+    }
+    Main_settings_editing(preset.mode, preset.A, preset.B, preset.Noclick, preset.use_Wavetable, tables.noclick, tables.wavetable, tables.bank_mask, preset.slide);
     return true;
 }
 

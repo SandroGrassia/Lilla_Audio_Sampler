@@ -331,6 +331,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     plan.pingpong = preset.mode == LOOP_FWD_REV || preset.mode == LOOP_REV_FWD;
     plan.span = plan.live ? (plan.loop ? LS_XY_delta + 1 : LS_buffer_dim) : preset.B - preset.A + 1;
     plan.crossfade = plan.pingpong ? 0 : preset.Noclick;
+    plan.dynamic_crossfade = preset.mode == LOOP_FWD && preset.slide != 0;
     if (plan.live && preset.mode == LOOP_FWD)
     {
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
@@ -520,7 +521,7 @@ void PlayersManager::Play_note(uint8_t instrument_id, uint8_t note_number, float
     Player_ptr[id_player].Set_pan(Preset[instrument_id].pan);
     Player_ptr[id_player].Set_pitch(Preset[instrument_id].pitch);
 
-    Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask);
+    Player_ptr[id_player].Main_settings(Preset[instrument_id].mode, Preset[instrument_id].A, Preset[instrument_id].B, Preset[instrument_id].Noclick, Preset[instrument_id].use_Wavetable, table_pointers.noclick, table_pointers.wavetable, table_pointers.bank_mask, Preset[instrument_id].slide);
 
     Player_ptr[id_player].Set_tone_filter(Preset[instrument_id].lock); // TONE carries the cutoff and the independent antialias enable bit.
     Player_ptr[id_player].Set_effects(resolution_value[resolution], downsampling);
@@ -949,13 +950,15 @@ Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, floa
     result.pan = Sound[sound_id].pan;
     result.sound_id = sound_id;
     result.file = Sound[sound_id].file;
-    result.source = Cache_manager_ptr->Get_source(result.file, Sound[sound_id].A, Sound[sound_id].B);
+    const int slide_limit = std::min(2000, static_cast<int>(Sound[sound_id].B - Sound[sound_id].A + 1));
+    result.slide = Sound[sound_id].mode == LOOP_FWD ? constrain(Sound[sound_id].slide, -slide_limit, slide_limit) : 0;
+    result.source = Cache_manager_ptr->Get_slide_source(result.file, Sound[sound_id].A, Sound[sound_id].B, result.slide);
     result.midi_channel = Get_midi_channel(patch_id, instrument_id);
     result.pitch = Calc_pitch(Sound[sound_id].pitch);
     result.mode = Sound[sound_id].mode;
     result.A = Sound[sound_id].A;
     result.B = Sound[sound_id].B;
-    result.use_Wavetable = (result.B - result.A + 1) <= BLOCK_MIN;
+    result.use_Wavetable = result.slide == 0 && (result.B - result.A + 1) <= BLOCK_MIN;
     result.Noclick = Sound[sound_id].Noclick;
     result.attack_type = bitRead(Sound[sound_id].data, 0);
     result.attack = Calc_attack(Sound[sound_id].attack);
@@ -1560,7 +1563,7 @@ void PlayersManager::Refresh_cache_sources(void)
         {
             continue;
         }
-        preset.source = Cache_manager_ptr->Get_source(preset.file, preset.A, preset.B);
+        preset.source = Cache_manager_ptr->Get_slide_source(preset.file, preset.A, preset.B, preset.slide);
         if (preset.source.storage != Psram)
         {
             continue;

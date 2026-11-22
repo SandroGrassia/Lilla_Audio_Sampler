@@ -13,6 +13,7 @@
 #include <Wire.h>
 #include <utility/dspinst.h>
 #include "config.h"
+#include "PlayerLoopSlide.h"
 #include "LillaSerialFlash.h"
 #include "SharedElements.h"
 #include "AudioVCF.h"
@@ -46,6 +47,14 @@ private:
     static constexpr int BASKET_DIM = PlayerAntialias::Basket_capacity; // Includes source-domain IIR history at the maximum playback pitch.
     static_assert(BASKET_DIM >= AUDIO_BLOCK_SAMPLES * MAX_PITCH_WAVETABLE + PlayerAntialias::History_base + PlayerAntialias::History_per_pitch * MAX_PITCH_WAVETABLE + 2);
     static_assert(MAX_PITCH_PSRAM <= MAX_PITCH_WAVETABLE && MAX_PITCH_FLASH <= MAX_PITCH_WAVETABLE);
+    PlayerLoopSlide loop_slide;
+    bool slide_active = false; // Retain the moving reader and its reached window even when SLIDE becomes zero.
+    int8_t slide_rendered_ahead = -1; // Last static-reader lookahead relative to its next source position.
+    int16_t slide_step = 0;
+    int16_t slide_step_wait = 0;
+    int16_t slide_step_E = 0;
+    void Reset_loop_slide(void);
+    void Harvest_slide_samples(int left, int right, float distance);
     static int16_t samples_basket[BASKET_DIM]; // cache array unico per samples copiati dai Player
     int16_t block[AUDIO_BLOCK_SAMPLES];
     PlayerToneFilter tone_filter;
@@ -368,9 +377,9 @@ public:
     void Set_mix_samples(uint8_t value);
 
     void Resume_live_recording(int position); // Switch active or queued Live loops to ONCE FWD at position, preserving A; call with audio interrupts disabled.
-    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0);         // Prepare the next start from precomputed preset parameters and table references.
+    void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0, int16_t slide_in = 0);         // Prepare the next start from precomputed preset parameters and table references.
     void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in);                                                                     // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
-    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.
+    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0, int16_t slide_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.
 
     void Release_note(void);          // release note, fires ADSR "release"
     void Release_patch(int patch_id); // Cancel outgoing queued notes and bound current patch voices, including voices already fading; call with audio interrupts disabled.

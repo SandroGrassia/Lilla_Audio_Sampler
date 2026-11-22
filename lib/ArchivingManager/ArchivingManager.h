@@ -100,7 +100,7 @@ private:
         uint8_t sustain;
         uint8_t release;
         uint8_t gain;
-        uint8_t reserved[5];
+        uint8_t reserved[5]; // Bytes 0..1 store signed little-endian SLIDE; legacy zero means stationary.
         uint32_t crc32; // CRC-32/ISO-HDLC of bytes 0..27, written after the payload.
     };
 

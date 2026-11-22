@@ -40,7 +40,7 @@ struct PresetStub
 {
     bool precedence = false, use_Wavetable = false;
     uint8_t lock = 0;
-    int file = 0, mode = 0, A = 0, B = 9999, Noclick = 0;
+    int file = 0, mode = 0, A = 0, B = 9999, Noclick = 0, slide = 0;
     float pitch = 1;
     AudioFileSource source;
 } Preset[16];
@@ -56,6 +56,8 @@ struct AudioPlayer
     AudioFileSource source_now, source_wait;
     int mode_player = 0, mode_player_wait = 0, mode_player_E = 0;
     int A_Flash_sample = 0, B_Flash_sample = 9999, A_Flash_sample_wait = 0, B_Flash_sample_wait = 9999, A_Flash_sample_E = 0, B_Flash_sample_E = 9999;
+    int slide_step = 0, slide_step_wait = 0, slide_step_E = 0;
+    bool slide_active = false;
     int delta_Noclick = 0, delta_Noclick_wait = 0, delta_Noclick_E = 0;
     float pitch_bend_wait = 1;
     float pitch_bend = 1, pitch_vibrato = 1, pitch_based_gain_correction = 1;
@@ -267,6 +269,22 @@ int main()
     const int live_prefetch = static_cast<int>(std::ceil(127 * MAX_PITCH_LIVE)) + 2 + PlayerAntialias::History(MAX_PITCH_LIVE);
     assert(live_prefetch < 5292 - PlayerReadBudget::Live_noclick_samples); // Even fractional/filter context stays below the minimum 120 ms loop.
     assert(Limit_us == 1800);
+    Plan sliding;
+    sliding.source = PlayerReadSource::Flash;
+    sliding.loop = true;
+    sliding.span = 600;
+    sliding.crossfade = 300;
+    const float static_cost = Estimate(sliding, 128);
+    sliding.dynamic_crossfade = true;
+    assert(Estimate(sliding, 128) > static_cost);
+    RealVoice::AudioPlayer moving;
+    moving.slide_step = 10;
+    moving.slide_active = true;
+    moving.slide_step_wait = -10;
+    moving.slide_step_E = 20;
+    assert(moving.Get_read_plan().dynamic_crossfade);
+    assert(moving.Get_read_plan(true).dynamic_crossfade);
+    assert(moving.Get_read_plan(false, true).dynamic_crossfade);
     Plan high;
     high.pitch = 35; high.span = 10000;
     high.antialias = true;

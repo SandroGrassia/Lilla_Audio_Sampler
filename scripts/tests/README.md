@@ -26,3 +26,7 @@ python -B scripts/tests/run_regressions.py --mp3
 `--mp3` adds the longer MP3 import/resampling cases. These require FFmpeg with `libmp3lame`, either on `PATH` or installed below `.pio/test-tools`. The normal suite still compiles the MP3 import code, but skips those generated audio fixtures.
 
 Individual scripts can also be run with `python -B scripts/tests/<name>_regression.py`. Host tests validate logic using hardware stubs; firmware compilation and listening/timing tests on Teensy remain separate checks.
+
+The SLIDE regressions cover signed window motion, end-of-source clamping, NoClick between consecutive windows, fractional pitch, interpolation history, shared-buffer reuse and note-start reset (`player_slide_regression.py`), plus conditional SOUND cursor navigation and signed display layout (`sound_slide_controls_regression.py`). FRAM runtime and cache regressions also cover persistence and complete-source selection for sliding RAW loops.
+
+`player_slide_edit_regression.py` checks continuous step edits through the production voice edit path: a started or prefetched junction retains its destination, zero freezes the reached window, reversal starts from the reached file edge, repeated edits coalesce, and only the next Note On resets the original window. A bounded history of step changes retains interpolation context without allocating audio buffers; a sudden pitch increase limits filter history to the retained trajectory.

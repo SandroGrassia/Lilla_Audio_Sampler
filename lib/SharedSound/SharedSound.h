@@ -40,7 +40,7 @@ enum S_field_name
     field_S_Value
 };
 
-static constexpr int S_value_names = 11;
+static constexpr int S_value_names = 12;
 enum S_value_name
 {
     value_S_File,
@@ -53,7 +53,8 @@ enum S_value_name
     value_S_Sustain,
     value_S_Release,
     value_S_PlayMode,
-    value_S_Noclick
+    value_S_Noclick,
+    value_S_Slide
 };
 
 struct S_field_description_struct

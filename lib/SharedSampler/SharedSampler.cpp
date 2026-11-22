@@ -36,6 +36,10 @@ void DS_copy_edited_parameters(const Sound_struct &before, const Sound_struct &e
     {
         other.pitch = edited.pitch;
     }
+    if (edited.slide != before.slide)
+    {
+        other.slide = edited.slide;
+    }
     if (edited.Noclick != before.Noclick)
     {
         other.Noclick = edited.Noclick;

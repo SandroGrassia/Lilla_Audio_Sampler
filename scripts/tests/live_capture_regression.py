@@ -274,6 +274,12 @@ int main()
     const auto first = windows.Get_source(1, 1100, 2123);
     const auto second = windows.Get_source(1, 2500, 3011);
     assert(first.storage == Psram && second.storage == Psram && first.cache_id != second.cache_id);
+    assert(windows.Get_slide_source(1, 1100, 2123, 0).storage == Psram);
+    for (int slide : {-2000, -1, 1, 2000})
+    {
+        const auto moving = windows.Get_slide_source(1, 1100, 2123, slide);
+        assert(moving.storage == Flash && moving.first_sample == 0 && moving.samples == 4096);
+    }
     assert(first.first_sample == 1100 && first.samples == 1024 && first.psram_ptr[1023] == 2123);
     assert(second.first_sample == 2500 && second.psram_ptr[511] == 3011);
     assert(windows.Get_source(1, 0, 1023).storage == Flash);
