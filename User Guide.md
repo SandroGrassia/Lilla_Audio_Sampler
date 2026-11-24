@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.3.1**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.4.0**
 
-Guide edition: **19 November 2026**
+Guide edition: **24 November 2026**
 
-Printable edition: [User Guide PDF for firmware 7.3.1](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.4.0](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -378,7 +378,8 @@ Use Select to highlight a parameter and Value to change it:
 | Sustain | Set the held envelope level. |
 | Release | Set the fade after release. |
 | Play mode | Choose playback direction and one-shot or looping behavior. |
-| Noclick | Adjust loop-boundary smoothing where available. |
+| SLIDE | Move the loop window in FWD/REV, with pitch compensation. |
+| NOCLK | Adjust loop-boundary smoothing where available. |
 
 | Playback mode | How the region is read | Typical use |
 | --- | --- | --- |
@@ -388,6 +389,18 @@ Use Select to highlight a parameter and Value to change it:
 | Loop FWD/REV | Alternates direction, beginning forward. | Textures that turn around at the boundaries. |
 | Loop REV/FWD | Alternates direction, beginning in reverse. | A reverse-starting variation of an alternating loop. |
 | Loop REV | Repeats in the reverse direction. | Reversed repeating textures. |
+
+### Sliding loop windows (SLIDE)
+
+SLIDE is available in LOOP FWD and LOOP REV. Positive values move the window toward the end of the source; negative values move it toward the beginning, independently of playback direction. The window stops at the available source boundary.
+
+The displayed value is the step in source samples per cycle at pitch 1, limited to +/-2000 and the window length. The actual step is divided by the playback pitch: SLIDE 100 means 200 samples at pitch 0.5 and 50 at pitch 2. Fractional steps accumulate, keeping small values effective at high pitch.
+
+Turn SLIDE to zero to freeze the reached window. Changing its sign reverses motion from that position. Changes take effect at the next available NoClick junction; a junction already being prepared or played is preserved.
+
+During playback, From/To, Slice and NoClick edits retain the reached position where the new window permits it. If a new boundary excludes the current point, playback moves to a valid point with the audio crossmix. A new note starts from the saved From/To settings. Save the Sound to retain its SLIDE value.
+
+When switching to an instrument without SLIDE, selection moves to Play Mode. SLIDE does not apply to Live Sampler circular recording playback or to MIDI Loop track time shifting. NoClick is labelled `NOCLK` on the current SOUND screen.
 
 Envelope and note-release behavior still affect what you hear. A looping region can fade away with the envelope; a one-shot source still has a finite end.
 
@@ -1017,17 +1030,17 @@ The firmware is the program that runs LILLA. To load a compiled firmware on Wind
 - Your LILLA instrument, which uses a Teensy 4.1.
 - A Windows 10 or 11 computer.
 - A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
-- The LILLA firmware file, for example `Lilla_v7_3_1.hex`.
+- The LILLA firmware file, for example `Lilla_v7_4_0.hex`.
 - Teensy Loader, downloaded from PJRC.
 
 ### Download the firmware
 
 1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_3_1.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_4_0.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
 3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
 4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
 
-The version numbers in `Lilla_v7_3_1.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+The version numbers in `Lilla_v7_4_0.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
 
 ### Download Teensy Loader
 
@@ -1044,11 +1057,11 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
-2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_3_1.hex`. Confirm the filename shown in the loader.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_4_0.hex`. Confirm the filename shown in the loader.
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.3.1. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.4.0. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1075,7 +1088,7 @@ On macOS, use the standalone **Teensy Loader** application and the published LIL
 ### Download the firmware on Mac
 
 1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_3_1.hex`.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_4_0.hex`.
 3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
 4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
 
@@ -1102,7 +1115,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.3.1.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.4.0.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1239,7 +1252,8 @@ Change one thing at a time and retest with the same note. This makes it easier t
 | LPF | Low-pass filter, which reduces higher frequencies. |
 | MIDI CC | A MIDI Control Change message used to control an assigned parameter. |
 | Mono | One audio channel. |
-| Noclick | Boundary smoothing used to reduce discontinuities in suitable loop regions. |
+| SLIDE | Move the loop window in FWD/REV, with pitch compensation. |
+| NOCLK | Boundary smoothing used to reduce discontinuities in suitable loop regions. |
 | PCM | Uncompressed digital sample data. |
 | Polyphony | The number of simultaneous playback voices; layers and release tails use voices too. |
 | PSRAM | Working audio memory; its contents are lost at power-off. |
@@ -1250,6 +1264,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 19 November 2026*
+*LILLA User Guide - English edition - 24 November 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

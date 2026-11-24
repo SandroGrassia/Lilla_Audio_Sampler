@@ -2,7 +2,7 @@
 
 ## Scope
 
-This technical comparison uses **7.3.1** as the preceding release. It describes the current 7.4.0 working tree, including the REV extension, pitch compensation, instrument-selection fix and continuous From/To editing added after the initial 7.4.0 commit. It does not imply that those subsequent changes have already been committed or published on GitHub.
+This release compares firmware **7.4.0** with **7.3.1** and includes SLIDE FWD/REV, pitch compensation, instrument-selection correction and continuous From/To editing. Release date: **24 November 2026**.
 
 ## Changes from 7.3.1
 
