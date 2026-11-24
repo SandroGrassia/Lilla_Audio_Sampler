@@ -155,7 +155,7 @@ struct Sound_struct // 24 bytes
     uint32_t A;
     uint32_t B;
     uint16_t Noclick;
-    int16_t slide; // Signed source samples per LOOP_FWD cycle; zero keeps the original window.
+    int16_t slide; // Signed source samples per LOOP_FWD/LOOP_REV cycle at pitch 1; zero stops window motion.
     int8_t pan;
     uint8_t data; // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
     uint8_t attack;

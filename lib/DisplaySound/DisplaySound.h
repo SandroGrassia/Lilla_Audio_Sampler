@@ -113,7 +113,7 @@ public:
     FLASHMEM void Show_Pan_value(int instrument_id);                 // Prints pan direction and amount.
     FLASHMEM void Show_Play_mode_value(int instrument_id);           // Prints loop/playback mode.
     FLASHMEM void Show_Noclick_value(int instrument_id, bool value); // Prints the no-click smoothing amount.
-    FLASHMEM void Show_Slide_value(int instrument_id); // Signed samples per cycle, visible only in LOOP FWD.
+    FLASHMEM void Show_Slide_value(int instrument_id); // Signed source samples per cycle at pitch 1, visible in LOOP FWD and LOOP REV.
     FLASHMEM void Show_Trim_step_value(void);                        // Prints the current trim encoder step.
     FLASHMEM void Show_players_Pitch_max_value(int instrument_id);   // Prints max pitch and available voices for the selected media.
 };

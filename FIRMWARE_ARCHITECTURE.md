@@ -1,8 +1,10 @@
 # Firmware Architecture
 
-This document explains how LILLA's firmware brings playback, recording, effects and controls together. It describes firmware **7.3.1**, focusing on the role of each part and how the parts work together.
+This document explains how LILLA's firmware brings playback, recording, effects and controls together. It describes firmware **7.4.0**, including the current SLIDE extensions and fixes, focusing on the role of each part and how the parts work together.
 
 For operating instructions, see the [User Guide](User%20Guide.md). Developers can consult the separate [implementation notes](docs/firmware-implementation-notes.md) for source references, exact limits and storage details.
+
+Compared with 7.3.1, playback now supports moving loop windows through the signed SLIDE parameter in LOOP FWD and LOOP REV. The window moves independently of playback direction; its step is compensated for pitch. Active edits preserve the reached position, and crossfades are calculated between consecutive windows directly from the source. See the [7.4.0 technical release notes](docs/release-notes-7.4.0.md) for the complete comparison, persistence changes and validation status.
 
 ## Contents
 

@@ -379,7 +379,7 @@ public:
     void Resume_live_recording(int position); // Switch active or queued Live loops to ONCE FWD at position, preserving A; call with audio interrupts disabled.
     void Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0, int16_t slide_in = 0);         // Prepare the next start from precomputed preset parameters and table references.
     void Get_ready_to_play(float pitch_note_in, float velocity_in, int patch_in, uint8_t instrument_in, uint16_t sound_id_in, uint8_t note_in);                                                                     // setta una serie di valori e flag, individuati col suffisso "wait", utilizzati alla successiva partenza/ripartenza del Player, comandata da update()
-    void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0, int16_t slide_in = 0); // Queue a crossmixed edit of the current note using the supplied tables.
+    FLASHMEM void Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in = 0, int16_t slide_in = 0); // Prepare edits from Flash, preserving fast RAM for audio rendering.
 
     void Release_note(void);          // release note, fires ADSR "release"
     void Release_patch(int patch_id); // Cancel outgoing queued notes and bound current patch voices, including voices already fading; call with audio interrupts disabled.
@@ -409,5 +409,5 @@ public:
     // AudioTables: chiamare nell'IRQ audio oppure con IRQ audio disabilitati.
     uint8_t Get_tables_reference_mask(void);                                                                             // Include current playback, pending starts and pending edits.
     void Refresh_audio_table_references(AudioTables &tables);                                                            // Move equivalent table references without restarting playback; call with audio interrupts disabled.
-    bool Apply_preset_edit(int patch, int instrument, const Preset_struct &preset, const AudioTables::Pointers &tables); // Update matching current and pending notes; return whether the current note needs a crossmix.
+    FLASHMEM bool Apply_preset_edit(int patch, int instrument, const Preset_struct &preset, const AudioTables::Pointers &tables); // Prepare current/pending edits from Flash; return whether the current note needs a crossmix.
 };

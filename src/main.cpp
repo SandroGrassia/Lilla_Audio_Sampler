@@ -2090,7 +2090,7 @@ FLASHMEM void loop()
         result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
-            Pointer_Sound.Move_pointer(result, S_menu_max, Preset[Instrument_id].mode == LOOP_FWD);
+            Pointer_Sound.Move_pointer(result, S_menu_max, Preset[Instrument_id].mode == LOOP_FWD || Preset[Instrument_id].mode == LOOP_REV);
             S_pointer = Pointer_Sound.Get_pointer();
 
             Clear_UI_events();
@@ -2864,7 +2864,7 @@ FLASHMEM void loop()
             case value_S_Slide:
             {
                 result = Read_encoder_simple(EN_PB_Value);
-                if (result != 0 && Sound[Sound_id].mode == LOOP_FWD)
+                if (result != 0 && (Sound[Sound_id].mode == LOOP_FWD || Sound[Sound_id].mode == LOOP_REV))
                 {
                     const int limit = std::min(2000, static_cast<int>(Sound[Sound_id].B - Sound[Sound_id].A + 1));
                     const int current = Sound[Sound_id].slide;
@@ -3344,14 +3344,9 @@ FLASHMEM void loop()
                     S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
                     Display_Sound.Show_SOUND_menu();
 
-                    // Restore the pointer within the selected Sound's current menu.
+                    // Restore the pointer within the selected Sound's visible fields and current menu.
+                    Pointer_Sound.Restore_pointer(S_menu_max, Preset[Instrument_id].mode == LOOP_FWD || Preset[Instrument_id].mode == LOOP_REV);
                     S_pointer = Pointer_Sound.Get_pointer();
-                    if (S_pointer.field_name == field_S_Menu && S_pointer.menu_element > S_menu_max)
-                    {
-                        Pointer_Sound.Set_pointer_to_menu_element(S_menu_max);
-                        S_pointer = Pointer_Sound.Get_pointer();
-                    }
-                    Pointer_Sound.Display_pointer();
 
                     Performance_led_set.Restore_all_LED();
 

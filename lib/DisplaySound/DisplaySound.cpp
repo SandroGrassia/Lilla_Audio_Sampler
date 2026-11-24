@@ -303,7 +303,7 @@ FLASHMEM void DisplaySound::Show_Play_mode_value(int instrument_id)
 FLASHMEM void DisplaySound::Show_Slide_value(int instrument_id)
 {
     Cancel_text_reset_cursor(display_coordinate_x(S_column_row_Pitch[0]), display_coordinate_y(6.9), 12);
-    if (Preset[instrument_id].mode == LOOP_FWD)
+    if (Preset[instrument_id].mode == LOOP_FWD || Preset[instrument_id].mode == LOOP_REV)
     {
         tft.setTextColor(TEXT_COLOR);
         tft.print("SLIDE");

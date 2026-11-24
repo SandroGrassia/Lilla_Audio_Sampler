@@ -28,7 +28,7 @@ prefix = r'''
 #include "PlayerReadBudget.h"
 #include "PlaybackProfile.h"
 constexpr int PLAYERS = 16, AUDIO_BLOCK_SAMPLES = 128, AUDIO_PLAYER_DEADLINE_US = 2700;
-constexpr int LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4;
+constexpr int LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4, LOOP_REV = 5;
 constexpr int FIRST_RECORDING_FILE = 100, FIRST_LIVE_SAMPLING_FILE = 200;
 constexpr float MIN_PITCH = 0.1f;
 int Patch_id = 0, LS_XY_delta = 10000, LS_buffer_dim = 32768;
@@ -285,6 +285,11 @@ int main()
     assert(moving.Get_read_plan().dynamic_crossfade);
     assert(moving.Get_read_plan(true).dynamic_crossfade);
     assert(moving.Get_read_plan(false, true).dynamic_crossfade);
+    moving.mode_player = moving.mode_player_E = LOOP_REV;
+    moving.slide_step_E = 0;
+    assert(moving.Get_read_plan(false, true).dynamic_crossfade); // Trimming a frozen sliding window still blends directly from the source.
+    moving.mode_player_E = LOOP_FWD;
+    assert(!moving.Get_read_plan(false, true).dynamic_crossfade); // A direction change with zero SLIDE returns to a stationary reader.
     Plan high;
     high.pitch = 35; high.span = 10000;
     high.antialias = true;
@@ -306,6 +311,22 @@ int main()
     Preset[0].file = FIRST_LIVE_SAMPLING_FILE;
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Psram);
     assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_LIVE);
+    Preset[0] = {};
+
+    for (int mode : {LOOP_FWD, LOOP_FWD_REV, LOOP_REV_FWD, LOOP_REV})
+    {
+        Preset[0].mode = mode;
+        Preset[0].Noclick = 100;
+        const auto stationary = forecast.New_read_plan(0, 1);
+        Preset[0].slide = -25;
+        const auto sliding_plan = forecast.New_read_plan(0, 1);
+        assert(sliding_plan.dynamic_crossfade == (mode == LOOP_FWD || mode == LOOP_REV));
+        if (sliding_plan.dynamic_crossfade)
+        {
+            assert(Estimate(sliding_plan, 128) > Estimate(stationary, 128));
+        }
+        Preset[0].slide = 0;
+    }
     Preset[0] = {};
 
     // A lower next-block forecast grants fades without changing admission reservations.

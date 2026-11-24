@@ -331,7 +331,7 @@ PlayerReadBudget::Plan PlayersManager::New_read_plan(uint8_t instrument, float n
     plan.pingpong = preset.mode == LOOP_FWD_REV || preset.mode == LOOP_REV_FWD;
     plan.span = plan.live ? (plan.loop ? LS_XY_delta + 1 : LS_buffer_dim) : preset.B - preset.A + 1;
     plan.crossfade = plan.pingpong ? 0 : preset.Noclick;
-    plan.dynamic_crossfade = preset.mode == LOOP_FWD && preset.slide != 0;
+    plan.dynamic_crossfade = (preset.mode == LOOP_FWD || preset.mode == LOOP_REV) && preset.slide != 0;
     if (plan.live && preset.mode == LOOP_FWD)
     {
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
@@ -951,7 +951,7 @@ Preset_struct PlayersManager::Build_Preset(int patch_id, int instrument_id, floa
     result.sound_id = sound_id;
     result.file = Sound[sound_id].file;
     const int slide_limit = std::min(2000, static_cast<int>(Sound[sound_id].B - Sound[sound_id].A + 1));
-    result.slide = Sound[sound_id].mode == LOOP_FWD ? constrain(Sound[sound_id].slide, -slide_limit, slide_limit) : 0;
+    result.slide = (Sound[sound_id].mode == LOOP_FWD || Sound[sound_id].mode == LOOP_REV) ? constrain(Sound[sound_id].slide, -slide_limit, slide_limit) : 0;
     result.source = Cache_manager_ptr->Get_slide_source(result.file, Sound[sound_id].A, Sound[sound_id].B, result.slide);
     result.midi_channel = Get_midi_channel(patch_id, instrument_id);
     result.pitch = Calc_pitch(Sound[sound_id].pitch);

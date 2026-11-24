@@ -1,6 +1,6 @@
 # Firmware Implementation Notes
 
-These developer notes retain the implementation details behind the [Firmware Architecture overview](../FIRMWARE_ARCHITECTURE.md). They describe firmware **7.3.1** and cover source organization, scheduling, processing limits, storage formats and maintenance procedures.
+These developer notes retain the implementation details behind the [Firmware Architecture overview](../FIRMWARE_ARCHITECTURE.md). They describe firmware **7.4.0**, including the current SLIDE extensions and fixes, and cover source organization, scheduling, processing limits, storage formats and maintenance procedures. See the [7.4.0 technical release notes](release-notes-7.4.0.md) for the comparison with 7.3.1.
 
 Chapter numbers follow the overview. For the signal-flow diagrams and Live Sampler animations, start with the overview. For operating instructions, use the [User Guide](../User%20Guide.md).
 
@@ -58,6 +58,24 @@ Keep protected sections short. Display operations, serial reporting and bulk sto
 Flash samples can be read directly or promoted to PSRAM by [PatchCacheManager](../lib/PatchCacheManager/PatchCacheManager.h). [SdSoundSource](../lib/SdSoundSource/SdSoundSource.h) resolves SD catalog entries and saved source references; the selected audio window is loaded into a PSRAM patch cache before playback. SD is a loading source, not a continuous streaming reader during notes. The PSRAM path also supplies the Live Sampler ring, while the wavetable path uses prepared tables. Cache publication and reader lifetime are described in the memory chapter.
 
 The player advances through the selected boundaries using the playback direction and loop mode. Tuning, note pitch, pitch bend and vibrato determine the resampling ratio. Interpolation and boundary crossfades support fractional positions and smooth transitions. ADSR, velocity and volume shape amplitude before the timbre effects; stereo panning follows the VCF.
+
+### Sliding loop windows (7.4.0)
+
+`Sound_struct::slide` and `Preset_struct::slide` carry a signed step referenced to pitch 1. `PlayersManager::Build_Preset()` enables it for LOOP FWD and LOOP REV, constraining the displayed value to +/-min(2000, B-A+1). Other playback modes ignore the stored value. Live Sampler ring playback does not activate this file-window reader.
+
+For a window of `span = B-A+1` and NoClick overlap `d`, the playback period is `span-d`. At each junction, the window advances by `slide / pitch`, where `pitch` is the effective constrained ratio after note pitch, tuning, bend and vibrato. Thus equal output durations produce approximately equal window displacement at different pitches, subject to discrete cycle boundaries and source-edge clamping. Positive steps move toward the source end in both directions; negative steps move toward its beginning. The pitch compensation can make the effective step larger than the displayed limit at low pitches.
+
+[`PlayerLoopSlide`](../lib/AudioPlayer/PlayerLoopSlide.h) stores geometry rather than audio. Window positions and strides use 64-bit fixed-point values with 24 fractional bits; source addresses are rounded only when reading. This retains small steps at high pitch and fractional progress at large source offsets. Each step record also bounds the number of cycles before reaching an edge, avoiding accumulated overshoot and unbounded position multiplication. The eight-record history supports interpolation context across changes; `History()` limits requests when older geometry has been discarded.
+
+`Describe()` reconstructs raw or crossfade segments without advancing playback. FWD reads ascend through each window; REV reads descend. `Harvest_slide_samples()` uses the shared sample basket and a temporary 32-sample endpoint array. It reads both windows for a junction, reverses the chunks for REV and applies the NoClick blend. It then commits the interpolation lookahead and advances the audible cursor once. There are no persistent per-voice audio crossfade buffers.
+
+`Queue_step()` applies SLIDE or pitch changes at the first junction not already rendered. A prefetched or started junction retains its destination; several changes before the same available junction coalesce. Zero freezes the reached window while retaining the dynamic reader. Reversing the step starts from the reached window, including at a source edge. A new note resets to the preset's From/To; its first harvest applies the incoming note's effective pitch.
+
+For From/To, Slice or NoClick edits in the same loop mode, `AudioPlayer::update()` captures `Get_position()` before rendering the outgoing crossmix. `Reframe()` applies the From delta and new length to the reached window, preserving fractional motion and the current source read position where it remains valid. Otherwise it clamps to the new playable range; the whole window also stays within the source. The snapshot prevents the outgoing crossmix read from advancing the incoming trajectory a second time. A window frozen at SLIDE zero remains on this reader instead of switching to an initial-window wavetable. Playback-mode changes use the existing geometry transition/reset path.
+
+Sliding RAW sources request the complete file through `PatchCacheManager::Get_slide_source()`. An insufficient partial PSRAM cache cannot supply moving windows; the player can use the Flash source and its corresponding pitch ceiling. Other sources remain bounded by their resolved source descriptor. Nonzero SLIDE disables wavetable selection. `PlayerReadBudget` reserves both source endpoints and chunked dynamic blending; queued edits of a frozen sliding window retain this reservation. `Main_settings_editing()` and `Apply_preset_edit()` reside in Flash to preserve RAM1 capacity for rendering.
+
+The SOUND page exposes SLIDE only for LOOP FWD/REV. `PointerSound::Restore_pointer()` moves a retained SLIDE selection to Play Mode when switching to an instrument without that field. The NoClick label is `NOCLK`. Archive conversion stores SLIDE as signed little-endian data in reserved Sound bytes 0 and 1, without enlarging the persistent record; legacy zero bytes select stationary playback. Direct Sampler stereo parameter propagation includes SLIDE. This parameter is separate from MIDI Loop track time shifting.
 
 ### Downsampler and resolution
 

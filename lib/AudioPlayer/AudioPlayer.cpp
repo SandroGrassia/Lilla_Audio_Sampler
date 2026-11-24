@@ -31,7 +31,7 @@ PlayerReadBudget::Plan AudioPlayer::Get_read_plan(bool pending, bool edited, boo
     plan.pingpong = mode == LOOP_FWD_REV || mode == LOOP_REV_FWD;
     plan.span = edited ? B_Flash_sample_E - A_Flash_sample_E + 1 : (pending ? B_Flash_sample_wait - A_Flash_sample_wait + 1 : B_Flash_sample - A_Flash_sample + 1);
     plan.crossfade = plan.pingpong ? 0 : (edited ? delta_Noclick_E : (pending ? delta_Noclick_wait : delta_Noclick));
-    plan.dynamic_crossfade = edited ? slide_step_E != 0 : (pending ? slide_step_wait != 0 : slide_active);
+    plan.dynamic_crossfade = edited ? (slide_step_E != 0 || (slide_active && mode_player_E == mode_player)) : (pending ? slide_step_wait != 0 : slide_active);
     if (plan.live && mode == LOOP_FWD)
     {
         plan.crossfade = PlayerReadBudget::Live_noclick_samples;
@@ -279,7 +279,7 @@ if (downsampling_flag)
 
 void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in, int16_t slide_in)
 {
-    slide_step_wait = mode_in == LOOP_FWD && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id_wait)) ? slide_in : 0;
+    slide_step_wait = (mode_in == LOOP_FWD || mode_in == LOOP_REV) && (file_id_wait < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id_wait)) ? slide_in : 0;
     Noclick_wait_ptr = p_Noclick_in;
     Wavetable_wait_ptr = p_Wavetable_in;
     tables_bank_mask_wait = tables_bank_mask_in;
@@ -504,12 +504,12 @@ void AudioPlayer::Main_settings(uint8_t mode_in, int A_value_in, int B_value_in,
 
 void AudioPlayer::Main_settings_editing(uint8_t mode_in, int A_value_in, int B_value_in, uint16_t delta_Noclick_in, bool use_Wavetable_in, int16_t *p_Noclick_in, int16_t *p_Wavetable_in, uint8_t tables_bank_mask_in, int16_t slide_in)
 {
-    slide_step_E = mode_in == LOOP_FWD && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id)) ? slide_in : 0;
+    slide_step_E = (mode_in == LOOP_FWD || mode_in == LOOP_REV) && (file_id < FIRST_LIVE_SAMPLING_FILE || SdSoundSource::Is_sd(file_id)) ? slide_in : 0;
     mode_player_E = (mode_in == LOOP_REV_FWD ? LOOP_FWD_REV : mode_in); // switching to mode 4 is ininfluent WHILE playing (besides, mode 4 does NOT exist in harvest functions)
     A_Flash_sample_E = A_value_in;
     B_Flash_sample_E = B_value_in;
     delta_Noclick_E = delta_Noclick_in;
-    use_Wavetable_E = use_Wavetable_in;
+    use_Wavetable_E = use_Wavetable_in && !(slide_active && mode_player_E == mode_player); // A frozen sliding window must keep reading its reached source region.
     Noclick_E_ptr = p_Noclick_in;
     Wavetable_E_ptr = p_Wavetable_in;
     tables_bank_mask_E = tables_bank_mask_in;
@@ -1071,6 +1071,9 @@ void AudioPlayer::update(void)
 
         if (main_settings_editing_flag)
         {
+            const bool preserve_slide = slide_active && mode_player_E == mode_player;
+            const auto slide_position = preserve_slide ? loop_slide.Get_position() : PlayerLoopSlide::Position{};
+            const int slide_first_delta = A_Flash_sample_E - A_Flash_sample;
 
             if (mode_player_E != mode_player) // calculating a_first_sample_E if mode_player has been changed
             {
@@ -1420,7 +1423,7 @@ void AudioPlayer::update(void)
 
             if (slide_active || slide_step_E != 0)
             {
-                snubber_flag = true; // A sliding edit restarts its geometry through the existing outgoing-note crossmix.
+                snubber_flag = true; // Crossmix old and new geometry from the same playback instant.
             }
 
             // read HALF of samples from the old segment and old pitch and old gain
@@ -1485,7 +1488,16 @@ void AudioPlayer::update(void)
             }
 
             slide_step = slide_step_E;
-            Reset_loop_slide();
+            if (preserve_slide)
+            {
+                loop_slide.Reframe(slide_position, slide_first_delta, B_Flash_sample - A_Flash_sample + 1, delta_Noclick, slide_step / pitch);
+                slide_rendered_ahead = -1;
+                a_first_sample = (mode_player == LOOP_REV ? B_Flash_sample - delta_Noclick : A_Flash_sample + delta_Noclick) + loop_slide.Phase();
+            }
+            else
+            {
+                Reset_loop_slide();
+            }
             main_settings_editing_flag = false;
         }
 
@@ -1797,7 +1809,7 @@ void AudioPlayer::Harvest_samples(int outputs)
         interpolation_mix = target_mix;
     }
     PlayerAntialias::Configure(antialias, PlayerAntialias::Enabled(tone_filter_level, pitch_note * pitch_tune) ? pitch : 1.0f);
-    if (!slide_active && !LS_flag && mode_player == LOOP_FWD)
+    if (!slide_active && !LS_flag && (mode_player == LOOP_FWD || mode_player == LOOP_REV))
     {
         const int right = antialias.mix > 0.0f ? 1 : (interpolation_mix > 0.0f ? PlayerInterpolator::Taps - PlayerInterpolator::Left - 1 : 1);
         const float last = a_sample - floorf(a_sample) + (outputs - 1) * pitch;
@@ -1834,16 +1846,18 @@ void AudioPlayer::Reset_loop_slide(void)
     slide_active = slide_step != 0;
     if (slide_active)
     {
-        loop_slide.Reset(A_Flash_sample, B_Flash_sample, delta_Noclick, slide_step, source_now.first_sample, source_now.first_sample + source_now.samples - 1);
+        loop_slide.Reset(A_Flash_sample, B_Flash_sample, delta_Noclick, 0, source_now.first_sample, source_now.first_sample + source_now.samples - 1, mode_player == LOOP_REV); // The first harvest applies the incoming note's final pitch.
     }
 }
 
 void AudioPlayer::Harvest_slide_samples(int left, int right, float distance)
 {
+    loop_slide.Queue_step(slide_step / pitch); // More cycles at higher pitch require less window motion per cycle.
     left = loop_slide.History(left);
     initial_index_offset = left + loop_slide.Fraction();
     harvested_samples = static_cast<int>(floorf(initial_index_offset + distance)) + right + 1;
     int written = 0;
+    const bool reverse = mode_player == LOOP_REV;
     int16_t head[32]; // Temporary endpoint scratch; no per-voice crossfade arrays survive update().
     while (written < harvested_samples)
     {
@@ -1854,10 +1868,18 @@ void AudioPlayer::Harvest_slide_samples(int left, int right, float distance)
             count = std::min(count, 32);
         }
         int16_t *destination = samples_basket + written;
-        Read_samples(destination, segment.source, count);
+        Read_samples(destination, reverse ? segment.source - count + 1 : segment.source, count);
+        if (reverse)
+        {
+            std::reverse(destination, destination + count);
+        }
         if (segment.head >= 0)
         {
-            Read_samples(head, segment.head, count);
+            Read_samples(head, reverse ? segment.head - count + 1 : segment.head, count);
+            if (reverse)
+            {
+                std::reverse(head, head + count);
+            }
             for (int i = 0; i < count; ++i)
             {
                 const float weight = static_cast<float>(segment.weight + i) / (delta_Noclick - 1);
@@ -1868,7 +1890,7 @@ void AudioPlayer::Harvest_slide_samples(int left, int right, float distance)
     }
     loop_slide.Commit_lookahead(harvested_samples - left - 1);
     loop_slide.Advance(distance + pitch);
-    a_first_sample = A_Flash_sample + delta_Noclick + loop_slide.Phase(); // Keep legacy edit geometry in the initial window's coordinate system.
+    a_first_sample = (reverse ? B_Flash_sample - delta_Noclick : A_Flash_sample + delta_Noclick) + loop_slide.Phase(); // Keep legacy edit geometry in the initial window's virtual coordinate system.
 }
 
 void AudioPlayer::Harvest_filtered_samples(int left, int right, float distance)
@@ -3884,13 +3906,14 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
         pitch_limit = Playback_pitch_limit(use_Wavetable, false, false);
         Update_pitch();
     }
-    if (!main_settings_editing_flag && !LS_flag && mode_player == LOOP_FWD && preset.mode == LOOP_FWD && preset.A == A_Flash_sample && preset.B == B_Flash_sample && preset.Noclick == delta_Noclick && (slide_active || preset.slide != 0))
+    if (!main_settings_editing_flag && !LS_flag && (mode_player == LOOP_FWD || mode_player == LOOP_REV) && preset.mode == mode_player && preset.A == A_Flash_sample && preset.B == B_Flash_sample && preset.Noclick == delta_Noclick && (slide_active || preset.slide != 0))
     {
         if (!slide_active)
         {
             const int period = B_Flash_sample - A_Flash_sample + 1 - delta_Noclick;
-            const float phase = fmaxf(0.0f, a_first_sample - (A_Flash_sample + delta_Noclick));
-            loop_slide.Reset(A_Flash_sample, B_Flash_sample, delta_Noclick, 0, source_now.first_sample, source_now.first_sample + source_now.samples - 1);
+            const int base = mode_player == LOOP_REV ? B_Flash_sample - delta_Noclick : A_Flash_sample + delta_Noclick;
+            const float phase = fmaxf(0.0f, a_first_sample - base);
+            loop_slide.Reset(A_Flash_sample, B_Flash_sample, delta_Noclick, 0, source_now.first_sample, source_now.first_sample + source_now.samples - 1, mode_player == LOOP_REV);
             loop_slide.Advance(fmodf(phase, static_cast<float>(period)));
             loop_slide.Commit_lookahead(slide_rendered_ahead); // Preserve only the static reader's already rendered interpolation tail.
             slide_active = true;
@@ -3899,7 +3922,7 @@ bool AudioPlayer::Apply_preset_edit(int patch, int instrument, const Preset_stru
             Update_pitch();
         }
         slide_step = preset.slide;
-        loop_slide.Queue_step(slide_step);
+        loop_slide.Queue_step(slide_step / pitch);
         Noclick_ptr = tables.noclick;
         Wavetable_ptr = tables.wavetable;
         tables_bank_mask = tables.bank_mask; // Release obsolete table banks even though this voice now mixes directly from its source.

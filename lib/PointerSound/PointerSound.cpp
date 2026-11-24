@@ -107,6 +107,19 @@ FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max, 
     //Print_pointer_description();
 }
 
+FLASHMEM void PointerSound::Restore_pointer(int S_menu_max, bool slide_visible)
+{
+    if (pointer.field_name == field_S_Menu && pointer.menu_element > S_menu_max)
+    {
+        pointer.menu_element = S_menu_max;
+    }
+    else if (pointer.field_name == field_S_Value && pointer.value_element == value_S_Slide && !slide_visible)
+    {
+        pointer.value_element = value_S_PlayMode;
+    }
+    Display_pointer();
+}
+
 void PointerSound::Display_pointer(void)
 {
     Display_Sound.Show_pointer_frame(pointer, true);
