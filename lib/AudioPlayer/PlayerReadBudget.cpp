@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #include "PlayerReadBudget.h"
@@ -43,6 +43,10 @@ float PlayerReadBudget::Estimate(const Plan &plan, uint32_t output_samples)
             operations *= 2u; // Mixed segments read both current PSRAM endpoints.
         }
     }
+    if (plan.dynamic_crossfade && plan.crossfade > 0)
+    {
+        operations += 2u * (samples / 32u + 2u); // Blend chunks use a shared 32-sample scratch buffer.
+    }
     if (plan.packets)
     {
         operations *= 2u; // At most two 64 KiB packets for each bounded logical segment.
@@ -55,9 +59,9 @@ float PlayerReadBudget::Estimate(const Plan &plan, uint32_t output_samples)
     else if (plan.crossfade > 0)
     {
         cost += Transfer_us(PlayerReadSource::Ram, samples + 9u * operations) + (operations - 1u) * Transfer_us(PlayerReadSource::Ram, 0); // Charging a full RAM span as well safely covers every possible NoClick split.
-        if (plan.live)
+        if (plan.live || plan.dynamic_crossfade)
         {
-            cost += Transfer_us(PlayerReadSource::Psram, samples) + 0.05f * samples; // Reserve the second endpoint and its linear blend.
+            cost += Transfer_us(plan.source, samples) + 0.05f * samples; // Reserve the second endpoint and its linear blend.
         }
     }
     if (plan.packets)

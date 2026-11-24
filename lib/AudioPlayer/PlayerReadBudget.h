@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #pragma once
@@ -28,6 +28,7 @@ struct Plan // Source geometry and worst reachable pitch for one current, pendin
     int crossfade = 0; // NoClick region length, in source samples.
     bool loop = false; // File loops may require several source segments in one block.
     bool pingpong = false; // Ping-pong uses two raw legs rather than a NoClick segment.
+    bool dynamic_crossfade = false; // Sliding file loops read and mix both source endpoints.
     bool live = false; // Live circular-buffer reads can split at wrap and loop boundaries.
     bool antialias = false; // TONE enables source-domain filtering for upward pitch.
     bool packets = false; // Uncached recordings can reopen Flash packets during a read.

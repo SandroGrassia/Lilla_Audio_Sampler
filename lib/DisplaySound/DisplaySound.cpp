@@ -2,7 +2,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #include "DisplaySound.h"
@@ -120,9 +120,9 @@ FLASHMEM void DisplaySound::Show_SOUND_page(int patch_id, int instrument_id)
     tft.print("PLAY MODE");
     Show_Play_mode_value(instrument_id);
 
-    tft.setCursor(display_coordinate_x(31), display_coordinate_y(6.9));
+    tft.setCursor(display_coordinate_x(41.5), display_coordinate_y(6.9));
     tft.setTextColor(TEXT_COLOR);
-    tft.print("NOCLICK");
+    tft.print("NOCLK");
     Show_Noclick_value(instrument_id, true);
 
     tft.setCursor(display_coordinate_x(0), display_coordinate_y(15));
@@ -297,6 +297,24 @@ FLASHMEM void DisplaySound::Show_Play_mode_value(int instrument_id)
     tft.print(loop_mode[Preset[instrument_id].mode]);
     tft.setCursor(display_coordinate_x(14), display_coordinate_y(6.9));
     tft.print(name_mode[Preset[instrument_id].mode]);
+    Show_Slide_value(instrument_id);
+}
+
+FLASHMEM void DisplaySound::Show_Slide_value(int instrument_id)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(S_column_row_Pitch[0]), display_coordinate_y(6.9), 12);
+    if (Preset[instrument_id].mode == LOOP_FWD || Preset[instrument_id].mode == LOOP_REV)
+    {
+        tft.setTextColor(TEXT_COLOR);
+        tft.print("SLIDE");
+        tft.setCursor(display_coordinate_x(S_column_row_Slide[0]), display_coordinate_y(S_column_row_Slide[1]));
+        tft.setTextColor(ILI9341_YELLOW);
+        if (Preset[instrument_id].slide > 0)
+        {
+            tft.print("+");
+        }
+        tft.print(Preset[instrument_id].slide);
+    }
 }
 
 FLASHMEM void DisplaySound::Show_Noclick_value(int instrument_id, bool value)

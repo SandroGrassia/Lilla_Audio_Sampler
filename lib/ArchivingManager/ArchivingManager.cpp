@@ -3,7 +3,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #include "CaptureSources.h"
@@ -1176,6 +1176,7 @@ FLASHMEM byte ArchivingManager::Load_Patch_Sound_from_FRAM(uint16_t &failed_id, 
         target.A = source.A;
         target.B = source.B;
         target.Noclick = source.Noclick;
+        target.slide = static_cast<int16_t>(static_cast<uint16_t>(source.reserved[0]) | (static_cast<uint16_t>(source.reserved[1]) << 8));
         target.pan = source.pan;
         target.data = (source.midi_channel << 1) | (source.attack_type & 1);
         target.attack = source.attack;
@@ -1519,6 +1520,8 @@ byte ArchivingManager::Save_Sound(const int sound_id)
     destination.A = runtime.A;
     destination.B = runtime.B;
     destination.Noclick = runtime.Noclick;
+    destination.reserved[0] = static_cast<uint16_t>(runtime.slide) & 0xff;
+    destination.reserved[1] = static_cast<uint16_t>(runtime.slide) >> 8;
     destination.pan = runtime.pan;
     destination.midi_channel = (runtime.data >> 1) & 15;
     destination.attack_type = runtime.data & 1;
@@ -1602,6 +1605,7 @@ byte ArchivingManager::Read_Sound(const int sound_id)
     runtime.A = source.A;
     runtime.B = source.B;
     runtime.Noclick = source.Noclick;
+    runtime.slide = static_cast<int16_t>(static_cast<uint16_t>(source.reserved[0]) | (static_cast<uint16_t>(source.reserved[1]) << 8));
     runtime.pan = source.pan;
     runtime.data = (source.midi_channel << 1) | (source.attack_type & 1);
     runtime.attack = source.attack;

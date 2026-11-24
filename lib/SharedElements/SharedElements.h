@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #pragma once
@@ -146,7 +146,7 @@ struct Instrument_filter_values_struct
     float frequency_time; // 0 --> 20
 };
 
-struct Sound_struct // 22 bytes
+struct Sound_struct // 24 bytes
 {
     bool used;
     uint16_t file;
@@ -155,6 +155,7 @@ struct Sound_struct // 22 bytes
     uint32_t A;
     uint32_t B;
     uint16_t Noclick;
+    int16_t slide; // Signed source samples per LOOP_FWD/LOOP_REV cycle at pitch 1; zero stops window motion.
     int8_t pan;
     uint8_t data; // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
     uint8_t attack;
@@ -163,7 +164,7 @@ struct Sound_struct // 22 bytes
     uint8_t release;
     uint8_t gain;
 } __attribute__((__packed__));
-static constexpr uint8_t SIZE_OF_SOUND = sizeof(Sound_struct); // 22
+static constexpr uint8_t SIZE_OF_SOUND = sizeof(Sound_struct); // 24
 extern Sound_struct Sound[SOUNDS_MAX + 2];                     // last 2 used by Direct Sampling for "preascolto" and Live Sampling
 
 // == overloads
@@ -197,7 +198,7 @@ inline bool operator==(const Patch_struct &lhs, const Patch_struct &rhs)
 
 inline bool operator==(const Sound_struct &lhs, const Sound_struct &rhs)
 {
-    return lhs.used == rhs.used && lhs.file == rhs.file && lhs.mode == rhs.mode && lhs.pitch == rhs.pitch && lhs.A == rhs.A && lhs.B == rhs.B && lhs.Noclick == rhs.Noclick && lhs.pan == rhs.pan && lhs.data == rhs.data && lhs.attack == rhs.attack && lhs.decay == rhs.decay && lhs.sustain == rhs.sustain && lhs.release == rhs.release && lhs.gain == rhs.gain;
+    return lhs.used == rhs.used && lhs.file == rhs.file && lhs.mode == rhs.mode && lhs.pitch == rhs.pitch && lhs.A == rhs.A && lhs.B == rhs.B && lhs.Noclick == rhs.Noclick && lhs.slide == rhs.slide && lhs.pan == rhs.pan && lhs.data == rhs.data && lhs.attack == rhs.attack && lhs.decay == rhs.decay && lhs.sustain == rhs.sustain && lhs.release == rhs.release && lhs.gain == rhs.gain;
 }
 
 enum AudioFileStorage : uint8_t
@@ -331,6 +332,7 @@ struct Preset_struct
     int B;
     bool use_Wavetable;
     int Noclick;
+    int16_t slide;
     uint8_t attack_type;
     float attack;
     float decay;

@@ -28,7 +28,7 @@ prefix = r'''
 #include "PlayerReadBudget.h"
 #include "PlaybackProfile.h"
 constexpr int PLAYERS = 16, AUDIO_BLOCK_SAMPLES = 128, AUDIO_PLAYER_DEADLINE_US = 2700;
-constexpr int LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4;
+constexpr int LOOP_FWD = 2, LOOP_FWD_REV = 3, LOOP_REV_FWD = 4, LOOP_REV = 5;
 constexpr int FIRST_RECORDING_FILE = 100, FIRST_LIVE_SAMPLING_FILE = 200;
 constexpr float MIN_PITCH = 0.1f;
 int Patch_id = 0, LS_XY_delta = 10000, LS_buffer_dim = 32768;
@@ -40,7 +40,7 @@ struct PresetStub
 {
     bool precedence = false, use_Wavetable = false;
     uint8_t lock = 0;
-    int file = 0, mode = 0, A = 0, B = 9999, Noclick = 0;
+    int file = 0, mode = 0, A = 0, B = 9999, Noclick = 0, slide = 0;
     float pitch = 1;
     AudioFileSource source;
 } Preset[16];
@@ -56,6 +56,8 @@ struct AudioPlayer
     AudioFileSource source_now, source_wait;
     int mode_player = 0, mode_player_wait = 0, mode_player_E = 0;
     int A_Flash_sample = 0, B_Flash_sample = 9999, A_Flash_sample_wait = 0, B_Flash_sample_wait = 9999, A_Flash_sample_E = 0, B_Flash_sample_E = 9999;
+    int slide_step = 0, slide_step_wait = 0, slide_step_E = 0;
+    bool slide_active = false;
     int delta_Noclick = 0, delta_Noclick_wait = 0, delta_Noclick_E = 0;
     float pitch_bend_wait = 1;
     float pitch_bend = 1, pitch_vibrato = 1, pitch_based_gain_correction = 1;
@@ -267,6 +269,27 @@ int main()
     const int live_prefetch = static_cast<int>(std::ceil(127 * MAX_PITCH_LIVE)) + 2 + PlayerAntialias::History(MAX_PITCH_LIVE);
     assert(live_prefetch < 5292 - PlayerReadBudget::Live_noclick_samples); // Even fractional/filter context stays below the minimum 120 ms loop.
     assert(Limit_us == 1800);
+    Plan sliding;
+    sliding.source = PlayerReadSource::Flash;
+    sliding.loop = true;
+    sliding.span = 600;
+    sliding.crossfade = 300;
+    const float static_cost = Estimate(sliding, 128);
+    sliding.dynamic_crossfade = true;
+    assert(Estimate(sliding, 128) > static_cost);
+    RealVoice::AudioPlayer moving;
+    moving.slide_step = 10;
+    moving.slide_active = true;
+    moving.slide_step_wait = -10;
+    moving.slide_step_E = 20;
+    assert(moving.Get_read_plan().dynamic_crossfade);
+    assert(moving.Get_read_plan(true).dynamic_crossfade);
+    assert(moving.Get_read_plan(false, true).dynamic_crossfade);
+    moving.mode_player = moving.mode_player_E = LOOP_REV;
+    moving.slide_step_E = 0;
+    assert(moving.Get_read_plan(false, true).dynamic_crossfade); // Trimming a frozen sliding window still blends directly from the source.
+    moving.mode_player_E = LOOP_FWD;
+    assert(!moving.Get_read_plan(false, true).dynamic_crossfade); // A direction change with zero SLIDE returns to a stationary reader.
     Plan high;
     high.pitch = 35; high.span = 10000;
     high.antialias = true;
@@ -288,6 +311,22 @@ int main()
     Preset[0].file = FIRST_LIVE_SAMPLING_FILE;
     assert(forecast.New_read_plan(0, 8).source == PlayerReadSource::Psram);
     assert(forecast.New_read_plan(0, 8).pitch == MAX_PITCH_LIVE);
+    Preset[0] = {};
+
+    for (int mode : {LOOP_FWD, LOOP_FWD_REV, LOOP_REV_FWD, LOOP_REV})
+    {
+        Preset[0].mode = mode;
+        Preset[0].Noclick = 100;
+        const auto stationary = forecast.New_read_plan(0, 1);
+        Preset[0].slide = -25;
+        const auto sliding_plan = forecast.New_read_plan(0, 1);
+        assert(sliding_plan.dynamic_crossfade == (mode == LOOP_FWD || mode == LOOP_REV));
+        if (sliding_plan.dynamic_crossfade)
+        {
+            assert(Estimate(sliding_plan, 128) > Estimate(stationary, 128));
+        }
+        Preset[0].slide = 0;
+    }
     Preset[0] = {};
 
     // A lower next-block forecast grants fades without changing admission reservations.

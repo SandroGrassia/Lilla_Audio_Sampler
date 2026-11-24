@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #pragma once
@@ -40,7 +40,8 @@ private:
     static constexpr float S_column_row_Sustain[2] = {34.5, 5.9};
     static constexpr float S_column_row_Release[2] = {45, 5.9};
     static constexpr float S_column_row_PlayMode[2] = {9.5, 6.9};
-    static constexpr float S_column_row_NoClick[2] = {38.5, 6.9};
+    static constexpr float S_column_row_NoClick[2] = {47.5, 6.9};
+    static constexpr float S_column_row_Slide[2] = {29.5, 6.9};
 
     // Lookup table used by pointer/highlight rendering for SOUND value fields.
     static constexpr float S_column_row_value_element[S_value_names][2] =
@@ -55,7 +56,8 @@ private:
             {S_column_row_Sustain[0], S_column_row_Sustain[1]},
             {S_column_row_Release[0], S_column_row_Release[1]},
             {S_column_row_PlayMode[0], S_column_row_PlayMode[1]},
-            {S_column_row_NoClick[0], S_column_row_NoClick[1]}};
+            {S_column_row_NoClick[0], S_column_row_NoClick[1]},
+            {S_column_row_Slide[0], S_column_row_Slide[1]}};
 
     // Character widths used when clearing and redrawing each value field.
     static constexpr int S_chars_File = 10;
@@ -69,6 +71,7 @@ private:
     static constexpr int S_chars_Release = 7;
     static constexpr int S_chars_PlayMode = 12;
     static constexpr int S_chars_NoClick = 4;
+    static constexpr int S_chars_Slide = 5;
 
     static constexpr int S_chars_value_element[S_value_names] = {
         S_chars_File,
@@ -81,7 +84,8 @@ private:
         S_chars_Sustain,
         S_chars_Release,
         S_chars_PlayMode,
-        S_chars_NoClick};
+        S_chars_NoClick,
+        S_chars_Slide};
 
 
 public:
@@ -109,6 +113,7 @@ public:
     FLASHMEM void Show_Pan_value(int instrument_id);                 // Prints pan direction and amount.
     FLASHMEM void Show_Play_mode_value(int instrument_id);           // Prints loop/playback mode.
     FLASHMEM void Show_Noclick_value(int instrument_id, bool value); // Prints the no-click smoothing amount.
+    FLASHMEM void Show_Slide_value(int instrument_id); // Signed source samples per cycle at pitch 1, visible in LOOP FWD and LOOP REV.
     FLASHMEM void Show_Trim_step_value(void);                        // Prints the current trim encoder step.
     FLASHMEM void Show_players_Pitch_max_value(int instrument_id);   // Prints max pitch and available voices for the selected media.
 };

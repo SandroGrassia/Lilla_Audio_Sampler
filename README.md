@@ -16,7 +16,15 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.3.1
+## New in firmware 7.4.0
+
+**Sliding loop windows in FWD and REV.** SLIDE moves the playback window toward the end or beginning of the source. Its displayed value refers to pitch 1; automatic pitch compensation keeps the average scrolling speed consistent as notes, tuning, bend and vibrato change. Small fractional steps accumulate instead of disappearing.
+
+Changing SLIDE, From/To, Slice or NoClick during playback preserves the reached position where the edited window permits it. SLIDE zero freezes the reached window; a new note starts from the preset's From/To. Instrument switching keeps the selection on a visible field.
+
+Download [Lilla_v7_4_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.4.0/Lilla_v7_4_0.hex). See the [7.4.0 release notes](docs/release-notes-7.4.0.md) and [User Guide](User%20Guide.md). The Teensy build and all 67 host regressions passed; hardware listening and timing checks remain separate.
+
+## Introduced in firmware 7.3.1
 
 **Reduced Live Sampler display redraws.** The waveform display now updates only changed portions of the canvas, reducing unnecessary transfers and addressing flicker. Page changes and confirmation dialogs restore the full canvas. Audio buffer sizes and the 200 ms display update interval are unchanged.
 
@@ -166,7 +174,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.3.1 (19 November 2026)**: download [Lilla_v7_3_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.3.1/Lilla_v7_3_1.hex) from [release v7.3.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.3.1). See the [7.3.1 release notes](docs/release-notes-7.3.1.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.4.0 (24 November 2026)**: download [Lilla_v7_4_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.4.0/Lilla_v7_4_0.hex) from [release v7.4.0](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.4.0). See the [7.4.0 release notes](docs/release-notes-7.4.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 

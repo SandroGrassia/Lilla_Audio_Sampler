@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #include "SharedSampler.h"
@@ -35,6 +35,10 @@ void DS_copy_edited_parameters(const Sound_struct &before, const Sound_struct &e
     if (edited.pitch != before.pitch)
     {
         other.pitch = edited.pitch;
+    }
+    if (edited.slide != before.slide)
+    {
+        other.slide = edited.slide;
     }
     if (edited.Noclick != before.Noclick)
     {

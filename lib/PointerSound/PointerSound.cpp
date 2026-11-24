@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #include "PointerSound.h"
@@ -24,8 +24,9 @@ FLASHMEM void PointerSound::Set_pointer_to_first_menu_element(void)
     // Print_pointer_description();
 }
 
-FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max)
+FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max, bool slide_visible)
 {
+    const S_value_name last_value = value_S_Noclick;
     Display_Sound.Show_pointer_frame(pointer, false);
 
     switch (pointer.field_name)
@@ -52,7 +53,7 @@ FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max)
             }
             else
             {
-                pointer = {field_S_Value, 0, value_S_Noclick};
+                pointer = {field_S_Value, 0, last_value};
             }
         }
 
@@ -62,7 +63,15 @@ FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max)
 
         if (value == 1)
         {
-            if (pointer.value_element != value_S_Noclick)
+            if (pointer.value_element == value_S_PlayMode && slide_visible)
+            {
+                pointer.value_element = value_S_Slide;
+            }
+            else if (pointer.value_element == value_S_Slide)
+            {
+                pointer.value_element = value_S_Noclick;
+            }
+            else if (pointer.value_element != last_value)
             {
                 pointer.value_element = static_cast<S_value_name>(pointer.value_element + 1);
             }
@@ -73,7 +82,15 @@ FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max)
         }
         else if (value == -1)
         {
-            if (pointer.value_element != value_S_File)
+            if (pointer.value_element == value_S_Noclick)
+            {
+                pointer.value_element = slide_visible ? value_S_Slide : value_S_PlayMode;
+            }
+            else if (pointer.value_element == value_S_Slide)
+            {
+                pointer.value_element = value_S_PlayMode;
+            }
+            else if (pointer.value_element != value_S_File)
             {
                 pointer.value_element = static_cast<S_value_name>(pointer.value_element - 1);
             }
@@ -88,6 +105,19 @@ FLASHMEM void PointerSound::Move_pointer(const int value, const int S_menu_max)
     Display_Sound.Show_pointer_frame(pointer, true);
     
     //Print_pointer_description();
+}
+
+FLASHMEM void PointerSound::Restore_pointer(int S_menu_max, bool slide_visible)
+{
+    if (pointer.field_name == field_S_Menu && pointer.menu_element > S_menu_max)
+    {
+        pointer.menu_element = S_menu_max;
+    }
+    else if (pointer.field_name == field_S_Value && pointer.value_element == value_S_Slide && !slide_visible)
+    {
+        pointer.value_element = value_S_PlayMode;
+    }
+    Display_pointer();
 }
 
 void PointerSound::Display_pointer(void)

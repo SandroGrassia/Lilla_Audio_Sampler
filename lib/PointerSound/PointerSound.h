@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 #pragma once
@@ -56,7 +56,8 @@ public:
     FLASHMEM void Set_pointer_to_file(const int S_menu_max);
     FLASHMEM void Set_pointer_to_first_menu_element(void);
     FLASHMEM void Set_pointer_to_menu_element(int position);
-    FLASHMEM void Move_pointer(const int value, const int S_menu_max);
+    FLASHMEM void Move_pointer(const int value, const int S_menu_max, bool slide_visible = false);
+    FLASHMEM void Restore_pointer(int S_menu_max, bool slide_visible); // Restore a valid selection after the Sound page is redrawn for another instrument.
     void Display_pointer(void);
     S_field_description_struct Get_pointer(void);
 };

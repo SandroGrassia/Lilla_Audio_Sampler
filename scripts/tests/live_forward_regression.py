@@ -36,6 +36,9 @@ struct Recorder
 int16_t memory[32768];
 struct AudioPlayer
 {
+    int slide_step = 0, slide_rendered_ahead = -1;
+    bool slide_active = false;
+    void Harvest_slide_samples(int, int, float) { assert(false); } // Live never enters the file sliding reader.
     bool LS_flag = true, use_Wavetable = false, live_forward_end = false, live_forward_empty = false;
     bool live_start_pending = false, live_restart_pending = false, live_fade_out = false, live_fade_in = false;
     bool live_slow_read_blocked = false;

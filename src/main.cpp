@@ -1,7 +1,7 @@
 /*
    LILLA Audio Sampler
    Author: Sandro Grassia (info@lillasampler.it)
-   www.lillasampler.it
+   www.lillasampler.com
 */
 
 // **********************************************************
@@ -2005,6 +2005,7 @@ FLASHMEM void loop()
             Sound[Sound_id].release = 4;
             Sound[Sound_id].mode = ONCE_FWD;
             Sound[Sound_id].Noclick = 0;
+            Sound[Sound_id].slide = 0;
             slicing_mode = true;
 
             AudioNoInterrupts();
@@ -2030,6 +2031,7 @@ FLASHMEM void loop()
             preserve_trim();
             Sound[Sound_id].pitch = 0;
             Sound[Sound_id].Noclick = 0;
+            Sound[Sound_id].slide = 0;
 
             AudioNoInterrupts();
             if (!S_Fill_tables(Instrument_id))
@@ -2088,7 +2090,7 @@ FLASHMEM void loop()
         result = Read_encoder_simple(EN_PB_Select);
         if (result != 0)
         {
-            Pointer_Sound.Move_pointer(result, S_menu_max);
+            Pointer_Sound.Move_pointer(result, S_menu_max, Preset[Instrument_id].mode == LOOP_FWD || Preset[Instrument_id].mode == LOOP_REV);
             S_pointer = Pointer_Sound.Get_pointer();
 
             Clear_UI_events();
@@ -2859,6 +2861,43 @@ FLASHMEM void loop()
             }
             break;
 
+            case value_S_Slide:
+            {
+                result = Read_encoder_simple(EN_PB_Value);
+                if (result != 0 && (Sound[Sound_id].mode == LOOP_FWD || Sound[Sound_id].mode == LOOP_REV))
+                {
+                    const int limit = std::min(2000, static_cast<int>(Sound[Sound_id].B - Sound[Sound_id].A + 1));
+                    const int current = Sound[Sound_id].slide;
+                    const int magnitude = abs(current);
+                    const int step = magnitude < 100 ? 1 : (magnitude < 500 ? 10 : 50);
+                    Sound[Sound_id].slide = constrain(current + result * step, -limit, limit);
+
+                    AudioNoInterrupts();
+                    if (!S_Fill_tables(Instrument_id))
+                    {
+                        Sound[Sound_id] = sound_before_edit;
+                    }
+                    else
+                    {
+                        Players_Manager.Multicast_main_settings_editing(Patch_id, Instrument_id);
+                    }
+                    DS_sync_stereo_parameters();
+                    AudioInterrupts();
+
+                    Noclick_max = S_Calc_Noclick_max(Preset[Instrument_id].use_Wavetable);
+                    Display_Sound.Show_players_Pitch_max_value(Instrument_id);
+                    Display_Sound.Show_Slide_value(Instrument_id);
+                    Pointer_Sound.Display_pointer();
+                    S_sound_original = S_Verify_is_Sound_original(Sound_id);
+                    if (Lilla_state_0 != MIDI_LOOP)
+                    {
+                        S_Select_menu_elements();
+                    }
+                    Display_Sound.Show_SOUND_menu();
+                }
+            }
+            break;
+
             case value_S_Noclick:
             {
                 result = Read_encoder_simple(EN_PB_Value);
@@ -3305,14 +3344,9 @@ FLASHMEM void loop()
                     S_Select_menu_elements(); // updates "SO_menu_max" used by encoder_menu
                     Display_Sound.Show_SOUND_menu();
 
-                    // Restore the pointer within the selected Sound's current menu.
+                    // Restore the pointer within the selected Sound's visible fields and current menu.
+                    Pointer_Sound.Restore_pointer(S_menu_max, Preset[Instrument_id].mode == LOOP_FWD || Preset[Instrument_id].mode == LOOP_REV);
                     S_pointer = Pointer_Sound.Get_pointer();
-                    if (S_pointer.field_name == field_S_Menu && S_pointer.menu_element > S_menu_max)
-                    {
-                        Pointer_Sound.Set_pointer_to_menu_element(S_menu_max);
-                        S_pointer = Pointer_Sound.Get_pointer();
-                    }
-                    Pointer_Sound.Display_pointer();
 
                     Performance_led_set.Restore_all_LED();
 
@@ -10040,6 +10074,7 @@ FLASHMEM void DS_set_DS_Sampling_Patch(void)
     Sound[SOUNDS_MAX].A = 0;
     // Sound[SOUNDS_MAX].B = must be defined;
     Sound[SOUNDS_MAX].Noclick = 0;
+    Sound[SOUNDS_MAX].slide = 0;
     Sound[SOUNDS_MAX].pan = -16; // full Left
     Sound[SOUNDS_MAX].data = 0;  // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
     Sound[SOUNDS_MAX].attack = 0;
@@ -10056,6 +10091,7 @@ FLASHMEM void DS_set_DS_Sampling_Patch(void)
     Sound[SOUNDS_MAX + 1].A = 0;
     // Sound[SOUNDS_MAX + 1].B = must be defined;
     Sound[SOUNDS_MAX + 1].Noclick = 0;
+    Sound[SOUNDS_MAX + 1].slide = 0;
     Sound[SOUNDS_MAX + 1].pan = 16; // full Right
     Sound[SOUNDS_MAX + 1].data = 0; // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
     Sound[SOUNDS_MAX + 1].attack = 0;
@@ -12638,6 +12674,7 @@ FLASHMEM void Factory_setup_FRAM(void)
     Sound[0].A = 0;
     Sound[0].B = 40000;
     Sound[0].Noclick = 0;
+    Sound[0].slide = 0;
     Sound[0].pan = 0;
     Sound[0].data = 0; // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
     Sound[0].attack = 0;
@@ -13528,6 +13565,7 @@ FLASHMEM void LS_setup_LS_Patch(bool stereo)
         Sound[SOUNDS_MAX].A = LS_X_sample;                     // non utilizzato;
         Sound[SOUNDS_MAX].B = LS_X_sample + LS_buffer_dim - 1; // non utilizzato;
         Sound[SOUNDS_MAX].Noclick = 0;
+        Sound[SOUNDS_MAX].slide = 0;
         Sound[SOUNDS_MAX].pan = -16; // full Left
         Sound[SOUNDS_MAX].data = 0;  // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
         Sound[SOUNDS_MAX].attack = 0;
@@ -13544,6 +13582,7 @@ FLASHMEM void LS_setup_LS_Patch(bool stereo)
         Sound[SOUNDS_MAX + 1].A = LS_X_sample;                     // non utilizzato;
         Sound[SOUNDS_MAX + 1].B = LS_X_sample + LS_buffer_dim - 1; // non utilizzato;
         Sound[SOUNDS_MAX + 1].Noclick = 0;
+        Sound[SOUNDS_MAX + 1].slide = 0;
         Sound[SOUNDS_MAX + 1].pan = 16; // full Right
         Sound[SOUNDS_MAX + 1].data = 0; // bit4-3-2-1: midi_channel bit0: Attack ramp ("0" Slow, "1" Fast)
         Sound[SOUNDS_MAX + 1].attack = 0;
@@ -13589,6 +13628,7 @@ FLASHMEM void LS_setup_LS_Patch(bool stereo)
         Sound[SOUNDS_MAX].A = LS_X_sample;                     // non utilizzato;
         Sound[SOUNDS_MAX].B = LS_X_sample + LS_buffer_dim - 1; // non utilizzato;
         Sound[SOUNDS_MAX].Noclick = 0;
+        Sound[SOUNDS_MAX].slide = 0;
         Sound[SOUNDS_MAX].pan = 0;  // full Left
         Sound[SOUNDS_MAX].data = 0; // bit4-3-2-1: midi_channel bit0 (ch.1 in questo caso) : Attack ramp ("0" Slow, "1" Fast)
         Sound[SOUNDS_MAX].attack = 0;
