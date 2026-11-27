@@ -383,6 +383,8 @@ extern float after_touch_channel_value[16];
 // CONTROL CHANGE
 extern uint8_t CC_Sound_gain[INSTRUMENTS];
 extern uint8_t CC_lowpass_filter_value;
+extern uint8_t CC_line_out_volume;
+extern bool display_line_out_volume_flag;
 extern uint8_t CC_midi_controller;
 
 // STAMPA

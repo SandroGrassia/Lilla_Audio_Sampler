@@ -27,6 +27,8 @@ FLASHMEM void DisplayControlChange::CC_show_ControlChange_page(void)
     }
     tft.setCursor(display_coordinate_x(CC_column_label), display_coordinate_y(CC_column_row_LowpassFilter[1]));
     tft.print("LPF CUTOFF");
+    tft.setCursor(display_coordinate_x(CC_column_label), display_coordinate_y(CC_column_row_LineOutVolume[1]));
+    tft.print("LINE OUT VOLUME");
 }
 
 FLASHMEM void DisplayControlChange::CC_show_all_sound_gains(void)
@@ -65,6 +67,20 @@ FLASHMEM void DisplayControlChange::CC_show_lowpass_filter_value(void)
     }
 }
 
+FLASHMEM void DisplayControlChange::CC_show_line_out_volume(void)
+{
+    Cancel_text_reset_cursor(display_coordinate_x(CC_column_row_LineOutVolume[0]), display_coordinate_y(CC_column_row_LineOutVolume[1]), CC_chars_Value);
+    tft.setTextColor(ILI9341_YELLOW);
+    if (CC_line_out_volume > 0)
+    {
+        tft.print(CC_line_out_volume);
+    }
+    else
+    {
+        tft.print(" -");
+    }
+}
+
 FLASHMEM void DisplayControlChange::Show_pointer_frame(CC_field_description_struct description, bool show)
 {
     switch (description.field_name)
@@ -74,6 +90,9 @@ FLASHMEM void DisplayControlChange::Show_pointer_frame(CC_field_description_stru
         break;
     case field_CC_SoundGain:
         Frame_by_col_row(CC_column_row_FirstSoundGain[0], CC_column_row_FirstSoundGain[1] + description.instrument * CC_sound_row_step, CC_chars_Value, show);
+        break;
+    case field_CC_LineOutVolume:
+        Frame_by_col_row(CC_column_row_LineOutVolume[0], CC_column_row_LineOutVolume[1], CC_chars_Value, show);
         break;
     case field_CC_LowpassFilter:
         Frame_by_col_row(CC_column_row_LowpassFilter[0], CC_column_row_LowpassFilter[1], CC_chars_Value, show);

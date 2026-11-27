@@ -51,6 +51,7 @@ private:
     static constexpr int Y_POPUP = (240 - H_POPUP) / 2;
     static constexpr int Y_POPUP_TXT = 10;
     static constexpr int Y_POPUP_OPT = 30;
+    static constexpr int X_SAVE_OPTIONS = (L_POPUP - 15 * 6) / 2; // CANCEL, NO and YES with two spaces between options.
 
 public:
     DisplayPerformance() {}
