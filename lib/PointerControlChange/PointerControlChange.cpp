@@ -43,9 +43,19 @@ FLASHMEM bool PointerControlChange::Move_pointer(int value)
     case field_CC_LowpassFilter:
         if (value > 0)
         {
+            next = {field_CC_LineOutVolume, 0};
+        }
+        else
+        {
+            next = {field_CC_SoundGain, INSTRUMENTS - 1};
+        }
+        break;
+    case field_CC_LineOutVolume:
+        if (value > 0)
+        {
             return false;
         }
-        next = {field_CC_SoundGain, INSTRUMENTS - 1};
+        next = {field_CC_LowpassFilter, 0};
         break;
     }
 

@@ -354,6 +354,14 @@ void MidiReader::Handle_message(const MidiInputMessage &message)
             Players_Manager->Set_modulation(midi_channel, midi_value);
         }
 
+        else if ((controller == CC_line_out_volume) && (controller > 0))
+        {
+            volume_patch = (midi_value * PATCH_VOLUME_MAX + 63) / 127;
+            Players_Manager->Update_all_Preset_volume(Patch_id, Patch_volume_gain(volume_patch));
+            Players_Manager->Broadcast_volume();
+            display_line_out_volume_flag = true;
+        }
+
         else if ((controller == CC_lowpass_filter_value) && (controller > 0)) // change the lowpass filter cut frequency
         {
             lowpass_target = midi_value * 0.31; // <= 39

@@ -372,30 +372,30 @@ FLASHMEM void DisplayPerformance::P_Confirm_patch_change_popup(void)
     tft.setTextColor(ILI9341_WHITE);
     tft.print("SAVE CHANGES?");
     tft.setTextColor(ILI9341_YELLOW);
-    tft.setCursor(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT);
-    tft.print("EXIT");
-    tft.setCursor(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT);
+    tft.setCursor(X_POPUP + X_SAVE_OPTIONS, Y_POPUP + Y_POPUP_OPT);
+    tft.print("CANCEL");
+    tft.setCursor(X_POPUP + X_SAVE_OPTIONS + 8 * 6, Y_POPUP + Y_POPUP_OPT);
     tft.print("NO");
-    tft.setCursor(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT);
+    tft.setCursor(X_POPUP + X_SAVE_OPTIONS + 12 * 6, Y_POPUP + Y_POPUP_OPT);
     tft.print("YES");
 }
 
 FLASHMEM void DisplayPerformance::P_Confirm_patch_change_popup_frame(int value)
 {
-    Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
-    Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, false);
-    Confirm_frame_on_RED(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, false);
+    Confirm_frame_on_RED(X_POPUP + X_SAVE_OPTIONS, Y_POPUP + Y_POPUP_OPT, 6, false); // DISPLAY_confirm_frame(uint8_t col, uint8_t row, uint8_t chars, bool   print)
+    Confirm_frame_on_RED(X_POPUP + X_SAVE_OPTIONS + 8 * 6, Y_POPUP + Y_POPUP_OPT, 2, false);
+    Confirm_frame_on_RED(X_POPUP + X_SAVE_OPTIONS + 12 * 6, Y_POPUP + Y_POPUP_OPT, 3, false);
 
     switch (value)
     {
-    case 0: // exit
-        Confirm_frame_on_RED(X_POPUP + display_coordinate_x(2), Y_POPUP + Y_POPUP_OPT, 4, true);
+    case 0: // cancel
+        Confirm_frame_on_RED(X_POPUP + X_SAVE_OPTIONS, Y_POPUP + Y_POPUP_OPT, 6, true);
         break;
     case 1: // no
-        Confirm_frame_on_RED(X_POPUP + display_coordinate_x(8), Y_POPUP + Y_POPUP_OPT, 2, true);
+        Confirm_frame_on_RED(X_POPUP + X_SAVE_OPTIONS + 8 * 6, Y_POPUP + Y_POPUP_OPT, 2, true);
         break;
     case 2: // yes
-        Confirm_frame_on_RED(X_POPUP + display_coordinate_x(12), Y_POPUP + Y_POPUP_OPT, 3, true);
+        Confirm_frame_on_RED(X_POPUP + X_SAVE_OPTIONS + 12 * 6, Y_POPUP + Y_POPUP_OPT, 3, true);
         break;
     default:
         break;

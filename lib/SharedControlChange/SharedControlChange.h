@@ -11,7 +11,8 @@ enum CC_field_name
 {
     field_CC_Return,
     field_CC_SoundGain,
-    field_CC_LowpassFilter
+    field_CC_LowpassFilter,
+    field_CC_LineOutVolume
 };
 
 struct CC_field_description_struct

@@ -186,6 +186,8 @@ float after_touch_channel_value[16] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1
 // CONTROL CHANGE
 uint8_t CC_Sound_gain[INSTRUMENTS] = {0};
 uint8_t CC_lowpass_filter_value;
+uint8_t CC_line_out_volume = 0;
+bool display_line_out_volume_flag = false;
 uint8_t CC_midi_controller;
 
 // STAMPA

@@ -1300,7 +1300,7 @@ FLASHMEM byte ArchivingManager::Read_CC_lowpass_filter(uint8_t &CC_lowpass_filte
     return result;
 }
 
-FLASHMEM byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter)
+FLASHMEM byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRUMENTS], uint8_t lowpass_filter, uint8_t line_out_volume)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1312,10 +1312,11 @@ FLASHMEM byte ArchivingManager::Save_CC_settings(const uint8_t sound_gain[INSTRU
 
     memcpy(system.CC_settings.sound_gain, sound_gain, sizeof(system.CC_settings.sound_gain));
     system.CC_settings.lowpass_filter = lowpass_filter;
+    system.CC_settings.line_out_volume = line_out_volume;
     return FRAM_Write_system(system);
 }
 
-FLASHMEM byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter)
+FLASHMEM byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS], uint8_t &lowpass_filter, uint8_t &line_out_volume)
 {
     FRAM_System_struct system{};
     const byte result = FRAM_Read_system(system);
@@ -1324,6 +1325,7 @@ FLASHMEM byte ArchivingManager::Read_CC_settings(uint8_t sound_gain[INSTRUMENTS]
     {
         memcpy(sound_gain, system.CC_settings.sound_gain, sizeof(system.CC_settings.sound_gain));
         lowpass_filter = system.CC_settings.lowpass_filter;
+        line_out_volume = system.CC_settings.line_out_volume;
     }
 
     return result;
