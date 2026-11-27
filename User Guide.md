@@ -1,10 +1,10 @@
 # LILLA User Guide
 
-For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.4.0**
+For **LILLA Audio Sampler 2026 | PCB2026_R1 | firmware 7.4.1**
 
-Guide edition: **24 November 2026**
+Guide edition: **28 November 2026**
 
-Printable edition: [User Guide PDF for firmware 7.4.0](User%20Guide.pdf).
+Printable edition: [User Guide PDF for firmware 7.4.1](User%20Guide.pdf).
 
 <img src="doc/assets/images/lilla_blue_1.jpg" alt="LILLA Audio Sampler in blue" width="100%">
 
@@ -316,6 +316,8 @@ Use the commands shown in the Performance menu:
 - `SAVE_AS_NEW`: store the edited result as a new patch.
 - `EXIT`: discard the current edits through the Performance exit workflow.
 - `DELETE`: delete the patch, after the deletion confirmation.
+
+When changing patches with unsaved edits, `SAVE CHANGES?` offers `CANCEL`, `NO` and `YES`. `CANCEL` keeps the current patch and edits; `NO` discards the edits and continues; `YES` saves them and continues. `CANCEL` is initially selected.
 
 A sound's `RETURN` command keeps edits in the current session. Save the patch to make those edits persistent.
 
@@ -899,7 +901,7 @@ Open **Tools > Setup** for these entries, in display order:
 - `IMPORT AUDIO FILES FROM SD`: replace the Flash audio library using files in `/UPLOAD_AUDIO_FILES`.
 - `KEYBOARD STEP`: pitch mapping increments of one semitone, half a semitone, quarter or eighth of a semitone.
 - `FIRST OCTAVE`: the octave-number convention used for note display.
-- `CONTROL CHANGE ASSIGNMENT`: MIDI CC assignments for gains of Sound 1-8 and the low-pass cutoff.
+- `CONTROL CHANGE ASSIGNMENT`: MIDI CC assignments for gains of Sound 1-8, the low-pass cutoff and LINE OUT VOLUME.
 - `CONFIGURATION BACKUP`: save configuration and recording audio in a new numbered backup folder.
 - `RESTORE CONFIGURATION FROM BACKUP`: restore the backup placed directly in `/RESTORE_FROM_BACKUP`.
 - `FACTORY RESET`: delete patches and recordings while keeping imported audio files.
@@ -916,16 +918,18 @@ With `KEYBOARD STEP` at one semitone, adjacent MIDI notes use the normal chromat
 
 <img src="doc/assets/images/10.jpg" alt="Control Change Assignment page for eight sound gains and LPF cutoff" width="55%">
 
-*Each destination can have a CC assignment. A dash means no assignment.*
+*The illustration shows the earlier layout. Firmware 7.4.1 adds LINE OUT VOLUME below LPF CUTOFF. A dash means no assignment.*
 
-1. Open `CONTROL CHANGE ASSIGNMENT`.
-2. Select the gain destination or LPF cutoff.
-3. Set the desired CC number.
-4. Set your MIDI controller's knob or slider to transmit that CC.
-5. For a sound gain, use the MIDI channel assigned to that sound.
-6. Return and test the control while playing.
+1. Open **Tools > Setup > CONTROL CHANGE ASSIGNMENT**.
+2. Turn **Select** to highlight a sound gain, `LPF CUTOFF` or `LINE OUT VOLUME`.
+3. Turn **Value** to choose the CC number, or move your external controller to learn its transmitted CC number automatically.
+4. Press **Value** to clear the selected assignment; it will show a dash.
+5. Select `RETURN` and press **Select** to save assignments and return to Setup. Alternatively, press **TOOLS** to save assignments and leave Tools entirely, returning to the operating mode selected by the mode switch.
+6. Test the control while playing. Sound gain responds on that sound's assigned MIDI channel. LPF cutoff and LINE OUT VOLUME respond globally, regardless of the transmitting MIDI channel.
 
-Use a dash to leave a destination unassigned. Check both the controller number and the transmitting channel if moving the external control has no effect.
+`LINE OUT VOLUME` controls the same overall volume as the front-panel LINE OUT VOLUME encoder. Incoming CC values 0-127 map to displayed volume values 0-100, using the existing volume curve. The change updates all instrument presets and active playback voices. Assignments are retained after power-off; this does not make the current volume value a saved CC setting.
+
+CC number 0 means unassigned. Avoid CC 1, 123 and 126 for these assignments: they retain their existing modulation and note-stop functions. Use distinct CC numbers for global destinations and sound gains. If the same CC is assigned more than once, LINE OUT VOLUME takes precedence over LPF CUTOFF, and LPF CUTOFF takes precedence over sound gains.
 
 ### Check incoming MIDI
 
@@ -1030,17 +1034,17 @@ The firmware is the program that runs LILLA. To load a compiled firmware on Wind
 - Your LILLA instrument, which uses a Teensy 4.1.
 - A Windows 10 or 11 computer.
 - A USB **data** cable matching the computer and LILLA's USB-C connector. A charging-only cable cannot transfer firmware.
-- The LILLA firmware file, for example `Lilla_v7_4_0.hex`.
+- The LILLA firmware file, for example `Lilla_v7_4_1.hex`.
 - Teensy Loader, downloaded from PJRC.
 
 ### Download the firmware
 
 1. Open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_4_0.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
+2. In the project's top-level file list, open the published `.hex` file for your instrument, for example `Lilla_v7_4_1.hex`. This is the compiled firmware; **Code > Download ZIP** downloads the project sources instead.
 3. On the HEX file page, click **Download raw file**. Download firmware only from **main**. The **develop** branch contains work in progress and may contain faulty or untested builds.
 4. Save the file in a folder you can find easily, such as `Downloads/LILLA`. Check that its name ends in `.hex`, not `.html` or `.txt`.
 
-The version numbers in `Lilla_v7_4_0.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
+The version numbers in `Lilla_v7_4_1.hex` identify the firmware version and revision. Keep the downloaded copy if you want to retain that exact build. If no HEX file is available on **main**, wait for the maintainer to publish it; do not substitute a file from **develop**.
 
 ### Download Teensy Loader
 
@@ -1057,11 +1061,11 @@ Lower your amplifier or mixer level, then connect LILLA's USB-C connector to the
 ### Upload and restart
 
 1. In Teensy Loader, leave **Automatic Mode** off for this manual procedure.
-2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_4_0.hex`. Confirm the filename shown in the loader.
+2. Choose **File > Open HEX File** and select the downloaded `Lilla_v7_4_1.hex`. Confirm the filename shown in the loader.
 3. Briefly press and release LILLA's **Firmware_upload mode** button. This is the programming button, not the On/off button. The instrument's current program stops and the loader should detect the Teensy.
 4. Choose **Operations > Program**. Wait for **Download Complete** before disconnecting anything.
 5. Choose **Operations > Reboot**. LILLA should restart.
-6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.4.0. Load a familiar patch and check playback at a low listening level.
+6. Check the firmware version on LILLA's welcome screen. The welcome screen should show version 7.4.1. Load a familiar patch and check playback at a low listening level.
 
 The manual controls above follow the [PJRC Windows loader instructions](https://www.pjrc.com/teensy/loader_win10.html). Updating firmware programs the Teensy's internal program memory; importing audio from the SD card is a separate operation.
 
@@ -1088,7 +1092,7 @@ On macOS, use the standalone **Teensy Loader** application and the published LIL
 ### Download the firmware on Mac
 
 1. In your browser, open the [main branch of the LILLA GitHub repository](https://github.com/SandroGrassia/Lilla_Audio_Sampler/tree/main). Confirm that the branch selector shows **main**.
-2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_4_0.hex`.
+2. Open the published `.hex` file in the project's top-level file list, for example `Lilla_v7_4_1.hex`.
 3. Click **Download raw file** and save it in a convenient folder, such as `Downloads/LILLA`.
 4. In Finder, confirm that the downloaded file ends in `.hex`. A GitHub web page or **Code > Download ZIP** source archive cannot be loaded as firmware.
 
@@ -1115,7 +1119,7 @@ Lower the listening level. Connect LILLA's USB-C connector to the Mac with the d
 3. Briefly press and release LILLA's **Firmware_upload mode** button, rather than On/off. The loader should detect the Teensy.
 4. Choose **Operations > Program** and wait for **Download Complete**.
 5. Choose **Operations > Reboot** to restart LILLA.
-6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.4.0.
+6. Check the version on the welcome screen and test a familiar patch at a low listening level. For this release, the welcome screen should show version 7.4.1.
 
 These controls are described in the [PJRC Mac loader instructions](https://www.pjrc.com/teensy/loader_mac.html).
 
@@ -1264,6 +1268,6 @@ Change one thing at a time and retest with the same note. This makes it easier t
 
 ---
 
-*LILLA User Guide - English edition - 24 November 2026*
+*LILLA User Guide - English edition - 28 November 2026*
 
 *Guide images: [doc/assets/images](doc/assets/images/). Preserve this relative folder path when sharing the illustrated guide.*

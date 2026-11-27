@@ -16,7 +16,15 @@ Read the illustrated [User Guide](User%20Guide.md) for connections, controls and
 
 See the [Firmware Architecture](FIRMWARE_ARCHITECTURE.md) for the audio engine, execution model, memory layout and maintenance guidance.
 
-## New in firmware 7.4.0
+## New in firmware 7.4.1
+
+**Control LINE OUT VOLUME from MIDI.** Assign or learn a CC number in **Tools > Setup > CONTROL CHANGE ASSIGNMENT**, below LPF CUTOFF. Values 0-127 control the same 0-100 overall volume as the front-panel encoder, updating active voices as well as future notes. The assignment is saved in FRAM.
+
+Press **TOOLS** from the assignment page to save and return directly to the selected operating mode. The **SAVE CHANGES?** popup now offers **CANCEL / NO / YES**, with centered options.
+
+Download [Lilla_v7_4_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.4.1/Lilla_v7_4_1.hex). See the [7.4.1 release notes](docs/release-notes-7.4.1.md) and [User Guide](User%20Guide.md). The Teensy build and all 67 host regression scripts passed.
+
+## Introduced in firmware 7.4.0
 
 **Sliding loop windows in FWD and REV.** SLIDE moves the playback window toward the end or beginning of the source. Its displayed value refers to pitch 1; automatic pitch compensation keeps the average scrolling speed consistent as notes, tuning, bend and vibrato change. Small fractional steps accumulate instead of disappearing.
 
@@ -174,7 +182,7 @@ MIDI OUT and Gate IN/OUT are physically available and accessible through classes
 
 ## Firmware download
 
-Firmware **7.4.0 (24 November 2026)**: download [Lilla_v7_4_0.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.4.0/Lilla_v7_4_0.hex) from [release v7.4.0](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.4.0). See the [7.4.0 release notes](docs/release-notes-7.4.0.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
+Firmware **7.4.1 (28 November 2026)**: download [Lilla_v7_4_1.hex](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/download/v7.4.1/Lilla_v7_4_1.hex) from [release v7.4.1](https://github.com/SandroGrassia/Lilla_Audio_Sampler/releases/tag/v7.4.1). See the [7.4.1 release notes](docs/release-notes-7.4.1.md) for changes and the [User Guide](User%20Guide.md) for upload instructions.
 
 ## Build
 
